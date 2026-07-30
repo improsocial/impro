@@ -14,6 +14,15 @@ import { LOGGED_OUT_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
 import { isListFeed } from "/js/dataHelpers.js";
 
+export const HIDDEN_POSTS_PREF_TYPE =
+  "app.bsky.actor.defs#improHiddenPostsPref";
+export const PLUGIN_SETTINGS_PREF_TYPE =
+  "app.bsky.actor.defs#improPluginSettingsPref";
+export const INSTALLED_PLUGINS_PREF_TYPE =
+  "app.bsky.actor.defs#improInstalledPluginsPref";
+export const SEARCH_HISTORY_PREF_TYPE =
+  "app.bsky.actor.defs#improSearchHistoryPref";
+
 function getContentTextFromEmbed(embed) {
   const texts = [];
 
@@ -167,7 +176,7 @@ export class Preferences {
     // If the preference doesn't exist, create it
     if (!hiddenPostsPreference) {
       hiddenPostsPreference = {
-        $type: "app.bsky.actor.defs#improHiddenPostsPref",
+        $type: HIDDEN_POSTS_PREF_TYPE,
         items: [],
       };
       clone.obj.push(hiddenPostsPreference);
@@ -619,7 +628,7 @@ export class Preferences {
       existing.data = data;
     } else {
       clone.obj.push({
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId,
         data,
       });
@@ -632,8 +641,7 @@ export class Preferences {
     clone.obj = clone.obj.filter(
       (pref) =>
         !(
-          pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
-          pref.pluginId === pluginId
+          pref.$type === PLUGIN_SETTINGS_PREF_TYPE && pref.pluginId === pluginId
         ),
     );
     return clone;
@@ -642,7 +650,7 @@ export class Preferences {
   getInstalledPlugins() {
     const pref = Preferences.getPreferenceByType(
       this.obj,
-      "app.bsky.actor.defs#improInstalledPluginsPref",
+      INSTALLED_PLUGINS_PREF_TYPE,
     );
     return pref?.plugins ?? [];
   }
@@ -651,13 +659,13 @@ export class Preferences {
     const clone = this.clone();
     const existing = Preferences.getPreferenceByType(
       clone.obj,
-      "app.bsky.actor.defs#improInstalledPluginsPref",
+      INSTALLED_PLUGINS_PREF_TYPE,
     );
     if (existing) {
       existing.plugins = plugins;
     } else {
       clone.obj.push({
-        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        $type: INSTALLED_PLUGINS_PREF_TYPE,
         plugins,
       });
     }
@@ -680,27 +688,21 @@ export class Preferences {
   }
 
   static getHiddenPostsPreference(obj) {
-    // Note: This is a custom preference type. social-app stores hidden posts in local storage,
+    // Note: social-app stores hidden posts in local storage,
     // but there's a note in the code to "move to the server" so let's just do that here.
-    return Preferences.getPreferenceByType(
-      obj,
-      "app.bsky.actor.defs#improHiddenPostsPref",
-    );
+    return Preferences.getPreferenceByType(obj, HIDDEN_POSTS_PREF_TYPE);
   }
 
   static getSearchHistoryPreference(obj) {
-    // Custom preference type, following the improHiddenPostsPref precedent.
-    return Preferences.getPreferenceByType(
-      obj,
-      "app.bsky.actor.defs#improSearchHistoryPref",
-    );
+    // As with hidden posts, store these on preferences instead of locally.
+    return Preferences.getPreferenceByType(obj, SEARCH_HISTORY_PREF_TYPE);
   }
 
   static ensureSearchHistoryPreference(obj) {
     let pref = Preferences.getSearchHistoryPreference(obj);
     if (!pref) {
       pref = {
-        $type: "app.bsky.actor.defs#improSearchHistoryPref",
+        $type: SEARCH_HISTORY_PREF_TYPE,
         searches: [],
       };
       obj.push(pref);
@@ -738,8 +740,7 @@ export class Preferences {
   static getPluginSettingsPreference(obj, pluginId) {
     return obj.find(
       (pref) =>
-        pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
-        pref.pluginId === pluginId,
+        pref.$type === PLUGIN_SETTINGS_PREF_TYPE && pref.pluginId === pluginId,
     );
   }
 

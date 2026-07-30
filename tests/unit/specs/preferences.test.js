@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Preferences } from "/js/preferences.js";
+import {
+  Preferences,
+  PLUGIN_SETTINGS_PREF_TYPE,
+  INSTALLED_PLUGINS_PREF_TYPE,
+  SEARCH_HISTORY_PREF_TYPE,
+} from "/js/preferences.js";
 
 describe("Preferences.createLoggedOutPreferences", () => {
   it("should create preferences with discover feed pinned", () => {
@@ -2946,7 +2951,7 @@ describe("Preferences plugin settings", () => {
   it("returns stored data for a plugin", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId: "my-plugin",
         data: { foo: "bar" },
       },
@@ -2960,7 +2965,7 @@ describe("Preferences plugin settings", () => {
   it("does not return data scoped to a different plugin", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId: "plugin-a",
         data: { foo: "bar" },
       },
@@ -2985,7 +2990,7 @@ describe("Preferences plugin settings", () => {
     assert.deepEqual(updated.getPluginSettings("my-plugin"), { count: 2 });
     // Only one record stored
     const records = updated.obj.filter(
-      (pref) => pref.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+      (pref) => pref.$type === PLUGIN_SETTINGS_PREF_TYPE,
     );
     assert.deepEqual(records.length, 1);
   });
@@ -3027,7 +3032,7 @@ describe("Preferences installed plugins", () => {
   it("returns stored plugins list", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        $type: INSTALLED_PLUGINS_PREF_TYPE,
         plugins: [
           { id: "alpha", version: "1.0.0", enabled: true },
           { id: "beta", version: "2.0.0", enabled: false },
@@ -3064,7 +3069,7 @@ describe("Preferences installed plugins", () => {
       { id: "alpha", version: "1.1.0", enabled: true },
     ]);
     const records = updated.obj.filter(
-      (pref) => pref.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+      (pref) => pref.$type === INSTALLED_PLUGINS_PREF_TYPE,
     );
     assert.deepEqual(records.length, 1);
   });
@@ -3073,7 +3078,7 @@ describe("Preferences installed plugins", () => {
 describe("Preferences recent searches", () => {
   const buildObj = (searches) => [
     {
-      $type: "app.bsky.actor.defs#improSearchHistoryPref",
+      $type: SEARCH_HISTORY_PREF_TYPE,
       searches,
     },
   ];
@@ -3100,7 +3105,7 @@ describe("Preferences recent searches", () => {
     const preferences = new Preferences([], []);
     const updated = preferences.addRecentSearch("cats");
     const pref = Preferences.getSearchHistoryPreference(updated.obj);
-    assert.deepEqual(pref.$type, "app.bsky.actor.defs#improSearchHistoryPref");
+    assert.deepEqual(pref.$type, SEARCH_HISTORY_PREF_TYPE);
     assert.deepEqual(pref.searches.length, 1);
     // Original unchanged
     assert.deepEqual(preferences.getRecentSearches(), []);
@@ -3285,7 +3290,7 @@ describe("Preferences recent search profiles", () => {
       .addRecentSearch("cats")
       .addRecentSearchProfile("did:plc:aaa");
     const records = preferences.obj.filter(
-      (pref) => pref.$type === "app.bsky.actor.defs#improSearchHistoryPref",
+      (pref) => pref.$type === SEARCH_HISTORY_PREF_TYPE,
     );
     assert.deepEqual(records.length, 1);
     assert.deepEqual(preferences.getRecentSearches().length, 1);
