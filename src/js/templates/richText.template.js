@@ -46,7 +46,9 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
     case "app.bsky.richtext.facet#mention":
       const did = feature.did;
       // Handle unresolved mentions
-      return html`<a href="${did ? linkToProfileByDid(did) : "#"}"
+      return html`<a
+        href="${did ? linkToProfileByDid(did) : "#"}"
+        data-hover-did=${did || ""}
         >${wrappedText}</a
       >`;
     default:

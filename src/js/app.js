@@ -46,6 +46,7 @@ import { PostComposerService } from "/js/postComposerService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
 import { GroupChatLinkService } from "/js/groupChatLinkService.js";
+import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative, wait } from "/js/utils.js";
@@ -133,6 +134,10 @@ export async function main() {
     postComposerService,
     reportService,
   });
+  const profileHoverCardService = new ProfileHoverCardService(
+    dataLayer,
+    interactionHandlers,
+  );
   pluginService.setRenderContext({
     isAuthenticated: !!session,
     dataLayer,
@@ -212,6 +217,7 @@ export async function main() {
     groupChatLinkService,
     pluginService,
     interactionHandlers,
+    profileHoverCardService,
   };
 
   const isOwnProfile = (params) => {
