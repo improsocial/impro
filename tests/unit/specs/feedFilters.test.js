@@ -6,6 +6,7 @@ import {
   filterAuthorFeed,
   filterBookmarksFeed,
 } from "/js/feedFilters.js";
+import { createUnavailablePost } from "/js/dataHelpers.js";
 
 // Helper to create mock posts
 function createPost(options = {}) {
@@ -402,10 +403,7 @@ describe("filterAuthorFeed", () => {
   it("should filter out unavailable posts", () => {
     const items = [
       createFeedItem({
-        post: {
-          uri: "at://did:plc:test/app.bsky.feed.post/1",
-          $type: "social.impro.feed.defs#unavailablePost",
-        },
+        post: createUnavailablePost("at://did:plc:test/app.bsky.feed.post/1"),
       }),
       createFeedItem({
         post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
@@ -1165,10 +1163,7 @@ describe("filterBookmarksFeed", () => {
         },
       }),
       createFeedItem({
-        post: {
-          uri: "at://did:plc:test/app.bsky.feed.post/2",
-          $type: "social.impro.feed.defs#unavailablePost",
-        },
+        post: createUnavailablePost("at://did:plc:test/app.bsky.feed.post/2"),
       }),
       createFeedItem({
         post: { uri: "at://did:plc:test/app.bsky.feed.post/3" },

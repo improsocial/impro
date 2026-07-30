@@ -24,6 +24,7 @@ import {
   getDisplayName,
   getThreadgateAllowSettings,
   isEmptyPost,
+  createUnavailablePost,
   hasValidHandle,
   INVALID_HANDLE,
   MISSING_HANDLE,
@@ -1166,10 +1167,7 @@ describe("isEmptyPost", () => {
   });
 
   it("should return true for unavailable posts", () => {
-    const post = {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: "at://x",
-    };
+    const post = createUnavailablePost("at://x");
     assert.deepEqual(isEmptyPost(post), true);
   });
 
@@ -1200,10 +1198,7 @@ describe("canReplyToPost", () => {
   });
 
   it("should return false for an unavailable post", () => {
-    const post = {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: "at://x",
-    };
+    const post = createUnavailablePost("at://x");
     assert.deepEqual(canReplyToPost(post), false);
   });
 

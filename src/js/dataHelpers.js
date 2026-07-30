@@ -296,13 +296,15 @@ export function createNotFoundPost(uri) {
   };
 }
 
+const UNAVAILABLE_POST_TYPE = "__unavailablePost";
+
 export function isUnavailablePost(post) {
-  return post.$type === "social.impro.feed.defs#unavailablePost";
+  return post.$type === UNAVAILABLE_POST_TYPE;
 }
 
 export function createUnavailablePost(uri) {
   return {
-    $type: "social.impro.feed.defs#unavailablePost",
+    $type: UNAVAILABLE_POST_TYPE,
     uri,
   };
 }
