@@ -276,7 +276,7 @@ class CommunityPluginListingView extends View {
     });
 
     root.addEventListener("page-restore", () => {
-      // window.scrollTo(0, 0);
+      window.scrollTo(0, 0);
     });
   }
 }
