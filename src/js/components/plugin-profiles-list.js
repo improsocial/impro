@@ -92,7 +92,7 @@ class PluginProfilesList extends Component {
     }
     this.state.$loaded.set(false);
     try {
-      await this.dataLayer.declarative.ensureDetailedProfiles(dids);
+      await this.dataLayer.declarative.ensureProfiles(dids);
       if (this._requestToken !== requestToken) return;
       this.state.$loaded.set(true);
     } catch (error) {

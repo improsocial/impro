@@ -26,7 +26,7 @@ describe("plugin-profiles-list", () => {
   }
 
   async function flushMicrotasks() {
-    // Two ticks: the first flushes microtasks (e.g. ensureDetailedProfiles),
+    // Two ticks: the first flushes microtasks (e.g. ensureProfiles),
     // the second lets the rAF-scheduled effect render run before assertions.
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -41,7 +41,7 @@ describe("plugin-profiles-list", () => {
       const dataLayer = makeTestDataLayer();
       mock.method(
         dataLayer.declarative,
-        "ensureDetailedProfiles",
+        "ensureProfiles",
         () => new Promise(() => {}),
       );
       const element = document.createElement("plugin-profiles-list");
@@ -55,13 +55,9 @@ describe("plugin-profiles-list", () => {
   });
 
   describe("PluginProfilesList - loaded state", () => {
-    it("renders profile list items once ensureDetailedProfiles resolves", async () => {
+    it("renders profile list items once ensureProfiles resolves", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(
-        dataLayer.declarative,
-        "ensureDetailedProfiles",
-        async () => [],
-      );
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => []);
       seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
       seedProfile(dataLayer, makeProfile("did:test:b", "b.test"));
       const element = document.createElement("plugin-profiles-list");
@@ -78,11 +74,7 @@ describe("plugin-profiles-list", () => {
 
     it("filters out missing entries from the selector", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(
-        dataLayer.declarative,
-        "ensureDetailedProfiles",
-        async () => [],
-      );
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => []);
       seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
       element.setAttribute("dids", "did:test:a,did:test:missing");
@@ -98,11 +90,7 @@ describe("plugin-profiles-list", () => {
 
     it("does not render follow buttons on any row", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(
-        dataLayer.declarative,
-        "ensureDetailedProfiles",
-        async () => [],
-      );
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => []);
       seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
       seedProfile(dataLayer, makeProfile("did:test:b", "b.test"));
       const element = document.createElement("plugin-profiles-list");
@@ -117,11 +105,7 @@ describe("plugin-profiles-list", () => {
 
     it("does not render the end-of-feed message", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(
-        dataLayer.declarative,
-        "ensureDetailedProfiles",
-        async () => [],
-      );
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => []);
       seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
       element.setAttribute("dids", "did:test:a");
@@ -137,9 +121,9 @@ describe("plugin-profiles-list", () => {
   describe("PluginProfilesList - empty dids", () => {
     it("renders no skeletons or items when dids is empty", () => {
       const dataLayer = makeTestDataLayer();
-      const ensureDetailedProfiles = mock.method(
+      const ensureProfiles = mock.method(
         dataLayer.declarative,
-        "ensureDetailedProfiles",
+        "ensureProfiles",
         async () => [],
       );
       const element = document.createElement("plugin-profiles-list");
@@ -155,14 +139,14 @@ describe("plugin-profiles-list", () => {
         ).length,
         0,
       );
-      assert.deepEqual(ensureDetailedProfiles.mock.callCount(), 0);
+      assert.deepEqual(ensureProfiles.mock.callCount(), 0);
     });
   });
 
   describe("PluginProfilesList - error state", () => {
-    it("renders the error message when ensureDetailedProfiles rejects", async () => {
+    it("renders the error message when ensureProfiles rejects", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(dataLayer.declarative, "ensureDetailedProfiles", async () => {
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => {
         throw new Error("boom");
       });
       const element = document.createElement("plugin-profiles-list");
@@ -178,9 +162,9 @@ describe("plugin-profiles-list", () => {
   describe("PluginProfilesList - did changes", () => {
     it("reloads when the dids attribute changes", async () => {
       const dataLayer = makeTestDataLayer();
-      const ensureDetailedProfiles = mock.method(
+      const ensureProfiles = mock.method(
         dataLayer.declarative,
-        "ensureDetailedProfiles",
+        "ensureProfiles",
         async (dids) => {
           dids.forEach((did) => seedProfile(dataLayer, makeProfile(did, did)));
           return dids.map((did) =>
@@ -194,11 +178,11 @@ describe("plugin-profiles-list", () => {
       await flushMicrotasks();
       element.setAttribute("dids", "did:test:b,did:test:c");
       await flushMicrotasks();
-      assert.deepEqual(ensureDetailedProfiles.mock.callCount(), 2);
-      assert.deepEqual(ensureDetailedProfiles.mock.calls[0].arguments[0], [
+      assert.deepEqual(ensureProfiles.mock.callCount(), 2);
+      assert.deepEqual(ensureProfiles.mock.calls[0].arguments[0], [
         "did:test:a",
       ]);
-      assert.deepEqual(ensureDetailedProfiles.mock.calls[1].arguments[0], [
+      assert.deepEqual(ensureProfiles.mock.calls[1].arguments[0], [
         "did:test:b",
         "did:test:c",
       ]);
@@ -210,14 +194,41 @@ describe("plugin-profiles-list", () => {
       );
     });
 
-    it("ignores stale ensureDetailedProfiles results when dids change mid-flight", async () => {
+    it("renders new dids from already-cached profiles without fetching", async () => {
+      const dataLayer = makeTestDataLayer();
+      const loadDetailedProfiles = mock.method(
+        dataLayer.requests,
+        "loadDetailedProfiles",
+        async () => {
+          throw new Error("unexpected fetch");
+        },
+      );
+      seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
+      seedProfile(dataLayer, makeProfile("did:test:b", "b.test"));
+      seedProfile(dataLayer, makeProfile("did:test:c", "c.test"));
+      const element = document.createElement("plugin-profiles-list");
+      element.setAttribute("dids", "did:test:a");
+      mount(element, dataLayer);
+      await flushMicrotasks();
+      element.setAttribute("dids", "did:test:a,did:test:b,did:test:c");
+      await flushMicrotasks();
+      assert.deepEqual(
+        element.querySelectorAll(
+          "[data-testid='profile-list-item-display-name']",
+        ).length,
+        3,
+      );
+      assert.deepEqual(loadDetailedProfiles.mock.callCount(), 0);
+    });
+
+    it("ignores stale ensureProfiles results when dids change mid-flight", async () => {
       const dataLayer = makeTestDataLayer();
       let resolveFirst;
       const firstPromise = new Promise((resolve) => {
         resolveFirst = resolve;
       });
       let callIndex = 0;
-      mock.method(dataLayer.declarative, "ensureDetailedProfiles", (dids) => {
+      mock.method(dataLayer.declarative, "ensureProfiles", (dids) => {
         callIndex++;
         if (callIndex === 1) return firstPromise;
         dids.forEach((did) => seedProfile(dataLayer, makeProfile(did, did)));
@@ -243,11 +254,7 @@ describe("plugin-profiles-list", () => {
   describe("PluginProfilesList - live updates", () => {
     it("re-renders when a profile signal updates", async () => {
       const dataLayer = makeTestDataLayer();
-      mock.method(
-        dataLayer.declarative,
-        "ensureDetailedProfiles",
-        async () => [],
-      );
+      mock.method(dataLayer.declarative, "ensureProfiles", async () => []);
       seedProfile(dataLayer, makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
       element.setAttribute("dids", "did:test:a");
