@@ -173,6 +173,12 @@ export class PatchStore extends ReactiveStore {
     return this.$profilePatches.get(profileURI) || [];
   }
 
+  hasPendingProfilePatch(did, types) {
+    const patches = this.$profilePatches.get(did) ?? [];
+    const set = Array.isArray(types) ? new Set(types) : new Set([types]);
+    return patches.some((patch) => set.has(patch.body?.type));
+  }
+
   addProfilePatch(profileURI, patchBody) {
     const patchId = this.uuid.create();
     this.$profilePatches.set(profileURI, [

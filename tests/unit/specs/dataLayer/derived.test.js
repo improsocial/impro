@@ -2301,3 +2301,65 @@ describe("interaction and graph list hydration", () => {
     assert.deepEqual(result.count, 3);
   });
 });
+
+describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
+  const did = "did:test:pending";
+
+  it("$isFollowPending is false when no follow/unfollow patch is pending", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$isFollowPending.get(did), false);
+  });
+
+  it("$isFollowPending flips true while a followProfile patch is pending", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    const patchId = patchStore.addProfilePatch(did, { type: "followProfile" });
+    assert.deepEqual(derived.$isFollowPending.get(did), true);
+    patchStore.removeProfilePatch(did, patchId);
+    assert.deepEqual(derived.$isFollowPending.get(did), false);
+  });
+
+  it("$isFollowPending flips true while an unfollowProfile patch is pending", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    patchStore.addProfilePatch(did, { type: "unfollowProfile" });
+    assert.deepEqual(derived.$isFollowPending.get(did), true);
+  });
+
+  it("$isFollowPending ignores unrelated profile patches", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    patchStore.addProfilePatch(did, { type: "muteProfile" });
+    patchStore.addProfilePatch(did, { type: "blockProfile" });
+    assert.deepEqual(derived.$isFollowPending.get(did), false);
+  });
+
+  it("$isBlockPending covers blockProfile and unblockProfile", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    const blockId = patchStore.addProfilePatch(did, { type: "blockProfile" });
+    assert.deepEqual(derived.$isBlockPending.get(did), true);
+    patchStore.removeProfilePatch(did, blockId);
+    patchStore.addProfilePatch(did, { type: "unblockProfile" });
+    assert.deepEqual(derived.$isBlockPending.get(did), true);
+  });
+
+  it("$isMutePending covers muteProfile and unmuteProfile", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    const muteId = patchStore.addProfilePatch(did, { type: "muteProfile" });
+    assert.deepEqual(derived.$isMutePending.get(did), true);
+    patchStore.removeProfilePatch(did, muteId);
+    patchStore.addProfilePatch(did, { type: "unmuteProfile" });
+    assert.deepEqual(derived.$isMutePending.get(did), true);
+  });
+
+  it("pending signals are keyed per profile", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore);
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    assert.deepEqual(derived.$isFollowPending.get(did), true);
+    assert.deepEqual(derived.$isFollowPending.get("did:test:other"), false);
+  });
+});

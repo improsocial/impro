@@ -106,14 +106,6 @@ function loadingBodyTemplate() {
   </div>`;
 }
 
-function isFollowInFlight(dataLayer, did) {
-  const patches = dataLayer.patchStore.$profilePatches.get(did) ?? [];
-  return patches.some(
-    (p) =>
-      p.body?.type === "followProfile" || p.body?.type === "unfollowProfile",
-  );
-}
-
 function followButtonTemplate({
   profile,
   isCurrentUser,
@@ -122,7 +114,7 @@ function followButtonTemplate({
   isBlockedBy,
   isBlockingByList,
   isAuthenticated,
-  followInFlight,
+  isFollowPending,
   onFollow,
 }) {
   if (isCurrentUser) return null;
@@ -150,7 +142,7 @@ function followButtonTemplate({
     })}
     data-testid="follow-button"
     data-teststate=${state}
-    ?disabled=${followInFlight}
+    ?disabled=${isFollowPending}
     @mouseup=${(e) => e.stopPropagation()}
     @click=${(e) => {
       e.stopPropagation();
@@ -209,7 +201,7 @@ function hoverCardTemplate({
     isDetailed &&
     typeof profile.followersCount === "number" &&
     typeof profile.followsCount === "number";
-  const followInFlight = isFollowInFlight(dataLayer, profile.did);
+  const isFollowPending = dataLayer.derived.$isFollowPending.get(profile.did);
   const displayName = getDisplayName(profile);
 
   return html`<div class="profile-hover-card-anim">
@@ -227,7 +219,7 @@ function hoverCardTemplate({
             isBlockedBy,
             isBlockingByList,
             isAuthenticated,
-            followInFlight,
+            isFollowPending,
             onFollow: (p, doFollow) =>
               interactionHandlers.profileInteractionHandler.handleFollow(
                 p,

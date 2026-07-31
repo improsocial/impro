@@ -268,6 +268,8 @@ export function profileCardTemplate({
   onClickReport = noop,
   onClickEditProfile = noop,
   pluginService = null,
+  isFollowPending = false,
+  isBlockPending = false,
 }) {
   const isFollowing = profile.viewer?.following;
   const isFollowedBy = profile.viewer?.followedBy;
@@ -350,6 +352,7 @@ export function profileCardTemplate({
               @click=${() => onClickBlock(profile, false)}
               class="rounded-button profile-following-button"
               data-testid="unblock-button"
+              ?disabled=${isBlockPending}
             >
               Unblock
             </button>`;
@@ -391,6 +394,7 @@ export function profileCardTemplate({
               : isFollowedBy
                 ? "follow-back"
                 : "follow"}
+            ?disabled=${isFollowPending}
           >
             ${isFollowing
               ? "Following"
