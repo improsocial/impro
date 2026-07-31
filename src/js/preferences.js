@@ -50,7 +50,7 @@ function getContentTextFromEmbed(embed) {
   return texts;
 }
 
-const MAX_RECENT_SEARCHES = 10;
+const MAX_RECENT_SEARCHES = 5;
 const MAX_RECENT_SEARCH_PROFILES = 10;
 const MAX_RECENT_SEARCH_QUERY_LENGTH = 300;
 

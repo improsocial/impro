@@ -3142,15 +3142,15 @@ describe("Preferences recent searches", () => {
     );
   });
 
-  it("caps stored searches at 10, dropping the oldest", () => {
+  it("caps stored searches at 5, dropping the oldest", () => {
     let preferences = new Preferences([], []);
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 7; i++) {
       preferences = preferences.addRecentSearch(`query ${i}`);
     }
     const searches = preferences.getRecentSearches();
-    assert.deepEqual(searches.length, 10);
-    assert.deepEqual(searches[0].q, "query 12");
-    assert.deepEqual(searches[9].q, "query 3");
+    assert.deepEqual(searches.length, 5);
+    assert.deepEqual(searches[0].q, "query 7");
+    assert.deepEqual(searches[4].q, "query 3");
   });
 
   it("removes a search by query", () => {
