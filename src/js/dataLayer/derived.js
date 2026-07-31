@@ -123,6 +123,24 @@ export class Derived extends ReactiveStore {
     this.$showLessInteractions = new ComputedMap(
       (feedUri) => this.dataStore.$showLessInteractions.get(feedUri) ?? [],
     );
+    this.$isFollowPending = new ComputedMap((did) =>
+      this.patchStore.hasPendingProfilePatch(did, [
+        "followProfile",
+        "unfollowProfile",
+      ]),
+    );
+    this.$isBlockPending = new ComputedMap((did) =>
+      this.patchStore.hasPendingProfilePatch(did, [
+        "blockProfile",
+        "unblockProfile",
+      ]),
+    );
+    this.$isMutePending = new ComputedMap((did) =>
+      this.patchStore.hasPendingProfilePatch(did, [
+        "muteProfile",
+        "unmuteProfile",
+      ]),
+    );
     this.$hydratedPosts = new ComputedMap((uri) => {
       const post = this.patchStore.$patchedPosts.get(uri);
       const preferences = this.$preferences.get();

@@ -214,6 +214,69 @@ describe("Profile Patches - Follow Patches", () => {
   });
 });
 
+describe("Profile Patches - hasPendingProfilePatch", () => {
+  const profileDID = "did:test:profile";
+
+  it("returns false when no patches exist for the profile", () => {
+    const patchStore = new PatchStore();
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(profileDID, "followProfile"),
+      false,
+    );
+  });
+
+  it("returns true when a matching patch type exists", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(profileDID, { type: "followProfile" });
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(profileDID, "followProfile"),
+      true,
+    );
+  });
+
+  it("returns false when only non-matching patch types exist", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(profileDID, { type: "muteProfile" });
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(profileDID, "followProfile"),
+      false,
+    );
+  });
+
+  it("accepts an array of types and matches any of them", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(profileDID, { type: "unfollowProfile" });
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(profileDID, [
+        "followProfile",
+        "unfollowProfile",
+      ]),
+      true,
+    );
+  });
+
+  it("isolates pending state between profiles", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(profileDID, { type: "followProfile" });
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch("did:test:other", "followProfile"),
+      false,
+    );
+  });
+
+  it("returns false after the matching patch is removed", () => {
+    const patchStore = new PatchStore();
+    const patchId = patchStore.addProfilePatch(profileDID, {
+      type: "followProfile",
+    });
+    patchStore.removeProfilePatch(profileDID, patchId);
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(profileDID, "followProfile"),
+      false,
+    );
+  });
+});
+
 describe("Profile Patches - Error Handling", () => {
   const profileDID = "did:test:profile";
   const baseProfile = {

@@ -1,8 +1,8 @@
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/profile-hover-card.js";
-import { Signal } from "/js/signals.js";
 import { createProfile } from "../../../shared/factories.js";
+import { makeTestDataLayer } from "../../testHelpers.js";
 
 // The element renders reactively via an effect(), which flushes on rAF.
 const flushRender = () =>
@@ -21,38 +21,24 @@ function makeDetailedProfile(overrides = {}) {
   });
 }
 
-// Build a dataLayer stub where the profile/current-user reads come from
-// mutable holders so tests can update them and re-render.
-function makeStubs({
+function makeSetup({
   detailedProfile = null,
   basicProfile = null,
   currentUser = null,
-  profilePatches = [],
 } = {}) {
-  const holders = {
-    detailed: new Signal.State(detailedProfile),
-    basic: new Signal.State(basicProfile),
-    currentUser: new Signal.State(currentUser),
-    patches: new Signal.State(profilePatches),
-  };
-  const dataLayer = {
-    derived: {
-      $hydratedDetailedProfiles: {
-        get: (did) => {
-          const p = holders.detailed.get();
-          return p && p.did === did ? p : null;
-        },
-      },
-      $hydratedProfiles: {
-        get: (did) => {
-          const p = holders.basic.get();
-          return p && p.did === did ? p : null;
-        },
-      },
-      $currentUser: { get: () => holders.currentUser.get() },
-    },
-    patchStore: { $profilePatches: { get: () => holders.patches.get() } },
-  };
+  const dataLayer = makeTestDataLayer();
+  if (detailedProfile) {
+    dataLayer.dataStore.$detailedProfiles.set(
+      detailedProfile.did,
+      detailedProfile,
+    );
+  }
+  if (basicProfile) {
+    dataLayer.dataStore.$profiles.set(basicProfile.did, basicProfile);
+  }
+  if (currentUser) {
+    dataLayer.dataStore.$currentUser.set(currentUser);
+  }
   const followCalls = [];
   const interactionHandlers = {
     profileInteractionHandler: {
@@ -60,7 +46,7 @@ function makeStubs({
         followCalls.push({ profile, doFollow }),
     },
   };
-  return { holders, dataLayer, interactionHandlers, followCalls };
+  return { dataLayer, interactionHandlers, followCalls };
 }
 
 function mountCard({ dataLayer, interactionHandlers, did = "did:plc:target" }) {
@@ -81,7 +67,7 @@ describe("<profile-hover-card>", () => {
   });
 
   it("renders a loading spinner when no profile is available", async () => {
-    const { dataLayer, interactionHandlers } = makeStubs();
+    const { dataLayer, interactionHandlers } = makeSetup();
     const card = mountCard({ dataLayer, interactionHandlers });
     await flushRender();
     assert(card.querySelector(".profile-hover-card-loading") !== null);
@@ -90,7 +76,7 @@ describe("<profile-hover-card>", () => {
 
   it("renders name, handle, counts, and bio for a detailed profile", async () => {
     const profile = makeDetailedProfile();
-    const { dataLayer, interactionHandlers } = makeStubs({
+    const { dataLayer, interactionHandlers } = makeSetup({
       detailedProfile: profile,
       currentUser: { did: "did:plc:viewer" },
     });
@@ -116,7 +102,7 @@ describe("<profile-hover-card>", () => {
 
   it("shows a follow button when viewing another user", async () => {
     const profile = makeDetailedProfile();
-    const { dataLayer, interactionHandlers } = makeStubs({
+    const { dataLayer, interactionHandlers } = makeSetup({
       detailedProfile: profile,
       currentUser: { did: "did:plc:viewer" },
     });
@@ -127,9 +113,31 @@ describe("<profile-hover-card>", () => {
     assert.equal(btn.dataset.teststate, "follow");
   });
 
+  it("disables the follow button while a follow patch is pending", async () => {
+    const profile = makeDetailedProfile();
+    const { dataLayer, interactionHandlers } = makeSetup({
+      detailedProfile: profile,
+      currentUser: { did: "did:plc:viewer" },
+    });
+    const card = mountCard({ dataLayer, interactionHandlers });
+    await flushRender();
+    assert.equal(
+      card.querySelector('[data-testid="follow-button"]').disabled,
+      false,
+    );
+    dataLayer.patchStore.addProfilePatch(profile.did, {
+      type: "followProfile",
+    });
+    await flushRender();
+    assert.equal(
+      card.querySelector('[data-testid="follow-button"]').disabled,
+      true,
+    );
+  });
+
   it("hides the follow button when viewing self", async () => {
     const profile = makeDetailedProfile({ did: "did:plc:me" });
-    const { dataLayer, interactionHandlers } = makeStubs({
+    const { dataLayer, interactionHandlers } = makeSetup({
       detailedProfile: profile,
       currentUser: { did: "did:plc:me" },
     });
@@ -149,7 +157,7 @@ describe("<profile-hover-card>", () => {
     const profile = makeDetailedProfile({
       viewer: { blocking: "at://x", following: null, followedBy: null },
     });
-    const { dataLayer, interactionHandlers } = makeStubs({
+    const { dataLayer, interactionHandlers } = makeSetup({
       detailedProfile: profile,
       currentUser: { did: "did:plc:viewer" },
     });
@@ -166,7 +174,7 @@ describe("<profile-hover-card>", () => {
 
   it("invokes handleFollow when the follow button is clicked", async () => {
     const profile = makeDetailedProfile();
-    const { dataLayer, interactionHandlers, followCalls } = makeStubs({
+    const { dataLayer, interactionHandlers, followCalls } = makeSetup({
       detailedProfile: profile,
       currentUser: { did: "did:plc:viewer" },
     });
@@ -180,14 +188,17 @@ describe("<profile-hover-card>", () => {
 
   it("re-renders when the underlying profile signal updates", async () => {
     const initial = makeDetailedProfile({ displayName: "Old Name" });
-    const { dataLayer, interactionHandlers, holders } = makeStubs({
+    const { dataLayer, interactionHandlers } = makeSetup({
       detailedProfile: initial,
       currentUser: { did: "did:plc:viewer" },
     });
     const card = mountCard({ dataLayer, interactionHandlers });
     await flushRender();
     assert.match(card.textContent, /Old Name/);
-    holders.detailed.set(makeDetailedProfile({ displayName: "New Name" }));
+    dataLayer.dataStore.$detailedProfiles.set(
+      initial.did,
+      makeDetailedProfile({ displayName: "New Name" }),
+    );
     await flushRender();
     assert.match(card.textContent, /New Name/);
   });

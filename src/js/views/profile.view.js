@@ -325,6 +325,12 @@ class ProfileView extends View {
               onClickAddToLists: (profile) => handleAddToLists(profile),
               onClickEditProfile: () => handleEditProfile(profile),
               pluginService,
+              isFollowPending: dataLayer.derived.$isFollowPending.get(
+                profile.did,
+              ),
+              isBlockPending: dataLayer.derived.$isBlockPending.get(
+                profile.did,
+              ),
             })}
             ${isBlocking || isBlockedBy
               ? html`<div class="feed">
