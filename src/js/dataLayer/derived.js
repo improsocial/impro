@@ -790,6 +790,15 @@ export class Derived extends ReactiveStore {
       ...rawNotification,
       author: this.$hydratedProfiles.get(rawNotification.author.did),
     };
+    // The server marks every notification as read the moment updateSeen
+    // fires, so pages fetched after that arrive with isRead: true even when
+    // the user hasn't seen them. Recompute read state against the seenAt
+    // captured from the first page's response instead.
+    const seenAt = this.dataStore.$notificationsLastSeenAt.get();
+    if (seenAt) {
+      notification.isRead =
+        new Date(notification.indexedAt) <= new Date(seenAt);
+    }
     if (notification.reason === "like" || notification.reason === "repost") {
       const subject =
         this.$hydratedPosts.get(notification.reasonSubject) ??

@@ -394,19 +394,21 @@ function openAltTextDialog(altText) {
   dialog.showModal();
 }
 
-function gifPlayerTemplate({ uri, alt, aspectRatio = null }) {
+function gifPlayerTemplate({ type = "video", uri, alt, aspectRatio = null }) {
   return html` <div
     class="post-video"
     style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
   >
-    <streaming-video
-      src="${uri}"
-      alt="${alt ?? ""}"
-      loop
-      autoplay
-      muted
-      playsinline
-    ></streaming-video>
+    ${type === "video"
+      ? html`<streaming-video
+          src="${uri}"
+          alt="${alt ?? ""}"
+          loop
+          autoplay
+          muted
+          playsinline
+        ></streaming-video>`
+      : html`<img src="${uri}" alt="${alt ?? ""}" loading="lazy" />`}
     ${alt
       ? html`<button
           class="alt-indicator"
@@ -471,39 +473,38 @@ function getTenorGifPlayerUri(url) {
   return `${TENOR_GIF_PROXY_URL}/${id}/${filename}`;
 }
 
-function isKlipyGifUrl(url) {
-  try {
-    const parsedUrl = new URL(url);
-    if (parsedUrl.hostname !== "static.klipy.com") return false;
-    if (!parsedUrl.pathname.startsWith("/ii/")) return false;
-    const height = Number(parsedUrl.searchParams.get("hh"));
-    const width = Number(parsedUrl.searchParams.get("ww"));
-    if (!height || !width || height <= 0 || width <= 0) return false;
-    const slug = isSafari()
-      ? parsedUrl.searchParams.get("mp4")
-      : parsedUrl.searchParams.get("webm");
-    return Boolean(slug);
-  } catch {
-    return false;
-  }
-}
-
 // https://github.com/bluesky-social/social-app/blob/main/src/lib/strings/embed-player.ts
-function getKlipyGifPlayerUri(url) {
-  const parsedUrl = new URL(url);
+function parseKlipyGif(url) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsedUrl.hostname !== "static.klipy.com") return null;
+  if (!parsedUrl.pathname.startsWith("/ii/")) return null;
+  const height = Number(parsedUrl.searchParams.get("hh"));
+  const width = Number(parsedUrl.searchParams.get("ww"));
+  if (!height || !width || height <= 0 || width <= 0) return null;
+  const aspectRatio = width / height;
   const slug = isSafari()
     ? parsedUrl.searchParams.get("mp4")
     : parsedUrl.searchParams.get("webm");
-  const ext = isSafari() ? "mp4" : "webm";
-  parsedUrl.hostname = KLIPY_GIF_PROXY_HOSTNAME;
-  const parts = parsedUrl.pathname.split("/");
-  parts[parts.length - 1] = `${slug}.${ext}`;
-  parsedUrl.pathname = parts.join("/");
-  parsedUrl.searchParams.delete("hh");
-  parsedUrl.searchParams.delete("ww");
-  parsedUrl.searchParams.delete("mp4");
-  parsedUrl.searchParams.delete("webm");
-  return parsedUrl.href;
+  const proxyUrl = new URL(parsedUrl.href);
+  proxyUrl.hostname = KLIPY_GIF_PROXY_HOSTNAME;
+  proxyUrl.searchParams.delete("hh");
+  proxyUrl.searchParams.delete("ww");
+  proxyUrl.searchParams.delete("mp4");
+  proxyUrl.searchParams.delete("webm");
+  if (slug) {
+    const ext = isSafari() ? "mp4" : "webm";
+    const parts = proxyUrl.pathname.split("/");
+    parts[parts.length - 1] = `${slug}.${ext}`;
+    proxyUrl.pathname = parts.join("/");
+    return { videoUri: proxyUrl.href, aspectRatio };
+  }
+  if (!/\.gif$/i.test(proxyUrl.pathname)) return null;
+  return { imageUri: proxyUrl.href, aspectRatio };
 }
 
 function externalTemplate({ external, lazyLoadImages }) {
@@ -513,10 +514,13 @@ function externalTemplate({ external, lazyLoadImages }) {
       alt: external.description,
     });
   }
-  if (isKlipyGifUrl(external.uri)) {
+  const klipyGif = parseKlipyGif(external.uri);
+  if (klipyGif) {
     return gifPlayerTemplate({
-      uri: getKlipyGifPlayerUri(external.uri),
+      type: klipyGif.videoUri ? "video" : "image",
+      uri: klipyGif.videoUri ?? klipyGif.imageUri,
       alt: external.description,
+      aspectRatio: klipyGif.aspectRatio,
     });
   }
   const youtubeVideo = parseYouTubeVideoFromUrl(external.uri);

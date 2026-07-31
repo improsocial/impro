@@ -85,6 +85,36 @@ test.describe("Post thread view", () => {
     await expect(view).toContainText("This is the main post");
   });
 
+  test("should render an emoji-only post enlarged", async ({ page }) => {
+    const mockServer = new MockServer();
+    const emojiPost = createPost({
+      uri: postUri,
+      text: "😀",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    mockServer.addPosts([emojiPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const richText = view.locator(
+      '[data-testid="large-post"] .rich-text-emoji-only',
+    );
+    await expect(richText).toBeVisible({ timeout: 10000 });
+
+    // 1.85x the surface's inherited size, asserted as a ratio (not a px
+    // literal) so the post text size can change without breaking the test.
+    const ratio = await richText.evaluate(
+      (element) =>
+        parseFloat(getComputedStyle(element).fontSize) /
+        parseFloat(getComputedStyle(element.parentElement).fontSize),
+    );
+    expect(ratio).toBeCloseTo(1.85, 2);
+  });
+
   test("should display parent post in thread context", async ({ page }) => {
     const parentPost = createPost({
       uri: "at://did:plc:parent1/app.bsky.feed.post/parent1",

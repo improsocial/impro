@@ -41,6 +41,25 @@ describe("detected-rich-text", () => {
       assert.deepEqual(richText.textContent.trim(), "");
     });
 
+    it("marks emoji-only text as enlarged", () => {
+      const element = document.createElement("detected-rich-text");
+      element.setAttribute("text", "😀");
+      document.body.appendChild(element);
+      const richText = element.querySelector("[data-testid='rich-text']");
+      assert(richText.classList.contains("rich-text-emoji-only"));
+    });
+
+    it("does not mark text with detected facets as enlarged", async () => {
+      const element = document.createElement("detected-rich-text");
+      element.identityResolver = makeIdentityResolver();
+      element.setAttribute("text", "😀 example.com");
+      document.body.appendChild(element);
+      await flushMicrotasks();
+      assert(element.querySelector("a") !== null);
+      const richText = element.querySelector("[data-testid='rich-text']");
+      assert(!richText.classList.contains("rich-text-emoji-only"));
+    });
+
     it("updates rendered text when the text attribute changes", async () => {
       const element = document.createElement("detected-rich-text");
       element.setAttribute("text", "first");

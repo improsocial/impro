@@ -12,7 +12,10 @@ import "/js/components/lightbox-image-group.js";
 
 function avatarWrapperTemplate({ author, clickAction, children }) {
   if (clickAction === "link") {
-    return html`<a class="avatar-link" href="${linkToProfile(author)}"
+    return html`<a
+      class="avatar-link"
+      href="${linkToProfile(author)}"
+      data-hover-did=${author.did}
       >${children}</a
     >`;
   } else if (clickAction === "lightbox") {

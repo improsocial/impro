@@ -13,6 +13,7 @@ export class DataStore extends ReactiveStore {
     this.$feedSearchResults = new Signal.State(null);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
+    this.$notificationsLastSeenAt = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
     this.$bookmarks = new Signal.State(null);
     this.$drafts = new Signal.State(null);

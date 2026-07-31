@@ -18,6 +18,7 @@ export function postHeaderTextTemplate({
           href="${linkToProfile(author)}"
           class="post-name"
           data-testid="post-author-name"
+          data-hover-did=${author.did}
           >${getDisplayName(author)}</a
         >`
       : html`<span class="post-name" data-testid="post-author-name"
@@ -31,6 +32,7 @@ export function postHeaderTextTemplate({
             href="${linkToProfile(author)}"
             class="post-username"
             data-testid="post-author-handle"
+            data-hover-did=${author.did}
             >@${author.handle}</a
           >`
         : html`<span class="post-username" data-testid="post-author-handle"

@@ -46,6 +46,7 @@ export class MockServer {
     this.notifications = [];
     this.notificationCursor = undefined;
     this.notificationsDelayMs = 0;
+    this.notificationsSeenAt = null;
     this.pinnedFeedUris = [];
     this.pinnedListUris = [];
     this.lists = [];
@@ -193,6 +194,10 @@ export class MockServer {
 
   setNotificationsDelay(delayMs) {
     this.notificationsDelayMs = delayMs;
+  }
+
+  setNotificationsSeenAt(seenAt) {
+    this.notificationsSeenAt = seenAt;
   }
 
   addSearchPosts(posts, { sort } = {}) {
@@ -853,12 +858,19 @@ export class MockServer {
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ notifications, cursor: nextCursor }),
+          body: JSON.stringify({
+            notifications,
+            cursor: nextCursor,
+            ...(this.notificationsSeenAt
+              ? { seenAt: this.notificationsSeenAt }
+              : {}),
+          }),
         });
       },
     );
 
     await page.route("**/xrpc/app.bsky.notification.updateSeen*", (route) => {
+      this.notificationsSeenAt = route.request().postDataJSON().seenAt;
       for (const notification of this.notifications) {
         notification.isRead = true;
       }

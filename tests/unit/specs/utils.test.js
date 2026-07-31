@@ -26,6 +26,7 @@ import {
   TimeoutError,
   pinScrollPosition,
   KVIndexedDB,
+  isOnlyEmoji,
 } from "/js/utils.js";
 import { installFakeIndexedDB } from "../testHelpers.js";
 
@@ -246,6 +247,62 @@ describe("sliceByByte", () => {
     const result = sliceByByte(text, 6, 11);
     assert.deepEqual(result, "World");
   });
+});
+
+describe("isOnlyEmoji", () => {
+  // Parity with social-app's isOnlyEmoji (alf/typography.tsx), including its
+  // quirks: Extended_Pictographic false-positives like ™ enlarge, keycaps and
+  // tag-sequence flags don't, and the cap is 15 UTF-16 code units (not
+  // graphemes). Don't "fix" a row here without deciding to diverge upstream.
+  const emojiOnlyCases = [
+    ["single emoji", "😀"],
+    ["two emoji", "😀😀"],
+    ["seven astral emoji (14 units)", "😀".repeat(7)],
+    ["regional-indicator flag", "🇺🇸"],
+    ["three flags (12 units)", "🇺🇸".repeat(3)],
+    ["single ZWJ family", "👨‍👩‍👧‍👦"],
+    ["skin-tone modified emoji", "👍🏽"],
+    ["ZWJ + double skin tone", "🫱🏼‍🫲🏽"],
+    ["VS16 flag sequence", "🏳️‍🌈"],
+    ["heart with VS16", "❤️"],
+    ["bare pictographic heart", "❤"],
+    ["text-default smiley", "☺"],
+    ["trademark sign", "™"],
+    ["copyright sign", "©"],
+    ["heavy check mark", "✔"],
+    ["lone ZWJ", "‍"],
+    ["lone VS16", "️"],
+    ["lone skin-tone modifier", "🏽"],
+  ];
+  const notEmojiOnlyCases = [
+    ["empty string", ""],
+    ["plain letter", "a"],
+    ["emoji plus letter", "😀a"],
+    ["emoji separated by space", "😀 😀"],
+    ["trailing space", "😀 "],
+    ["trailing newline", "🎉\n"],
+    ["keycap sequence", "1️⃣"],
+    [
+      "tag-sequence flag (Scotland)",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
+    ],
+    ["heart with VS15 text selector", "❤︎"],
+    ["eight astral emoji (16 units)", "😀".repeat(8)],
+    ["four flags (16 units)", "🇺🇸".repeat(4)],
+    ["two ZWJ families", "👨‍👩‍👧‍👦".repeat(2)],
+  ];
+
+  for (const [label, text] of emojiOnlyCases) {
+    it(`is true for ${label}`, () => {
+      assert.deepEqual(isOnlyEmoji(text), true);
+    });
+  }
+
+  for (const [label, text] of notEmojiOnlyCases) {
+    it(`is false for ${label}`, () => {
+      assert.deepEqual(isOnlyEmoji(text), false);
+    });
+  }
 });
 
 describe("formatLargeNumber", () => {

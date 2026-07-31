@@ -203,6 +203,7 @@ html {
 
   /* sizing */
   --font-size: 15px;
+  --rich-text-emoji-scale: 1.85;
   --hair: 1px;
   --chat-detail-header-height: 56px;
   --footer-height: 55px;
@@ -407,6 +408,11 @@ plugin-slot:empty {
 
 .rich-text-facet-pending {
   display: none;
+}
+
+.rich-text-emoji-only {
+  font-size: calc(1em * var(--rich-text-emoji-scale, 1.85));
+  line-height: 1.15;
 }
 
 @media (hover: hover) {
@@ -2489,6 +2495,13 @@ animated-button {
   transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
+.post-video img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .youtube-embed {
   display: block;
 }
@@ -4146,6 +4159,18 @@ image-carousel {
   border-bottom-left-radius: 4px;
 }
 
+.message-text .rich-text-emoji-only {
+  --rich-text-emoji-scale: 3;
+}
+
+.message-sent .message-bubble-emoji-only,
+.message-received .message-bubble-emoji-only {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-color);
+}
+
 .message-bubble a {
   text-decoration: underline;
 }
@@ -4267,6 +4292,13 @@ image-carousel {
 .message-wrapper.message-highlighted .message-sent .message-bubble {
   --highlight-flash-base: var(--highlight-color);
   animation: message-highlight-flash-sent 1500ms ease-out;
+}
+
+.message-wrapper.message-highlighted .message-sent .message-bubble-emoji-only,
+.message-wrapper.message-highlighted
+  .message-received
+  .message-bubble-emoji-only {
+  animation: none;
 }
 
 .message-wrapper.message-highlighted
@@ -6789,6 +6821,116 @@ button.profile-list-item-button.is-disabled {
   padding: 10px 18px;
   color: var(--text-color-muted);
   font-size: 14px;
+}
+
+.profile-hover-card-anim {
+  animation: fade-in 300ms both;
+  will-change: transform, opacity;
+  background: var(--context-menu-background-color);
+  border: 1px solid var(--generic-border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-color-light);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-hover-card-anim {
+    animation: none;
+  }
+}
+
+.profile-hover-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.profile-hover-card-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 16px;
+}
+
+.profile-hover-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-hover-card-avatar .avatar-image,
+.profile-hover-card-avatar .avatar-image-frame {
+  width: 64px;
+  height: 64px;
+}
+
+.profile-hover-card-button-slot {
+  display: flex;
+  align-items: center;
+}
+
+.profile-hover-card-name-link {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-hover-card-name {
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-hover-card-handle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-color-muted);
+  font-size: 14px;
+}
+
+.profile-hover-card-handle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-hover-card-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.profile-hover-card-stats .profile-stat {
+  color: inherit;
+  text-decoration: none;
+}
+
+.profile-hover-card-stats .profile-stat strong {
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+.profile-hover-card-bio {
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .mention-suggestion {

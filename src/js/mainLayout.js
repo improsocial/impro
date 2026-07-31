@@ -131,11 +131,14 @@ export class MainLayout extends Layout {
       accountSwitcherService,
       pluginService,
       groupChatLinkService,
+      profileHoverCardService,
     } = this.context;
     const { router, slot } = this;
 
     container.id = "main-layout";
     this.#container = container;
+
+    profileHoverCardService?.install(container);
 
     const onLongPressProfile =
       accountSwitcherService && auth.supportsMultipleAccounts()
@@ -190,6 +193,7 @@ export class MainLayout extends Layout {
   }
 
   dispose() {
+    this.context.profileHoverCardService?.dispose();
     this.#disposeEffect?.();
     this.#disposeEffect = null;
     this.#container?.replaceChildren();

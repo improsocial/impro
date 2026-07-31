@@ -1577,6 +1577,74 @@ describe("$notifications", () => {
     assert.deepEqual(result[0].author.badgeLabels, ["verified"]);
     assert.deepEqual(result[0].author.viewer.following, "fake following");
   });
+
+  it("should override isRead using the captured seenAt", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    seedNotifications(dataStore, [
+      createNotification({
+        reason: "follow",
+        author,
+        uri: "old",
+        isRead: false,
+        indexedAt: "2025-01-15T09:00:00.000Z",
+      }),
+      createNotification({
+        reason: "follow",
+        author,
+        uri: "new",
+        isRead: true,
+        indexedAt: "2025-01-15T11:00:00.000Z",
+      }),
+    ]);
+    dataStore.$notificationsLastSeenAt.set("2025-01-15T10:00:00.000Z");
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].isRead, true);
+    assert.deepEqual(result[1].isRead, false);
+  });
+
+  it("should treat a notification indexed exactly at seenAt as read", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    seedNotifications(dataStore, [
+      createNotification({
+        reason: "follow",
+        author,
+        isRead: false,
+        indexedAt: "2025-01-15T10:00:00.000Z",
+      }),
+    ]);
+    dataStore.$notificationsLastSeenAt.set("2025-01-15T10:00:00.000Z");
+    assert.deepEqual(derived.$notifications.get()[0].isRead, true);
+  });
+
+  it("should trust the server isRead when seenAt is null", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    seedNotifications(dataStore, [
+      createNotification({ reason: "follow", author, uri: "r", isRead: true }),
+      createNotification({ reason: "follow", author, uri: "u", isRead: false }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].isRead, true);
+    assert.deepEqual(result[1].isRead, false);
+  });
+
+  it("should recompute isRead when seenAt is captured later", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    seedNotifications(dataStore, [
+      createNotification({
+        reason: "follow",
+        author,
+        isRead: true,
+        indexedAt: "2025-01-15T11:00:00.000Z",
+      }),
+    ]);
+    assert.deepEqual(derived.$notifications.get()[0].isRead, true);
+    dataStore.$notificationsLastSeenAt.set("2025-01-15T10:00:00.000Z");
+    assert.deepEqual(derived.$notifications.get()[0].isRead, false);
+  });
 });
 
 describe("$mentionNotifications", () => {
@@ -1606,6 +1674,26 @@ describe("$mentionNotifications", () => {
     const result = derived.$mentionNotifications.get();
     assert.deepEqual(result[0].post.uri, "m1");
     assert.deepEqual(derived.$mentionNotificationCursor.get(), "mc");
+  });
+
+  it("should override isRead using the shared seenAt from the main feed", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const author = createProfile({ did: "did:plc:a", handle: "a.test" });
+    dataStore.setProfiles([author]);
+    dataStore.$mentionNotifications.set({
+      notifications: [
+        createNotification({
+          reason: "follow",
+          author,
+          isRead: true,
+          indexedAt: "2025-01-15T11:00:00.000Z",
+        }),
+      ],
+      cursor: null,
+    });
+    dataStore.$notificationsLastSeenAt.set("2025-01-15T10:00:00.000Z");
+    assert.deepEqual(derived.$mentionNotifications.get()[0].isRead, false);
   });
 });
 

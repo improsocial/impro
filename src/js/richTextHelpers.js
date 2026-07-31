@@ -1,4 +1,4 @@
-import { sliceByByte, sortBy, getByteLength } from "/js/utils.js";
+import { sliceByByte, sortBy, getByteLength, isOnlyEmoji } from "/js/utils.js";
 import { clampFacetIndex } from "/js/facetHelpers.js";
 
 function facetOverlaps(facet1, facet2) {
@@ -57,6 +57,16 @@ export function tokensHaveFacetType(tokens, facetTypes) {
     }
   }
   return false;
+}
+
+export function isEmojiOnlyTokens(tokens) {
+  if (!Array.isArray(tokens) || tokens.length === 0) return false;
+  let text = "";
+  for (const token of tokens) {
+    if (token.type !== "text") return false;
+    text += token.value;
+  }
+  return isOnlyEmoji(text);
 }
 
 export function validateRichTextTokens(tokens) {

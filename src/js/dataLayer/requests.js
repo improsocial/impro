@@ -835,6 +835,9 @@ export class Requests {
       : readCollectionCursor(this.dataStore.$notifications);
     const labelers = this.requireLabelers();
     const res = await this.api.getNotifications({ cursor, limit, labelers });
+    if (cursor === "") {
+      this.dataStore.$notificationsLastSeenAt.set(res.seenAt ?? null);
+    }
     this.dataStore.setProfiles(
       res.notifications.map((notification) => notification.author),
     );
