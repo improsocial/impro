@@ -5323,6 +5323,7 @@ emoji-picker-dialog emoji-picker,
   border-radius: var(--tag-border-radius);
   display: inline-block;
   width: fit-content;
+  flex: none;
 }
 
 .profile-blocked-badge {
