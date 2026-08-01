@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
 import { auth } from "/js/auth.js";
+import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
@@ -32,8 +33,11 @@ function pluginPreviewBannerTemplate({ plugins }) {
         <div class="plugin-preview-banner-title">Preview mode</div>
         <div class="plugin-preview-banner-subtitle">
           You are currently previewing community
-          ${links.length === 1 ? "plugin" : "plugins"}: ${links}. Changes you
-          make to the page won't be saved.
+          ${links.length === 1 ? "plugin" : "plugins"}: ${links}.
+          <a class="plugin-preview-banner-link" href=${linkToLogin()}
+            >Sign in</a
+          >
+          to install.
         </div>
       </div>
       <!-- <button
