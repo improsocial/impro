@@ -32,6 +32,7 @@ export class MockServer {
     this.sendMessageFailure = null;
     this.createRecordFailures = new Map();
     this.convoForMembersError = null;
+    this.leaveConvoError = null;
     this.typeaheadProfiles = [];
     this.typeaheadDelayMs = 0;
     this.externalLinkCards = new Map();
@@ -1191,6 +1192,16 @@ export class MockServer {
     });
 
     await page.route("**/xrpc/chat.bsky.convo.leaveConvo*", (route) => {
+      if (this.leaveConvoError) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: this.leaveConvoError,
+            message: this.leaveConvoError,
+          }),
+        });
+      }
       const body = route.request().postDataJSON();
       this.convos = this.convos.filter((c) => c.id !== body?.convoId);
       return route.fulfill({

@@ -7066,6 +7066,16 @@ context-menu-item > button > svg.context-menu-item-icon {
   display: block;
 }
 
+context-menu-item > button.context-menu-item-style-danger {
+  color: var(--error-color);
+}
+
+context-menu-item
+  > button.context-menu-item-style-danger
+  > .context-menu-item-icon {
+  color: var(--error-color);
+}
+
 context-menu-item > a {
   padding: 14px 16px;
   width: 100%;

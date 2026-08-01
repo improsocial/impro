@@ -954,6 +954,235 @@ test.describe("Chat detail view", () => {
     ).toHaveCount(0);
   });
 
+  test("should show mute and leave menu items for 1-1 chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+
+    const muteItem = chatDetailView.locator('[data-testid="menu-action-mute"]');
+    await expect(muteItem).toBeVisible();
+    await expect(muteItem).toHaveAttribute("data-teststate", "unmuted");
+    await expect(muteItem).toContainText("Mute conversation");
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-leave"]'),
+    ).toBeVisible();
+  });
+
+  test("should navigate to profile from the chat menu", async ({ page }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView
+      .locator('[data-testid="menu-action-go-to-profile"]')
+      .click();
+
+    await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/, {
+      timeout: 10000,
+    });
+  });
+
+  test("should not show mute and leave menu items for group chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-group-chat-details"]'),
+    ).toBeVisible();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-mute"]'),
+    ).toHaveCount(0);
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-leave"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should mute a 1-1 conversation from the chat menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView.locator('[data-testid="menu-action-mute"]').click();
+
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Conversation muted",
+    );
+    await expect(
+      chatDetailView.locator('[data-testid="header-muted-icon"]'),
+    ).toBeVisible();
+
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    const muteItem = chatDetailView.locator('[data-testid="menu-action-mute"]');
+    await expect(muteItem).toHaveAttribute("data-teststate", "muted");
+    await expect(muteItem).toContainText("Unmute conversation");
+  });
+
+  test("should unmute a 1-1 conversation from the chat menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+      muted: true,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-muted-icon"]'),
+    ).toBeVisible();
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView.locator('[data-testid="menu-action-mute"]').click();
+
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Conversation unmuted",
+    );
+    await expect(
+      chatDetailView.locator('[data-testid="header-muted-icon"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should leave a 1-1 conversation from the chat menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView.locator('[data-testid="menu-action-leave"]').click();
+
+    await page.locator('[data-testid="modal-confirm-button"]').click();
+
+    await expect(page).toHaveURL(/\/messages$/, { timeout: 10000 });
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Left conversation",
+    );
+  });
+
+  test("should keep the leave modal open when leaveConvo fails", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.leaveConvoError = "InvalidConvo";
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView.locator('[data-testid="menu-action-leave"]').click();
+
+    await page.locator('[data-testid="modal-confirm-button"]').click();
+
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Conversation not found",
+    );
+    await expect(
+      page.locator('[data-testid="modal-confirm-button"]'),
+    ).toBeVisible();
+    await expect(page).not.toHaveURL(/\/messages$/);
+  });
+
   test("should not offer group chat details when the session lacks the members scope", async ({
     page,
   }) => {
