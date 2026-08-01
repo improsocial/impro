@@ -337,6 +337,7 @@ class DraftsDialog extends Component {
     enableDragToDismiss(dialog, {
       onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".drafts-dialog-list"),
+      dragHandle: this.querySelector(".drafts-dialog-header"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
       disableWhenKeyboardOpen: true,
     });

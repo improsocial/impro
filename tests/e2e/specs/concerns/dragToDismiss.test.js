@@ -461,6 +461,22 @@ test.describe("Drag-to-dismiss", () => {
       await expect(composer).toBeVisible();
     });
 
+    test("dismisses via the top bar handle even while the keyboard is open", async ({
+      page,
+    }) => {
+      await openPostComposer(page);
+      await simulateKeyboardOpen(page);
+      await drag(page, {
+        eventSourceSelector: "post-composer .post-composer",
+        startTouchTargetSelector: "post-composer .post-composer-top-bar",
+        startY: 40,
+        endY: 200,
+      });
+      await expect(
+        page.locator("post-composer .post-composer"),
+      ).not.toBeVisible({ timeout: 2000 });
+    });
+
     test("does not dismiss when the body is scrolled away from the top", async ({
       page,
     }) => {

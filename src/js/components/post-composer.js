@@ -1251,6 +1251,7 @@ class PostComposer extends Component {
       confirmDismiss: () => this.confirmClose(),
       onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".post-composer-scroll-area"),
+      dragHandle: this.querySelector(".post-composer-top-bar"),
       ignoreTouchTarget: (el) =>
         !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||

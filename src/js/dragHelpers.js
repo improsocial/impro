@@ -26,6 +26,7 @@ function trackDrag(
     eventSource = target,
     ignoreTouchTarget = () => false,
     scrollContainer = null,
+    dragHandle = null,
     disableWhenKeyboardOpen = false,
     onStart = () => {},
     onMove = () => {},
@@ -67,10 +68,12 @@ function trackDrag(
   };
 
   const handleTouchStart = (e) => {
-    if (disableWhenKeyboardOpen && isKeyboardOpen()) return;
+    const onHandle = !!dragHandle && dragHandle.contains(e.target);
+    if (!onHandle && disableWhenKeyboardOpen && isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
     if (hasTextSelection()) return;
     if (
+      !onHandle &&
       scrollContainer &&
       scrollContainer.contains(e.target) &&
       scrollContainer.scrollTop > 0
@@ -191,6 +194,7 @@ export function enableDragToDismiss(
     allowOppositeStretch = false,
     allowOppositeTranslate = false,
     scrollContainer = null,
+    dragHandle = null,
     ignoreTouchTarget = () => false,
     disableWhenKeyboardOpen = false,
     eventSource = target,
@@ -236,6 +240,7 @@ export function enableDragToDismiss(
     eventSource,
     ignoreTouchTarget,
     scrollContainer,
+    dragHandle,
     disableWhenKeyboardOpen,
     onStart: () => {
       clearTimeout(caretRestoreTimer);
