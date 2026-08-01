@@ -176,6 +176,11 @@ export class Router extends EventEmitter {
     };
   }
 
+  getScrollYForPath(path) {
+    if (this.currentPath === path) return window.scrollY;
+    return this.scrollStates.get(path) ?? 0;
+  }
+
   #setLayoutHidden(hidden) {
     this.containers.layout?.classList.toggle("layout-hidden", hidden);
   }
