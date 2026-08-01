@@ -711,6 +711,48 @@ describe("$hydratedPosts (post hydration)", () => {
     assert.deepEqual(result.badgeLabels, ["b"]);
   });
 
+  it("should synthesize a #blockedPost when the viewer blocks the author", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      record: { text: "should be hidden" },
+      author: {
+        did: "did:test",
+        viewer: { blocking: "at://did:me/app.bsky.graph.block/1" },
+      },
+    });
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result, {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: postURI,
+      author: {
+        did: "did:test",
+        viewer: { blocking: "at://did:me/app.bsky.graph.block/1" },
+      },
+      blocked: true,
+    });
+  });
+
+  it("should not re-synthesize a post that is already a #blockedPost", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const blockedPost = {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: postURI,
+      cid: "cid1",
+      author: { did: "did:test" },
+      blocked: true,
+    };
+    dataStore.$posts.set(postURI, blockedPost);
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result, blockedPost);
+  });
+
   function makeBlockedQuotePost(viewerState) {
     return {
       uri: postURI,
@@ -1628,6 +1670,59 @@ describe("$notifications", () => {
     const result = derived.$notifications.get();
     assert.deepEqual(result[0].isRead, true);
     assert.deepEqual(result[1].isRead, false);
+  });
+
+  it("should filter out notifications from authors the viewer is blocking", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const blocked = createProfile({
+      did: "did:plc:blocked",
+      handle: "blocked.test",
+      viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/1" },
+    });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "follow", author, uri: "n1" }),
+      createNotification({ reason: "follow", author: blocked, uri: "n2" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].author.did, author.did);
+  });
+
+  it("should filter out notifications from muted authors the viewer does not follow", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const muted = createProfile({
+      did: "did:plc:muted",
+      handle: "muted.test",
+      viewer: { muted: true },
+    });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "follow", author, uri: "n1" }),
+      createNotification({ reason: "follow", author: muted, uri: "n2" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].author.did, author.did);
+  });
+
+  it("should keep notifications from muted authors when the viewer follows them", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const mutedFollow = createProfile({
+      did: "did:plc:mutedfollow",
+      handle: "mutedfollow.test",
+      viewer: {
+        muted: true,
+        following: "at://did:plc:me/app.bsky.graph.follow/1",
+      },
+    });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "follow", author: mutedFollow, uri: "n1" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].author.did, mutedFollow.did);
   });
 
   it("should recompute isRead when seenAt is captured later", () => {

@@ -285,6 +285,15 @@ export function isBlockedPost(post) {
   return post.$type === "app.bsky.feed.defs#blockedPost";
 }
 
+export function createBlockedPost({ uri, author }) {
+  return {
+    $type: "app.bsky.feed.defs#blockedPost",
+    uri,
+    author,
+    blocked: true,
+  };
+}
+
 export function isNotFoundPost(post) {
   return post.$type === "app.bsky.feed.defs#notFoundPost";
 }

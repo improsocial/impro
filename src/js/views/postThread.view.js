@@ -196,7 +196,7 @@ class PostThreadView extends View {
       const numReplies = replyChain.length;
       return html`<div class="post-thread-reply-chain">
         ${replyChain.map((reply, i) => {
-          const post = dataLayer.derived.$hydratedPosts.get(reply.post.uri);
+          const post = reply.post;
           if (!post) return "";
           return smallPostTemplate({
             post,
@@ -433,6 +433,10 @@ class PostThreadView extends View {
                     },
                     afterDelete: () => {
                       // if the main post is deleted, go back to the previous page
+                      router.back();
+                    },
+                    afterBlock: () => {
+                      // if the main post's author is blocked, go back to the previous page
                       router.back();
                     },
                     onClickReply: async () => {

@@ -30,6 +30,7 @@ export class MockServer {
     this.messageCounter = 0;
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
+    this.createRecordFailures = new Map();
     this.convoForMembersError = null;
     this.typeaheadProfiles = [];
     this.typeaheadDelayMs = 0;
@@ -330,6 +331,13 @@ export class MockServer {
 
   failJoinLinkRequest(code) {
     this.failJoinLinkCodes.add(code);
+  }
+
+  failCreateRecord(
+    collection,
+    { status = 500, error = "InternalServerError", message } = {},
+  ) {
+    this.createRecordFailures.set(collection, { status, error, message });
   }
 
   failSendMessage({ status = 400, error = "InvalidRequest", message }) {
@@ -2262,6 +2270,16 @@ export class MockServer {
     await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) => {
       const body = route.request().postDataJSON();
       const collection = body?.collection;
+      const failure = this.createRecordFailures.get(collection);
+      if (failure) {
+        const { status, error, message } = failure;
+        route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify(message ? { error, message } : { error }),
+        });
+        return;
+      }
       const rkey = `rkey-${++this.createRecordCounter}`;
       const uri = `at://${userProfile.did}/${collection}/${rkey}`;
       const cid = `bafyrei${rkey}`;
