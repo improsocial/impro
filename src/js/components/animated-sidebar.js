@@ -82,12 +82,19 @@ class AnimatedSidebar extends Component {
     });
   }
 
-  close({ restoreScroll = true } = {}) {
+  close({ restoreScroll = true, animate = true } = {}) {
     if (!this.isOpen) {
       return;
     }
     this._restoreScroll = restoreScroll;
-    return closeWithAnimation(this.querySelector("dialog.sidebar"));
+    const dialog = this.querySelector("dialog.sidebar");
+    if (!animate) {
+      dialog.removeAttribute("data-closing");
+      dialog.inert = false;
+      dialog.close();
+      return;
+    }
+    return closeWithAnimation(dialog);
   }
 }
 
