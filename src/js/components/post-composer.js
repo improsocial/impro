@@ -14,6 +14,7 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
+import { DragAndDropObserver } from "/js/dragAndDropObserver.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -381,6 +382,8 @@ class PostComposer extends Component {
       this._pendingDraftsEnabled ?? false,
     );
     this._pendingDraftsEnabled = null;
+    this.state.$isDraggingFiles = new Signal.State(false);
+    this._dragAndDropObserver = null;
     this._disposers = [
       effect(() => {
         this.render();
@@ -393,6 +396,7 @@ class PostComposer extends Component {
     if (!this.initialized) return;
     this._disposers?.forEach((dispose) => dispose());
     this._disposers = null;
+    this._disconnectDragAndDropObserver();
   }
 
   // State helpers
@@ -496,6 +500,7 @@ class PostComposer extends Component {
     );
     const activePost = posts[activePostIndex];
     const isThread = posts.length > 1;
+    const isDraggingFiles = this.state.$isDraggingFiles.get();
 
     const currentCharCount = graphemeCount(activePost.text);
     const charCountPercentage = Math.min(
@@ -550,6 +555,7 @@ class PostComposer extends Component {
           @close=${() => {
             this.scrollLock?.release();
             this.scrollLock = null;
+            this._disconnectDragAndDropObserver();
             this.dispatchEvent(new CustomEvent("post-composer-closed"));
           }}
           @keydown=${(e) => {
@@ -561,6 +567,14 @@ class PostComposer extends Component {
             }
           }}
         >
+          ${isDraggingFiles
+            ? html`<div
+                class="post-composer-drop-overlay"
+                data-testid="post-composer-drop-overlay"
+              >
+                <span>Drop to add files</span>
+              </div>`
+            : ""}
           <div class="post-composer-content">
             <div class="post-composer-top-bar">
               <button
@@ -864,6 +878,21 @@ class PostComposer extends Component {
     const files = Array.from(e.target.files);
     e.target.value = "";
     await this.addMediaFiles(this._getActivePost().id, files);
+  }
+
+  _initDragAndDropObserver() {
+    if (this._dragAndDropObserver) return;
+    this._dragAndDropObserver = new DragAndDropObserver(window, {
+      onDragStart: () => this.state.$isDraggingFiles.set(true),
+      onDragEnd: () => this.state.$isDraggingFiles.set(false),
+      onDrop: (files) => this.addMediaFiles(this._getActivePost().id, files),
+    });
+  }
+
+  _disconnectDragAndDropObserver() {
+    if (!this._dragAndDropObserver) return;
+    this._dragAndDropObserver.disconnect();
+    this._dragAndDropObserver = null;
   }
 
   async addMediaFiles(postId, files) {
@@ -1261,6 +1290,8 @@ class PostComposer extends Component {
     });
 
     resetScrollOnBlur(dialog, this.querySelector(".post-composer-scroll-area"));
+
+    this._initDragAndDropObserver();
   }
 
   applyComposerInit({ text, cursor }) {

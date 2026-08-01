@@ -58,7 +58,7 @@ export class ProfileHoverCardService {
   dispose() {
     if (!this.installed) return;
     this.installed = false;
-    this.hoverObserver?.dispose();
+    this.hoverObserver?.disconnect();
     this.hoverObserver = null;
     this.rootEl.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("page-transition", this.onPageTransition);

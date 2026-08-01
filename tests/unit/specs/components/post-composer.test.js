@@ -796,6 +796,167 @@ describe("post-composer", () => {
     });
   });
 
+  function makeDragEvent(type, { files = [], hasFiles = true } = {}) {
+    const event = new globalThis.window.Event(type, {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "dataTransfer", {
+      value: {
+        files,
+        items: [],
+        types: hasFiles ? ["Files"] : ["text/plain"],
+        dropEffect: "none",
+      },
+    });
+    return event;
+  }
+
+  function dispatchOnWindow(event, target = window) {
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  describe("PostComposer - drop media", () => {
+    afterEach(() => {
+      document.querySelectorAll(".toast").forEach((toast) => toast.remove());
+    });
+
+    it("adds a dropped image to the active post", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      dispatchOnWindow(makeDragEvent("drop", { files: [makeImageFile()] }));
+      await waitFor(() => getFirstPost(element).images.length === 1);
+      assert(
+        getFirstPost(element).images[0].dataUrl.startsWith("data:image/png"),
+      );
+    });
+
+    it("respects the 4-image cap when many are dropped at once", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      patchFirstPost(element, {
+        images: [
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+        ],
+      });
+      dispatchOnWindow(
+        makeDragEvent("drop", {
+          files: [
+            makeImageFile("a.png"),
+            makeImageFile("b.png"),
+            makeImageFile("c.png"),
+          ],
+        }),
+      );
+      await waitFor(() => getFirstPost(element).images.length === 4);
+      assert(toastText().includes("up to 4 images"));
+    });
+
+    it("routes a dropped video through the video processing pipeline", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const calls = [];
+      element.processVideoFile = async (postId, file) => {
+        calls.push({ postId, fileName: file.name });
+      };
+      dispatchOnWindow(
+        makeDragEvent("drop", { files: [makeVideoFile("dropped.mp4")] }),
+      );
+      await waitFor(() => calls.length === 1);
+      assert.deepEqual(calls[0].fileName, "dropped.mp4");
+      assert.deepEqual(calls[0].postId, getFirstPost(element).id);
+    });
+
+    it("rejects a drop mixing images and video", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      dispatchOnWindow(
+        makeDragEvent("drop", { files: [makeImageFile(), makeVideoFile()] }),
+      );
+      await waitFor(() => toastText().includes("multiple media types"));
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+      assert.deepEqual(getFirstPost(element).video, null);
+    });
+
+    it("shows a toast when an unsupported file type is dropped", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const textFile = new globalThis.window.File(["hello"], "note.txt", {
+        type: "text/plain",
+      });
+      dispatchOnWindow(makeDragEvent("drop", { files: [textFile] }));
+      await waitFor(() => toastText().includes("Unsupported file type"));
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+    });
+
+    it("dragover with Files prevents default and sets dropEffect to copy", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const event = dispatchOnWindow(makeDragEvent("dragover"));
+      assert(event.defaultPrevented);
+      assert.deepEqual(event.dataTransfer.dropEffect, "copy");
+    });
+
+    it("dragover without Files does nothing", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const event = dispatchOnWindow(
+        makeDragEvent("dragover", { hasFiles: false }),
+      );
+      assert(!event.defaultPrevented);
+      assert.deepEqual(event.dataTransfer.dropEffect, "none");
+    });
+
+    it("does not add files when a drop occurs after the composer is closed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const dialog = element.querySelector(".post-composer");
+      dialog.close();
+      await nextFrame();
+
+      dispatchOnWindow(makeDragEvent("drop", { files: [makeImageFile()] }));
+      await nextFrame();
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+    });
+
+    it("adds the file even when the drop target is outside the dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const event = dispatchOnWindow(
+        makeDragEvent("drop", { files: [makeImageFile()] }),
+        document.body,
+      );
+      await waitFor(() => getFirstPost(element).images.length === 1);
+      assert(event.defaultPrevented);
+    });
+
+    it("toggles the drop overlay while a file drag is over the window", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      dispatchOnWindow(makeDragEvent("dragenter"));
+      await waitFor(
+        () => element.querySelector(".post-composer-drop-overlay") !== null,
+      );
+      dispatchOnWindow(makeDragEvent("dragleave"));
+      await waitFor(
+        () => element.querySelector(".post-composer-drop-overlay") === null,
+      );
+    });
+  });
+
   function makeLinkFacet(url) {
     return {
       index: { byteStart: 0, byteEnd: url.length },

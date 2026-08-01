@@ -142,10 +142,10 @@ describe("HoverObserver", () => {
     assert.equal(onLeave.mock.callCount(), 1);
   });
 
-  it("dispose() removes listeners and fires leave for the current target", () => {
+  it("disconnect() removes listeners and fires leave for the current target", () => {
     const obs = makeObserver();
     dispatchMove(a);
-    obs.dispose();
+    obs.disconnect();
     assert.equal(onLeave.mock.callCount(), 1);
     // Further events do nothing.
     dispatchMove(b);
