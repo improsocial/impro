@@ -189,6 +189,9 @@ function postContextMenuTemplate({
                       ? "Unmute account"
                       : "Mute account"}
                   </context-menu-item>
+                  <!-- Posts from blocked authors are hidden so the
+                       "Unblock" option should never be reachable - left
+                       defensively in case this changes in the future. -->
                   <context-menu-item
                     data-testid="menu-action-post-block"
                     data-teststate=${post.author.viewer?.blocking

@@ -22,6 +22,14 @@ export class ProfileInteractionHandler {
         showToast("Failed to follow account", { style: "error" });
       }
     } else {
+      const confirmed = await confirmModal(
+        `Are you sure you want to unfollow ${getDisplayName(profile)}?`,
+        {
+          title: "Unfollow?",
+          confirmButtonText: "Unfollow",
+        },
+      );
+      if (!confirmed) return;
       try {
         await this.dataLayer.mutations.unfollowProfile(profile);
         showToast(`No longer following ${getDisplayName(profile)}`);

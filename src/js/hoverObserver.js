@@ -21,7 +21,7 @@ export class HoverObserver {
     rootEl.addEventListener("pointerout", this._onPointerOut);
   }
 
-  dispose() {
+  disconnect() {
     this.rootEl.removeEventListener("pointermove", this._onPointerMove);
     this.rootEl.removeEventListener("pointerout", this._onPointerOut);
     this._leaveCurrent();

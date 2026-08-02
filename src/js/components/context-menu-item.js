@@ -4,7 +4,7 @@ import "/js/components/app-icon.js";
 
 class ContextMenuItem extends Component {
   static get observedAttributes() {
-    return ["disabled", "icon"];
+    return ["disabled", "icon", "item-style"];
   }
 
   connectedCallback() {
@@ -15,6 +15,7 @@ class ContextMenuItem extends Component {
     this.innerHTML = "";
     this.disabled = this.getAttribute("disabled") !== null;
     this.icon = this.getAttribute("icon");
+    this.itemStyle = this.getAttribute("item-style");
     this.render();
     this._initialized = true;
   }
@@ -27,6 +28,8 @@ class ContextMenuItem extends Component {
       this.disabled = this.getAttribute("disabled") !== null;
     } else if (name === "icon") {
       this.icon = this.getAttribute("icon");
+    } else if (name === "item-style") {
+      this.itemStyle = this.getAttribute("item-style");
     }
     this.render();
   }
@@ -40,8 +43,11 @@ class ContextMenuItem extends Component {
   }
 
   render() {
+    const buttonClass = this.itemStyle
+      ? `context-menu-item-style-${this.itemStyle}`
+      : "";
     render(
-      html`<button ?disabled=${this.disabled}>
+      html`<button class=${buttonClass} ?disabled=${this.disabled}>
         ${this._children}
         ${this._iconElement
           ? this._iconElement

@@ -5,6 +5,7 @@ import {
   formatLargeNumber,
   formatNumNotifications,
   enableLongPress,
+  raf,
 } from "/js/utils.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
@@ -26,6 +27,27 @@ import {
 import "/js/components/animated-sidebar.js";
 import "/js/components/app-icon.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
+
+async function navigateFromSidebar(event, url) {
+  if (
+    event.defaultPrevented ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  ) {
+    return;
+  }
+  // Close the sidebar before navigating so the open sidebar isn't
+  // captured in the ios safari screenshot
+  event.preventDefault();
+  const sidebar = event.currentTarget.closest("animated-sidebar");
+  sidebar.close({ restoreScroll: false, animate: false });
+  await raf();
+  await raf();
+  return window.router.go(url);
+}
 
 function pluginSidebarItemTemplate({ entry }) {
   return html`
@@ -66,9 +88,11 @@ function sidebarNavTemplate({
                 e.preventDefault();
                 e.stopPropagation();
                 onClickActiveItem?.(item.id);
+                const sidebar = this.closest("animated-sidebar");
+                sidebar.close({ restoreScroll: true });
+                return;
               }
-              const sidebar = this.closest("animated-sidebar");
-              sidebar.close({ restoreScroll: isActive });
+              return navigateFromSidebar(e, item.url);
             }}
           >
             <span class="sidebar-nav-icon"
@@ -109,7 +133,12 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       data-testid="logged-out-sidebar"
     >
       <div class="sidebar-header">
-        <a href="/" class="sidebar-title"><h1>IMPRO</h1></a>
+        <a
+          href="/"
+          class="sidebar-title"
+          @click=${(event) => navigateFromSidebar(event, "/")}
+          ><h1>IMPRO</h1></a
+        >
       </div>
       ${sidebarNavTemplate({
         menuItems,
@@ -121,6 +150,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
           href=${linkToLogin()}
           class="rounded-button rounded-button-primary login-button"
           data-testid="login-button"
+          @click=${(event) => navigateFromSidebar(event, linkToLogin())}
           >Sign in</a
         >
         <button
@@ -272,12 +302,13 @@ export function sidebarTemplate({
         <div class="sidebar-profile-stats" data-testid="sidebar-profile-stats">
           <a
             href="${currentUser ? linkToProfileFollowers(currentUser) : "#"}"
-            @click=${(e) => {
-              if (currentUser) {
-                const sidebar = e.target.closest("animated-sidebar");
-                sidebar.close({ restoreScroll: false });
-              }
-            }}
+            @click=${(event) =>
+              currentUser
+                ? navigateFromSidebar(
+                    event,
+                    linkToProfileFollowers(currentUser),
+                  )
+                : null}
           >
             <strong
               >${followersCount !== null
@@ -289,12 +320,13 @@ export function sidebarTemplate({
           <span class="sidebar-profile-separator">·</span>
           <a
             href="${currentUser ? linkToProfileFollowing(currentUser) : "#"}"
-            @click=${(e) => {
-              if (currentUser) {
-                const sidebar = e.target.closest("animated-sidebar");
-                sidebar.close({ restoreScroll: false });
-              }
-            }}
+            @click=${(event) =>
+              currentUser
+                ? navigateFromSidebar(
+                    event,
+                    linkToProfileFollowing(currentUser),
+                  )
+                : null}
           >
             <strong
               >${followsCount !== null

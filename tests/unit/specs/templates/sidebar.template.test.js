@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { render } from "/js/lib/lit-html.js";
@@ -189,6 +189,43 @@ describe("sidebarTemplate - logged in state", () => {
 });
 
 describe("sidebarTemplate - nav items", () => {
+  it("should close before navigating to an inactive item", async () => {
+    const originalRouter = window.router;
+    const go = mock.fn();
+    window.router = { go };
+    const container = document.createElement("div");
+    container.className = "page-visible";
+    document.body.appendChild(container);
+
+    try {
+      render(
+        sidebarTemplate({
+          isAuthenticated: true,
+          currentUser: mockUser,
+          activeNavItem: "home",
+        }),
+        container,
+      );
+      const sidebar = container.querySelector("animated-sidebar");
+      const dialog = sidebar.querySelector("dialog.sidebar");
+      sidebar.isOpen = true;
+      dialog.showModal();
+
+      container.querySelector("[data-testid='sidebar-nav-search']").click();
+
+      assert.deepEqual(sidebar.isOpen, false);
+      assert(!dialog.open);
+      assert.deepEqual(go.mock.callCount(), 0);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await Promise.resolve();
+      assert.deepEqual(go.mock.calls[0].arguments, ["/search"]);
+    } finally {
+      container.remove();
+      window.router = originalRouter;
+    }
+  });
+
   it("should render home nav item", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,

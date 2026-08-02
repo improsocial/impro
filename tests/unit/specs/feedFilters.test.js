@@ -289,6 +289,25 @@ describe("filterAlgorithmicFeed - blocked quote filtering", () => {
   });
 });
 
+describe("filterAlgorithmicFeed - blocked post filtering", () => {
+  it("should filter out feed items whose post is a #blockedPost", () => {
+    const feed = createFeed([
+      createFeedItem({
+        post: {
+          $type: "app.bsky.feed.defs#blockedPost",
+          uri: "at://did:plc:blocked/app.bsky.feed.post/1",
+          blocked: true,
+          author: { did: "did:plc:blocked" },
+        },
+      }),
+      createFeedItem({ post: { text: "visible post" } }),
+    ]);
+    const result = filterAlgorithmicFeed(feed, true, {});
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(result.feed[0].post.record.text, "visible post");
+  });
+});
+
 describe("filterAuthorFeed", () => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "author-cursor");

@@ -1715,7 +1715,7 @@ test.describe("Post thread view", () => {
       ).toBeVisible();
     });
 
-    test("should show 'Unblock account' for blocked authors", async ({
+    test("should render a blocked tombstone for posts from blocked authors", async ({
       page,
     }) => {
       const blockedPost = createPost({
@@ -1735,15 +1735,11 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/blockedauthor.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      const largePost = view.locator('[data-testid="large-post"]');
-      await expect(largePost).toBeVisible({ timeout: 10000 });
-
-      await largePost.locator('[data-testid="post-action-more"]').click();
       await expect(
-        page.locator(
-          '[data-testid="menu-action-post-block"][data-teststate="blocking"]',
-        ),
-      ).toBeVisible();
+        view.locator('[data-testid="post-tombstone-blocked"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toHaveCount(0);
+      await expect(view).not.toContainText("Post by blocked author");
     });
 
     test("should show 'Report post' in context menu", async ({ page }) => {

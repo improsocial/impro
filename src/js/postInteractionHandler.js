@@ -162,21 +162,25 @@ export class PostInteractionHandler {
           confirmButtonStyle: "danger",
         },
       );
-      if (!confirmed) return;
+      if (!confirmed) return false;
       try {
         await this.dataLayer.mutations.blockProfile(profile);
         showToast("Account blocked");
+        return true;
       } catch (error) {
         console.error(error);
         showToast("Failed to block account", { style: "error" });
+        return false;
       }
     } else {
       try {
         await this.dataLayer.mutations.unblockProfile(profile);
         showToast("Account unblocked");
+        return true;
       } catch (error) {
         console.error(error);
         showToast("Failed to unblock account", { style: "error" });
+        return false;
       }
     }
   }

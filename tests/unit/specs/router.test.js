@@ -1092,6 +1092,21 @@ describe("scroll position persistence", () => {
     assert.deepEqual(router.scrollStates.has("/a"), false);
   });
 
+  it("getScrollYForPath returns live scrollY for the current path and the saved value for others", async () => {
+    const router = createRouter();
+    await router.load("/a");
+
+    await withScrollY(175, async () => {
+      await router.load("/b"); // leaving /a saves 175 under /a
+    });
+
+    await withScrollY(42, () => {
+      assert.deepEqual(router.getScrollYForPath("/b"), 42);
+      assert.deepEqual(router.getScrollYForPath("/a"), 175);
+      assert.deepEqual(router.getScrollYForPath("/never-visited"), 0);
+    });
+  });
+
   it("restores the saved scroll position via the page-restore event", async () => {
     const router = createRouter();
     await router.load("/a");

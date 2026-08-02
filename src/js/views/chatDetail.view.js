@@ -29,6 +29,7 @@ import {
 } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import {
   wait,
   raf,
@@ -54,6 +55,7 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/reactions-dialog.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 import "/js/components/app-icon.js";
 class ChatDetailView extends View {
   async render({
@@ -79,6 +81,7 @@ class ChatDetailView extends View {
     const state = new ReactiveStore("chatDetailView");
     state.$loadingEnabled = new Signal.State(false);
     state.$isSendingMessage = new Signal.State(false);
+    state.$isMuteSaving = new Signal.State(false);
     state.$activeMessageId = new Signal.State(null);
     state.$paletteMessageId = new Signal.State(null);
     state.$reactionsDialogMessageId = new Signal.State(null);
@@ -586,6 +589,56 @@ class ChatDetailView extends View {
         state.$isSendingMessage.set(false);
         await raf();
         focusChatInput();
+      }
+    }
+
+    async function handleToggleMute(convo, muted) {
+      state.$isMuteSaving.set(true);
+      try {
+        await dataLayer.mutations.setConvoMuted(convo, muted);
+        showToast(muted ? "Conversation muted" : "Conversation unmuted");
+      } catch (err) {
+        console.error(err);
+        showToast(
+          muted
+            ? "Failed to mute conversation"
+            : "Failed to unmute conversation",
+          { style: "error" },
+        );
+      } finally {
+        state.$isMuteSaving.set(false);
+      }
+    }
+
+    async function handleLeave(convo) {
+      const didLeave = await confirmModal(
+        "Are you sure you want to leave this conversation? It will be removed from your inbox.",
+        {
+          title: "Leave conversation",
+          confirmButtonText: "Leave conversation",
+          confirmButtonStyle: "danger",
+          pendingText: "Leaving",
+          onConfirm: async () => {
+            try {
+              await dataLayer.mutations.leaveConvo(convo);
+            } catch (err) {
+              if (
+                err instanceof ApiError &&
+                err.data?.error === "InvalidConvo"
+              ) {
+                showToast("Conversation not found.", { style: "error" });
+                throw err;
+              }
+              console.error(err);
+              showToast("Could not leave conversation", { style: "error" });
+              throw err;
+            }
+          },
+        },
+      );
+      if (didLeave) {
+        router.go("/messages");
+        showToast("Left conversation");
       }
     }
 
@@ -1380,6 +1433,7 @@ class ChatDetailView extends View {
         convoRequestStatus.error || messagesRequestStatus.error;
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = state.$isSendingMessage.get();
+      const isMuteSaving = state.$isMuteSaving.get();
       const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
       const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
       const convoPermalink = getPermalinkForConvo(convoId);
@@ -1390,6 +1444,8 @@ class ChatDetailView extends View {
         stagedReply && stagedReply.sender
           ? getMemberProfile(convo, stagedReply.sender.did)
           : null;
+      const otherMember =
+        !groupDetails && convo ? getOtherMember(currentUser, convo) : null;
       let title = "";
       let subtitle = "";
       if (groupDetails) {
@@ -1397,12 +1453,9 @@ class ChatDetailView extends View {
         subtitle = `${groupDetails.memberCount} ${
           groupDetails.memberCount === 1 ? "member" : "members"
         }`;
-      } else {
-        const otherMember = getOtherMember(currentUser, convo);
-        if (otherMember) {
-          title = getDisplayName(otherMember);
-          subtitle = otherMember?.handle ? `@${otherMember.handle}` : "";
-        }
+      } else if (otherMember) {
+        title = getDisplayName(otherMember);
+        subtitle = otherMember?.handle ? `@${otherMember.handle}` : "";
       }
 
       render(
@@ -1464,6 +1517,42 @@ class ChatDetailView extends View {
                     >
                       Group chat settings
                     </context-menu-item>`
+                  : ""}
+                ${convo && !groupDetails
+                  ? html`
+                      <context-menu-item-group>
+                        ${otherMember
+                          ? html`<context-menu-item
+                              data-testid="menu-action-go-to-profile"
+                              icon="user-line"
+                              @click=${() => {
+                                router.go(linkToProfile(otherMember));
+                              }}
+                            >
+                              Go to profile
+                            </context-menu-item>`
+                          : ""}
+                        <context-menu-item
+                          data-testid="menu-action-mute"
+                          data-teststate=${convo.muted ? "muted" : "unmuted"}
+                          icon=${convo.muted ? "bell-line" : "bell-off-line"}
+                          ?disabled=${isMuteSaving}
+                          @click=${() => handleToggleMute(convo, !convo.muted)}
+                        >
+                          ${convo.muted
+                            ? "Unmute conversation"
+                            : "Mute conversation"}
+                        </context-menu-item>
+                      </context-menu-item-group>
+                      <context-menu-item
+                        data-testid="menu-action-leave"
+                        icon="door-exit-line"
+                        item-style="danger"
+                        @click=${() => handleLeave(convo)}
+                      >
+                        Leave conversation
+                      </context-menu-item>
+                    `
                   : ""}
               </context-menu>
             `,

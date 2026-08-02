@@ -1,6 +1,7 @@
 import {
   isBlockingUser,
   isBlockedByViewer,
+  isBlockedPost,
   getQuotedPost,
   getBlockedQuote,
   getReplyAuthors,
@@ -204,6 +205,14 @@ class FilterMutedPosts extends FeedFilter {
   }
 }
 
+class FilterBlockedPosts extends FeedFilter {
+  filterFeedItems(feedItems) {
+    // The appview omits these on the server-side, this filter is in place
+    // just for client-side updates
+    return feedItems.filter((item) => !isBlockedPost(item.post));
+  }
+}
+
 class FilterEmptyPosts extends FeedFilter {
   constructor({ checkParents = true } = {}) {
     super();
@@ -322,6 +331,7 @@ export function filterFollowingFeed(
       : []),
     new DedupeFeed(),
     new FilterBlockedQuotes(),
+    new FilterBlockedPosts(),
     new FilterMutedQuotes(),
     new FilterMutedPosts(),
     new FilterEmptyPosts(),
@@ -342,6 +352,7 @@ export function filterAlgorithmicFeed(
 ) {
   const filter = FeedFilter.compose(
     new FilterBlockedQuotes(),
+    new FilterBlockedPosts(),
     new DedupeFeed(),
     new FilterMutedQuotes(),
     new FilterMutedPosts(),

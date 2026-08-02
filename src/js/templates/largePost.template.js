@@ -107,6 +107,7 @@ export function largePostTemplate({
   showActions = true,
   afterDelete = null,
   afterHide = null,
+  afterBlock = null,
   pluginService,
 }) {
   if (isBlockedPost(post)) {
@@ -218,8 +219,16 @@ export function largePostTemplate({
                 },
                 onClickMute: (profile, doMute) =>
                   postInteractionHandler.handleMuteAuthor(profile, doMute),
-                onClickBlock: (profile, doBlock) =>
-                  postInteractionHandler.handleBlockAuthor(profile, doBlock),
+                onClickBlock: async (profile, doBlock) => {
+                  const success =
+                    await postInteractionHandler.handleBlockAuthor(
+                      profile,
+                      doBlock,
+                    );
+                  if (success && doBlock && afterBlock) {
+                    afterBlock(post);
+                  }
+                },
                 onClickDelete: async (post) => {
                   await postInteractionHandler.handleDeletePost(post);
                   if (afterDelete) {

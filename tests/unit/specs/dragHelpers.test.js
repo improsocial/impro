@@ -199,6 +199,65 @@ describe("enableDragToDismiss", () => {
     await dragTouch([{ clientY: 100 }, { clientY: 250 }]);
     assert.equal(closeCount, 1);
   });
+  describe("dragHandle", () => {
+    let dragHandle;
+    let originalVisualViewport;
+    const setKeyboardOpen = (open) => {
+      window.visualViewport = {
+        height: open ? window.innerHeight - 300 : window.innerHeight,
+      };
+    };
+    beforeEach(() => {
+      dragHandle = document.createElement("div");
+      el.appendChild(dragHandle);
+      originalVisualViewport = window.visualViewport;
+      setKeyboardOpen(false);
+    });
+    afterEach(() => {
+      window.visualViewport = originalVisualViewport;
+    });
+    it("dismisses on a drag starting inside the handle even with the keyboard open", async () => {
+      setKeyboardOpen(true);
+      handle = enableDragToDismiss(el, {
+        onDismiss: () => closeCount++,
+        dragHandle,
+        disableWhenKeyboardOpen: true,
+      });
+      dragHandle.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+      el.dispatchEvent(touchEvent("touchmove", { clientY: 250 }));
+      el.dispatchEvent(touchEvent("touchend"));
+      await wait(0);
+      assert.equal(closeCount, 1);
+    });
+    it("still blocks drags outside the handle when the keyboard is open", async () => {
+      setKeyboardOpen(true);
+      handle = enableDragToDismiss(el, {
+        onDismiss: () => closeCount++,
+        dragHandle,
+        disableWhenKeyboardOpen: true,
+      });
+      el.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+      el.dispatchEvent(touchEvent("touchmove", { clientY: 250 }));
+      el.dispatchEvent(touchEvent("touchend"));
+      await wait(0);
+      assert.equal(closeCount, 0);
+    });
+    it("dismisses from the handle even when the scroll container is scrolled away from the top", async () => {
+      const scrollContainer = document.createElement("div");
+      scrollContainer.scrollTop = 100;
+      el.appendChild(scrollContainer);
+      handle = enableDragToDismiss(el, {
+        onDismiss: () => closeCount++,
+        dragHandle,
+        scrollContainer,
+      });
+      dragHandle.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+      el.dispatchEvent(touchEvent("touchmove", { clientY: 250 }));
+      el.dispatchEvent(touchEvent("touchend"));
+      await wait(0);
+      assert.equal(closeCount, 1);
+    });
+  });
   describe("default direction (down)", () => {
     let originalVisualViewport;
     const setKeyboardOpen = (open) => {

@@ -50,7 +50,7 @@ import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative, wait } from "/js/utils.js";
-import { effect } from "/js/signals.js";
+import { effect, untrack } from "/js/signals.js";
 import {
   enableNativeRefresh,
   disableNativeRefresh,
@@ -178,26 +178,6 @@ export async function main() {
 
   if (notificationService) {
     notificationService.startPolling();
-
-    effect(() => {
-      const numNotifications = notificationService.$numNotifications.get() ?? 0;
-      // When there are new notifications, preload notifications for the notifs page.
-      if (
-        numNotifications > 0 &&
-        !window.location.pathname.includes("notifications")
-      ) {
-        const loadedNotifications = dataLayer.derived.$notifications.get();
-        const { loading: notificationsLoading } =
-          dataLayer.requests.statusStore.$statuses.get("loadNotifications");
-        // Only preload if there are no notifications loaded
-        if (!loadedNotifications && !notificationsLoading) {
-          dataLayer.requests.loadNotifications({
-            limit: NOTIFICATIONS_PAGE_SIZE,
-            reload: true,
-          });
-        }
-      }
-    }, "PRELOAD_NOTIFICATIONS");
   }
 
   if (chatNotificationService) {
@@ -233,6 +213,25 @@ export async function main() {
   const router = new Router();
 
   scrollLocks.setContainerProvider(() => router.currentPage);
+
+  if (notificationService) {
+    effect(() => {
+      const numNotifications = notificationService.$numNotifications.get() ?? 0;
+      if (numNotifications === 0 || router.currentPath === "/notifications")
+        return;
+      // When the notifications page is untouched (scrolled to top or not yet
+      // visited), preload new notifications.
+      if (router.getScrollYForPath("/notifications") > 0) return;
+      const { loading: notificationsLoading } = untrack(() =>
+        dataLayer.requests.statusStore.$statuses.get("loadNotifications"),
+      );
+      if (notificationsLoading) return;
+      dataLayer.requests.loadNotifications({
+        limit: NOTIFICATIONS_PAGE_SIZE,
+        reload: true,
+      });
+    });
+  }
 
   router.addRoute(["/", "/intent/compose"], () => homeView, {
     layoutOptions: { activeNavItem: "home" },

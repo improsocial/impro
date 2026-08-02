@@ -412,6 +412,7 @@ class EditListDetailsDialog extends Component {
         confirmDismiss: () => this.confirmClose(),
         onDismiss: () => this.close(),
         scrollContainer: this.querySelector(".form-dialog-content"),
+        dragHandle: this.querySelector(".form-dialog-header"),
         ignoreTouchTarget: (el) =>
           !!el.closest("button") ||
           el.tagName === "INPUT" ||

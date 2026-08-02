@@ -188,6 +188,20 @@ describe("animated-sidebar", () => {
       const sidebar = element.querySelector("dialog.sidebar");
       assert(!sidebar.hasAttribute("open"));
     });
+
+    it("should close immediately when animate: false", () => {
+      const element = document.createElement("animated-sidebar");
+      connectElement(element);
+      element.open();
+      const sidebar = element.querySelector("dialog.sidebar");
+      sidebar.style.transitionDuration = "1s";
+      sidebar.getAnimations = () => [];
+
+      element.close({ animate: false });
+
+      assert.deepEqual(element.isOpen, false);
+      assert(!sidebar.hasAttribute("open"));
+    });
   });
 
   describe("AnimatedSidebar - dismissal", () => {

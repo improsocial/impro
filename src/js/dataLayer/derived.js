@@ -5,6 +5,7 @@ import {
   filterBookmarksFeed,
 } from "/js/feedFilters.js";
 import {
+  createBlockedPost,
   createUnavailablePost,
   createEmbedFromPost,
   getBlockedQuote,
@@ -93,6 +94,16 @@ function applyLabels(post, preferences) {
   return transformNestedQuotes(result, (quotedPost) =>
     applyLabelsToPost(quotedPost, preferences),
   );
+}
+
+// Match social-app: hide notifications from blocked / muted
+// users unless the viewer follows them (a follow overrides a mute).
+function shouldHideNotification(notification) {
+  const viewer = notification.author?.viewer;
+  if (!viewer) return false;
+  if (viewer.blocking) return true;
+  if (viewer.muted && !viewer.following) return true;
+  return false;
 }
 
 function filterBlockedReactions(reactions, memberProfiles) {
@@ -216,16 +227,16 @@ export class Derived extends ReactiveStore {
     this.$notifications = new Signal.Computed(() => {
       const data = this.dataStore.$notifications.get();
       if (!data) return null;
-      return data.notifications.map((notification) =>
-        this.hydrateNotification(notification),
-      );
+      return data.notifications
+        .map((notification) => this.hydrateNotification(notification))
+        .filter((notification) => !shouldHideNotification(notification));
     });
     this.$mentionNotifications = new Signal.Computed(() => {
       const data = this.dataStore.$mentionNotifications.get();
       if (!data) return null;
-      return data.notifications.map((notification) =>
-        this.hydrateNotification(notification),
-      );
+      return data.notifications
+        .map((notification) => this.hydrateNotification(notification))
+        .filter((notification) => !shouldHideNotification(notification));
     });
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
       const postThread = this.dataStore.$postThreads.get(postURI);
@@ -744,6 +755,13 @@ export class Derived extends ReactiveStore {
   hydratePost(post, preferences) {
     if (!post || !preferences) {
       return null;
+    }
+    if (!isBlockedPost(post) && isBlockedByViewer(post)) {
+      // Create synthetic blocked post if the user has blocked the author
+      return createBlockedPost({
+        uri: post.uri,
+        author: post.author,
+      });
     }
     let result = this.resolveBlockedQuote(post);
     result = this.attachJoinLinkPreview(result);

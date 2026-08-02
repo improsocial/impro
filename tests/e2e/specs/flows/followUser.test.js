@@ -108,6 +108,11 @@ test.describe("Follow/Unfollow flow", () => {
     // Click the follow button to unfollow
     await profileView.locator('[data-testid="follow-button"]').click();
 
+    // Confirm the unfollow prompt
+    const confirmDialog = page.locator('[data-testid="confirm-modal"]');
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+    await confirmDialog.locator('[data-testid="modal-confirm-button"]').click();
+
     // Verify the button changes back to the follow state
     await expect(
       profileView.locator(

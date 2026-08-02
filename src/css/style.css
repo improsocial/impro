@@ -6294,6 +6294,27 @@ button.profile-list-item-button.is-disabled {
   }
 }
 
+.post-composer-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--highlight-color) 15%, transparent);
+  border: 2px dashed var(--highlight-color);
+}
+
+.post-composer-drop-overlay span {
+  color: var(--text-color);
+  font-size: 18px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background-color: var(--background-color);
+}
+
 .post-composer::backdrop {
   background-color: var(--overlay-color-medium);
   animation: fade-in 0.2s ease-out;
@@ -7064,6 +7085,16 @@ context-menu-item > button > .context-menu-item-icon svg {
 
 context-menu-item > button > svg.context-menu-item-icon {
   display: block;
+}
+
+context-menu-item > button.context-menu-item-style-danger {
+  color: var(--error-color);
+}
+
+context-menu-item
+  > button.context-menu-item-style-danger
+  > .context-menu-item-icon {
+  color: var(--error-color);
 }
 
 context-menu-item > a {
