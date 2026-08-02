@@ -38,6 +38,49 @@ test.describe("Community plugins view", () => {
     await expect(view.locator(".plugin-install-button")).toHaveCount(0);
   });
 
+  test("marks the Plugins sidebar item as active", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/plugins/community");
+    await expect(page.locator("#community-plugins-view")).toBeVisible({
+      timeout: 10000,
+    });
+    const pluginsNavIcon = page.locator(
+      '[data-testid="sidebar-nav-plugins"] .icon',
+    );
+    await expect(pluginsNavIcon).toHaveClass(/filled/);
+
+    await page.goto(`/plugins/community/${REMOTE_ID}`);
+    await expect(page.locator("#community-plugin-listing-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(pluginsNavIcon).toHaveClass(/filled/);
+  });
+
+  test("clicking the active Plugins nav item returns to installed plugins", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+    await login(page);
+
+    for (const url of [
+      "/plugins/community",
+      `/plugins/community/${REMOTE_ID}`,
+    ]) {
+      await page.goto(url);
+      await page.locator('[data-testid="sidebar-nav-plugins"]').click();
+      await expect(page.locator("#installed-plugins-view")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(page).toHaveURL(/\/plugins\/installed/);
+    }
+  });
+
   test("shows an installed badge for installed plugins", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.registryEntries = [REGISTRY_ENTRY];
@@ -104,6 +147,79 @@ test.describe("Community plugins view", () => {
     await expect(
       view.locator('[data-testid="plugin-installed-badge"]'),
     ).toHaveCount(0);
+  });
+
+  test("shows an intro with a sign-in CTA only when logged out", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+
+    await page.goto("/plugins/community");
+    const view = page.locator("#community-plugins-view");
+    await expect(
+      view.locator('[data-testid="community-plugins-intro"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await view.locator('[data-testid="plugins-intro-login-button"]').click();
+    await expect(page).toHaveURL(/\/login/);
+
+    await login(page);
+    await page.goto("/plugins/community");
+    await expect(
+      view.locator(".plugin-list-item", { hasText: "Remote Themes" }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="community-plugins-intro"]'),
+    ).toHaveCount(0);
+  });
+
+  test("logged out, the Plugins nav item points at the community listings", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+
+    await page.goto("/");
+    await page.locator('[data-testid="sidebar-nav-plugins"]').click();
+    await expect(page.locator("#community-plugins-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL(/\/plugins\/community$/);
+
+    await page.goto(`/plugins/community/${REMOTE_ID}`);
+    await expect(page.locator("#community-plugin-listing-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await page.locator('[data-testid="sidebar-nav-plugins"]').click();
+    await expect(page).toHaveURL(/\/plugins\/community$/);
+  });
+
+  test("logged out, clicking the active Plugins nav item scrolls to top", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = Array.from({ length: 30 }, (_, index) => ({
+      ...REGISTRY_ENTRY,
+      id: `${REMOTE_ID}-${index}`,
+      name: `Remote Themes ${index}`,
+    }));
+    await mockServer.setup(page);
+
+    await page.goto("/plugins/community");
+    await expect(
+      page.locator("#community-plugins-view .plugin-list"),
+    ).toBeVisible({ timeout: 10000 });
+    await page.mouse.wheel(0, 2000);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+
+    await page.locator('[data-testid="sidebar-nav-plugins"]').click();
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page).toHaveURL(/\/plugins\/community$/);
   });
 
   test("redirects the old settings URL to /plugins/community", async ({

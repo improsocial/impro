@@ -10190,7 +10190,8 @@ image-cropper {
   }
 }
 
-.community-plugins-link-icon {
+.community-plugins-link-icon,
+.plugins-intro-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10202,7 +10203,8 @@ image-cropper {
   flex-shrink: 0;
 }
 
-.community-plugins-link-icon .icon {
+.community-plugins-link-icon .icon,
+.plugins-intro-icon .icon {
   width: 22px;
   height: 22px;
 }
@@ -10238,6 +10240,30 @@ image-cropper {
 
 .community-plugins-link-arrow .icon path {
   stroke: var(--text-color-muted);
+}
+
+.plugins-intro {
+  margin: 12px 16px;
+  padding: 16px;
+  border-radius: var(--callout-border-radius);
+  background: var(--callout-color);
+}
+
+.plugins-intro-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.plugins-intro-title {
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.plugins-intro-message {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  color: var(--text-color-muted);
 }
 
 .plugin-list {

@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { linkToLogin, getPermalinkForCommunityPlugin } from "/js/navigation.js";
 import { showToast } from "/js/toasts.js";
@@ -13,7 +13,13 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 
 class CommunityPluginListingView extends View {
-  async render({ root, params, context: { pluginService, isAuthenticated } }) {
+  async render({
+    root,
+    router,
+    layout,
+    params,
+    context: { pluginService, isAuthenticated },
+  }) {
     const { pluginId } = params;
     const isLocal = pluginId.endsWith("__LOCAL");
 
@@ -126,6 +132,11 @@ class CommunityPluginListingView extends View {
             : "Install"}
       </button>`;
     }
+
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go(isAuthenticated ? "/plugins/installed" : "/plugins/community");
+    });
 
     bindPageTitle(root, () => state.$listing.get()?.name ?? null);
 

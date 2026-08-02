@@ -75,6 +75,20 @@ describe("sidebarTemplate - logged out state", () => {
     assert(searchLink !== null);
   });
 
+  it("should render plugins nav item linking to community plugins when logged out", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: false,
+      currentUser: null,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const pluginsLink = container.querySelector(
+      "[data-testid='sidebar-nav-plugins']",
+    );
+    assert(pluginsLink !== null);
+    assert.equal(pluginsLink.getAttribute("href"), "/plugins/community");
+  });
+
   it("should render about link when logged out", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,
