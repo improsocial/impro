@@ -1044,6 +1044,49 @@ describe("$currentRoute", () => {
   });
 });
 
+describe("page cache", () => {
+  // mountRouter's root is detached, so "still rendered" means "still in the
+  // page container" rather than isConnected
+  function createRouter(paths) {
+    const router = new Router();
+    const { defaultContainer } = mountRouter(router);
+    for (const path of paths) {
+      router.addRoute(path, () => Promise.resolve({}));
+    }
+    router.renderRoute(() => {});
+    return { router, defaultContainer };
+  }
+
+  it("drops the least recently visited page once over the cap", async () => {
+    const paths = ["/a", "/b", "/c", "/d", "/e", "/f"];
+    const { router, defaultContainer } = createRouter(paths);
+    for (const path of paths.slice(0, 5)) {
+      await router.load(path);
+    }
+    // Revisiting /a makes /b the coldest page
+    await router.load("/a");
+    // peek, not get: reading through the cache would count as a visit
+    const pageB = router.pages.peek("/b").el;
+
+    await router.load("/f");
+
+    assert.deepEqual(router.pages.has("/b"), false);
+    assert.deepEqual(defaultContainer.contains(pageB), false);
+    assert(router.pages.has("/a"), "the revisited page is kept");
+    assert.deepEqual(router.pages.size, 5);
+  });
+
+  it("keeps a returned-to page rendered", async () => {
+    const { router, defaultContainer } = createRouter(["/a", "/b"]);
+    await router.load("/a");
+    const pageA = router.pages.peek("/a").el;
+    await router.load("/b");
+    await router.load("/a");
+    assert.equal(router.pages.peek("/a").el, pageA);
+    assert(defaultContainer.contains(pageA));
+  });
+});
+
 describe("scroll position persistence", () => {
   // JSDOM's window.scrollY is a read-only getter, so temporarily override it to
   // simulate the page being scrolled before we navigate away.

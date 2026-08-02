@@ -3,6 +3,7 @@ import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { Signal, SignalMap } from "/js/signals.js";
 
 export function makeTestDataLayer({
   api: apiOverrides = {},
@@ -25,6 +26,24 @@ export function makeTestDataLayer({
     draftMediaStore ?? new DraftMediaStore("test-media"),
     hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),
   );
+}
+
+export function makeTestPluginService(overrides = {}) {
+  return {
+    $slots: new SignalMap(),
+    $richTextTransformsVersion: new Signal.State(0),
+    getSlotRegistrations: () => [],
+    getRenderer: () => ({
+      createRoot: () => ({ render: () => null, reset: () => {} }),
+    }),
+    transformRichTextTokens: async () => null,
+    renderRichTextNodeToken: () => null,
+    getClaimedFacetTypes: () => new Set(),
+    getSidebarItems: () => [],
+    getPostContextMenuItems: async () => [],
+    getProfileContextMenuItems: async () => [],
+    ...overrides,
+  };
 }
 
 // Stubs the four declarative.ensure* record-resolution methods with plausible

@@ -395,32 +395,53 @@ export class Plugin {
     });
   }
 
-  registerSlot(name, callback = () => null) {
+  // options.cacheKey: array of context fields. If provided, the host
+  // will treat the slot content as a pure function of these fields
+  // - omitting other fields in the callback and caching return values
+  // until they're invalidated by refreshSlot(). An empty array declares
+  // that the content depends on no context at all, so one cached result
+  // serves every instance.
+  //
+  // The host batches all pending contexts of a render into one call.
+  registerSlot(name, callback = () => null, options = {}) {
     const handlerId = uuid.create();
-    callHandlers.set(handlerId, async (context) => {
-      const result = await callback(context);
-      if (result == null) return null;
-      if (!(result instanceof VirtualEl)) {
-        const description = result?.constructor?.name ?? typeof result;
-        throw new Error(
-          `Slot "${name}" must return a VirtualEl (or null), got ${description}`,
-        );
+    callHandlers.set(handlerId, async (batch) => {
+      const results = [];
+      for (const context of batch) {
+        try {
+          results.push({
+            value: await getSlotContent(name, callback, context),
+          });
+        } catch (error) {
+          results.push({ error: error?.message ?? String(error) });
+        }
       }
-      return result._serialize();
+      return results;
     });
+    const cacheKey = Array.isArray(options.cacheKey)
+      ? options.cacheKey.filter((field) => typeof field === "string")
+      : null;
     self.postMessage({
       type: "register",
       target: "slot",
       name,
       handlerId,
+      cacheKey,
+      batch: true,
     });
   }
 
-  // Makes every mounted <plugin-slot name=...> re-invoke this plugin's
-  // registered callbacks for that slot. Useful when a slot's content depends
-  // on data that resolves asynchronously after the initial render.
-  refreshSlot(name) {
-    return hostCall("refreshSlot", { name });
+  // Makes mounted <plugin-slot name=...> instances re-invoke this plugin's
+  // registered callback for that slot, and drops any cached results. Useful
+  // when a slot's content depends on plugin state that changed after render.
+  //
+  // options.keys: array of matcher objects to be OR'd together,
+  // e.g. [{ did: "..." }] - any matching slots will be invalidated / refreshed.
+  // Omit to refresh every instance. A slot registered with a cacheKey can only
+  // be matched on those declared fields, since its output depends on nothing
+  // else.
+  refreshSlot(name, options = {}) {
+    return hostCall("refreshSlot", { name, keys: options.keys ?? null });
   }
 
   onload() {}
@@ -444,6 +465,18 @@ export class Plugin {
           }),
       );
   }
+}
+
+async function getSlotContent(name, callback, context) {
+  const result = await callback(context);
+  if (result == null) return null;
+  if (!(result instanceof VirtualEl)) {
+    const description = result?.constructor?.name ?? typeof result;
+    throw new Error(
+      `Slot "${name}" must return a VirtualEl or null, got ${description}`,
+    );
+  }
+  return result._serialize();
 }
 
 function serializeTransformTokens(tokens) {

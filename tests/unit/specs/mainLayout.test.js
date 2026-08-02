@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { MainLayout, mainLayoutTemplate } from "/js/mainLayout.js";
 import { render, html } from "/js/lib/lit-html.js";
 import { Signal, SignalSet } from "/js/signals.js";
+import { makeTestPluginService } from "../testHelpers.js";
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -36,7 +37,9 @@ describe("MainLayout", () => {
       chatNotificationService: { $numNotifications: $numChatNotifications },
       postComposerService: { composePost },
       accountSwitcherService: null,
-      pluginService: { getSidebarItems: () => [...sidebarItems] },
+      pluginService: makeTestPluginService({
+        getSidebarItems: () => [...sidebarItems],
+      }),
       groupChatLinkService: { handleAction: mock.fn() },
       interactionHandlers: { postInteractionHandler: {} },
     };
@@ -218,9 +221,7 @@ describe("MainLayout", () => {
   });
 });
 
-const mockPluginService = {
-  getSidebarItems: () => [],
-};
+const mockPluginService = makeTestPluginService();
 
 describe("mainLayoutTemplate", () => {
   it("should render children in center column", () => {

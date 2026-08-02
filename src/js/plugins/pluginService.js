@@ -18,6 +18,8 @@ import {
   PluginMemoryDataStore,
 } from "/js/plugins/pluginLocalDataStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
+import { PluginRichTextDispatcher } from "/js/plugins/pluginRichTextDispatcher.js";
+import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
 import { pluginFetch } from "/js/plugins/pluginRequests.js";
@@ -30,10 +32,6 @@ import {
   isActionAllowed,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
-import {
-  validateRichTextTokens,
-  hydrateRichTextFacets,
-} from "/js/richTextHelpers.js";
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
@@ -96,25 +94,6 @@ export function parseRepoUrl(input) {
   return host === "github" ? path : `${host}:${path}`;
 }
 
-// Stamps node tokens (inline/block) with the pluginId that created them, so
-// renderRichTextNodeToken can route each to the correct plugin's renderer.
-function stampRichTextNodeTokens(tokens, previousTokens, pluginId) {
-  const stampedIds = new Set();
-  // Only pass through previously stamped tokens to prevent cross-plugin forgery
-  for (const token of previousTokens) {
-    if (token.type === "inline" || token.type === "block") {
-      stampedIds.add(token.pluginId);
-    }
-  }
-  return tokens.map((token) => {
-    if (token.type !== "inline" && token.type !== "block") return token;
-    return {
-      ...token,
-      pluginId: stampedIds.has(token.pluginId) ? token.pluginId : pluginId,
-    };
-  });
-}
-
 export class PermissionsDeclinedError extends Error {
   constructor(message = "User declined permissions") {
     super(message);
@@ -131,7 +110,6 @@ export class PluginService extends ReactiveStore {
       sidebarItems: new SignalSet(),
       eventListeners: new Map(),
       feedFilters: new Set(),
-      richTextTransforms: new Set(),
     };
     this.$availableUpdates = new Signal.State(null);
     this.$rawRegistryListings = new Signal.State(null);
@@ -168,16 +146,11 @@ export class PluginService extends ReactiveStore {
         hasSettings: this.$settingTabs.get(entry.id) !== null,
       }));
     });
-    // Bumped whenever a transform registers/unregisters
-    this.$richTextTransformsVersion = new Signal.State(0);
-    this._richTextTokensCache = new Map();
-    this._pendingRichTextRuns = new Map();
-    this._richTextQueue = [];
-    this._richTextFlushScheduled = false;
-    this._richTextElements = new WeakMap();
     this.$settingTabs = new SignalMap();
-    this.$slots = new SignalMap();
-    this._slotEntryVersion = 0;
+    this.slotDispatcher = new PluginSlotDispatcher();
+    this.richTextDispatcher = new PluginRichTextDispatcher({
+      getRenderer: (pluginId) => this.getRenderer(pluginId),
+    });
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -300,47 +273,22 @@ export class PluginService extends ReactiveStore {
     });
     this.pluginBridge.addRegistrationTarget(
       "richTextTransform",
-      (plugin, message) => {
-        const entry = {
+      (plugin, message) =>
+        this.richTextDispatcher.register({
           pluginId: plugin.pluginId,
-          handlesFacetTypes: Array.isArray(message.handlesFacetTypes)
-            ? message.handlesFacetTypes
-            : [],
+          handlesFacetTypes: message.handlesFacetTypes,
           invoke: (batch) => plugin.call(message.handlerId, batch),
-        };
-        this.registries.richTextTransforms.add(entry);
-        this._invalidateRichTextTransforms();
-        return () => {
-          this.registries.richTextTransforms.delete(entry);
-          this._invalidateRichTextTransforms();
-        };
-      },
+        }),
     );
-    this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
-      const current = this.$slots.get(message.name) ?? [];
-      if (current.some((other) => other.pluginId === plugin.pluginId)) {
-        console.warn(
-          `"${plugin.pluginId}" is already registered for slot "${message.name}"; ignoring duplicate registration`,
-        );
-        return null;
-      }
-      const entry = {
+    this.pluginBridge.addRegistrationTarget("slot", (plugin, message) =>
+      this.slotDispatcher.register({
         pluginId: plugin.pluginId,
-        version: ++this._slotEntryVersion,
-        invoke: (context) => plugin.call(message.handlerId, context),
-      };
-      this.$slots.set(message.name, [...current, entry]);
-      return () => {
-        const list = this.$slots.get(message.name);
-        if (!list) return;
-        const next = list.filter((other) => other.pluginId !== plugin.pluginId);
-        if (next.length === 0) {
-          this.$slots.delete(message.name);
-        } else {
-          this.$slots.set(message.name, next);
-        }
-      };
-    });
+        name: message.name,
+        cacheKey: message.cacheKey,
+        batch: message.batch === true,
+        invoke: (payload) => plugin.call(message.handlerId, payload),
+      }),
+    );
   }
 
   _setupHostMethods() {
@@ -402,17 +350,8 @@ export class PluginService extends ReactiveStore {
       },
     );
 
-    this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name }) => {
-      const current = this.$slots.get(name);
-      if (!current?.some((entry) => entry.pluginId === plugin.pluginId)) {
-        return;
-      }
-      const next = current.map((entry) =>
-        entry.pluginId === plugin.pluginId
-          ? { ...entry, version: ++this._slotEntryVersion }
-          : entry,
-      );
-      this.$slots.set(name, next);
+    this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name, keys }) => {
+      this.slotDispatcher.refresh(plugin.pluginId, name, keys);
     });
 
     this.pluginBridge.addHostMethod(
@@ -1022,8 +961,13 @@ export class PluginService extends ReactiveStore {
     return [...this.registries.sidebarItems];
   }
 
-  getSlotEntries(name) {
-    return [...(this.$slots.get(name) ?? [])];
+  // Slot consumers (<plugin-slot>) are handed the service, not the dispatcher
+  get $slots() {
+    return this.slotDispatcher.$slots;
+  }
+
+  getSlotRegistrations(name) {
+    return this.slotDispatcher.getRegistrations(name);
   }
 
   getSettingTabs() {
@@ -1149,138 +1093,22 @@ export class PluginService extends ReactiveStore {
     );
   }
 
-  // Rich-text transform pipeline
+  // Rich-text consumers (<plugin-rich-text>) are handed the service, not
+  // the dispatcher
 
-  _invalidateRichTextTransforms() {
-    this._pendingRichTextRuns.clear();
-    this._richTextTokensCache.clear();
-    this.$richTextTransformsVersion.set(
-      this.$richTextTransformsVersion.get() + 1,
-    );
+  get $richTextTransformsVersion() {
+    return this.richTextDispatcher.$version;
   }
 
   getClaimedFacetTypes() {
-    const types = new Set();
-    for (const entry of this.registries.richTextTransforms) {
-      if (!entry.handlesFacetTypes) continue;
-      for (const type of entry.handlesFacetTypes) types.add(type);
-    }
-    return types;
+    return this.richTextDispatcher.getClaimedFacetTypes();
   }
 
-  // Results are cached by (uri, surface); requests are batched per render flush
-  async transformRichTextTokens(tokens, context) {
-    if (this.registries.richTextTransforms.size === 0) return null;
-    const key = `${context.uri}|${context.surface}`;
-    const cached = this._richTextTokensCache.get(key);
-    if (cached && cached.text === context.source.text) {
-      return cached.tokens;
-    }
-    const pending = this._pendingRichTextRuns.get(key);
-    if (pending) return pending;
-    const item = { key, baseTokens: tokens, tokens, context };
-    const promise = new Promise((resolve) => {
-      item.resolve = resolve;
-    });
-    this._pendingRichTextRuns.set(key, promise);
-    this._richTextQueue.push(item);
-    if (!this._richTextFlushScheduled) {
-      this._richTextFlushScheduled = true;
-      queueMicrotask(() => {
-        this._richTextFlushScheduled = false;
-        const items = this._richTextQueue.splice(0);
-        this._runRichTextTransforms(
-          items,
-          this.$richTextTransformsVersion.get(),
-        );
-      });
-    }
-    return promise;
+  transformRichTextTokens(tokens, context) {
+    return this.richTextDispatcher.transformTokens(tokens, context);
   }
 
-  async _runRichTextTransforms(items, version) {
-    for (const transform of this.registries.richTextTransforms) {
-      const batch = items.map((item) => ({
-        tokens: item.tokens,
-        context: item.context,
-      }));
-      let results = null;
-      try {
-        results = await transform.invoke(batch);
-      } catch (e) {
-        console.error(
-          `Plugin ${transform.pluginId} rich text transform raised an exception`,
-          e,
-        );
-      }
-      if (!Array.isArray(results)) continue;
-      items.forEach((item, index) => {
-        const result = results[index];
-        if (!result || result.error != null) {
-          if (result?.error != null) {
-            console.error(
-              `Plugin ${transform.pluginId} rich text transform failed: ${result.error}`,
-            );
-          }
-          return;
-        }
-        if (!validateRichTextTokens(result.value)) {
-          console.error(
-            `Plugin ${transform.pluginId} rich text transform returned malformed tokens`,
-          );
-          return;
-        }
-        try {
-          const hydrated = hydrateRichTextFacets(result.value, item.baseTokens);
-          item.tokens = stampRichTextNodeTokens(
-            hydrated,
-            item.tokens,
-            transform.pluginId,
-          );
-        } catch (error) {
-          console.error(
-            `Plugin ${transform.pluginId} rich text transform returned an unrecognized facet`,
-            error,
-          );
-        }
-      });
-    }
-    // Discard if transforms changed mid-run
-    const isStale = version !== this.$richTextTransformsVersion.get();
-    for (const item of items) {
-      if (isStale) {
-        item.resolve(null);
-        continue;
-      }
-      this._pendingRichTextRuns.delete(item.key);
-      this._richTextTokensCache.set(item.key, {
-        text: item.context.source.text,
-        tokens: item.tokens,
-      });
-      item.resolve(item.tokens);
-    }
-  }
-
-  // Mounts a node token's VirtualEl via the owning plugin's renderer.
-  // Elements are cached by host / token
   renderRichTextNodeToken(token, host) {
-    if (!token.pluginId || !token.node || !host) return null;
-    let byToken = this._richTextElements.get(host);
-    if (!byToken) {
-      byToken = new WeakMap();
-      this._richTextElements.set(host, byToken);
-    }
-    let cached = byToken.get(token);
-    if (!cached) {
-      let renderer = null;
-      try {
-        renderer = this.getRenderer(token.pluginId);
-      } catch {
-        return null;
-      }
-      cached = { root: renderer.createRoot() };
-      byToken.set(token, cached);
-    }
-    return cached.root.render(token.node);
+    return this.richTextDispatcher.renderNodeToken(token, host);
   }
 }

@@ -1,6 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { SignalMap } from "/js/signals.js";
+import { makeTestPluginService } from "../../testHelpers.js";
 import "/js/components/plugin-slot.js";
 
 describe("plugin-slot", () => {
@@ -33,23 +34,38 @@ describe("plugin-slot", () => {
     };
   }
 
-  function makePluginService({ entries = {}, onCreateRoot } = {}) {
+  // Registrations are declared with just `invoke` (or a `cached` value,
+  // mimicking a dispatcher-level cache hit, which resolves synchronously).
+  function toRegistration(registration) {
+    if (registration.request) return registration;
+    return {
+      versionFor: () => registration.version ?? 0,
+      contextKeyFor: (context) => JSON.stringify(context),
+      ...registration,
+      request: (context) =>
+        registration.cached
+          ? registration.cached(context)
+          : registration.invoke(context),
+    };
+  }
+
+  function makePluginService({ registrations = {}, onCreateRoot } = {}) {
     const $slots = new SignalMap();
-    for (const [name, list] of Object.entries(entries)) {
+    for (const [name, list] of Object.entries(registrations)) {
       $slots.set(name, [...list]);
     }
-    return {
+    return makeTestPluginService({
       $slots,
-      setSlotEntries(name, list) {
+      setSlotRegistrations(name, list) {
         $slots.set(name, list.length === 0 ? null : [...list]);
       },
-      getSlotEntries(name) {
-        return [...($slots.get(name) ?? [])];
+      getSlotRegistrations(name) {
+        return ($slots.get(name) ?? []).map(toRegistration);
       },
       getRenderer(pluginId) {
         return makeRenderer(pluginId, { onCreateRoot });
       },
-    };
+    });
   }
 
   function makeSlot({ pluginService, name, context = {} }) {
@@ -82,7 +98,7 @@ describe("plugin-slot", () => {
     it("calls each registered plugin with the parsed context", async () => {
       const calls = [];
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",
@@ -114,7 +130,7 @@ describe("plugin-slot", () => {
 
     it("renders multiple plugins in registration order", async () => {
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",
@@ -137,7 +153,7 @@ describe("plugin-slot", () => {
 
     it("skips plugins that return null", async () => {
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             { pluginId: "alpha", invoke: async () => null },
             {
@@ -156,7 +172,7 @@ describe("plugin-slot", () => {
 
     it("isolates failing plugins from succeeding ones", async () => {
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",
@@ -183,17 +199,47 @@ describe("plugin-slot", () => {
       assert.deepEqual(slot.children.length, 1);
       assert.deepEqual(slot.children[0].dataset.plugin, "beta");
     });
+
+    it("isolates a plugin whose request throws synchronously", async () => {
+      const pluginService = makePluginService({
+        registrations: {
+          x: [
+            {
+              pluginId: "alpha",
+              cached: () => {
+                throw new Error("boom");
+              },
+            },
+            {
+              pluginId: "beta",
+              cached: () => ({ tag: "div", text: "B" }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({ pluginService, name: "x" });
+      const originalError = console.error;
+      console.error = () => {};
+      document.body.appendChild(slot);
+      try {
+        await flushMicrotasks();
+      } finally {
+        console.error = originalError;
+      }
+      assert.deepEqual(slot.children.length, 1);
+      assert.deepEqual(slot.children[0].dataset.plugin, "beta");
+    });
   });
 
   describe("PluginSlot - dynamic updates", () => {
     it("re-renders when a new plugin registers for this slot", async () => {
-      const pluginService = makePluginService({ entries: { x: [] } });
+      const pluginService = makePluginService({ registrations: { x: [] } });
       const slot = makeSlot({ pluginService, name: "x" });
       document.body.appendChild(slot);
       await flushMicrotasks();
       assert.deepEqual(slot.children.length, 0);
 
-      pluginService.setSlotEntries("x", [
+      pluginService.setSlotRegistrations("x", [
         { pluginId: "alpha", invoke: async () => ({ tag: "div", text: "A" }) },
       ]);
       await flushMicrotasks();
@@ -202,13 +248,13 @@ describe("plugin-slot", () => {
     });
 
     it("ignores registrations for other slot names", async () => {
-      const pluginService = makePluginService({ entries: { x: [] } });
+      const pluginService = makePluginService({ registrations: { x: [] } });
       const slot = makeSlot({ pluginService, name: "x" });
       document.body.appendChild(slot);
       await flushMicrotasks();
 
       let invoked = false;
-      pluginService.setSlotEntries("y", [
+      pluginService.setSlotRegistrations("y", [
         {
           pluginId: "other",
           invoke: async () => {
@@ -224,7 +270,7 @@ describe("plugin-slot", () => {
     it("re-renders when the context changes", async () => {
       const captured = [];
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",
@@ -254,7 +300,7 @@ describe("plugin-slot", () => {
     it("re-renders when context-did changes on an existing element", async () => {
       const captured = [];
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           "author-badges": [
             {
               pluginId: "alpha",
@@ -281,10 +327,48 @@ describe("plugin-slot", () => {
       assert.deepEqual(slot.children[0].textContent, "did:plc:two");
     });
 
+    it("leaves a registration alone when the context changes outside its cacheKey", async () => {
+      const captured = [];
+      const pluginService = makePluginService({
+        registrations: {
+          "author-badges": [
+            {
+              pluginId: "alpha",
+              // Mirrors a registration declaring cacheKey: ["did"]
+              contextKeyFor: (context) => context.did,
+              invoke: async (context) => {
+                captured.push(context);
+                return { tag: "div", text: context.did };
+              },
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one", uri: "at://one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(captured.length, 1);
+      const rendered = slot.children[0];
+
+      slot.setAttribute("context-uri", "at://two");
+      await flushMicrotasks();
+      assert.deepEqual(captured.length, 1);
+      assert.equal(slot.children[0], rendered);
+
+      slot.setAttribute("context-did", "did:plc:two");
+      await flushMicrotasks();
+      assert.deepEqual(captured.length, 2);
+      assert.deepEqual(slot.children[0].textContent, "did:plc:two");
+    });
+
     it("supports multiple simultaneous instances of the same slot name, each with its own context", async () => {
       const captured = [];
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           "author-badges": [
             {
               pluginId: "alpha",
@@ -319,9 +403,9 @@ describe("plugin-slot", () => {
   });
 
   describe("PluginSlot - per-plugin refresh", () => {
-    function makeVersionedEntries() {
+    function makeVersionedRegistrations() {
       const invokeCounts = { alpha: 0, beta: 0 };
-      const entries = [
+      const registrations = [
         {
           pluginId: "alpha",
           version: 0,
@@ -339,20 +423,22 @@ describe("plugin-slot", () => {
           },
         },
       ];
-      return { entries, invokeCounts };
+      return { registrations, invokeCounts };
     }
 
-    it("re-invokes only the plugin whose entry version was bumped", async () => {
-      const { entries, invokeCounts } = makeVersionedEntries();
-      const pluginService = makePluginService({ entries: { x: entries } });
+    it("re-invokes only the plugin whose registration version was bumped", async () => {
+      const { registrations, invokeCounts } = makeVersionedRegistrations();
+      const pluginService = makePluginService({
+        registrations: { x: registrations },
+      });
       const slot = makeSlot({ pluginService, name: "x" });
       document.body.appendChild(slot);
       await flushMicrotasks();
       assert.deepEqual(invokeCounts, { alpha: 1, beta: 1 });
       const betaElement = slot.children[1];
 
-      entries[0].version += 1;
-      pluginService.setSlotEntries("x", entries);
+      registrations[0].version += 1;
+      pluginService.setSlotRegistrations("x", registrations);
       await flushMicrotasks();
       assert.deepEqual(invokeCounts, { alpha: 2, beta: 1 });
       assert.deepEqual(slot.children[0].textContent, "A2");
@@ -360,21 +446,25 @@ describe("plugin-slot", () => {
     });
 
     it("does not re-invoke any plugin when the list is re-set unchanged", async () => {
-      const { entries, invokeCounts } = makeVersionedEntries();
-      const pluginService = makePluginService({ entries: { x: entries } });
+      const { registrations, invokeCounts } = makeVersionedRegistrations();
+      const pluginService = makePluginService({
+        registrations: { x: registrations },
+      });
       const slot = makeSlot({ pluginService, name: "x" });
       document.body.appendChild(slot);
       await flushMicrotasks();
 
-      pluginService.setSlotEntries("x", entries);
+      pluginService.setSlotRegistrations("x", registrations);
       await flushMicrotasks();
       assert.deepEqual(invokeCounts, { alpha: 1, beta: 1 });
       assert.deepEqual(slot.children.length, 2);
     });
 
     it("still re-invokes every plugin when the context changes", async () => {
-      const { entries, invokeCounts } = makeVersionedEntries();
-      const pluginService = makePluginService({ entries: { x: entries } });
+      const { registrations, invokeCounts } = makeVersionedRegistrations();
+      const pluginService = makePluginService({
+        registrations: { x: registrations },
+      });
       const slot = makeSlot({
         pluginService,
         name: "x",
@@ -386,6 +476,95 @@ describe("plugin-slot", () => {
       slot.setAttribute("context-uri", "at://two");
       await flushMicrotasks();
       assert.deepEqual(invokeCounts, { alpha: 2, beta: 2 });
+    });
+  });
+
+  describe("PluginSlot - cached results", () => {
+    it("renders a cached result without awaiting", () => {
+      const pluginService = makePluginService({
+        registrations: {
+          x: [
+            {
+              pluginId: "alpha",
+              cached: (context) => ({ tag: "div", text: context.did }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({
+        pluginService,
+        name: "x",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      assert.deepEqual(slot.children.length, 1);
+      assert.deepEqual(slot.children[0].textContent, "did:plc:one");
+    });
+
+    it("keeps the previous content on screen while a pending registration resolves", async () => {
+      let resolveSecond = null;
+      const pluginService = makePluginService({
+        registrations: {
+          x: [
+            {
+              pluginId: "alpha",
+              invoke: (context) =>
+                context.did === "did:plc:one"
+                  ? Promise.resolve({ tag: "div", text: "first" })
+                  : new Promise((resolve) => {
+                      resolveSecond = resolve;
+                    }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({
+        pluginService,
+        name: "x",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(slot.children[0].textContent, "first");
+
+      slot.setAttribute("context-did", "did:plc:two");
+      await flushMicrotasks();
+      assert.deepEqual(slot.children[0].textContent, "first");
+
+      resolveSecond({ tag: "div", text: "second" });
+      await flushMicrotasks();
+      assert.deepEqual(slot.children[0].textContent, "second");
+    });
+
+    it("waits for a pending registration before rendering a cached sibling", async () => {
+      let resolveAlpha = null;
+      const pluginService = makePluginService({
+        registrations: {
+          x: [
+            {
+              pluginId: "alpha",
+              invoke: () =>
+                new Promise((resolve) => {
+                  resolveAlpha = resolve;
+                }),
+            },
+            {
+              pluginId: "beta",
+              cached: () => ({ tag: "div", text: "B" }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({ pluginService, name: "x" });
+      document.body.appendChild(slot);
+      assert.deepEqual(slot.children.length, 0);
+
+      resolveAlpha({ tag: "div", text: "A" });
+      await flushMicrotasks();
+      assert.deepEqual(
+        [...slot.children].map((child) => child.textContent),
+        ["A", "B"],
+      );
     });
   });
 
@@ -406,7 +585,7 @@ describe("plugin-slot", () => {
 
   describe("PluginSlot - cleanup", () => {
     it("unsubscribes from the slot signal on disconnect", async () => {
-      const pluginService = makePluginService({ entries: { x: [] } });
+      const pluginService = makePluginService({ registrations: { x: [] } });
       const slot = makeSlot({ pluginService, name: "x" });
       document.body.appendChild(slot);
       await flushMicrotasks();
@@ -414,7 +593,7 @@ describe("plugin-slot", () => {
 
       // After removal, signal updates should not trigger reconcile.
       let invoked = false;
-      pluginService.setSlotEntries("x", [
+      pluginService.setSlotRegistrations("x", [
         {
           pluginId: "alpha",
           invoke: async () => {
@@ -429,7 +608,7 @@ describe("plugin-slot", () => {
 
     it("re-subscribes and re-renders when reconnected after a disconnect", async () => {
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",
@@ -450,7 +629,7 @@ describe("plugin-slot", () => {
       assert.deepEqual(slot.children[0].textContent, "A");
 
       // The reconnected subscription must also react to later registrations.
-      pluginService.setSlotEntries("x", [
+      pluginService.setSlotRegistrations("x", [
         { pluginId: "alpha", invoke: async () => ({ tag: "div", text: "A2" }) },
         { pluginId: "beta", invoke: async () => ({ tag: "div", text: "B" }) },
       ]);
@@ -462,7 +641,7 @@ describe("plugin-slot", () => {
       // Mimics infinite-scroll-container, which moves its children into an
       // inner wrapper during its own connectedCallback.
       const pluginService = makePluginService({
-        entries: {
+        registrations: {
           x: [
             {
               pluginId: "alpha",

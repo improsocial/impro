@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { Signal } from "/js/signals.js";
+import { makeTestPluginService } from "../../testHelpers.js";
 import "/js/components/plugin-rich-text.js";
 
 describe("plugin-rich-text", () => {
@@ -26,8 +26,7 @@ describe("plugin-rich-text", () => {
     result = null,
     claimedFacetTypes = new Set(),
   } = {}) {
-    return {
-      $richTextTransformsVersion: new Signal.State(0),
+    return makeTestPluginService({
       calls: [],
       result,
       claimedFacetTypes,
@@ -43,7 +42,7 @@ describe("plugin-rich-text", () => {
         element.textContent = token.node.text ?? "";
         return element;
       },
-    };
+    });
   }
 
   function makeTransformContext(overrides = {}) {

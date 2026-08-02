@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   chooseModal,
   makeTestDataLayer,
+  makeTestPluginService,
   respondToConfirm,
   stubRecordLinkResolution,
   waitFor,
@@ -39,14 +40,7 @@ describe("post-composer", () => {
       displayName: "Test User",
       avatar: null,
     };
-    element.pluginService = {
-      $richTextTransformsVersion: { get: () => 0 },
-      transformRichTextTokens: async () => null,
-      renderRichTextNodeToken: () => null,
-      getClaimedFacetTypes: () => new Set(),
-      $slots: { get: () => null },
-      getSlotEntries: () => [],
-    };
+    element.pluginService = makeTestPluginService();
     return element;
   }
 

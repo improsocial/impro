@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
+import { makeTestPluginService } from "../../testHelpers.js";
 
 const noop = () => {};
 const currentUser = { did: "did:plc:test" };
@@ -18,15 +19,7 @@ const postInteractionHandler = {
   handleReport: noop,
 };
 
-const pluginService = {
-  getPostContextMenuItems: async () => [],
-  $richTextTransformsVersion: { get: () => 0 },
-  transformRichTextTokens: async () => null,
-  renderRichTextNodeToken: () => null,
-  getClaimedFacetTypes: () => new Set(),
-  $slots: { get: () => null },
-  getSlotEntries: () => [],
-};
+const pluginService = makeTestPluginService();
 
 const baseProps = {
   currentUser,

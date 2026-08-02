@@ -1,5 +1,6 @@
 import { Component } from "/js/components/component.js";
 import { effect } from "/js/signals.js";
+import { isPromise } from "/js/utils.js";
 
 const CONTEXT_PREFIX = "context-";
 
@@ -14,7 +15,8 @@ class PluginSlot extends Component {
       if (!this.pluginService) {
         throw new Error("pluginService is required");
       }
-      this._pluginRoots = new Map();
+      // pluginId -> { root, element, version, contextKey }
+      this._pluginRenderState = new Map();
       this._currentRequest = null;
     }
     this._subscribe();
@@ -35,7 +37,7 @@ class PluginSlot extends Component {
     this._disposeEffect?.();
     this._disposeEffect = null;
     this._currentRequest = null;
-    this._pluginRoots.clear();
+    this._pluginRenderState.clear();
   }
 
   static get observedAttributes() {
@@ -61,72 +63,101 @@ class PluginSlot extends Component {
     return context;
   }
 
-  async _reconcile() {
+  _reconcile() {
     const slotName = this.getAttribute("name");
     if (!slotName) return;
     const context = this._getContext();
-    const contextKey = JSON.stringify(context);
-    const entries = this.pluginService.getSlotEntries(slotName);
+    const registrations = this.pluginService.getSlotRegistrations(slotName);
 
     const requestToken = Symbol();
     this._currentRequest = requestToken;
 
-    // Drop cached roots for plugins no longer registered for this slot.
-    const currentIds = new Set(entries.map((entry) => entry.pluginId));
-    for (const pluginId of [...this._pluginRoots.keys()]) {
-      if (!currentIds.has(pluginId)) this._pluginRoots.delete(pluginId);
+    // Drop render state for plugins no longer registered for this slot.
+    const currentIds = new Set(
+      registrations.map((registration) => registration.pluginId),
+    );
+    for (const pluginId of [...this._pluginRenderState.keys()]) {
+      if (!currentIds.has(pluginId)) this._pluginRenderState.delete(pluginId);
     }
 
-    if (entries.length === 0) {
+    if (registrations.length === 0) {
       this.replaceChildren();
       return;
     }
 
-    // Only re-invoke a plugin when its entry version changed
-    // or the context changed - otherwise use cached response
-    const results = await Promise.all(
-      entries.map(async (entry) => {
-        const cached = this._pluginRoots.get(entry.pluginId);
-        if (
-          cached &&
-          cached.version === entry.version &&
-          cached.contextKey === contextKey
-        ) {
-          return { entry, node: null, reuseCached: true };
-        }
-        try {
-          const node = await entry.invoke(context);
-          return { entry, node };
-        } catch (error) {
-          console.error(
-            `Plugin "${entry.pluginId}" slot "${slotName}" failed:`,
-            error,
-          );
-          return { entry, node: null };
-        }
-      }),
-    );
+    // Contribution: `{ registration, contextKey, node | unchanged }`
+    // If we need to make request for content, return a Promise
+    const awaitableContributions = registrations.map((registration) => {
+      const version = registration.versionFor(context);
+      // Each registration is only sensitive to part of the context, so a
+      // change outside that part leaves its rendered content untouched
+      const contextKey = registration.contextKeyFor(context);
+      const renderState = this._pluginRenderState.get(registration.pluginId);
+      if (
+        renderState &&
+        renderState.version === version &&
+        renderState.contextKey === contextKey
+      ) {
+        return { registration, version, contextKey, unchanged: true };
+      }
+      const onError = (error) => {
+        console.error(
+          `Plugin "${registration.pluginId}" slot "${slotName}" failed:`,
+          error,
+        );
+        return { registration, version, contextKey, node: null };
+      };
+      let content = null;
+      try {
+        content = registration.request(context);
+      } catch (error) {
+        return onError(error);
+      }
+      if (!isPromise(content)) {
+        return { registration, version, contextKey, node: content };
+      }
+      return content.then(
+        (node) => ({ registration, version, contextKey, node }),
+        onError,
+      );
+    });
 
-    if (this._currentRequest !== requestToken) return;
+    // If no contributions need to be awaited, render synchronously
+    if (!awaitableContributions.some(isPromise)) {
+      this._render(awaitableContributions);
+      return;
+    }
+    Promise.all(awaitableContributions).then((contributions) => {
+      if (this._currentRequest !== requestToken) return;
+      this._render(contributions);
+    });
+  }
 
+  _render(contributions) {
     const nextChildren = [];
-    for (const { entry, node, reuseCached } of results) {
-      let state = this._pluginRoots.get(entry.pluginId);
-      if (reuseCached) {
-        if (state.element) nextChildren.push(state.element);
+    for (const {
+      registration,
+      version,
+      contextKey,
+      node,
+      unchanged,
+    } of contributions) {
+      let renderState = this._pluginRenderState.get(registration.pluginId);
+      if (unchanged) {
+        if (renderState?.element) nextChildren.push(renderState.element);
         continue;
       }
-      if (!state) {
-        const renderer = this.pluginService.getRenderer(entry.pluginId);
-        state = {
+      if (!renderState) {
+        const renderer = this.pluginService.getRenderer(registration.pluginId);
+        renderState = {
           root: renderer.createRoot(),
         };
-        this._pluginRoots.set(entry.pluginId, state);
+        this._pluginRenderState.set(registration.pluginId, renderState);
       }
-      state.version = entry.version;
-      state.contextKey = contextKey;
-      state.element = node ? state.root.render(node) : null;
-      if (state.element) nextChildren.push(state.element);
+      renderState.version = version;
+      renderState.contextKey = contextKey;
+      renderState.element = node ? renderState.root.render(node) : null;
+      if (renderState.element) nextChildren.push(renderState.element);
     }
     this.replaceChildren(...nextChildren);
   }

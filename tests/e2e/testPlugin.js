@@ -161,6 +161,48 @@ class TestPlugin extends Plugin {
 TestPlugin.register();
 `;
 
+// A plugin that badges every rendered author with a cacheKey-declared slot.
+// The badge text carries a global invocation counter, so tests can tell a
+// shared cache hit (same number) from a fresh handler run (higher number).
+// Its post context-menu item refreshes only the clicked post's author.
+const BADGE_SLOT_PLUGIN_BODY = /* js */ `
+let invocations = 0;
+
+class TestPlugin extends Plugin {
+  async onload() {
+    this.registerSlot(
+      "author-badges",
+      (context) => {
+        invocations += 1;
+        const el = new VirtualEl("span");
+        el.setAttr("data-testid", "plugin-badge");
+        el.setText(context.did + " #" + invocations);
+        return el;
+      },
+      { cacheKey: ["did"] },
+    );
+    this.app.on("post-context-menu", (menu, post) => {
+      menu.addItem((item) =>
+        item.setTitle("Refresh badge").onClick(() => {
+          this.refreshSlot("author-badges", {
+            keys: [{ did: post.author.did }],
+          });
+        }),
+      );
+    });
+  }
+}
+
+TestPlugin.register();
+`;
+
+// The same badge plugin without a cacheKey: nothing is cached and nothing is
+// shared, so a keyed refresh has only the per-context versions to target with.
+const UNCACHED_BADGE_SLOT_PLUGIN_BODY = BADGE_SLOT_PLUGIN_BODY.replace(
+  '      { cacheKey: ["did"] },\n',
+  "",
+);
+
 let cachedWorkerSource = null;
 
 function getWorkerSource() {
@@ -186,4 +228,12 @@ export function getNoSettingsPluginSource() {
 
 export function getPostComposerInitPluginSource() {
   return getWorkerSource() + "\n" + POST_COMPOSER_INIT_PLUGIN_BODY;
+}
+
+export function getBadgeSlotPluginSource() {
+  return getWorkerSource() + "\n" + BADGE_SLOT_PLUGIN_BODY;
+}
+
+export function getUncachedBadgeSlotPluginSource() {
+  return getWorkerSource() + "\n" + UNCACHED_BADGE_SLOT_PLUGIN_BODY;
 }
