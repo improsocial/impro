@@ -965,6 +965,7 @@ export function getInviteCodeFromUrl(url) {
     );
     if (
       !url.startsWith("/") &&
+      parsed.hostname !== window.location.hostname &&
       !IN_APP_LINK_DOMAINS.includes(parsed.hostname)
     ) {
       return null;

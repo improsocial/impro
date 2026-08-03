@@ -49,6 +49,7 @@ import {
   getPostsFromPostThread,
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
+import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 
 describe("avatarThumbnailUrl", () => {
   it("should convert plain avatar URL to thumbnail URL", () => {
@@ -1830,6 +1831,22 @@ describe("getInviteCodeFromUrl", () => {
       getInviteCodeFromUrl("https://dev.impro.social/chat/abcd1234"),
       "abcd1234",
     );
+  });
+
+  it("accepts a link to the current origin even when it's not in the static domain list", () => {
+    // window.location.hostname is "localhost" in tests, which happens to
+    // already be in IN_APP_LINK_DOMAINS -- remove it so this actually
+    // exercises the same-origin fallback rather than the static list.
+    const index = IN_APP_LINK_DOMAINS.indexOf("localhost");
+    IN_APP_LINK_DOMAINS.splice(index, 1);
+    try {
+      assert.deepEqual(
+        getInviteCodeFromUrl("http://localhost/chat/abcd1234"),
+        "abcd1234",
+      );
+    } finally {
+      IN_APP_LINK_DOMAINS.splice(index, 0, "localhost");
+    }
   });
 
   it("rejects malformed codes", () => {
