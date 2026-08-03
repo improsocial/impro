@@ -116,34 +116,38 @@ const ACTION_LABELS = {
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
+function permissionsSectionTemplate({ title, items }) {
+  return html`
+    <div class="permission-prompt-section">
+      <div class="permission-prompt-section-title">${title}</div>
+      <ul class="permission-prompt-list">
+        ${items.map((item) => html`<li>${item}</li>`)}
+      </ul>
+    </div>
+  `;
+}
+
 function permissionsListTemplate({ permissions }) {
   const sections = [];
   const fetchPatterns = permissions.fetch ?? [];
   if (fetchPatterns.length > 0) {
-    sections.push(html`
-      <div class="permission-prompt-section">
-        <div>Send network requests to:</div>
-        <ul class="permission-prompt-list">
-          ${fetchPatterns.map(
-            (pattern) => html`<li><code>${pattern}</code></li>`,
-          )}
-        </ul>
-      </div>
-    `);
+    sections.push(
+      permissionsSectionTemplate({
+        title: "Send network requests to:",
+        items: fetchPatterns.map((pattern) => html`<code>${pattern}</code>`),
+      }),
+    );
   }
   const actionScopes = permissions.actions ?? [];
   if (actionScopes.length > 0) {
-    sections.push(html`
-      <div class="permission-prompt-section">
-        <ul class="permission-prompt-list">
-          ${actionScopes.map(
-            (scope) => html`<li>${ACTION_LABELS[scope] ?? scope}</li>`,
-          )}
-        </ul>
-      </div>
-    `);
+    sections.push(
+      permissionsSectionTemplate({
+        title: "Act on your account:",
+        items: actionScopes.map((scope) => ACTION_LABELS[scope] ?? scope),
+      }),
+    );
   }
-  return sections;
+  return html`<div class="permission-prompt-sections">${sections}</div>`;
 }
 
 export async function showPluginInstallPermissionsModal({
@@ -152,8 +156,8 @@ export async function showPluginInstallPermissionsModal({
 }) {
   const name = pluginName ?? "This plugin";
   return confirmModal(
-    html`<span data-testid="permission-prompt">
-      <span>${name} wants permission to:</span>
+    html`<span class="permission-prompt" data-testid="permission-prompt">
+      <span class="permission-prompt-intro">${name} wants permission to:</span>
       ${permissionsListTemplate({ permissions })}
     </span>`,
     {
@@ -173,8 +177,8 @@ export async function showPluginUpdatePermissionsModal({
     ? `${name} v${pluginVersion} requests new permissions:`
     : `${name} requests new permissions:`;
   return confirmModal(
-    html`<span data-testid="permission-update-prompt">
-      <span>${heading}</span>
+    html`<span class="permission-prompt" data-testid="permission-update-prompt">
+      <span class="permission-prompt-intro">${heading}</span>
       ${permissionsListTemplate({ permissions: permissionsDiff })}
     </span>`,
     {
