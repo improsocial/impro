@@ -2,6 +2,7 @@ import { View } from "/js/views/view.js";
 import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
+import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
@@ -187,6 +188,12 @@ class SettingsView extends View {
         icon: eyeIconTemplate,
         label: "Appearance",
         url: "/settings/appearance",
+      },
+      {
+        key: "notifications",
+        icon: notificationsIconTemplate,
+        label: "Notifications",
+        url: "/settings/notifications",
       },
       {
         key: "muted-words",
