@@ -1,19 +1,8 @@
 // Signs OAuth client assertions (private_key_jwt)
 
+import { base64UrlEncode, encodeUtf8 } from "../_lib/dpopVerify.js";
+
 const ASSERTION_LIFETIME_SECONDS = 60;
-
-function base64UrlEncode(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-function encodeUtf8(str) {
-  return new TextEncoder().encode(str);
-}
 
 function errorResponse(status, error) {
   return Response.json({ error }, { status });

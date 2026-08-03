@@ -21,6 +21,8 @@ If you notice a bug or feature missing, please open [an issue](https://github.co
 
 Impro uses the [Bluesky API](https://docs.bsky.app/docs/category/http-reference) for authentication and data fetching. Additionally, it uses [Constellation](https://constellation.microcosm.blue/) to populate blocked replies.
 
+Optionally, a deployment can enable cross-device push notifications by configuring a Cloudflare KV binding (`PUSH_SUBSCRIPTIONS`) and VAPID keys (`VAPID_PRIVATE_JWK`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`) — see `scripts/generate-vapid-keypair.js`. Without this configured, notifications still work locally on whichever device has Impro open.
+
 ## Dependencies
 
 Impro uses the following libraries:
