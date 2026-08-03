@@ -62,7 +62,7 @@ class SettingsNotificationsView extends View {
       const isDenied = permissionState === "denied";
 
       let description =
-        "Get notified when you have new activity or messages while Impro is open in a tab or window.";
+        "Get notified when you have new activity while Impro is open in a tab or window.";
       if (!isSupported) {
         description = "Your browser doesn't support notifications.";
       } else if (isDenied) {
@@ -82,7 +82,7 @@ class SettingsNotificationsView extends View {
               data-testid="settings-section-system-notifications"
             >
               <div class="setting-item-info">
-                <h2 class="setting-item-name">Enable notifications</h2>
+                <h2 class="setting-item-name">Enable system notifications</h2>
                 <p class="setting-item-desc">${description}</p>
               </div>
               <div class="setting-item-control">

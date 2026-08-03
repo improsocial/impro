@@ -1,3 +1,5 @@
+import { effect } from "/js/signals.js";
+
 const STORAGE_KEY = "system-notifications-enabled";
 const ICON_URL = "/img/impro-logo-192.png";
 
@@ -9,6 +11,42 @@ export class SystemNotificationService {
       notificationService.$numNotifications.get() ?? 0;
     this._lastSeenChatCount =
       chatNotificationService.$numNotifications.get() ?? 0;
+  }
+
+  start() {
+    return effect(() => {
+      const activityCount =
+        this.notificationService.$numNotifications.get() ?? 0;
+      const chatCount =
+        this.chatNotificationService.$numNotifications.get() ?? 0;
+
+      if (activityCount > this._lastSeenActivityCount) {
+        this.notify({
+          title: "New activity on Impro",
+          body:
+            activityCount === 1
+              ? "You have 1 new notification"
+              : `You have ${activityCount} new notifications`,
+          tag: "impro-activity",
+          url: "/notifications",
+        });
+      }
+
+      if (chatCount > this._lastSeenChatCount) {
+        this.notify({
+          title: "New message on Impro",
+          body:
+            chatCount === 1
+              ? "You have 1 unread conversation"
+              : `You have ${chatCount} unread conversations`,
+          tag: "impro-chat",
+          url: "/messages",
+        });
+      }
+
+      this._lastSeenActivityCount = activityCount;
+      this._lastSeenChatCount = chatCount;
+    });
   }
 
   get isSupported() {
@@ -56,37 +94,5 @@ export class SystemNotificationService {
       window.location.href = url;
       notification.close();
     };
-  }
-
-  checkForUpdates() {
-    const activityCount = this.notificationService.$numNotifications.get() ?? 0;
-    const chatCount = this.chatNotificationService.$numNotifications.get() ?? 0;
-
-    if (activityCount > this._lastSeenActivityCount) {
-      this.notify({
-        title: "New activity on Impro",
-        body:
-          activityCount === 1
-            ? "You have 1 new notification"
-            : `You have ${activityCount} new notifications`,
-        tag: "impro-activity",
-        url: "/notifications",
-      });
-    }
-
-    if (chatCount > this._lastSeenChatCount) {
-      this.notify({
-        title: "New message on Impro",
-        body:
-          chatCount === 1
-            ? "You have 1 unread conversation"
-            : `You have ${chatCount} unread conversations`,
-        tag: "impro-chat",
-        url: "/messages",
-      });
-    }
-
-    this._lastSeenActivityCount = activityCount;
-    this._lastSeenChatCount = chatCount;
   }
 }

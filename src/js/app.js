@@ -193,6 +193,10 @@ export async function main() {
     chatNotificationService.startPolling();
   }
 
+  if (systemNotificationService) {
+    systemNotificationService.start();
+  }
+
   const context = {
     isAuthenticated: !!session,
     api,
@@ -241,15 +245,6 @@ export async function main() {
         reload: true,
       });
     });
-  }
-
-  if (systemNotificationService) {
-    effect(
-      () => {
-        systemNotificationService.checkForUpdates();
-      },
-      { debugName: "systemNotifications" },
-    );
   }
 
   router.addRoute(["/", "/intent/compose"], () => homeView, {

@@ -19,6 +19,12 @@ function createMockChatNotificationService({ numNotifications = 0 } = {}) {
   };
 }
 
+function flushEffects() {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve)),
+  );
+}
+
 function enable() {
   localStorage.setItem("system-notifications-enabled", "true");
 }
@@ -26,9 +32,21 @@ function enable() {
 describe("SystemNotificationService", () => {
   let instances;
   let originalNotification;
+  let disposers;
+
+  function startService(notificationService, chatNotificationService) {
+    const service = new SystemNotificationService(
+      notificationService,
+      chatNotificationService,
+    );
+    const dispose = service.start();
+    disposers.push(dispose);
+    return { service, dispose };
+  }
 
   beforeEach(() => {
     instances = [];
+    disposers = [];
     originalNotification = globalThis.Notification;
     globalThis.Notification = class {
       static permission = "granted";
@@ -46,158 +64,154 @@ describe("SystemNotificationService", () => {
   });
 
   afterEach(() => {
+    for (const dispose of disposers) {
+      dispose();
+    }
     globalThis.Notification = originalNotification;
     localStorage.clear();
   });
 
-  describe("constructor", () => {
-    it("seeds last-seen counts without firing", () => {
+  describe("start", () => {
+    it("seeds last-seen counts without firing", async () => {
       const notificationService = createMockNotificationService({
         numNotifications: 5,
       });
       const chatNotificationService = createMockChatNotificationService({
         numNotifications: 2,
       });
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
 
-      service.checkForUpdates();
+      startService(notificationService, chatNotificationService);
+      await flushEffects();
 
       assert.deepEqual(instances.length, 0);
     });
-  });
 
-  describe("checkForUpdates", () => {
-    it("notifies when the activity count increases", () => {
+    it("notifies when the activity count increases", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 1);
       assert.deepEqual(instances[0].options.tag, "impro-activity");
     });
 
-    it("does not notify again for an unchanged count", () => {
+    it("does not notify again for an unchanged count", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
-      service.checkForUpdates();
+      await flushEffects();
+      chatNotificationService.$numNotifications.set(1);
+      await flushEffects();
 
-      assert.deepEqual(instances.length, 1);
+      assert.deepEqual(instances.length, 2);
+      assert.deepEqual(instances[1].options.tag, "impro-chat");
     });
 
-    it("notifies again when the count increases further", () => {
+    it("notifies again when the count increases further", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
+      await flushEffects();
       notificationService.$numNotifications.set(5);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 2);
     });
 
-    it("does not notify when the count decreases", () => {
+    it("does not notify when the count decreases", async () => {
       const notificationService = createMockNotificationService({
         numNotifications: 5,
       });
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(0);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 0);
     });
 
-    it("notifies when the chat count increases", () => {
+    it("notifies when the chat count increases", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       chatNotificationService.$numNotifications.set(2);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 1);
       assert.deepEqual(instances[0].options.tag, "impro-chat");
     });
+
+    it("stops notifying after the effect is disposed", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      const { dispose } = startService(
+        notificationService,
+        chatNotificationService,
+      );
+
+      notificationService.$numNotifications.set(1);
+      await flushEffects();
+      assert.deepEqual(instances.length, 1);
+
+      dispose();
+      chatNotificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 1);
+    });
   });
 
   describe("notify gating", () => {
-    it("does not notify when disabled", () => {
+    it("does not notify when disabled", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 0);
     });
 
-    it("does not notify when permission is not granted", () => {
+    it("does not notify when permission is not granted", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
       globalThis.Notification.permission = "default";
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 0);
     });
 
-    it("does not notify when snoozed", () => {
+    it("does not notify when snoozed", async () => {
       const notificationService = createMockNotificationService({
         isSnoozed: true,
       });
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
-        notificationService,
-        chatNotificationService,
-      );
       enable();
+      startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
-      service.checkForUpdates();
+      await flushEffects();
 
       assert.deepEqual(instances.length, 0);
     });
