@@ -2,6 +2,11 @@ node_modules
 build
 impro-plugin/docs
 .env
+# Per-deployment Cloudflare Pages config (KV namespace IDs, vars) - not
+# shared across forks/deployments, generate your own via `wrangler pages
+# project create` + `wrangler kv namespace create`.
+wrangler.toml
+wrangler.jsonc
 .context
 tests/e2e/.results
 tests/.artifacts/visual

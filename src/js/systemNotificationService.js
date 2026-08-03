@@ -4,10 +4,16 @@ const STORAGE_KEY = "system-notifications-enabled";
 const ICON_URL = "/img/impro-logo-192.png";
 
 export class SystemNotificationService {
-  constructor(notificationService, chatNotificationService, router) {
+  constructor(
+    notificationService,
+    chatNotificationService,
+    router,
+    pushSubscriptionService = null,
+  ) {
     this.notificationService = notificationService;
     this.chatNotificationService = chatNotificationService;
     this.router = router;
+    this.pushSubscriptionService = pushSubscriptionService;
     this._lastSeenActivityCount =
       notificationService.$numNotifications.get() ?? 0;
     this._lastSeenChatCount =
@@ -95,5 +101,8 @@ export class SystemNotificationService {
       this.router.go(url);
       notification.close();
     };
+    if (this.pushSubscriptionService?.isEnabled) {
+      this.pushSubscriptionService.relay();
+    }
   }
 }

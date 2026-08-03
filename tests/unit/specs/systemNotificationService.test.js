@@ -36,11 +36,16 @@ describe("SystemNotificationService", () => {
   let navigations;
   let router;
 
-  function startService(notificationService, chatNotificationService) {
+  function startService(
+    notificationService,
+    chatNotificationService,
+    pushSubscriptionService,
+  ) {
     const service = new SystemNotificationService(
       notificationService,
       chatNotificationService,
       router,
+      pushSubscriptionService,
     );
     const dispose = service.start();
     disposers.push(dispose);
@@ -198,6 +203,63 @@ describe("SystemNotificationService", () => {
       await flushEffects();
       instances[1].onclick();
       assert.deepEqual(navigations, ["/notifications", "/messages"]);
+    });
+  });
+
+  describe("cross-device relay", () => {
+    it("relays to other devices when the relay toggle is enabled", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      const relayCalls = [];
+      const pushSubscriptionService = {
+        isEnabled: true,
+        relay: () => relayCalls.push(true),
+      };
+      enable();
+      startService(
+        notificationService,
+        chatNotificationService,
+        pushSubscriptionService,
+      );
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(relayCalls.length, 1);
+    });
+
+    it("does not relay when the relay toggle is disabled", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      const relayCalls = [];
+      const pushSubscriptionService = {
+        isEnabled: false,
+        relay: () => relayCalls.push(true),
+      };
+      enable();
+      startService(
+        notificationService,
+        chatNotificationService,
+        pushSubscriptionService,
+      );
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(relayCalls.length, 0);
+    });
+
+    it("does not relay when there is no push subscription service", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      startService(notificationService, chatNotificationService, null);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      // No assertion needed beyond "doesn't throw" -- pushSubscriptionService
+      // is optional and notify() must tolerate it being absent.
     });
   });
 

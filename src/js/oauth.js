@@ -489,6 +489,34 @@ export class Session {
     return this.sessionData.serviceEndpoint;
   }
 
+  // Builds a DPoP-proofed `{ accessToken, dpopProof }` pair for a specific
+  // method/url, without actually performing the request. Used to let a
+  // server we don't otherwise trust (e.g. the push-notification relay
+  // function) proxy a single, narrowly-scoped call to our own PDS as proof
+  // of current identity, without ever handing it a usable credential of its
+  // own. Pass `nonce` to retry after a server-reported `use_dpop_nonce`.
+  async buildDpopProof(method, url, { nonce = null } = {}) {
+    if (Date.now() > this.sessionData.expiresAt - 60000) {
+      if (!this.pendingRefresh) {
+        this.pendingRefresh = this.refreshToken().finally(() => {
+          this.pendingRefresh = null;
+        });
+      }
+      await this.pendingRefresh;
+    }
+    const accessToken = this.sessionData.accessToken;
+    const origin = new URL(url).origin;
+    const effectiveNonce =
+      nonce ?? this.dpopRequests.nonces.get(origin) ?? null;
+    const dpopProof = await this.dpopRequests.createProof(
+      method,
+      url,
+      effectiveNonce,
+      accessToken,
+    );
+    return { accessToken, dpopProof };
+  }
+
   get scope() {
     return this.sessionData.scope ?? null;
   }
