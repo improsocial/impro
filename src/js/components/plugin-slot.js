@@ -1,11 +1,45 @@
 import { Component } from "/js/components/component.js";
 import { effect } from "/js/signals.js";
-import { isPromise } from "/js/utils.js";
+import { isDev, isPromise, throttleByKey, WindowedCounter } from "/js/utils.js";
 
 const CONTEXT_PREFIX = "context-";
+const REPEAT_WINDOW_MS = 5000;
+const REPEAT_REQUEST_LIMIT = 5;
 
 function kebabToCamel(name) {
   return name.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+// Dedupe warnings within the window
+const warnRepeatRequests = throttleByKey(
+  (slotKey, message) => console.warn(message),
+  { delay: REPEAT_WINDOW_MS },
+);
+
+// Warns on repeat slot requests - this can happen due to
+// context churn on the host side or a refreshSlot loop
+// on the plugin side
+class RepeatRequestMonitor {
+  constructor() {
+    this._counter = new WindowedCounter({
+      windowMs: REPEAT_WINDOW_MS,
+      limit: REPEAT_REQUEST_LIMIT,
+    });
+  }
+
+  record(pluginId, slotName, contextKey) {
+    const exceeded = this._counter.record(pluginId, contextKey);
+    if (!exceeded) return;
+    const seconds = REPEAT_WINDOW_MS / 1000;
+    warnRepeatRequests(
+      JSON.stringify([pluginId, slotName]),
+      `[plugins] "${pluginId}" slot "${slotName}" was re-requested ${exceeded.total} times in ${seconds}s by a single mounted slot, across ${exceeded.distinct} contexts (latest: ${contextKey}). Look for a refreshSlot loop, or a context attribute that changes on every render.`,
+    );
+  }
+
+  clear() {
+    this._counter.clear();
+  }
 }
 
 class PluginSlot extends Component {
@@ -18,6 +52,7 @@ class PluginSlot extends Component {
       // pluginId -> { root, element, version, contextKey }
       this._pluginRenderState = new Map();
       this._currentRequest = null;
+      this._repeatMonitor = isDev() ? new RepeatRequestMonitor() : null;
     }
     this._subscribe();
   }
@@ -38,6 +73,7 @@ class PluginSlot extends Component {
     this._disposeEffect = null;
     this._currentRequest = null;
     this._pluginRenderState.clear();
+    this._repeatMonitor?.clear();
   }
 
   static get observedAttributes() {
@@ -107,6 +143,7 @@ class PluginSlot extends Component {
         );
         return { registration, version, contextKey, node: null };
       };
+      this._repeatMonitor?.record(registration.pluginId, slotName, contextKey);
       let content = null;
       try {
         content = registration.request(context);

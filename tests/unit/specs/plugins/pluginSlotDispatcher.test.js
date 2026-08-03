@@ -584,20 +584,20 @@ describe("PluginSlotDispatcher - invocation monitor", () => {
     Date.now = originalNow;
   });
 
-  it("warns once when one context is re-invoked five times in the window", async () => {
+  // A slot can be mounted many times per page with the same context, so
+  // repeats alone say nothing at this layer - only volume does.
+  it("stays quiet when one context is re-invoked by many mounted slots", async () => {
     const { registration } = register(makeDispatcher());
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 20; i++) {
       await registration.request({ did: "did:one" });
     }
-    assert.deepEqual(warnings.length, 1);
-    assert(warnings[0].includes("5 times for the same context"));
-    assert(warnings[0].includes("refreshSlot loop"));
+    assert.deepEqual(warnings, []);
   });
 
-  it("stays quiet for repeats spread across separate windows", async () => {
+  it("stays quiet for high volume spread across separate windows", async () => {
     const { registration } = register(makeDispatcher());
-    for (let i = 0; i < 10; i++) {
-      await registration.request({ did: "did:one" });
+    for (let i = 0; i < 300; i++) {
+      await registration.request({ did: `did:${i}` });
       now += 5001;
     }
     assert.deepEqual(warnings, []);
@@ -638,7 +638,8 @@ describe("PluginSlotDispatcher - invocation monitor", () => {
 
   it("counts cache hits as no invocation at all", async () => {
     const { registration } = register(makeDispatcher(), { cacheKey: ["did"] });
-    for (let i = 0; i < 20; i++) {
+    // Past the volume limit, so a cache hit counted as an invocation would warn
+    for (let i = 0; i < 150; i++) {
       const request = registration.request({
         uri: `at://${i}`,
         did: "did:one",

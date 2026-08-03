@@ -286,6 +286,24 @@ export function throttle(fn, delay = 250) {
   };
 }
 
+// Throttle calls that share a key (by default, the first arg)
+export function throttleByKey(
+  fn,
+  { delay = 250, getKey = (first) => first } = {},
+) {
+  const lastCalls = new Map();
+  return (...args) => {
+    const key = getKey(...args);
+    const now = Date.now();
+    const lastCall = lastCalls.get(key);
+    if (lastCall !== undefined && now - lastCall < delay) {
+      return;
+    }
+    lastCalls.set(key, now);
+    fn(...args);
+  };
+}
+
 export class BoundedMap extends Map {
   constructor(maxSize, { onEvict = noop, policy = "fifo" } = {}) {
     super();
@@ -382,6 +400,43 @@ export class AsyncValueCache {
 
   get size() {
     return this._values.size;
+  }
+}
+
+// Counts events inside a tumbling window. `record` returns null until a
+// key reaches `limit` within one window, then returns that window's
+// `{ total, distinct }`. A tag can optionally be passed per-event;
+// `distinct` counts the number of distinct tags seen per-key.
+export class WindowedCounter {
+  constructor({ windowMs, limit }) {
+    this._windowMs = windowMs;
+    this._limit = limit;
+    // key -> { startedAt, total, tags, reported }
+    this._buckets = new Map();
+  }
+
+  record(key, tag = null) {
+    const now = Date.now();
+    let bucket = this._buckets.get(key);
+    if (!bucket || now - bucket.startedAt > this._windowMs) {
+      bucket = { startedAt: now, total: 0, tags: null, reported: false };
+      this._buckets.set(key, bucket);
+    }
+    if (bucket.reported) return null;
+    bucket.total += 1;
+    if (tag !== null) {
+      if (!bucket.tags) bucket.tags = new Set();
+      bucket.tags.add(tag);
+    }
+    if (bucket.total < this._limit) return null;
+    bucket.reported = true;
+    const distinct = bucket.tags ? bucket.tags.size : null;
+    bucket.tags = null;
+    return { total: bucket.total, distinct };
+  }
+
+  clear() {
+    this._buckets.clear();
   }
 }
 

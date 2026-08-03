@@ -5,6 +5,7 @@ import {
   BoundedMap,
   isDev,
   SimpleUUID,
+  WindowedCounter,
 } from "/js/utils.js";
 
 // Rendered content cached per cacheKey-declaring registration
@@ -164,44 +165,26 @@ function invocationAdvice(cacheKey) {
 }
 
 const INVOCATION_WINDOW_MS = 5000;
-const REPEAT_CONTEXT_LIMIT = 5;
 const TOTAL_INVOCATION_LIMIT = 100;
 
 // Warns when a slot handler runs too often in a given window
 export class SlotInvocationMonitor {
   constructor() {
-    this.buckets = new Map();
+    this._counter = new WindowedCounter({
+      windowMs: INVOCATION_WINDOW_MS,
+      limit: TOTAL_INVOCATION_LIMIT,
+    });
   }
 
   record(registration, name, context) {
     const id = createSlotId(registration.pluginId, name);
-    const now = Date.now();
-    let bucket = this.buckets.get(id);
-    if (!bucket || now - bucket.startedAt > INVOCATION_WINDOW_MS) {
-      bucket = { startedAt: now, total: 0, contexts: new Map(), warned: false };
-      this.buckets.set(id, bucket);
-    }
-    bucket.total += 1;
-    const contextKey = serializeFields(context);
-    const repeats = (bucket.contexts.get(contextKey) ?? 0) + 1;
-    bucket.contexts.set(contextKey, repeats);
-    if (bucket.warned) return;
+    const exceeded = this._counter.record(id, serializeFields(context));
+    if (!exceeded) return;
     const seconds = INVOCATION_WINDOW_MS / 1000;
-    const prefix = `[plugins] "${registration.pluginId}" slot "${name}" ran`;
-    if (repeats >= REPEAT_CONTEXT_LIMIT) {
-      bucket.warned = true;
-      console.warn(
-        `${prefix} ${repeats} times for the same context in ${seconds}s: ${contextKey}. Look for a refreshSlot loop, or a context attribute that changes on every render.`,
-      );
-      return;
-    }
-    if (bucket.total >= TOTAL_INVOCATION_LIMIT) {
-      bucket.warned = true;
-      const advice = invocationAdvice(registration.cacheKey);
-      console.warn(
-        `${prefix} ${bucket.total} times in ${seconds}s across ${bucket.contexts.size} contexts. ${advice}`,
-      );
-    }
+    const advice = invocationAdvice(registration.cacheKey);
+    console.warn(
+      `[plugins] "${registration.pluginId}" slot "${name}" ran ${exceeded.total} times in ${seconds}s across ${exceeded.distinct} contexts. ${advice}`,
+    );
   }
 }
 
