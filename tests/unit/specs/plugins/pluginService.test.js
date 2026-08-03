@@ -502,9 +502,9 @@ describe("loadEnabledPlugins", () => {
     service.pluginBridge.loadPlugins = async () => ({
       loadedPlugins: [],
       erroredPlugins: [
-        { pluginId: "a", error: new Error("Failed to load plugin source") },
-        { pluginId: "b", error: new Error("Failed to load plugin source") },
-        { pluginId: "c", error: new Error("Failed to load plugin manifest") },
+        { pluginId: "a", error: new Error("Could not fetch plugin source") },
+        { pluginId: "b", error: new Error("Could not fetch plugin source") },
+        { pluginId: "c", error: new Error("Could not fetch plugin manifest") },
       ],
     });
     document.body.innerHTML = "";
@@ -513,8 +513,8 @@ describe("loadEnabledPlugins", () => {
     assert.deepEqual(
       toasts.map((toast) => toast.textContent.trim()),
       [
-        "Failed to load plugin(s): a, b - Failed to load plugin source",
-        "Failed to load plugin(s): c - Failed to load plugin manifest",
+        "Failed to load plugin(s): a, b - Could not fetch plugin source",
+        "Failed to load plugin(s): c - Could not fetch plugin manifest",
       ],
     );
     document.body.innerHTML = "";

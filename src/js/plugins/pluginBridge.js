@@ -277,7 +277,7 @@ export class PluginBridge {
       manifest = await this._provider.getManifest(pluginId, version, repo);
     } catch (error) {
       logger.warn(`failed to load "${pluginId}": invalid manifest`, error);
-      throw new Error("Failed to load plugin manifest");
+      throw new Error("Could not fetch plugin manifest");
     }
     let source;
     try {
@@ -287,7 +287,7 @@ export class PluginBridge {
         `failed to load "${pluginId}": could not fetch main.js`,
         error,
       );
-      throw new Error("Failed to load plugin source");
+      throw new Error("Could not fetch plugin source");
     }
     let cssText;
     try {

@@ -337,7 +337,7 @@ describe("PluginBridge:loadPlugin error paths", () => {
     console.warn = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assert.deepEqual(error.message, "Failed to load plugin manifest");
+      assert.deepEqual(error.message, "Could not fetch plugin manifest");
     } finally {
       console.warn = originalWarn;
     }
@@ -350,7 +350,7 @@ describe("PluginBridge:loadPlugin error paths", () => {
     console.error = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assert.deepEqual(error.message, "Failed to load plugin source");
+      assert.deepEqual(error.message, "Could not fetch plugin source");
     } finally {
       console.error = originalError;
     }
