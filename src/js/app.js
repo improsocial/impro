@@ -24,6 +24,7 @@ import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
 import settingsBlockedAccountsView from "/js/views/settings/blockedAccounts.view.js";
 import settingsMutedAccountsView from "/js/views/settings/mutedAccounts.view.js";
 import settingsAdvancedView from "/js/views/settings/advanced.view.js";
+import settingsNotificationsView from "/js/views/settings/notifications.view.js";
 import installedPluginsView from "/js/views/installedPlugins.view.js";
 import pluginSettingsView from "/js/views/pluginSettings.view.js";
 import communityPluginsView from "/js/views/communityPlugins.view.js";
@@ -42,6 +43,7 @@ import { Api } from "/js/api.js";
 import { auth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
+import { SystemNotificationService } from "/js/systemNotificationService.js";
 import { PostComposerService } from "/js/postComposerService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
@@ -118,6 +120,13 @@ export async function main() {
   const chatNotificationService = session
     ? new ChatNotificationService(api)
     : null;
+  const systemNotificationService =
+    notificationService && chatNotificationService
+      ? new SystemNotificationService(
+          notificationService,
+          chatNotificationService,
+        )
+      : null;
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
         draftsEnabled: await checkDraftsEnabled(),
@@ -184,6 +193,10 @@ export async function main() {
     chatNotificationService.startPolling();
   }
 
+  if (systemNotificationService) {
+    systemNotificationService.start();
+  }
+
   const context = {
     isAuthenticated: !!session,
     api,
@@ -191,6 +204,7 @@ export async function main() {
     identityResolver,
     notificationService,
     chatNotificationService,
+    systemNotificationService,
     postComposerService,
     accountSwitcherService,
     reportService,
@@ -305,6 +319,11 @@ export async function main() {
   router.addRoute(
     "/settings/appearance",
     () => settingsAppearanceView,
+    settingsRouteOptions,
+  );
+  router.addRoute(
+    "/settings/notifications",
+    () => settingsNotificationsView,
     settingsRouteOptions,
   );
   router.addRoute(

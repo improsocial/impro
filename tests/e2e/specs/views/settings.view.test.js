@@ -19,12 +19,15 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    // 5 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(7, {
+    // 6 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(8, {
       timeout: 10000,
     });
     await expect(
       nav.locator('[data-testid="settings-nav-appearance"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-notifications"]'),
     ).toBeVisible();
     await expect(
       nav.locator('[data-testid="settings-nav-muted-words"]'),
