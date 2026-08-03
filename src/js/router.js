@@ -1,5 +1,6 @@
 import { EventEmitter, EventTarget } from "/js/eventEmitter.js";
 import { effect, Signal } from "/js/signals.js";
+import { BoundedMap } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
@@ -94,7 +95,10 @@ export class Router extends EventEmitter {
     this.currentPage = null;
     this.currentPath = null;
     this.$currentRoute = new Signal.State(null);
-    this.pages = new Map();
+    this.pages = new BoundedMap(MAX_PAGES, {
+      policy: "lru",
+      onEvict: (path, page) => page.el.remove(),
+    });
     this.scrollStates = new Map();
     bindMiddleClickRedispatch();
     // Disable scroll restoration
@@ -263,10 +267,6 @@ export class Router extends EventEmitter {
       // Return to existing page
       const { el: page, routeInfo } = this.pages.get(path);
       this.currentPage = page;
-      // Re-insert the page so it's at the end of the stack
-      // This means the least recently used page is always at the start of the stack
-      this.pages.delete(path);
-      this.pages.set(path, { el: page, routeInfo });
       this.$currentRoute.set({ path, ...routeInfo });
       this.#setLayoutHidden(routeInfo.options.layout === false);
       const scrollY = this.scrollStates.get(path) ?? 0;
@@ -298,13 +298,6 @@ export class Router extends EventEmitter {
     container.appendChild(newPage);
     this.currentPage = newPage;
     this.pages.set(path, { el: newPage, routeInfo });
-    // Limit stored pages to prevent memory leaks / performance issues
-    if (this.pages.size > MAX_PAGES) {
-      const firstPageKey = this.pages.keys().next().value;
-      const firstPage = this.pages.get(firstPageKey);
-      firstPage.el.remove();
-      this.pages.delete(firstPageKey);
-    }
     window.scrollTo(0, 0);
     await this.renderFunc({
       view,

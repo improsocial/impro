@@ -282,18 +282,29 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert.deepEqual(msg.type, "register");
     assert.deepEqual(msg.target, "slot");
     assert.deepEqual(msg.name, "post-thread-view:after-main");
+    assert.deepEqual(msg.cacheKey, null);
+    assert.deepEqual(msg.batch, true);
     assert(typeof msg.handlerId === "number");
   });
 
-  it("registerSlot serializes the returned VirtualEl when invoked", async () => {
+  it("registerSlot advertises the declared cacheKey fields", () => {
     clearMessages();
     const plugin = new Plugin();
-    let received = null;
+    plugin.registerSlot("post:badges", () => null, {
+      cacheKey: ["did", 7, "uri"],
+    });
+    assert.deepEqual(lastMessage().cacheKey, ["did", "uri"]);
+  });
+
+  it("registerSlot serializes the returned VirtualEl for each batch item", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const received = [];
     plugin.registerSlot("slot:demo", (context) => {
-      received = context;
+      received.push(context);
       const el = new VirtualEl("div");
       el.addClass("hello");
-      el.setText("world");
+      el.setText(context.uri);
       return el;
     });
     const register = lastMessage();
@@ -302,16 +313,21 @@ describe("Plugin sidebar/feedFilter registration", () => {
       type: "call",
       handlerId: register.handlerId,
       callId: 42,
-      args: [{ uri: "at://example" }],
+      args: [[{ uri: "at://one" }, { uri: "at://two" }]],
     });
-    assert.deepEqual(received, { uri: "at://example" });
+    assert.deepEqual(received, [{ uri: "at://one" }, { uri: "at://two" }]);
     const result = postedMessages.find((message) => message.type === "result");
     assert.deepEqual(result.callId, 42);
-    assert.deepEqual(result.value.tag, "div");
-    assert.deepEqual(result.value.attrs.class, "hello");
-    assert.deepEqual(result.value.children[0], {
+    assert.deepEqual(result.value.length, 2);
+    assert.deepEqual(result.value[0].value.tag, "div");
+    assert.deepEqual(result.value[0].value.attrs.class, "hello");
+    assert.deepEqual(result.value[0].value.children[0], {
       type: "text",
-      value: "world",
+      value: "at://one",
+    });
+    assert.deepEqual(result.value[1].value.children[0], {
+      type: "text",
+      value: "at://two",
     });
   });
 
@@ -325,26 +341,44 @@ describe("Plugin sidebar/feedFilter registration", () => {
       type: "call",
       handlerId: register.handlerId,
       callId: 1,
-      args: [{}],
+      args: [[{}]],
     });
     const result = postedMessages.find((message) => message.type === "result");
-    assert.deepEqual(result.value, null);
+    assert.deepEqual(result.value, [{ value: null }]);
   });
 
-  it("registerSlot rejects non-VirtualEl return values", async () => {
+  it("registerSlot reports a failing item without failing the batch", async () => {
     clearMessages();
     const plugin = new Plugin();
-    plugin.registerSlot("slot:bad", () => "not a node");
+    plugin.registerSlot("slot:bad", (context) => {
+      if (context.uri === "at://bad") return "not a node";
+      const el = new VirtualEl("div");
+      el.setText("ok");
+      return el;
+    });
     const register = lastMessage();
     clearMessages();
     await dispatch({
       type: "call",
       handlerId: register.handlerId,
       callId: 1,
-      args: [{}],
+      args: [[{ uri: "at://bad" }, { uri: "at://good" }]],
     });
     const result = postedMessages.find((message) => message.type === "result");
-    assert(/must return a VirtualEl/.test(result.error));
+    assert(/must return a VirtualEl/.test(result.value[0].error));
+    assert.deepEqual(result.value[1].value.children[0].value, "ok");
+  });
+
+  it("refreshSlot forwards matcher keys to the host", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.refreshSlot("post:badges", { keys: [{ did: "did:plc:one" }] });
+    const msg = lastMessage();
+    assert.deepEqual(msg.type, "hostCall");
+    assert.deepEqual(msg.method, "refreshSlot");
+    assert.deepEqual(msg.args, [
+      { name: "post:badges", keys: [{ did: "did:plc:one" }] },
+    ]);
   });
 
   it("addSettingTab posts a register message and remembers the tab", () => {

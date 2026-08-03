@@ -1,13 +1,19 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
+import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { linkToCommunityPlugin } from "/js/navigation.js";
+import { linkToCommunityPlugin, linkToLogin } from "/js/navigation.js";
 
 class CommunityPluginsView extends View {
-  async render({ root, context: { pluginService, isAuthenticated } }) {
+  async render({
+    root,
+    router,
+    layout,
+    context: { pluginService, isAuthenticated },
+  }) {
     const state = new ReactiveStore("communityPluginsView");
     state.$error = new Signal.State(null);
 
@@ -21,6 +27,14 @@ class CommunityPluginsView extends View {
       }
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      // Logged out, this page is itself the root of the Plugins nav item, so
+      // let the layout's default scroll-to-top happen.
+      if (!isAuthenticated) return;
+      event.preventDefault();
+      router.go("/plugins/installed");
+    });
+
     bindPageTitle(root, () => "Community plugins");
 
     pageEffect(root, () => {
@@ -32,6 +46,32 @@ class CommunityPluginsView extends View {
             title: "Community plugins",
           })}
           <main>
+            ${!isAuthenticated
+              ? html`<div
+                  class="plugins-intro"
+                  data-testid="community-plugins-intro"
+                >
+                  <div class="plugins-intro-header">
+                    <span class="plugins-intro-icon"
+                      >${globeIconTemplate()}</span
+                    >
+                    <div class="plugins-intro-title">
+                      Extend IMPRO with plugins
+                    </div>
+                  </div>
+                  <p class="plugins-intro-message">
+                    Community plugins are built by other people using IMPRO.
+                    They can add new themes, display options, and functionality
+                    to the app.
+                  </p>
+                  <a
+                    class="rounded-button rounded-button-primary"
+                    data-testid="plugins-intro-login-button"
+                    href=${linkToLogin()}
+                    >Sign in to install</a
+                  >
+                </div>`
+              : ""}
             ${error
               ? html`<div class="error-state">
                   <div>Failed to load plugins</div>

@@ -1,4 +1,4 @@
-import { describe, it, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   PluginService,
@@ -1290,63 +1290,9 @@ describe("feed filter integration", () => {
   });
 });
 
-describe("getClaimedFacetTypes", () => {
-  function makeServiceWithRealBridge() {
-    const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
-  }
-  function registerTransform(service, pluginId, message) {
-    const handler =
-      service.pluginBridge._registrationTargets.get("richTextTransform");
-    return handler({ pluginId, call: () => {} }, message);
-  }
-
-  it("is empty when no transforms are registered", () => {
-    const service = makeServiceWithRealBridge();
-    assert.deepEqual([...service.getClaimedFacetTypes()], []);
-  });
-
-  it("unions handlesFacetTypes across registered transforms", () => {
-    const service = makeServiceWithRealBridge();
-    registerTransform(service, "alpha", {
-      handlerId: 1,
-      handlesFacetTypes: ["blue.moji.richtext.facet", "com.domain.foo"],
-    });
-    registerTransform(service, "beta", {
-      handlerId: 2,
-      handlesFacetTypes: ["com.domain.foo"],
-    });
-    assert.deepEqual([...service.getClaimedFacetTypes()].sort(), [
-      "blue.moji.richtext.facet",
-      "com.domain.foo",
-    ]);
-  });
-
-  it("drops entries when a transform unregisters", () => {
-    const service = makeServiceWithRealBridge();
-    const dispose = registerTransform(service, "alpha", {
-      handlerId: 1,
-      handlesFacetTypes: ["blue.moji.richtext.facet"],
-    });
-    dispose();
-    assert.deepEqual([...service.getClaimedFacetTypes()], []);
-  });
-
-  it("tolerates a transform registered without handlesFacetTypes", () => {
-    const service = makeServiceWithRealBridge();
-    registerTransform(service, "alpha", { handlerId: 1 });
-    assert.deepEqual([...service.getClaimedFacetTypes()], []);
-  });
-});
-
-describe("slot registry", () => {
-  // These tests exercise the registration target wired by _setupRegistries,
-  // so they need the real PluginBridge instead of the makeService stub.
+// The dispatcher's own behavior is covered in pluginRichTextDispatcher.test.js;
+// these cover the bridge wiring and the facade rich-text elements read through.
+describe("rich text wiring", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
     return new PluginService(
@@ -1357,137 +1303,87 @@ describe("slot registry", () => {
     );
   }
 
-  function register(service, plugin, message) {
-    const handler = service.pluginBridge._registrationTargets.get("slot");
-    return handler(plugin, message);
-  }
-
-  function makePlugin(pluginId, calls = []) {
-    return {
-      pluginId,
-      call: (handlerId, ...args) => {
-        calls.push({ handlerId, args });
-        return Promise.resolve({ tag: "div", attrs: {}, text: pluginId });
-      },
-    };
-  }
-
-  it("returns an empty list for unknown slots", () => {
-    const service = makeServiceWithRealBridge();
-    assert.deepEqual(service.getSlotEntries("nope"), []);
-  });
-
-  it("records registrations in order", async () => {
-    const service = makeServiceWithRealBridge();
-    register(service, makePlugin("alpha"), {
-      target: "slot",
-      name: "x",
-      handlerId: 1,
-    });
-    register(service, makePlugin("beta"), {
-      target: "slot",
-      name: "x",
-      handlerId: 2,
-    });
-    const entries = service.getSlotEntries("x");
-    assert.deepEqual(
-      entries.map((entry) => entry.pluginId),
-      ["alpha", "beta"],
+  function registerTransform(service, plugin, message) {
+    return service.pluginBridge._registrationTargets.get("richTextTransform")(
+      plugin,
+      { target: "richTextTransform", handlerId: 3, ...message },
     );
-  });
+  }
 
-  it("invokes the plugin handler with the slot context", async () => {
+  it("registers the plugin's transform with the dispatcher", async () => {
     const service = makeServiceWithRealBridge();
     const calls = [];
-    register(service, makePlugin("alpha", calls), {
-      target: "slot",
-      name: "x",
-      handlerId: 7,
-    });
-    const [entry] = service.getSlotEntries("x");
-    await entry.invoke({ uri: "at://test" });
-    assert.deepEqual(calls, [{ handlerId: 7, args: [{ uri: "at://test" }] }]);
-  });
-
-  it("never reuses an entry version for a later registration", () => {
-    const service = makeServiceWithRealBridge();
-    const dispose = register(service, makePlugin("alpha"), {
-      target: "slot",
-      name: "x",
-      handlerId: 1,
-    });
-    const firstVersion = service.getSlotEntries("x")[0].version;
-    dispose();
-    register(service, makePlugin("alpha"), {
-      target: "slot",
-      name: "x",
-      handlerId: 2,
-    });
-    assert.notEqual(service.getSlotEntries("x")[0].version, firstVersion);
-  });
-
-  it("warns and skips when a plugin registers the same slot twice", () => {
-    const service = makeServiceWithRealBridge();
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(" "));
-    try {
-      register(service, makePlugin("alpha"), {
-        target: "slot",
-        name: "x",
-        handlerId: 1,
-      });
-      const dispose = register(service, makePlugin("alpha"), {
-        target: "slot",
-        name: "x",
-        handlerId: 2,
-      });
-      assert.deepEqual(dispose, null);
-      assert.deepEqual(warnings.length, 1);
-      assert(warnings[0].includes("alpha"));
-      const entries = service.getSlotEntries("x");
-      assert.deepEqual(entries.length, 1);
-      assert.deepEqual(entries[0].pluginId, "alpha");
-    } finally {
-      console.warn = originalWarn;
-    }
-  });
-
-  it("dispose removes the entry and prunes the slot when empty", () => {
-    const service = makeServiceWithRealBridge();
-    const dispose = register(service, makePlugin("alpha"), {
-      target: "slot",
-      name: "x",
-      handlerId: 1,
-    });
-    assert.deepEqual(service.getSlotEntries("x").length, 1);
-    dispose();
-    assert.deepEqual(service.getSlotEntries("x"), []);
-    assert.deepEqual(service.$slots.get("x"), null);
-  });
-
-  it("updates the $slots signal on register and unregister", () => {
-    const service = makeServiceWithRealBridge();
-    const updates = [];
-    const initial = service.$slots.get("x");
-    const dispose = register(service, makePlugin("alpha"), {
-      target: "slot",
-      name: "x",
-      handlerId: 1,
-    });
-    updates.push(
-      service.$slots.get("x")?.map((entry) => entry.pluginId) ?? null,
+    registerTransform(
+      service,
+      {
+        pluginId: "alpha",
+        call: (handlerId, batch) => {
+          calls.push({ handlerId, batch });
+          return Promise.resolve(
+            batch.map(({ tokens }) => ({ value: tokens })),
+          );
+        },
+      },
+      { handlesFacetTypes: ["blue.moji.richtext.facet"] },
     );
-    dispose();
-    updates.push(
-      service.$slots.get("x")?.map((entry) => entry.pluginId) ?? null,
+    assert.deepEqual(
+      [...service.getClaimedFacetTypes()],
+      ["blue.moji.richtext.facet"],
     );
-    assert.deepEqual(initial, null);
-    assert.deepEqual(updates, [["alpha"], null]);
+
+    const tokens = [{ type: "text", value: "hello" }];
+    await service.transformRichTextTokens(tokens, {
+      surface: "largePost",
+      uri: "at://did:test/app.bsky.feed.post/1",
+      did: "did:test",
+      numberOfLines: null,
+      source: { text: "hello", facets: [] },
+    });
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].handlerId, 3);
+    assert.deepEqual(calls[0].batch[0].tokens, tokens);
+  });
+
+  it("exposes the dispatcher's version signal, which a registration bumps", () => {
+    const service = makeServiceWithRealBridge();
+    assert.equal(
+      service.$richTextTransformsVersion,
+      service.richTextDispatcher.$version,
+    );
+    const versionBefore = service.$richTextTransformsVersion.get();
+    const dispose = registerTransform(service, {
+      pluginId: "alpha",
+      call: () => {},
+    });
+    assert.notEqual(service.$richTextTransformsVersion.get(), versionBefore);
+    const versionAfterRegister = service.$richTextTransformsVersion.get();
+    dispose();
+    assert.notEqual(
+      service.$richTextTransformsVersion.get(),
+      versionAfterRegister,
+    );
+    assert.deepEqual([...service.getClaimedFacetTypes()], []);
+  });
+
+  it("mounts node tokens through the emitting plugin's renderer", () => {
+    const service = makeServiceWithRealBridge();
+    const host = document.createElement("div");
+    const element = service.renderRichTextNodeToken(
+      {
+        type: "inline",
+        pluginId: "alpha",
+        node: { tag: "code", attrs: {}, text: "x", children: [], events: {} },
+      },
+      host,
+    );
+    assert.deepEqual(element.localName, "code");
+    assert.deepEqual(element.textContent, "x");
   });
 });
 
-describe("refreshSlot host method", () => {
+// The dispatcher's own behavior is covered in pluginSlotDispatcher.test.js; these
+// cover the bridge wiring and the facade the slot element reads through.
+describe("slot wiring", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
     return new PluginService(
@@ -1498,102 +1394,70 @@ describe("refreshSlot host method", () => {
     );
   }
 
-  function register(service, plugin, message) {
-    const handler = service.pluginBridge._registrationTargets.get("slot");
-    return handler(plugin, message);
+  function registerSlot(service, plugin, message = {}) {
+    return service.pluginBridge._registrationTargets.get("slot")(plugin, {
+      target: "slot",
+      name: "author-badges",
+      handlerId: 7,
+      ...message,
+    });
   }
 
-  function getHandler(service, name) {
-    return service.pluginBridge._hostCallHandlers.get(name);
-  }
-
-  it("bumps only the calling plugin's entry versions and re-sets the list", () => {
+  it("registers the plugin's slot handler with the dispatcher", async () => {
     const service = makeServiceWithRealBridge();
-    register(
+    const calls = [];
+    registerSlot(
       service,
-      { pluginId: "alpha", call: () => {} },
       {
-        target: "slot",
-        name: "author-badges",
-        handlerId: 1,
+        pluginId: "alpha",
+        call: (handlerId, payload) => {
+          calls.push({ handlerId, payload });
+          return Promise.resolve([{ value: null }]);
+        },
       },
+      { cacheKey: ["did"], batch: true },
     );
-    register(
-      service,
-      { pluginId: "beta", call: () => {} },
-      {
-        target: "slot",
-        name: "author-badges",
-        handlerId: 1,
-      },
-    );
-    const before = service.$slots.get("author-badges");
-    const [alphaVersionBefore, betaVersionBefore] = before.map(
-      (entry) => entry.version,
-    );
-    getHandler(service, "refreshSlot")(
-      { pluginId: "alpha" },
-      { name: "author-badges" },
-    );
-    const after = service.$slots.get("author-badges");
-    assert.notEqual(before, after);
-    assert.deepEqual(
-      after.map((entry) => entry.pluginId),
-      ["alpha", "beta"],
-    );
-    assert.notEqual(after[0].version, alphaVersionBefore);
-    assert.equal(after[1].version, betaVersionBefore);
+    const [registration] =
+      service.slotDispatcher.getRegistrations("author-badges");
+    assert.deepEqual(registration.pluginId, "alpha");
+    assert.deepEqual(registration.cacheKey, ["did"]);
+
+    await registration.request({ did: "did:one", uri: "at://a" });
+    // The message's batch flag reached the dispatcher (payloads arrive as an
+    // array), and only the declared cacheKey fields reach the plugin
+    assert.deepEqual(calls, [{ handlerId: 7, payload: [{ did: "did:one" }] }]);
   });
 
-  it("dispose still removes the entry after a refresh replaced it", () => {
+  it("exposes the dispatcher's registrations and slot signal", () => {
     const service = makeServiceWithRealBridge();
-    const dispose = register(
-      service,
-      { pluginId: "alpha", call: () => {} },
-      {
-        target: "slot",
-        name: "author-badges",
-        handlerId: 1,
-      },
-    );
-    getHandler(service, "refreshSlot")(
-      { pluginId: "alpha" },
-      { name: "author-badges" },
-    );
+    const dispose = registerSlot(service, {
+      pluginId: "alpha",
+      call: () => Promise.resolve([]),
+    });
+    assert.deepEqual(service.getSlotRegistrations("author-badges").length, 1);
+    assert.equal(service.$slots, service.slotDispatcher.$slots);
+    assert.deepEqual(service.$slots.get("author-badges").length, 1);
     dispose();
-    assert.deepEqual(service.$slots.get("author-badges"), null);
+    assert.deepEqual(service.getSlotRegistrations("author-badges"), []);
   });
 
-  it("is a no-op for a slot name nobody has registered", () => {
+  it("routes the refreshSlot host method to the calling plugin's slot", async () => {
     const service = makeServiceWithRealBridge();
-    assert.doesNotThrow(() =>
-      getHandler(service, "refreshSlot")(
-        { pluginId: "alpha" },
-        { name: "nope" },
-      ),
-    );
-    assert.deepEqual(service.$slots.get("nope"), null);
-  });
+    registerSlot(service, {
+      pluginId: "alpha",
+      call: () => Promise.resolve([{ value: null }]),
+    });
+    const [registration] =
+      service.slotDispatcher.getRegistrations("author-badges");
+    const context = { did: "did:one" };
+    await registration.request(context);
+    const versionBefore = registration.versionFor(context);
 
-  it("is a no-op when the calling plugin has no entry in the slot", () => {
-    const service = makeServiceWithRealBridge();
-    register(
-      service,
-      { pluginId: "alpha", call: () => {} },
-      {
-        target: "slot",
-        name: "author-badges",
-        handlerId: 1,
-      },
+    service.pluginBridge._hostCallHandlers.get("refreshSlot")(
+      { pluginId: "alpha" },
+      { name: "author-badges", keys: [context] },
     );
-    const before = service.$slots.get("author-badges");
-    const versionBefore = before[0].version;
-    getHandler(service, "refreshSlot")(
-      { pluginId: "beta" },
-      { name: "author-badges" },
-    );
-    assert.equal(service.$slots.get("author-badges"), before);
-    assert.equal(before[0].version, versionBefore);
+    assert.notEqual(registration.versionFor(context), versionBefore);
   });
 });
 
@@ -2256,365 +2120,5 @@ describe("getPostComposerInit", () => {
       replyRoot: undefined,
       quotedPost: undefined,
     });
-  });
-});
-
-describe("rich text transform pipeline", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-  function makeContext({
-    uri = "at://did:test/app.bsky.feed.post/1",
-    surface = "largePost",
-    text = "hello",
-    facets = [],
-  } = {}) {
-    return {
-      surface,
-      uri,
-      did: "did:test",
-      numberOfLines: null,
-      source: { text, facets },
-    };
-  }
-
-  function addTransform(service, pluginId, invoke) {
-    const entry = { pluginId, invoke };
-    service.registries.richTextTransforms.add(entry);
-    return entry;
-  }
-
-  function silencingErrors(run) {
-    const originalError = console.error;
-    console.error = () => {};
-    return Promise.resolve()
-      .then(run)
-      .finally(() => {
-        console.error = originalError;
-      });
-  }
-
-  it("resolves null with no transforms registered", async () => {
-    const { service } = makeService();
-    const tokens = [{ type: "text", value: "hello" }];
-    assert.deepEqual(
-      await service.transformRichTextTokens(tokens, makeContext()),
-      null,
-    );
-  });
-
-  it("resolves the transformed tokens and caches them per post and surface", async () => {
-    const { service } = makeService();
-    const batches = [];
-    addTransform(service, "alpha", async (batch) => {
-      batches.push(batch);
-      return batch.map(({ tokens }) => ({
-        value: [...tokens, { type: "text", value: "!" }],
-      }));
-    });
-    const tokens = [{ type: "text", value: "hello" }];
-    const context = makeContext();
-
-    const transformed = await service.transformRichTextTokens(tokens, context);
-    assert.deepEqual(transformed, [
-      { type: "text", value: "hello" },
-      { type: "text", value: "!" },
-    ]);
-
-    // Second request hits the cache: same result, no extra plugin call.
-    assert.deepEqual(
-      await service.transformRichTextTokens(tokens, context),
-      transformed,
-    );
-    assert.deepEqual(batches.length, 1);
-  });
-
-  it("batches all posts of a render burst into one call per plugin", async () => {
-    const { service } = makeService();
-    const batches = [];
-    addTransform(service, "alpha", async (batch) => {
-      batches.push(batch);
-      return batch.map(({ tokens }) => ({ value: tokens }));
-    });
-
-    await Promise.all([
-      service.transformRichTextTokens(
-        [{ type: "text", value: "one" }],
-        makeContext({ uri: "at://post/1", text: "one" }),
-      ),
-      service.transformRichTextTokens(
-        [{ type: "text", value: "two" }],
-        makeContext({ uri: "at://post/2", text: "two" }),
-      ),
-    ]);
-
-    assert.deepEqual(batches.length, 1);
-    assert.deepEqual(batches[0].length, 2);
-    assert.deepEqual(batches[0][0].tokens, [{ type: "text", value: "one" }]);
-    assert.deepEqual(batches[0][1].tokens, [{ type: "text", value: "two" }]);
-  });
-
-  it("shares one run between concurrent requests for the same post and surface", async () => {
-    const { service } = makeService();
-    const batches = [];
-    addTransform(service, "alpha", async (batch) => {
-      batches.push(batch);
-      return batch.map(({ tokens }) => ({ value: tokens }));
-    });
-    const tokens = [{ type: "text", value: "hello" }];
-    const context = makeContext();
-
-    const [first, second] = await Promise.all([
-      service.transformRichTextTokens(tokens, context),
-      service.transformRichTextTokens(tokens, context),
-    ]);
-
-    assert.deepEqual(first, second);
-    assert.deepEqual(batches.length, 1);
-    assert.deepEqual(batches[0].length, 1);
-  });
-
-  it("chains transforms in registration order", async () => {
-    const { service } = makeService();
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(({ tokens }) => ({
-        value: [...tokens, { type: "text", value: "A" }],
-      })),
-    );
-    addTransform(service, "beta", async (batch) =>
-      batch.map(({ tokens }) => ({
-        value: [...tokens, { type: "text", value: "B" }],
-      })),
-    );
-
-    const transformed = await service.transformRichTextTokens(
-      [{ type: "text", value: "hello" }],
-      makeContext(),
-    );
-
-    assert.deepEqual(
-      transformed.map((token) => token.value),
-      ["hello", "A", "B"],
-    );
-  });
-
-  it("fails open when a transform throws", async () => {
-    const { service } = makeService();
-    addTransform(service, "alpha", async () => {
-      throw new Error("boom");
-    });
-    addTransform(service, "beta", async (batch) =>
-      batch.map(({ tokens }) => ({
-        value: [...tokens, { type: "text", value: "B" }],
-      })),
-    );
-
-    const transformed = await silencingErrors(() =>
-      service.transformRichTextTokens(
-        [{ type: "text", value: "hello" }],
-        makeContext(),
-      ),
-    );
-
-    assert.deepEqual(
-      transformed.map((token) => token.value),
-      ["hello", "B"],
-    );
-  });
-
-  it("fails open per item on error entries and malformed tokens", async () => {
-    const { service } = makeService();
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(({ context }) =>
-        context.uri.endsWith("/1")
-          ? { error: "no thanks" }
-          : { value: [{ type: "bogus" }] },
-      ),
-    );
-
-    const [first, second] = await silencingErrors(() =>
-      Promise.all([
-        service.transformRichTextTokens(
-          [{ type: "text", value: "one" }],
-          makeContext({ uri: "at://post/1", text: "one" }),
-        ),
-        service.transformRichTextTokens(
-          [{ type: "text", value: "two" }],
-          makeContext({ uri: "at://post/2", text: "two" }),
-        ),
-      ]),
-    );
-
-    assert.deepEqual(first, [{ type: "text", value: "one" }]);
-    assert.deepEqual(second, [{ type: "text", value: "two" }]);
-  });
-
-  it("re-hydrates returned facet tokens to the host originals", async () => {
-    const { service } = makeService();
-    const facet = {
-      index: { byteStart: 0, byteEnd: 4 },
-      features: [{ $type: "app.bsky.richtext.facet#tag", tag: "tag" }],
-    };
-    const facetToken = { type: "facet", facet, text: "#tag" };
-    // Simulate the structured-clone boundary: the plugin returns a copy.
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(({ tokens }) => ({
-        value: JSON.parse(JSON.stringify(tokens)),
-      })),
-    );
-
-    const transformed = await service.transformRichTextTokens(
-      [facetToken, { type: "text", value: " in front" }],
-      makeContext({ text: "#tag in front", facets: [facet] }),
-    );
-
-    assert(
-      transformed[0] === facetToken,
-      "facet token should be the host object",
-    );
-  });
-
-  it("rejects a result containing an unrecognized facet", async () => {
-    const { service } = makeService();
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(() => ({
-        value: [
-          {
-            type: "facet",
-            facet: { index: { byteStart: 0, byteEnd: 99 }, features: [] },
-            text: "forged",
-          },
-        ],
-      })),
-    );
-    const tokens = [{ type: "text", value: "hello" }];
-
-    const transformed = await silencingErrors(() =>
-      service.transformRichTextTokens(tokens, makeContext()),
-    );
-
-    assert.deepEqual(transformed, tokens);
-  });
-
-  it("stamps inline/block tokens with the emitting transform's pluginId and preserves earlier ids", async () => {
-    const { service } = makeService();
-    const node = { tag: "code", text: "x" };
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(() => ({ value: [{ type: "inline", node }] })),
-    );
-    addTransform(service, "beta", async (batch) =>
-      batch.map(({ tokens }) => ({
-        value: [...tokens, { type: "block", node }],
-      })),
-    );
-
-    const transformed = await service.transformRichTextTokens(
-      [{ type: "text", value: "hello" }],
-      makeContext(),
-    );
-
-    assert.deepEqual(
-      transformed.map((token) => token.pluginId),
-      ["alpha", "beta"],
-    );
-  });
-
-  it("re-stamps a forged pluginId naming another plugin", async () => {
-    const { service } = makeService();
-    const node = { tag: "code", text: "x" };
-    addTransform(service, "alpha", async (batch) =>
-      batch.map(() => ({
-        value: [{ type: "inline", pluginId: "victim", node }],
-      })),
-    );
-
-    const transformed = await service.transformRichTextTokens(
-      [{ type: "text", value: "hello" }],
-      makeContext(),
-    );
-
-    assert.deepEqual(
-      transformed.map((token) => token.pluginId),
-      ["alpha"],
-    );
-  });
-
-  it("clears cached results when the transform set changes", async () => {
-    const { service } = makeService();
-    const batches = [];
-    addTransform(service, "alpha", async (batch) => {
-      batches.push(batch);
-      return batch.map(({ tokens }) => ({ value: tokens }));
-    });
-    const tokens = [{ type: "text", value: "hello" }];
-    const context = makeContext();
-
-    await service.transformRichTextTokens(tokens, context);
-    service._invalidateRichTextTransforms();
-    await service.transformRichTextTokens(tokens, context);
-
-    assert.deepEqual(batches.length, 2);
-  });
-
-  it("resolves in-flight requests with null when transforms change mid-run", async () => {
-    const { service } = makeService();
-    let releaseTransform;
-    const gate = new Promise((resolve) => {
-      releaseTransform = resolve;
-    });
-    addTransform(service, "alpha", async (batch) => {
-      await gate;
-      return batch.map(({ tokens }) => ({ value: tokens }));
-    });
-    const request = service.transformRichTextTokens(
-      [{ type: "text", value: "hello" }],
-      makeContext(),
-    );
-    await flush();
-    service._invalidateRichTextTransforms();
-    releaseTransform();
-
-    assert.deepEqual(await request, null);
-    assert.deepEqual(service._richTextTokensCache.size, 0);
-  });
-
-  it("re-runs when the cached entry no longer matches the source text", async () => {
-    const { service } = makeService();
-    const batches = [];
-    addTransform(service, "alpha", async (batch) => {
-      batches.push(batch);
-      return batch.map(({ tokens }) => ({ value: tokens }));
-    });
-    const context = makeContext({ text: "before" });
-
-    await service.transformRichTextTokens(
-      [{ type: "text", value: "before" }],
-      context,
-    );
-    const transformed = await service.transformRichTextTokens(
-      [{ type: "text", value: "after" }],
-      makeContext({ text: "after" }),
-    );
-
-    assert.deepEqual(batches.length, 2);
-    assert.deepEqual(transformed, [{ type: "text", value: "after" }]);
-  });
-
-  it("renderRichTextNodeToken mounts a sanitized element and reuses it per token and host", () => {
-    const { service } = makeService();
-    const token = {
-      type: "inline",
-      pluginId: "alpha",
-      node: { tag: "code", attrs: {}, text: "x", children: [], events: {} },
-    };
-    const host = document.createElement("div");
-
-    const element = service.renderRichTextNodeToken(token, host);
-    assert.deepEqual(element.localName, "code");
-    assert.deepEqual(element.textContent, "x");
-    assert(service.renderRichTextNodeToken(token, host) === element);
-    const otherHost = document.createElement("div");
-    const otherElement = service.renderRichTextNodeToken(token, otherHost);
-    assert.deepEqual(otherElement.localName, "code");
-    assert(otherElement !== element);
   });
 });

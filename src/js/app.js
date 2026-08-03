@@ -340,10 +340,15 @@ export async function main() {
     () => pluginSettingsView,
     pluginsRouteOptions,
   );
-  router.addRoute("/plugins/community", () => communityPluginsView);
+  router.addRoute(
+    "/plugins/community",
+    () => communityPluginsView,
+    pluginsRouteOptions,
+  );
   router.addRoute(
     "/plugins/community/:pluginId",
     () => communityPluginListingView,
+    pluginsRouteOptions,
   );
   router.addRedirects({
     // Old community plugin URLs

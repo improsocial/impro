@@ -286,6 +286,140 @@ export function throttle(fn, delay = 250) {
   };
 }
 
+export class BoundedMap extends Map {
+  constructor(maxSize, { onEvict = noop, policy = "fifo" } = {}) {
+    super();
+    this.maxSize = maxSize;
+    this._onEvict = onEvict;
+    this._policy = policy;
+  }
+
+  get(key) {
+    if (this._policy !== "lru" || !super.has(key)) return super.get(key);
+    const value = super.get(key);
+    super.delete(key);
+    super.set(key, value);
+    return value;
+  }
+
+  peek(key) {
+    return super.get(key);
+  }
+
+  set(key, value) {
+    super.set(key, value);
+    while (this.size > this.maxSize) {
+      const oldestKey = this.keys().next().value;
+      const oldestValue = this.peek(oldestKey);
+      this.delete(oldestKey);
+      this._onEvict(oldestKey, oldestValue);
+    }
+    return this;
+  }
+}
+
+export function isPromise(value) {
+  return typeof value?.then === "function";
+}
+
+// Cache of async results: a hit is returned synchronously,
+// a miss (or an in-flight run for the same key) returns a promise
+export class AsyncValueCache {
+  constructor(maxSize) {
+    // key -> value
+    this._values = new BoundedMap(maxSize, { policy: "lru" });
+    // key -> promise
+    this._pending = new Map();
+  }
+
+  // Returns the value itself when it's already known, otherwise a promise -
+  // callers that can render synchronously check with isPromise()
+  request(key, run) {
+    const cached = this._values.get(key);
+    if (cached) return cached.value;
+    const pending = this._pending.get(key);
+    if (pending) return pending;
+    const promise = run().then(
+      (value) => {
+        if (this._pending.get(key) === promise) {
+          this._pending.delete(key);
+          this._values.delete(key);
+          this._values.set(key, { value });
+        }
+        return value;
+      },
+      (error) => {
+        if (this._pending.get(key) === promise) this._pending.delete(key);
+        throw error;
+      },
+    );
+    this._pending.set(key, promise);
+    return promise;
+  }
+
+  invalidate(matchFn) {
+    if (!matchFn) {
+      this._values.clear();
+      this._pending.clear();
+      return;
+    }
+    for (const key of [...this._values.keys(), ...this._pending.keys()]) {
+      if (!matchFn(key)) continue;
+      this._values.delete(key);
+      this._pending.delete(key);
+    }
+  }
+
+  // Reads without recording use, for callers that validate before trusting
+  peek(key) {
+    return this._values.peek(key) ?? null;
+  }
+
+  delete(key) {
+    this._values.delete(key);
+    this._pending.delete(key);
+  }
+
+  get size() {
+    return this._values.size;
+  }
+}
+
+// Turns a batch function into a single-item function -
+// calls made in the same microtask are collected and run together,
+// then results are resolved / rejected individually
+export function batchPerTick(runBatch) {
+  let queued = [];
+  let scheduled = false;
+  return (item) =>
+    new Promise((resolve, reject) => {
+      queued.push({ item, resolve, reject });
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(async () => {
+        scheduled = false;
+        const batch = queued;
+        queued = [];
+        try {
+          const results = await runBatch(batch.map((entry) => entry.item));
+          if (!Array.isArray(results) || results.length !== batch.length) {
+            throw new Error(
+              `batchPerTick expected ${batch.length} results, got ${results?.length}`,
+            );
+          }
+          batch.forEach((entry, index) => {
+            const result = results[index];
+            if (result instanceof Error) entry.reject(result);
+            else entry.resolve(result);
+          });
+        } catch (error) {
+          // If batch fn fails, reject all promises
+          for (const entry of batch) entry.reject(error);
+        }
+      });
+    });
+}
+
 export function formatNumNotifications(numNotifications) {
   if (numNotifications >= 30) {
     return "30+";

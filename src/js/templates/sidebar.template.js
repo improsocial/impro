@@ -126,6 +126,12 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       label: "Search",
       url: "/search",
     },
+    {
+      id: "plugins",
+      icon: widgetsIconTemplate,
+      label: "Plugins",
+      url: "/plugins/community",
+    },
   ];
   return html`
     <animated-sidebar

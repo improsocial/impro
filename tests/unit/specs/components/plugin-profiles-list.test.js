@@ -1,17 +1,10 @@
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/plugin-profiles-list.js";
-import { makeTestDataLayer } from "../../testHelpers.js";
-
-function makeStubPluginService() {
-  return {
-    $slots: { get: () => null },
-    getSlotEntries: () => [],
-  };
-}
+import { makeTestDataLayer, makeTestPluginService } from "../../testHelpers.js";
 
 function mount(element, dataLayer) {
-  element.renderContext = { dataLayer, pluginService: makeStubPluginService() };
+  element.renderContext = { dataLayer, pluginService: makeTestPluginService() };
   document.body.appendChild(element);
   return element;
 }

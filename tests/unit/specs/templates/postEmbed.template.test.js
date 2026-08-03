@@ -6,15 +6,9 @@ import {
 } from "/js/templates/postEmbed.template.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
+import { makeTestPluginService } from "../../testHelpers.js";
 
-const pluginService = {
-  $richTextTransformsVersion: { get: () => 0 },
-  transformRichTextTokens: async () => null,
-  renderRichTextNodeToken: () => null,
-  getClaimedFacetTypes: () => new Set(),
-  $slots: { get: () => null },
-  getSlotEntries: () => [],
-};
+const pluginService = makeTestPluginService();
 
 describe("postEmbedTemplate - images", () => {
   it("should render image embed", () => {

@@ -27,6 +27,10 @@ import {
   pinScrollPosition,
   KVIndexedDB,
   isOnlyEmoji,
+  batchPerTick,
+  BoundedMap,
+  AsyncValueCache,
+  isPromise,
 } from "/js/utils.js";
 import { installFakeIndexedDB } from "../testHelpers.js";
 
@@ -1415,5 +1419,263 @@ describe("KVIndexedDB", () => {
     };
     const db = new KVIndexedDB("test-db", "test-store");
     await assert.rejects(db.get("a"), /open denied/);
+  });
+});
+
+describe("batchPerTick", () => {
+  it("collects calls made in one microtask into a single batch", async () => {
+    const batches = [];
+    const call = batchPerTick((items) => {
+      batches.push(items);
+      return items.map((item) => item * 2);
+    });
+    const results = await Promise.all([call(1), call(2), call(3)]);
+    assert.deepEqual(batches, [[1, 2, 3]]);
+    assert.deepEqual(results, [2, 4, 6]);
+  });
+
+  it("resolves each caller with the result at its own position", async () => {
+    const call = batchPerTick((items) => items.map((item) => `${item}!`));
+    const [second, first] = await Promise.all([call("b"), call("a")]);
+    assert.deepEqual(second, "b!");
+    assert.deepEqual(first, "a!");
+  });
+
+  it("starts a fresh batch for calls made after a flush", async () => {
+    const batches = [];
+    const call = batchPerTick((items) => {
+      batches.push(items);
+      return items;
+    });
+    await call("a");
+    await call("b");
+    assert.deepEqual(batches, [["a"], ["b"]]);
+  });
+
+  it("does not include calls made during a flush in the running batch", async () => {
+    const batches = [];
+    const call = batchPerTick(async (items) => {
+      batches.push(items);
+      return items;
+    });
+    const first = call("a");
+    const second = first.then(() => call("b"));
+    await Promise.all([first, second]);
+    assert.deepEqual(batches, [["a"], ["b"]]);
+  });
+
+  it("rejects only the caller whose result is an Error", async () => {
+    const call = batchPerTick((items) =>
+      items.map((item) => (item === "bad" ? new Error("boom") : item)),
+    );
+    const results = await Promise.allSettled([call("bad"), call("good")]);
+    assert.deepEqual(results[0].status, "rejected");
+    assert.deepEqual(results[0].reason.message, "boom");
+    assert.deepEqual(results[1].status, "fulfilled");
+    assert.deepEqual(results[1].value, "good");
+  });
+
+  it("rejects every caller in the batch when the batch function throws", async () => {
+    const call = batchPerTick(() => {
+      throw new Error("boom");
+    });
+    const results = await Promise.allSettled([call(1), call(2)]);
+    assert.deepEqual(
+      results.map((result) => result.status),
+      ["rejected", "rejected"],
+    );
+    assert.deepEqual(results[0].reason.message, "boom");
+    assert.deepEqual(results[1].reason.message, "boom");
+  });
+
+  it("rejects the batch when the batch function returns the wrong number of results", async () => {
+    const call = batchPerTick((items) => items.slice(1));
+    const results = await Promise.allSettled([call(1), call(2)]);
+    assert.deepEqual(
+      results.map((result) => result.status),
+      ["rejected", "rejected"],
+    );
+    assert(/expected 2 results, got 1/.test(results[0].reason.message));
+  });
+
+  it("keeps working after a failed batch", async () => {
+    let shouldFail = true;
+    const call = batchPerTick((items) => {
+      if (shouldFail) {
+        shouldFail = false;
+        throw new Error("boom");
+      }
+      return items;
+    });
+    await assert.rejects(call("a"), /boom/);
+    assert.deepEqual(await call("b"), "b");
+  });
+});
+
+describe("BoundedMap", () => {
+  it("behaves like a Map below the cap", () => {
+    const map = new BoundedMap(3);
+    map.set("a", 1).set("b", 2);
+    assert.deepEqual(map.get("a"), 1);
+    assert.deepEqual(map.size, 2);
+    assert(map.has("b"));
+  });
+
+  it("evicts the oldest entry once the cap is exceeded", () => {
+    const map = new BoundedMap(2);
+    map.set("a", 1).set("b", 2).set("c", 3);
+    assert.deepEqual([...map.keys()], ["b", "c"]);
+  });
+
+  it("reports each evicted entry", () => {
+    const evicted = [];
+    const map = new BoundedMap(1, {
+      onEvict: (key, value) => evicted.push([key, value]),
+    });
+    map.set("a", 1).set("b", 2).set("c", 3);
+    assert.deepEqual(evicted, [
+      ["a", 1],
+      ["b", 2],
+    ]);
+  });
+
+  it("evicts the coldest entry under the lru policy", () => {
+    const map = new BoundedMap(2, { policy: "lru" });
+    map.set("a", 1).set("b", 2);
+    map.get("a");
+    map.set("c", 3);
+    assert.deepEqual([...map.keys()], ["a", "c"]);
+  });
+
+  it("does not count a peek as use under the lru policy", () => {
+    const map = new BoundedMap(2, { policy: "lru" });
+    map.set("a", 1).set("b", 2);
+    assert.deepEqual(map.peek("a"), 1);
+    map.set("c", 3);
+    assert.deepEqual([...map.keys()], ["b", "c"]);
+  });
+
+  it("ignores reads under the default fifo policy", () => {
+    const map = new BoundedMap(2);
+    map.set("a", 1).set("b", 2);
+    map.get("a");
+    map.set("c", 3);
+    assert.deepEqual([...map.keys()], ["b", "c"]);
+  });
+
+  it("keeps an entry alive when it is re-set on read", () => {
+    const map = new BoundedMap(2);
+    map.set("a", 1).set("b", 2);
+    // The least-recently-used idiom: delete + set moves the entry to the end
+    map.delete("a");
+    map.set("a", 1);
+    map.set("c", 3);
+    assert.deepEqual([...map.keys()], ["a", "c"]);
+  });
+
+  it("does not evict when overwriting an existing key at the cap", () => {
+    const evicted = [];
+    const map = new BoundedMap(2, { onEvict: (key) => evicted.push(key) });
+    map.set("a", 1).set("b", 2).set("b", 3);
+    assert.deepEqual([...map.keys()], ["a", "b"]);
+    assert.deepEqual(map.get("b"), 3);
+    assert.deepEqual(evicted, []);
+  });
+});
+
+describe("AsyncValueCache", () => {
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it("reports a miss, then serves the stored value synchronously", async () => {
+    const cache = new AsyncValueCache(10);
+    const miss = cache.request("a", async () => "A");
+    assert(isPromise(miss));
+    assert.deepEqual(await miss, "A");
+
+    const hit = cache.request("a", async () => "SHOULD NOT RUN");
+    assert.deepEqual(isPromise(hit), false);
+    assert.deepEqual(hit, "A");
+  });
+
+  it("shares one run between concurrent requests for a key", async () => {
+    const cache = new AsyncValueCache(10);
+    let runs = 0;
+    const run = async () => {
+      runs += 1;
+      return "A";
+    };
+    const first = cache.request("a", run);
+    const second = cache.request("a", run);
+    assert.equal(second, first);
+    assert.deepEqual(await Promise.all([first, second]), ["A", "A"]);
+    assert.deepEqual(runs, 1);
+  });
+
+  it("does not cache a result whose entry was invalidated mid-flight", async () => {
+    const cache = new AsyncValueCache(10);
+    const gate = deferred();
+    const request = cache.request("a", () => gate.promise);
+    cache.invalidate();
+    gate.resolve("A");
+    assert.deepEqual(await request, "A");
+    // The caller still gets its result; the cache doesn't keep it
+    assert.deepEqual(cache.peek("a"), null);
+  });
+
+  it("does not let a superseded run clobber a newer one", async () => {
+    const cache = new AsyncValueCache(10);
+    const first = deferred();
+    const stale = cache.request("a", () => first.promise);
+    cache.invalidate();
+    const second = deferred();
+    const fresh = cache.request("a", () => second.promise);
+
+    second.resolve("FRESH");
+    await fresh;
+    first.resolve("STALE");
+    await stale;
+
+    assert.deepEqual(cache.peek("a").value, "FRESH");
+  });
+
+  it("does not cache failures, and retries on the next request", async () => {
+    const cache = new AsyncValueCache(10);
+    await assert.rejects(
+      cache.request("a", async () => {
+        throw new Error("boom");
+      }),
+      /boom/,
+    );
+    assert.deepEqual(cache.peek("a"), null);
+    assert.deepEqual(await cache.request("a", async () => "A"), "A");
+  });
+
+  it("invalidates only the keys a predicate matches", async () => {
+    const cache = new AsyncValueCache(10);
+    await cache.request("a", async () => "A");
+    await cache.request("b", async () => "B");
+    cache.invalidate((key) => key === "a");
+    assert.deepEqual(cache.peek("a"), null);
+    assert.deepEqual(cache.peek("b").value, "B");
+  });
+
+  it("evicts least-recently-used entries at the cap", async () => {
+    const cache = new AsyncValueCache(2);
+    await cache.request("a", async () => "A");
+    await cache.request("b", async () => "B");
+    // Reading "a" makes "b" the coldest entry
+    cache.request("a", async () => "SHOULD NOT RUN");
+    await cache.request("c", async () => "C");
+    assert.deepEqual(cache.size, 2);
+    assert.deepEqual(cache.peek("b"), null);
+    assert.deepEqual(cache.peek("a").value, "A");
   });
 });
