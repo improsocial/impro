@@ -25,8 +25,8 @@ export class SystemNotificationService {
           title: "New activity on Impro",
           body:
             activityCount === 1
-              ? "You have 1 new notification"
-              : `You have ${activityCount} new notifications`,
+              ? "You have 1 unread notification"
+              : `You have ${activityCount} unread notifications`,
           tag: "impro-activity",
           url: "/notifications",
         });
@@ -91,7 +91,7 @@ export class SystemNotificationService {
     });
     notification.onclick = () => {
       window.focus();
-      window.location.href = url;
+      window.router.go(url);
       notification.close();
     };
   }
