@@ -1,6 +1,7 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
+import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { makeTestDataLayer, stubRecordLinkResolution } from "../testHelpers.js";
 
 describe("parseRecordLink", () => {
@@ -61,6 +62,26 @@ describe("parseRecordLink", () => {
       parseRecordLink("https://example.com/profile/alice.test/post/3abc"),
       null,
     );
+  });
+
+  it("parses a link to the current origin even when it's not in the static domain list", () => {
+    // window.location.hostname is "localhost" in tests, which happens to
+    // already be in IN_APP_LINK_DOMAINS -- remove it so this actually
+    // exercises the same-origin fallback rather than the static list.
+    const index = IN_APP_LINK_DOMAINS.indexOf("localhost");
+    IN_APP_LINK_DOMAINS.splice(index, 1);
+    try {
+      assert.deepEqual(
+        parseRecordLink("http://localhost/profile/alice.test/post/3abc"),
+        {
+          collection: "app.bsky.feed.post",
+          didOrHandle: "alice.test",
+          rkey: "3abc",
+        },
+      );
+    } finally {
+      IN_APP_LINK_DOMAINS.splice(index, 0, "localhost");
+    }
   });
 
   it("returns null for unrelated in-app paths", () => {
