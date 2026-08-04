@@ -1,6 +1,20 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Signal, SignalSet, SignalMap, SignalArray } from "/js/signals.js";
+import {
+  Signal,
+  SignalSet,
+  SignalMap,
+  SignalArray,
+  effect,
+} from "/js/signals.js";
+
+// effect() batches reactions via a double requestAnimationFrame (see
+// signals.js) - this waits for that flush to actually happen.
+function flushEffects() {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve)),
+  );
+}
 
 describe("SignalSet - Set behavior", () => {
   it("starts empty by default", () => {
@@ -511,5 +525,87 @@ describe("SignalArray - reactivity", () => {
     arr.replace(["a", "b"]);
     assert.deepEqual($length.get(), 2);
     assert.deepEqual(runs, 2);
+  });
+});
+
+describe("effect", () => {
+  it("re-runs when a read signal changes", async () => {
+    const $count = new Signal.State(0);
+    const seen = [];
+    const dispose = effect(() => {
+      seen.push($count.get());
+    });
+    try {
+      $count.set(1);
+      await flushEffects();
+      assert.deepEqual(seen, [0, 1]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("keeps reacting to future changes even after the callback throws", () => {
+    // effect() schedules its reaction inside a requestAnimationFrame
+    // callback. An exception thrown there is a genuinely uncaught
+    // exception (same as in a real browser) - not something a surrounding
+    // try/catch or .catch() can observe, and node:test fails the test for
+    // any uncaught exception during its run regardless of handlers.
+    //
+    // Auto-running rAF synchronously doesn't work either: it would fire
+    // while still inside the signal's own change-notification dispatch
+    // (reentrantly), which trips the signal library's own reentrancy guard
+    // instead of exercising our code at all. Instead, capture the pending
+    // rAF callback and invoke it manually, after set() has already
+    // returned -- that's a plain synchronous call in our own test code, so
+    // a normal try/catch works and nothing is ever actually "uncaught".
+    const originalRaf = globalThis.requestAnimationFrame;
+    let pendingRaf = null;
+    globalThis.requestAnimationFrame = (cb) => {
+      pendingRaf = cb;
+    };
+    try {
+      const $count = new Signal.State(0);
+      const seen = [];
+      const dispose = effect(() => {
+        const value = $count.get();
+        seen.push(value);
+        if (value === 1) {
+          throw new Error("boom");
+        }
+      });
+      try {
+        $count.set(1);
+        assert.ok(pendingRaf, "expected a reaction to be scheduled");
+        assert.throws(() => pendingRaf(), /boom/);
+
+        // The regression this guards against: a naive implementation stops
+        // re-arming its watcher once the callback throws, so this second
+        // change would silently never be observed.
+        pendingRaf = null;
+        $count.set(2);
+        assert.ok(pendingRaf, "expected the effect to still be re-armed");
+        pendingRaf();
+
+        assert.deepEqual(seen, [0, 1, 2]);
+      } finally {
+        dispose();
+      }
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it("stops reacting after dispose", async () => {
+    const $count = new Signal.State(0);
+    const seen = [];
+    const dispose = effect(() => {
+      seen.push($count.get());
+    });
+    dispose();
+
+    $count.set(1);
+    await flushEffects();
+
+    assert.deepEqual(seen, [0]);
   });
 });
