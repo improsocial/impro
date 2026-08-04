@@ -116,7 +116,13 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
   const run = () => {
     const prevRunTick = lastRunTick;
     ranThisFlush = false;
-    computed.get();
+    try {
+      computed.get();
+    } finally {
+      // Re-arm even if the callback threw -- otherwise one uncaught error
+      // permanently stops this effect from ever reacting again.
+      watcher.watch();
+    }
     if (ranThisFlush) {
       if (hasRun && debugName) {
         logEffectTrigger(computed, debugName, debugDepth, prevRunTick);
@@ -124,7 +130,6 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
       lastRunTick = globalTick;
       hasRun = true;
     }
-    watcher.watch(); // re-arm
   };
 
   const watcher = new PolyfillSignal.subtle.Watcher(() => {
