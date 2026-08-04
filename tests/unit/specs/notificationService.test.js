@@ -1,5 +1,6 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { waitFor } from "../testHelpers.js";
 import { NotificationService } from "/js/notificationService.js";
 
 function createMockApi({
@@ -179,30 +180,23 @@ describe("NotificationService", () => {
   });
 
   describe("startPolling", () => {
-    it("keeps polling after a poll throws", async () => {
-      let calls = 0;
+    it("keeps polling after a poll throws", async (t) => {
+      t.mock.method(console, "error", () => {});
       const api = createMockApi();
+      let calls = 0;
       api.getNumNotifications = async () => {
         calls++;
-        if (calls === 1) throw new Error("network blip");
+        if (calls === 1) {
+          throw new Error("network blip");
+        }
         return 3;
       };
       const service = new NotificationService(api);
-      const originalError = console.error;
-      console.error = () => {};
 
-      const controller = new AbortController();
-      const pollingPromise = service.startPolling(controller.signal);
-      try {
-        while (calls < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-        assert.deepEqual(service.$numNotifications.get(), 3);
-      } finally {
-        controller.abort();
-        await pollingPromise;
-        console.error = originalError;
-      }
+      const stopPolling = service.startPolling();
+      t.after(stopPolling);
+
+      await waitFor(() => service.$numNotifications.get() === 3);
     });
   });
 
