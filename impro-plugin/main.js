@@ -1,9 +1,7 @@
 export class SimpleUUID {
-  constructor() {
-    this._id = 0;
-  }
+  #id = 0;
   create() {
-    return this._id++;
+    return this.#id++;
   }
 }
 
@@ -79,6 +77,7 @@ export class MenuItem {
   constructor() {
     this.title = "";
     this.icon = null;
+    /** @internal */
     this._callback = () => {};
   }
   setTitle(title) {
@@ -105,6 +104,7 @@ export class Menu {
     this.items.push(item);
     return this;
   }
+  /** @internal */
   _serialize() {
     return this.items.map((item) => {
       const handlerId = uuid.create();
@@ -117,28 +117,27 @@ export class Menu {
 }
 
 export class Composer {
-  constructor() {
-    this._ops = [];
-    this._cursor = null;
-  }
+  #ops = [];
+  #cursor = null;
   setText(text) {
-    this._ops.push({ op: "set", text: String(text) });
+    this.#ops.push({ op: "set", text: String(text) });
     return this;
   }
   appendText(text) {
-    this._ops.push({ op: "append", text: String(text) });
+    this.#ops.push({ op: "append", text: String(text) });
     return this;
   }
   prependText(text) {
-    this._ops.push({ op: "prepend", text: String(text) });
+    this.#ops.push({ op: "prepend", text: String(text) });
     return this;
   }
   setCursor(index) {
-    this._cursor = index;
+    this.#cursor = index;
     return this;
   }
+  /** @internal */
   _serialize() {
-    return { ops: this._ops, cursor: this._cursor };
+    return { ops: this.#ops, cursor: this.#cursor };
   }
 }
 
@@ -235,34 +234,36 @@ function serializeFetchInit(init) {
 }
 
 class PluginResponse {
+  #body;
   constructor({ status, ok, headers, body }) {
     this.status = status;
     this.ok = ok;
     this.headers = new Map(Object.entries(headers ?? {}));
-    this._body = body;
+    this.#body = body;
   }
   async text() {
-    return this._body;
+    return this.#body;
   }
   async json() {
-    return JSON.parse(this._body);
+    return JSON.parse(this.#body);
   }
 }
 
 export class Notice {
+  #toastId = uuid.create();
+  #timeout;
+  #hidden = false;
   constructor(message, timeout = 0) {
-    this._toastId = uuid.create();
-    this._timeout = timeout;
-    this._hidden = false;
+    this.#timeout = timeout;
     this.noticeEl = new VirtualEl("div");
     this.noticeEl.addClass("toast");
     this.noticeEl.setText(message);
     queueMicrotask(() => {
-      if (this._hidden) return;
+      if (this.#hidden) return;
       hostCall("showToast", {
-        toastId: this._toastId,
+        toastId: this.#toastId,
         element: this.noticeEl._serialize(),
-        timeout: this._timeout,
+        timeout: this.#timeout,
       });
     });
   }
@@ -271,36 +272,37 @@ export class Notice {
     return this;
   }
   hide() {
-    if (this._hidden) return;
-    this._hidden = true;
-    hostCall("hideToast", { toastId: this._toastId });
+    if (this.#hidden) return;
+    this.#hidden = true;
+    hostCall("hideToast", { toastId: this.#toastId });
   }
 }
 
 export class StyleSnippet {
+  #snippetId = uuid.create();
+  #removed = false;
   constructor(cssText) {
-    this._snippetId = uuid.create();
-    this._removed = false;
     this.ready = new Promise((resolve, reject) => {
       queueMicrotask(() => {
-        if (this._removed) return resolve();
+        if (this.#removed) return resolve();
         hostCall("applyStyleSnippet", {
-          snippetId: this._snippetId,
+          snippetId: this.#snippetId,
           cssText,
         }).then(resolve, reject);
       });
     });
   }
   remove() {
-    if (this._removed) return;
-    this._removed = true;
-    hostCall("removeStyleSnippet", { snippetId: this._snippetId });
+    if (this.#removed) return;
+    this.#removed = true;
+    hostCall("removeStyleSnippet", { snippetId: this.#snippetId });
   }
 }
 
 let registered = false;
 
 export class Plugin {
+  #settingTab = null;
   constructor() {
     this.app = new App();
   }
@@ -351,7 +353,7 @@ export class Plugin {
       name: tab.name ?? null,
       displayHandlerId,
     });
-    this._settingTab = tab;
+    this.#settingTab = tab;
   }
 
   addFeedFilter(callback = () => {}) {
@@ -431,6 +433,39 @@ export class Plugin {
     });
   }
 
+  registerPage({ id, title = null, display = () => null }) {
+    const displayHandlerId = uuid.create();
+    callHandlers.set(displayHandlerId, async () => {
+      const result = await display();
+      if (result == null) return null;
+      if (!(result instanceof VirtualEl)) {
+        const description = result?.constructor?.name ?? typeof result;
+        throw new Error(
+          `Page "${id}" must return a VirtualEl or null, got ${description}`,
+        );
+      }
+      return result._serialize();
+    });
+    self.postMessage({
+      type: "register",
+      target: "page",
+      id,
+      title,
+      displayHandlerId,
+    });
+  }
+
+  // Navigates the user to one of this plugin's registered pages.
+  openPage(pageId) {
+    return hostCall("openPage", { pageId });
+  }
+
+  // Re-invokes a registered page's display callback if the page is open.
+  // options.reset also discards the rendered tree instead of patching
+  refreshPage(pageId, { reset = false } = {}) {
+    return hostCall("refreshPage", { pageId, reset });
+  }
+
   // Makes mounted <plugin-slot name=...> instances re-invoke this plugin's
   // registered callback for that slot, and drops any cached results. Useful
   // when a slot's content depends on plugin state that changed after render.
@@ -495,8 +530,8 @@ function serializeTransformTokens(tokens) {
 // Concatenates the renderable text of a token stream into a string with a position map,
 // so a transform can pattern-match across token boundaries and map matches back to tokens.
 export class FlattenedTokens {
+  #segments = [];
   constructor(tokens) {
-    this._segments = [];
     let text = "";
     for (const token of tokens) {
       let value = null;
@@ -504,7 +539,7 @@ export class FlattenedTokens {
       else if (token.type === "facet") value = token.text;
       const start = text.length;
       if (value != null) text += value;
-      this._segments.push({ token, start, end: text.length });
+      this.#segments.push({ token, start, end: text.length });
     }
     this.text = text;
   }
@@ -517,7 +552,7 @@ export class FlattenedTokens {
   // emit a live range, demoting partial facet tokens to text tokens
   tokensFor(start, end) {
     const out = [];
-    for (const segment of this._segments) {
+    for (const segment of this.#segments) {
       if (segment.start === segment.end) {
         if (segment.start >= start && segment.start < end) {
           out.push(segment.token);
@@ -545,22 +580,22 @@ export function flattenForScan(tokens) {
 const openModals = new Map();
 
 export class Modal {
+  #modalId = uuid.create();
   constructor() {
-    this._modalId = uuid.create();
     this.contentEl = new VirtualEl("div");
     this.titleEl = new VirtualEl("h2");
   }
 
   open() {
-    if (openModals.has(this._modalId)) return;
-    openModals.set(this._modalId, this);
+    if (openModals.has(this.#modalId)) return;
+    openModals.set(this.#modalId, this);
     this.onOpen();
     self.postMessage({
       type: "hostCall",
       method: "openModal",
       args: [
         {
-          modalId: this._modalId,
+          modalId: this.#modalId,
           title: this.titleEl._serialize(),
           content: this.contentEl._serialize(),
         },
@@ -569,13 +604,13 @@ export class Modal {
   }
 
   update() {
-    if (!openModals.has(this._modalId)) return;
+    if (!openModals.has(this.#modalId)) return;
     self.postMessage({
       type: "hostCall",
       method: "updateModal",
       args: [
         {
-          modalId: this._modalId,
+          modalId: this.#modalId,
           title: this.titleEl._serialize(),
           content: this.contentEl._serialize(),
         },
@@ -584,12 +619,12 @@ export class Modal {
   }
 
   close() {
-    if (!openModals.has(this._modalId)) return;
-    openModals.delete(this._modalId);
+    if (!openModals.has(this.#modalId)) return;
+    openModals.delete(this.#modalId);
     self.postMessage({
       type: "hostCall",
       method: "closeModal",
-      args: [{ modalId: this._modalId }],
+      args: [{ modalId: this.#modalId }],
     });
     this.onClose();
   }
@@ -835,6 +870,7 @@ export class VirtualText {
     this.value = value == null ? "" : String(value);
   }
 
+  /** @internal */
   _serialize() {
     return { type: "text", value: this.value };
   }
@@ -963,6 +999,7 @@ export class VirtualEl {
     return component;
   }
 
+  /** @internal */
   _serialize() {
     const serialized = {
       type: "element",

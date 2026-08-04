@@ -166,9 +166,7 @@ export class MainLayout extends Layout {
         typeof layoutOptions.activeNavItem === "function"
           ? layoutOptions.activeNavItem(currentRoute.params)
           : (layoutOptions.activeNavItem ?? null);
-      const previewingPlugins = pluginService.isPreviewMode
-        ? pluginService.$pluginsInfo.get().filter((plugin) => plugin.loaded)
-        : [];
+      const previewingPlugins = pluginService.getPreviewPlugins();
       render(
         mainLayoutTemplate({
           isAuthenticated,

@@ -69,6 +69,7 @@ describe("showPluginModal", () => {
     const body = document.querySelector(".plugin-modal-body");
     assert(body !== null);
     assert(body.classList.contains("sheet-scroll-region"));
+    assert(body.classList.contains("plugin-content"));
     const title = document.querySelector(".modal-dialog-title");
     assert(title.parentElement === body.parentElement);
     assert(body.querySelector(".modal-dialog-title") === null);

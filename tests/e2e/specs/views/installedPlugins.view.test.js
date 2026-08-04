@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../testPlugin.js";
+import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../testPlugins.js";
 
 function seedInstalled(mockServer) {
   mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];

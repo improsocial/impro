@@ -453,6 +453,10 @@ class PostComposer extends Component {
     return this.querySelector(`[data-post-id="${postId}"] rich-text-input`);
   }
 
+  // The posts list renders with lit's `keyed`, so any structural change to the
+  // posts array (add/remove/restore) recreates the inputs downstream of the
+  // change with empty DOM. After mutating the array outside of handleInput,
+  // call render() then this, to write state text back into the fresh inputs.
   _syncInputsFromState() {
     for (const postState of this._getPosts()) {
       const input = this._getInputForPost(postState.id);

@@ -10621,36 +10621,66 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
   color: var(--text-color-secondary);
 }
 
-.plugin-settings-tab h1,
-.plugin-settings-tab h2,
-.plugin-settings-tab h3,
-.plugin-settings-tab h4 {
+.plugin-content h1,
+.plugin-content h2,
+.plugin-content h3,
+.plugin-content h4 {
   color: var(--text-color);
-  padding: 16px;
 }
 
-.plugin-settings-tab h1:first-child,
-.plugin-settings-tab h2:first-child,
-.plugin-settings-tab h3:first-child,
-.plugin-settings-tab h4:first-child {
+.plugin-content {
+  --plugin-prose-inset: 0px;
+}
+
+.plugin-content.plugin-content-page {
+  --plugin-prose-inset: 16px;
+}
+
+.plugin-content :is(h1, h2, h3, h4) {
+  padding: 16px var(--plugin-prose-inset);
+}
+
+.plugin-content :is(p, pre) {
+  padding-inline: var(--plugin-prose-inset);
+}
+
+.plugin-content :is(ul, ol) {
+  padding-inline: calc(16px + var(--plugin-prose-inset))
+    var(--plugin-prose-inset);
+}
+
+.plugin-content h1:first-child,
+.plugin-content h2:first-child,
+.plugin-content h3:first-child,
+.plugin-content h4:first-child {
   margin-top: 0;
 }
 
-.plugin-settings-tab h3 {
+.plugin-content h3 {
   font-size: 16px;
   font-weight: 600;
 }
 
-.plugin-settings-tab h4 {
+.plugin-content h4 {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-color-secondary);
 }
 
-.plugin-settings-tab p {
+.plugin-content p,
+.plugin-content ul,
+.plugin-content ol {
   font-size: 14px;
   color: var(--text-color-secondary);
   margin: 8px 0;
+}
+
+.plugin-content li {
+  margin: 4px 0;
+}
+
+.plugin-content pre {
+  overflow-x: auto;
 }
 
 .setting-item {
@@ -10677,7 +10707,6 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
 h2.setting-item-name {
   font-size: inherit;
   margin: 0;
-  padding: 0;
 }
 
 .setting-item-name {
@@ -10685,14 +10714,19 @@ h2.setting-item-name {
   color: var(--text-color);
 }
 
-p.setting-item-desc {
-  margin: 4px 0 0;
-}
-
 .setting-item-desc {
   font-size: 14px;
   color: var(--text-color-secondary);
   margin-top: 4px;
+}
+
+.plugin-content .setting-item-name,
+.plugin-content .setting-item-desc {
+  padding: 0;
+}
+
+.plugin-content .setting-item-desc {
+  margin: 4px 0 0;
 }
 
 .setting-item-control {
@@ -10703,7 +10737,7 @@ p.setting-item-desc {
 }
 
 .setting-item-dropdown,
-.plugin-settings-tab textarea {
+.plugin-content textarea {
   font-size: 16px;
   padding: 8px 10px;
   border-radius: var(--text-input-border-radius);
@@ -10712,7 +10746,7 @@ p.setting-item-desc {
   color: var(--text-color);
 }
 
-.plugin-settings-tab textarea {
+.plugin-content textarea {
   font-family: inherit;
   resize: vertical;
 }

@@ -6,7 +6,7 @@ import {
   TEST_PLUGIN_MANIFEST,
   getBadgeSlotPluginSource,
   getUncachedBadgeSlotPluginSource,
-} from "../../testPlugin.js";
+} from "../../testPlugins.js";
 
 const AUTHOR_ONE = "did:plc:author1";
 const AUTHOR_TWO = "did:plc:author2";

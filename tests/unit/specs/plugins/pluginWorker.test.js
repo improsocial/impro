@@ -381,6 +381,111 @@ describe("Plugin sidebar/feedFilter registration", () => {
     ]);
   });
 
+  it("registerPage posts a register message with the page id and title", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({
+      id: "dashboard",
+      title: "Dashboard",
+      display: () => null,
+    });
+    const msg = lastMessage();
+    assert.deepEqual(msg.type, "register");
+    assert.deepEqual(msg.target, "page");
+    assert.deepEqual(msg.id, "dashboard");
+    assert.deepEqual(msg.title, "Dashboard");
+    assert(typeof msg.displayHandlerId === "number");
+  });
+
+  it("registerPage defaults the title to null", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard" });
+    assert.deepEqual(lastMessage().title, null);
+  });
+
+  it("registerPage serializes the VirtualEl returned by display", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({
+      id: "dashboard",
+      display: () => {
+        const el = new VirtualEl("div");
+        el.addClass("dashboard");
+        el.setText("Hello");
+        return el;
+      },
+    });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 7,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.callId, 7);
+    assert.deepEqual(result.value.tag, "div");
+    assert.deepEqual(result.value.attrs.class, "dashboard");
+    assert.deepEqual(result.value.children[0], {
+      type: "text",
+      value: "Hello",
+    });
+  });
+
+  it("registerPage returns null when display returns null", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => null });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 8,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.value, null);
+  });
+
+  it("registerPage errors when display returns a non-VirtualEl", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => "hi" });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 9,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert(result.error.includes("must return a VirtualEl"));
+  });
+
+  it("openPage forwards the page id to the host", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.openPage("dashboard");
+    const msg = lastMessage();
+    assert.deepEqual(msg.type, "hostCall");
+    assert.deepEqual(msg.method, "openPage");
+    assert.deepEqual(msg.args, [{ pageId: "dashboard" }]);
+  });
+
+  it("refreshPage forwards the page id and reset flag to the host", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.refreshPage("dashboard", { reset: true });
+    const msg = lastMessage();
+    assert.deepEqual(msg.type, "hostCall");
+    assert.deepEqual(msg.method, "refreshPage");
+    assert.deepEqual(msg.args, [{ pageId: "dashboard", reset: true }]);
+  });
+
   it("addSettingTab posts a register message and remembers the tab", () => {
     clearMessages();
     const plugin = new Plugin();
@@ -652,13 +757,14 @@ describe("Modal", () => {
     modal.titleEl.setText("Title");
     modal.contentEl.setText("Before");
     modal.open();
+    const openedModalId = lastMessage().args[0].modalId;
     clearMessages();
     modal.contentEl.setText("After");
     modal.update();
     const sent = lastMessage();
     assert.deepEqual(sent.type, "hostCall");
     assert.deepEqual(sent.method, "updateModal");
-    assert.deepEqual(sent.args[0].modalId, modal._modalId);
+    assert.deepEqual(sent.args[0].modalId, openedModalId);
     assert.deepEqual(sent.args[0].content.children[0], {
       type: "text",
       value: "After",
@@ -696,7 +802,7 @@ describe("Modal", () => {
       closed = true;
     };
     modal.open();
-    const modalId = modal._modalId;
+    const modalId = lastMessage().args[0].modalId;
     dispatch({ type: "event", event: "modalDismissed", data: { modalId } });
     assert(closed, "onClose fires when host dismisses the modal");
   });

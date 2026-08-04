@@ -1,4 +1,4 @@
-// Test plugin fixture
+// Test plugin fixtures
 
 import fs from "node:fs";
 import path from "node:path";
@@ -94,6 +94,7 @@ class TestSettingTab extends PluginSettingTab {
         button.setButtonText("Reset").onClick(async () => {
           this.plugin.settings = { ...DEFAULTS };
           await this.plugin.saveData(this.plugin.settings);
+          this.refresh({ reset: true });
         }),
       );
   }
@@ -131,6 +132,115 @@ class ThrowingSettingTab extends PluginSettingTab {
 class TestPlugin extends Plugin {
   async onload() {
     this.addSettingTab(new ThrowingSettingTab());
+  }
+}
+
+TestPlugin.register();
+`;
+
+// Copy rendered by the page fixtures below; exported so specs can assert on
+// content that genuinely comes from the plugin.
+export const PAGE_TITLE = "Dashboard";
+export const MODAL_TITLE = "List modal";
+export const PAGE_LOAD_ERROR_MESSAGE = "Page failed to load";
+
+// A plugin registering two pages at runtime, one of them built from data the
+// manifest can't know. Its dashboard counts renders so a refresh is
+// distinguishable from the first display, and can be refreshed from a button.
+const PAGES_PLUGIN_BODY = /* js */ `
+let renders = 0;
+
+class TestPlugin extends Plugin {
+  async onload() {
+    this.registerPage({
+      id: "dashboard",
+      title: ${JSON.stringify(PAGE_TITLE)},
+      display: () => {
+        renders += 1;
+        const el = new VirtualEl("div");
+        el.createEl("h3", { text: ${JSON.stringify(PAGE_TITLE)} });
+        el.createEl("p", { text: "Prose" }).setAttr(
+          "data-testid",
+          "plugin-page-prose",
+        );
+        el.createEl("ul", {}, (list) => {
+          list.setAttr("data-testid", "plugin-page-list");
+          list.createEl("li", { text: "One" });
+          list.createEl("li", { text: "Two" });
+        });
+        el.createDiv({ text: String(renders) }).setAttr(
+          "data-testid",
+          "plugin-page-renders",
+        );
+        el.createEl("button", { text: "Refresh" })
+          .setAttr("data-testid", "plugin-page-refresh")
+          .onClick(() => this.refreshPage("dashboard"));
+        return el;
+      },
+    });
+    this.addSidebarItem("document-line", ${JSON.stringify(PAGE_TITLE)}, () => {
+      this.openPage("dashboard");
+    });
+    this.addSidebarItem("document-line", ${JSON.stringify(MODAL_TITLE)}, () => {
+      const ListModal = class extends Modal {
+        onOpen() {
+          this.titleEl.setText(${JSON.stringify(MODAL_TITLE)});
+          this.contentEl.createEl("p", { text: "Prose" }).setAttr(
+            "data-testid",
+            "plugin-modal-prose",
+          );
+          this.contentEl.createEl("ul", {}, (list) => {
+            list.setAttr("data-testid", "plugin-modal-list");
+            list.createEl("li", { text: "One" });
+          });
+        }
+      };
+      new ListModal().open();
+    });
+    for (const name of ["alpha", "beta"]) {
+      this.registerPage({
+        id: "feed-" + name,
+        title: "Feed " + name,
+        display: () => {
+          const el = new VirtualEl("div");
+          el.setAttr("data-testid", "plugin-page-feed");
+          el.setText(name);
+          return el;
+        },
+      });
+    }
+  }
+}
+
+TestPlugin.register();
+`;
+
+// A plugin whose page display() throws, to exercise the view's error path.
+const THROWING_PAGE_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    this.registerPage({
+      id: "dashboard",
+      title: ${JSON.stringify(PAGE_TITLE)},
+      display: () => {
+        throw new Error(${JSON.stringify(PAGE_LOAD_ERROR_MESSAGE)});
+      },
+    });
+  }
+}
+
+TestPlugin.register();
+`;
+
+// A plugin whose onload rejects, so the host never gets a usable instance.
+// The host reports its own message for this, not the plugin's.
+export const PLUGIN_LOAD_FAILURE_MESSAGE =
+  "Plugin failed during initialization";
+
+const FAILING_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    throw new Error("could not start");
   }
 }
 
@@ -220,6 +330,18 @@ export function getTestPluginSource() {
 
 export function getThrowingTabPluginSource() {
   return getWorkerSource() + "\n" + THROWING_TAB_PLUGIN_BODY;
+}
+
+export function getPagesPluginSource() {
+  return getWorkerSource() + "\n" + PAGES_PLUGIN_BODY;
+}
+
+export function getThrowingPagePluginSource() {
+  return getWorkerSource() + "\n" + THROWING_PAGE_PLUGIN_BODY;
+}
+
+export function getFailingPluginSource() {
+  return getWorkerSource() + "\n" + FAILING_PLUGIN_BODY;
 }
 
 export function getNoSettingsPluginSource() {

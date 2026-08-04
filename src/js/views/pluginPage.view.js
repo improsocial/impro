@@ -6,13 +6,13 @@ import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/plugin-custom-content.js";
 
-class PluginSettingsView extends View {
+class PluginPageView extends View {
   async render({ root, router, layout, params, context: { pluginService } }) {
     await auth.requireAuth();
 
-    const { pluginId } = params;
+    const { pluginId, pageId } = params;
 
-    const state = new ReactiveStore("pluginSettingsView");
+    const state = new ReactiveStore("pluginPageView");
     state.$pluginDetails = new Signal.Computed(() => {
       const installed = pluginService.$installedPlugins
         .get()
@@ -20,10 +20,9 @@ class PluginSettingsView extends View {
       return installed ?? null;
     });
 
-    state.$settingTab = new Signal.Computed(() => {
-      const tab = pluginService.$settingTabs.get(pluginId);
-      return tab ?? null;
-    });
+    state.$page = new Signal.Computed(() =>
+      pluginService.getPage(pluginId, pageId),
+    );
     state.$loadStatus = new Signal.Computed(() =>
       pluginService.getPluginLoadStatus(pluginId),
     );
@@ -34,18 +33,20 @@ class PluginSettingsView extends View {
     });
 
     bindPageTitle(root, () => {
+      const page = state.$page.get();
+      if (page?.title) return page.title;
       return state.$pluginDetails.get()?.name ?? null;
     });
 
     pageEffect(root, () => {
       const pluginDetails = state.$pluginDetails.get();
-      const settingTab = state.$settingTab.get();
+      const page = state.$page.get();
       const { loading: pluginLoading, error: pluginLoadError } =
         state.$loadStatus.get();
       render(
-        html`<div id="plugin-settings-view">
+        html`<div id="plugin-page-view">
           ${headerTemplate({
-            title: pluginDetails?.name ?? pluginId,
+            title: page?.title ?? pluginDetails?.name ?? pluginId,
             backButtonFallbackRoute: "/plugins/installed",
           })}
           <main>
@@ -53,7 +54,7 @@ class PluginSettingsView extends View {
               if (!pluginDetails) {
                 return html`<p
                   class="error-message"
-                  data-testid="plugin-detail-not-found"
+                  data-testid="plugin-page-not-found"
                 >
                   Plugin not found.
                 </p>`;
@@ -61,7 +62,7 @@ class PluginSettingsView extends View {
               if (!pluginDetails.enabled) {
                 return html`<p
                   class="error-message"
-                  data-testid="plugin-detail-disabled"
+                  data-testid="plugin-page-disabled"
                 >
                   This plugin is not enabled.
                 </p>`;
@@ -69,12 +70,12 @@ class PluginSettingsView extends View {
               if (pluginLoadError) {
                 return html`<p
                   class="error-message"
-                  data-testid="plugin-detail-load-failed"
+                  data-testid="plugin-page-load-failed"
                 >
                   ${pluginLoadError.message ?? "This plugin failed to load."}
                 </p>`;
               }
-              if (!settingTab) {
+              if (!page) {
                 if (pluginLoading) {
                   return html`<div class="plugins-loading-state">
                     <div class="loading-spinner"></div>
@@ -82,15 +83,15 @@ class PluginSettingsView extends View {
                 }
                 return html`<p
                   class="error-message"
-                  data-testid="plugin-detail-no-settings"
+                  data-testid="plugin-page-unknown"
                 >
-                  This plugin has no settings.
+                  Page not found.
                 </p>`;
               }
               return html`<div class="plugin-content plugin-content-page">
                 <plugin-custom-content
                   .pluginService=${pluginService}
-                  .customContent=${settingTab.customContent}
+                  .customContent=${page.customContent}
                 ></plugin-custom-content>
               </div>`;
             })()}
@@ -106,4 +107,4 @@ class PluginSettingsView extends View {
   }
 }
 
-export default new PluginSettingsView();
+export default new PluginPageView();

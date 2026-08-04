@@ -92,6 +92,7 @@ function makeService({
       loadedPlugins: entries,
       erroredPlugins: [],
     }),
+    $loadStatuses: { get: () => ({ loading: false, error: null }) },
   };
   service.remoteRegistry = {
     getListing: async (id) =>
@@ -433,6 +434,32 @@ describe("loadEnabledPlugins", () => {
       loadPluginsCalls[0].map((entry) => entry.id),
       ["a"],
     );
+  });
+
+  it("reports every plugin as loading until the initial load completes", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    service.pluginBridge.loadPlugins = async (entries) => ({
+      loadedPlugins: entries,
+      erroredPlugins: [],
+    });
+    assert.deepEqual(service.getPluginLoadStatus("a").loading, true);
+    await service.loadEnabledPlugins();
+    assert.deepEqual(service.getPluginLoadStatus("a").loading, false);
+  });
+
+  it("marks the initial load complete even when loading throws", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    service.pluginBridge.loadPlugins = async () => {
+      throw new Error("boom");
+    };
+    await assert.rejects(service.loadEnabledPlugins(), /boom/);
+    assert.deepEqual(service.getPluginLoadStatus("a").loading, false);
   });
 
   it("skips __LOCAL entries when localPluginsEnabled is false", async () => {
@@ -780,6 +807,30 @@ describe("$pluginsInfo", () => {
     ];
     const info = service.$pluginsInfo.get();
     assert.deepEqual(info.length, 2);
+  });
+
+  it("lists only loaded plugins as previewing, and only in preview mode", () => {
+    const { state, provider } = makeProvider();
+    const service = new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+      { go: () => {} },
+    );
+    state.installedPlugins = [
+      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+      { id: "beta", name: "Beta", version: "1.0.0", enabled: true },
+    ];
+    service.pluginBridge._loadedPlugins.set("alpha", { pluginId: "alpha" });
+
+    assert.deepEqual(service.getPreviewPlugins(), []);
+
+    service.isPreviewMode = true;
+    assert.deepEqual(
+      service.getPreviewPlugins().map((plugin) => plugin.id),
+      ["alpha"],
+    );
   });
 });
 
@@ -1458,6 +1509,197 @@ describe("slot wiring", () => {
       { name: "author-badges", keys: [context] },
     );
     assert.notEqual(registration.versionFor(context), versionBefore);
+  });
+});
+
+// Plugin pages are registered at runtime rather than declared in the
+// manifest, so these cover the bridge wiring and what the page view reads.
+describe("page wiring", () => {
+  function makeRecordingRouter() {
+    const paths = [];
+    return { paths, router: { go: (path) => paths.push(path) } };
+  }
+
+  function makeServiceWithRealBridge(router = makeRecordingRouter().router) {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+      router,
+    );
+  }
+
+  function registerPage(service, plugin, message = {}) {
+    return service.pluginBridge._registrationTargets.get("page")(plugin, {
+      target: "page",
+      id: "dashboard",
+      title: "Dashboard",
+      displayHandlerId: 5,
+      ...message,
+    });
+  }
+
+  function makePlugin(pluginId = "alpha", call = () => Promise.resolve(null)) {
+    return { pluginId, call };
+  }
+
+  it("exposes a registered page and invokes its display handler", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    registerPage(
+      service,
+      makePlugin("alpha", (handlerId) => {
+        calls.push(handlerId);
+        return Promise.resolve({ tag: "div" });
+      }),
+    );
+    const page = service.getPage("alpha", "dashboard");
+    assert.deepEqual(page.pluginId, "alpha");
+    assert.deepEqual(page.pageId, "dashboard");
+    assert.deepEqual(page.title, "Dashboard");
+    // Registering must not invoke display on its own
+    assert.deepEqual(calls, []);
+    assert.deepEqual(await page.customContent.display(), { tag: "div" });
+    assert.deepEqual(calls, [5]);
+  });
+
+  it("keeps pages of the same plugin separate and scoped by plugin id", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin("alpha"), { id: "one", title: "One" });
+    registerPage(service, makePlugin("alpha"), { id: "two", title: "Two" });
+    registerPage(service, makePlugin("beta"), { id: "one", title: "Beta One" });
+    assert.deepEqual(service.getPage("alpha", "one").title, "One");
+    assert.deepEqual(service.getPage("alpha", "two").title, "Two");
+    assert.deepEqual(service.getPage("beta", "one").title, "Beta One");
+    assert.deepEqual(service.getPage("alpha", "three"), null);
+  });
+
+  it("defaults a missing title to null", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin(), { title: undefined });
+    assert.deepEqual(service.getPage("alpha", "dashboard").title, null);
+  });
+
+  it("rejects page ids that aren't URL-safe", () => {
+    const service = makeServiceWithRealBridge();
+    for (const id of ["Dashboard", "a/b", "a b", "a?b", "", 7, null]) {
+      assert.deepEqual(
+        registerPage(service, makePlugin(), { id }),
+        null,
+        `expected ${JSON.stringify(id)} to be rejected`,
+      );
+    }
+    assert.deepEqual(service.$pages.size, 0);
+  });
+
+  it("replaces an earlier registration of the same id", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin(), { title: "First" });
+    registerPage(service, makePlugin(), { title: "Second" });
+    assert.deepEqual(service.$pages.size, 1);
+    assert.deepEqual(service.getPage("alpha", "dashboard").title, "Second");
+  });
+
+  it("disposes only its own entry, not a replacement", () => {
+    const service = makeServiceWithRealBridge();
+    const disposeFirst = registerPage(service, makePlugin(), {
+      title: "First",
+    });
+    registerPage(service, makePlugin(), { title: "Second" });
+    disposeFirst();
+    assert.deepEqual(service.getPage("alpha", "dashboard").title, "Second");
+  });
+
+  it("removes the page when its registration is disposed", () => {
+    const service = makeServiceWithRealBridge();
+    const dispose = registerPage(service, makePlugin());
+    dispose();
+    assert.deepEqual(service.getPage("alpha", "dashboard"), null);
+  });
+
+  it("bumps the page's customContent refresh signal", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin());
+    const { customContent } = service.getPage("alpha", "dashboard");
+    assert.deepEqual(customContent.$refresh.get(), null);
+
+    service.pluginBridge._hostCallHandlers.get("refreshPage")(
+      { pluginId: "alpha" },
+      { pageId: "dashboard", reset: true },
+    );
+    assert.deepEqual(customContent.$refresh.get(), { reset: true });
+  });
+
+  it("defaults refreshPage's reset flag to false and requires a pageId", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin());
+    const { customContent } = service.getPage("alpha", "dashboard");
+    const refreshPage =
+      service.pluginBridge._hostCallHandlers.get("refreshPage");
+
+    refreshPage({ pluginId: "alpha" }, { pageId: "dashboard" });
+    assert.deepEqual(customContent.$refresh.get(), { reset: false });
+    assert.throws(() => refreshPage({ pluginId: "alpha" }, {}), /pageId/);
+  });
+
+  it("signals a fresh value on every refresh so repeats still notify", () => {
+    const service = makeServiceWithRealBridge();
+    registerPage(service, makePlugin());
+    const { customContent } = service.getPage("alpha", "dashboard");
+    const refreshPage =
+      service.pluginBridge._hostCallHandlers.get("refreshPage");
+
+    refreshPage({ pluginId: "alpha" }, { pageId: "dashboard" });
+    const first = customContent.$refresh.get();
+    refreshPage({ pluginId: "alpha" }, { pageId: "dashboard" });
+    assert.notEqual(customContent.$refresh.get(), first);
+  });
+
+  it("ignores a refresh for a page that is not registered", () => {
+    const service = makeServiceWithRealBridge();
+    const refreshPage =
+      service.pluginBridge._hostCallHandlers.get("refreshPage");
+    refreshPage({ pluginId: "alpha" }, { pageId: "missing" });
+  });
+
+  it("routes openPage to the calling plugin's own page path", () => {
+    const { paths, router } = makeRecordingRouter();
+    const service = makeServiceWithRealBridge(router);
+    const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
+    openPage({ pluginId: "alpha" }, { pageId: "dashboard" });
+    assert.deepEqual(paths, ["/plugin/alpha/pages/dashboard"]);
+  });
+
+  it("encodes the plugin id in the openPage path and requires a pageId", () => {
+    const { paths, router } = makeRecordingRouter();
+    const service = makeServiceWithRealBridge(router);
+    const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
+    openPage({ pluginId: "alpha/../beta" }, { pageId: "dashboard" });
+    assert.deepEqual(paths, ["/plugin/alpha%2F..%2Fbeta/pages/dashboard"]);
+    assert.throws(() => openPage({ pluginId: "alpha" }, {}), /pageId/);
+  });
+
+  it("reports the plugin's load status", async () => {
+    const service = makeServiceWithRealBridge();
+    service.$initialLoadComplete.set(true);
+    assert.deepEqual(service.getPluginLoadStatus("alpha"), {
+      loading: false,
+      error: null,
+    });
+    service.pluginBridge.$loading.set("alpha", true);
+    assert.deepEqual(service.getPluginLoadStatus("alpha"), {
+      loading: true,
+      error: null,
+    });
+    const error = new Error("boom");
+    service.pluginBridge.$loading.set("alpha", false);
+    service.pluginBridge.$pluginLoadingErrors.set("alpha", error);
+    assert.deepEqual(service.getPluginLoadStatus("alpha"), {
+      loading: false,
+      error,
+    });
   });
 });
 

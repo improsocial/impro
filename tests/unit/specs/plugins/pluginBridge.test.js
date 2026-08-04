@@ -329,6 +329,152 @@ describe("PluginBridge:unloadPlugin", () => {
   });
 });
 
+// $loadStatuses is what UI keyed on a plugin (e.g. a deep-linked plugin page)
+// reads to tell "not up yet" from "not there".
+describe("PluginBridge:$loadStatuses", () => {
+  function makeLoadingBridge(loadPluginInstance) {
+    const provider = makeProvider({ source: "// js" });
+    return makeBridge({ provider, loadPluginInstance }).bridge;
+  }
+
+  it("reads as settled for a plugin that was never loaded", () => {
+    const { bridge } = makeBridge();
+    assert.deepEqual(bridge.$loadStatuses.get("p1"), {
+      loading: false,
+      error: null,
+    });
+  });
+
+  it("is loading during a load and settled after it succeeds", async () => {
+    const seen = [];
+    const bridge = makeLoadingBridge(async (pluginId) => {
+      seen.push(bridge.$loadStatuses.get(pluginId));
+      return makeFakeInstance(pluginId);
+    });
+    const originalInfo = console.info;
+    console.info = () => {};
+    try {
+      await bridge.loadPlugin("p1", "1.0.0");
+    } finally {
+      console.info = originalInfo;
+    }
+    assert.deepEqual(seen, [{ loading: true, error: null }]);
+    assert.deepEqual(bridge.$loadStatuses.get("p1"), {
+      loading: false,
+      error: null,
+    });
+  });
+
+  it("records the error a failed load threw and stops loading", async () => {
+    const provider = makeProvider({ manifest: new Error("bad json") });
+    const { bridge } = makeBridge({ provider });
+    const originalWarn = console.warn;
+    console.warn = () => {};
+    try {
+      await expectError(bridge.loadPlugin("p1", "1.0.0"));
+    } finally {
+      console.warn = originalWarn;
+    }
+    const status = bridge.$loadStatuses.get("p1");
+    assert.deepEqual(status.loading, false);
+    assert.deepEqual(status.error.message, "Could not fetch plugin manifest");
+  });
+
+  it("clears a previous error when the plugin is loaded again", async () => {
+    const bridge = makeLoadingBridge(async (pluginId) =>
+      makeFakeInstance(pluginId),
+    );
+    bridge.$pluginLoadingErrors.set("p1", new Error("earlier failure"));
+    const originalInfo = console.info;
+    console.info = () => {};
+    try {
+      await bridge.loadPlugin("p1", "1.0.0");
+    } finally {
+      console.info = originalInfo;
+    }
+    assert.deepEqual(bridge.$loadStatuses.get("p1").error, null);
+  });
+
+  it("clears the status on unload", () => {
+    const { bridge } = makeBridge();
+    bridge.$loading.set("demo", true);
+    bridge.$pluginLoadingErrors.set("demo", new Error("boom"));
+    bridge._loadedPlugins.set("demo", makeFakeInstance("demo"));
+    bridge.unloadPlugin("demo");
+    assert.deepEqual(bridge.$loadStatuses.get("demo"), {
+      loading: false,
+      error: null,
+    });
+  });
+});
+
+describe("PluginBridge:concurrent loads", () => {
+  it("shares one in-flight load between concurrent calls", async () => {
+    let started = 0;
+    let releaseLoad;
+    const gate = new Promise((resolve) => {
+      releaseLoad = resolve;
+    });
+    const provider = makeProvider({ source: "// js" });
+    const { bridge } = makeBridge({
+      provider,
+      loadPluginInstance: async (pluginId) => {
+        started += 1;
+        await gate;
+        return makeFakeInstance(pluginId);
+      },
+    });
+    const originalInfo = console.info;
+    console.info = () => {};
+    try {
+      const first = bridge.loadPlugin("p1", "1.0.0");
+      const second = bridge.loadPlugin("p1", "1.0.0");
+      releaseLoad();
+      const [firstInstance, secondInstance] = await Promise.all([
+        first,
+        second,
+      ]);
+      assert.deepEqual(started, 1);
+      assert(firstInstance === secondInstance);
+    } finally {
+      console.info = originalInfo;
+    }
+    assert.deepEqual(bridge.$loadStatuses.get("p1"), {
+      loading: false,
+      error: null,
+    });
+  });
+
+  it("retries after a failed load instead of reusing the rejected load", async () => {
+    let attempts = 0;
+    const provider = makeProvider({ source: "// js" });
+    const { bridge } = makeBridge({
+      provider,
+      loadPluginInstance: async (pluginId) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("first attempt fails");
+        return makeFakeInstance(pluginId);
+      },
+    });
+    const originalInfo = console.info;
+    const originalWarn = console.warn;
+    console.info = () => {};
+    console.warn = () => {};
+    try {
+      await expectError(bridge.loadPlugin("p1", "1.0.0"));
+      await bridge.loadPlugin("p1", "1.0.0");
+    } finally {
+      console.info = originalInfo;
+      console.warn = originalWarn;
+    }
+    assert.deepEqual(attempts, 2);
+    assert.deepEqual(bridge.$loadStatuses.get("p1"), {
+      loading: false,
+      error: null,
+    });
+  });
+});
+
 describe("PluginBridge:loadPlugin error paths", () => {
   it("throws a manifest error when getManifest rejects", async () => {
     const provider = makeProvider({ manifest: new Error("bad json") });

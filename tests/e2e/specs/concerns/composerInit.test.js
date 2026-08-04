@@ -6,7 +6,7 @@ import { createPost } from "../../../shared/factories.js";
 import {
   TEST_PLUGIN_MANIFEST,
   getPostComposerInitPluginSource,
-} from "../../testPlugin.js";
+} from "../../testPlugins.js";
 
 function installComposerInitPlugin(mockServer) {
   mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: true }];

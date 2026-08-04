@@ -53,6 +53,7 @@ function pluginSidebarItemTemplate({ entry }) {
   return html`
     <button
       class="sidebar-nav-item sidebar-plugin-nav-item"
+      data-testid="sidebar-plugin-item"
       title=${entry.title}
       @click=${(event) => {
         const sidebar = event.currentTarget.closest("animated-sidebar");

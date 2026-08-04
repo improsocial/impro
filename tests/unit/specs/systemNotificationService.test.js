@@ -33,11 +33,14 @@ describe("SystemNotificationService", () => {
   let instances;
   let originalNotification;
   let disposers;
+  let navigations;
+  let router;
 
   function startService(notificationService, chatNotificationService) {
     const service = new SystemNotificationService(
       notificationService,
       chatNotificationService,
+      router,
     );
     const dispose = service.start();
     disposers.push(dispose);
@@ -47,6 +50,8 @@ describe("SystemNotificationService", () => {
   beforeEach(() => {
     instances = [];
     disposers = [];
+    navigations = [];
+    router = { go: (path) => navigations.push(path) };
     originalNotification = globalThis.Notification;
     globalThis.Notification = class {
       static permission = "granted";
@@ -177,6 +182,25 @@ describe("SystemNotificationService", () => {
     });
   });
 
+  describe("notification clicks", () => {
+    it("navigates to the notification's url", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+      instances[0].onclick();
+      assert.deepEqual(navigations, ["/notifications"]);
+
+      chatNotificationService.$numNotifications.set(1);
+      await flushEffects();
+      instances[1].onclick();
+      assert.deepEqual(navigations, ["/notifications", "/messages"]);
+    });
+  });
+
   describe("notify gating", () => {
     it("does not notify when disabled", async () => {
       const notificationService = createMockNotificationService();
@@ -224,6 +248,7 @@ describe("SystemNotificationService", () => {
       const service = new SystemNotificationService(
         notificationService,
         chatNotificationService,
+        router,
       );
       globalThis.Notification.permission = "granted";
 
@@ -239,6 +264,7 @@ describe("SystemNotificationService", () => {
       const service = new SystemNotificationService(
         notificationService,
         chatNotificationService,
+        router,
       );
       globalThis.Notification.permission = "denied";
 
@@ -256,6 +282,7 @@ describe("SystemNotificationService", () => {
       const service = new SystemNotificationService(
         notificationService,
         chatNotificationService,
+        router,
       );
       enable();
       assert.deepEqual(service.isEnabled, true);

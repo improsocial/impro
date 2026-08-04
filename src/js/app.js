@@ -27,6 +27,7 @@ import settingsAdvancedView from "/js/views/settings/advanced.view.js";
 import settingsNotificationsView from "/js/views/settings/notifications.view.js";
 import installedPluginsView from "/js/views/installedPlugins.view.js";
 import pluginSettingsView from "/js/views/pluginSettings.view.js";
+import pluginPageView from "/js/views/pluginPage.view.js";
 import communityPluginsView from "/js/views/communityPlugins.view.js";
 import communityPluginListingView from "/js/views/communityPluginListing.view.js";
 import feedDetailView from "/js/views/feedDetail.view.js";
@@ -108,11 +109,13 @@ export async function main() {
     draftMediaStore,
     hiddenFeedItemsStore,
   );
+  const router = new Router();
   const pluginService = new PluginService(
     preferencesProvider,
     session,
     dataLayer,
     hiddenFeedItemsStore,
+    router,
   );
   // put dataLayer on window for easy access in dev tools
   window.dataLayer = dataLayer;
@@ -125,6 +128,7 @@ export async function main() {
       ? new SystemNotificationService(
           notificationService,
           chatNotificationService,
+          router,
         )
       : null;
   const postComposerService = session
@@ -136,7 +140,7 @@ export async function main() {
     ? new AccountSwitcherService(dataLayer)
     : null;
   const reportService = session ? new ReportService(dataLayer) : null;
-  const groupChatLinkService = new GroupChatLinkService(dataLayer);
+  const groupChatLinkService = new GroupChatLinkService(dataLayer, router);
   const interactionHandlers = new InteractionHandlers({
     session,
     dataLayer,
@@ -223,8 +227,6 @@ export async function main() {
       params.handleOrDid === currentUser.handle
     );
   };
-
-  const router = new Router();
 
   scrollLocks.setContainerProvider(() => router.currentPage);
 
@@ -357,6 +359,11 @@ export async function main() {
   router.addRoute(
     "/plugin/:pluginId/settings",
     () => pluginSettingsView,
+    pluginsRouteOptions,
+  );
+  router.addRoute(
+    "/plugin/:pluginId/pages/:pageId",
+    () => pluginPageView,
     pluginsRouteOptions,
   );
   router.addRoute(

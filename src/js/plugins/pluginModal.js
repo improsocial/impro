@@ -50,7 +50,9 @@ function buildModalTree(pluginRenderer, title, content) {
       {
         type: "element",
         tag: "div",
-        attrs: { class: "plugin-modal-body sheet-scroll-region" },
+        attrs: {
+          class: "plugin-modal-body plugin-content sheet-scroll-region",
+        },
         children: childNodes,
       },
     ],

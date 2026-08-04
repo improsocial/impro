@@ -4,9 +4,10 @@ const STORAGE_KEY = "system-notifications-enabled";
 const ICON_URL = "/img/impro-logo-192.png";
 
 export class SystemNotificationService {
-  constructor(notificationService, chatNotificationService) {
+  constructor(notificationService, chatNotificationService, router) {
     this.notificationService = notificationService;
     this.chatNotificationService = chatNotificationService;
+    this.router = router;
     this._lastSeenActivityCount =
       notificationService.$numNotifications.get() ?? 0;
     this._lastSeenChatCount =
@@ -91,7 +92,7 @@ export class SystemNotificationService {
     });
     notification.onclick = () => {
       window.focus();
-      window.router.go(url);
+      this.router.go(url);
       notification.close();
     };
   }
