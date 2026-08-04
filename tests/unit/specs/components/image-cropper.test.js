@@ -149,8 +149,8 @@ describe("image-cropper", () => {
       const result = element.cropImage();
       assert(result !== null, "cropImage should return a value");
       assert(
-        result.startsWith("data:image/jpeg"),
-        "cropImage should return a JPEG data URL",
+        result.startsWith("data:image/png"),
+        "cropImage should return a lossless PNG data URL",
       );
     });
 
