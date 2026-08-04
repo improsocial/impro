@@ -184,12 +184,6 @@ class SettingsView extends View {
 
     const menuItems = [
       {
-        key: "appearance",
-        icon: eyeIconTemplate,
-        label: "Appearance",
-        url: "/settings/appearance",
-      },
-      {
         key: "notifications",
         icon: notificationsIconTemplate,
         label: "Notifications",
@@ -212,6 +206,12 @@ class SettingsView extends View {
         icon: restrictedIconTemplate,
         label: "Blocked accounts",
         url: "/settings/blocked-accounts",
+      },
+      {
+        key: "appearance",
+        icon: eyeIconTemplate,
+        label: "Appearance",
+        url: "/settings/appearance",
       },
       {
         key: "advanced",
