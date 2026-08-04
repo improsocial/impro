@@ -26,11 +26,17 @@ export class NotificationService {
     return snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
   }
 
-  async startPolling() {
+  async startPolling(signal) {
     const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    while (true) {
-      if (!this.isSnoozed) {
-        await this.fetchNumNotifications();
+    while (!signal?.aborted) {
+      try {
+        if (!this.isSnoozed) {
+          await this.fetchNumNotifications();
+        }
+      } catch (error) {
+        // A single failed poll (network blip, auth hiccup) shouldn't kill
+        // polling for the rest of the session -- just try again next tick.
+        console.error(error);
       }
       await wait(pollingInterval);
     }

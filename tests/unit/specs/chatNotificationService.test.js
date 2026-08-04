@@ -96,6 +96,38 @@ describe("fetchNumNotifications", () => {
   });
 });
 
+describe("startPolling", () => {
+  it("keeps polling after a poll throws", async () => {
+    let calls = 0;
+    const api = {
+      getChatUnreadCounts: async () => {
+        calls++;
+        if (calls === 1) throw new Error("network blip");
+        return { unreadAcceptedConvos: 3, unreadRequestConvos: 0 };
+      },
+    };
+    const service = new ChatNotificationService(api);
+    const originalError = console.error;
+    console.error = () => {};
+    const originalSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+
+    const controller = new AbortController();
+    const pollingPromise = service.startPolling(controller.signal);
+    try {
+      while (calls < 2) {
+        await new Promise((resolve) => originalSetTimeout(resolve, 0));
+      }
+      assert.deepEqual(service.$numNotifications.get(), 3);
+    } finally {
+      controller.abort();
+      await pollingPromise;
+      console.error = originalError;
+      globalThis.setTimeout = originalSetTimeout;
+    }
+  });
+});
+
 describe("markNotificationsAsReadForConvo", () => {
   it("should optimistically decrement the count", async () => {
     const api = createMockApi({ unreadAcceptedConvos: 3 });

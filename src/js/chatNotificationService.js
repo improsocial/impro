@@ -12,10 +12,16 @@ export class ChatNotificationService {
     this._lastServerTotal = 0;
   }
 
-  async startPolling() {
+  async startPolling(signal) {
     const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    while (true) {
-      await this.fetchNumNotifications();
+    while (!signal?.aborted) {
+      try {
+        await this.fetchNumNotifications();
+      } catch (error) {
+        // A single failed poll (network blip, auth hiccup) shouldn't kill
+        // polling for the rest of the session -- just try again next tick.
+        console.error(error);
+      }
       await wait(pollingInterval);
     }
   }
