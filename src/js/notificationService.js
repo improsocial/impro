@@ -26,14 +26,25 @@ export class NotificationService {
     return snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
   }
 
-  async startPolling() {
+  startPolling() {
     const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    while (true) {
-      if (!this.isSnoozed) {
-        await this.fetchNumNotifications();
+    let stopped = false;
+    const poll = async () => {
+      while (!stopped) {
+        try {
+          if (!this.isSnoozed) {
+            await this.fetchNumNotifications();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+        await wait(pollingInterval);
       }
-      await wait(pollingInterval);
-    }
+    };
+    poll();
+    return () => {
+      stopped = true;
+    };
   }
   async fetchNumNotifications() {
     const numNotifications = await this.api.getNumNotifications();
