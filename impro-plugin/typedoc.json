@@ -1,0 +1,6 @@
+{
+  "entryPoints": ["main.js"],
+  "tsconfig": "tsconfig.typedoc.json",
+  "out": "docs",
+  "excludeInternal": true
+}

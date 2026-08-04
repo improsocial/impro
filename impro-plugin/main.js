@@ -141,7 +141,7 @@ export class Composer {
   }
 }
 
-class PluginData {
+export class PluginData {
   getPost(uri) {
     return hostCall("getPost", { uri });
   }
@@ -164,7 +164,8 @@ class PluginData {
   }
 }
 
-class App {
+export class App {
+  /** @internal */
   constructor() {
     this.currentUser = null;
     this.data = new PluginData();
@@ -233,8 +234,9 @@ function serializeFetchInit(init) {
   return serialized;
 }
 
-class PluginResponse {
+export class PluginResponse {
   #body;
+  /** @internal */
   constructor({ status, ok, headers, body }) {
     this.status = status;
     this.ok = ok;
@@ -693,7 +695,8 @@ export class Setting {
   }
 }
 
-class TextComponent {
+export class TextComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("input", {
       attr: { type: "text" },
@@ -714,7 +717,8 @@ class TextComponent {
   }
 }
 
-class TextAreaComponent {
+export class TextAreaComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("textarea", {
       cls: "setting-item-textarea",
@@ -734,7 +738,8 @@ class TextAreaComponent {
   }
 }
 
-class ToggleComponent {
+export class ToggleComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("toggle-switch", {
       cls: "setting-item-toggle",
@@ -751,7 +756,8 @@ class ToggleComponent {
   }
 }
 
-class DropdownComponent {
+export class DropdownComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("select", {
       cls: "setting-item-dropdown",
@@ -783,7 +789,8 @@ class DropdownComponent {
   }
 }
 
-class ButtonComponent {
+export class ButtonComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("button", {
       cls: "rounded-button",
@@ -803,7 +810,8 @@ class ButtonComponent {
   }
 }
 
-class IconComponent {
+export class IconComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("plugin-icon");
   }
@@ -813,7 +821,8 @@ class IconComponent {
   }
 }
 
-class BlobImageComponent {
+export class BlobImageComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("plugin-blob-image");
   }
@@ -835,7 +844,8 @@ class BlobImageComponent {
   }
 }
 
-class ProfilesListComponent {
+export class ProfilesListComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("plugin-profiles-list");
   }
@@ -850,7 +860,8 @@ class ProfilesListComponent {
   }
 }
 
-class PostsFeedComponent {
+export class PostsFeedComponent {
+  /** @internal */
   constructor(containerEl) {
     this.el = containerEl.createEl("plugin-posts-feed");
   }

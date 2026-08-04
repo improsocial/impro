@@ -3,11 +3,17 @@
   "version": "0.0.20",
   "type": "module",
   "main": "main.js",
+  "scripts": {
+    "docs": "typedoc --options typedoc.json"
+  },
   "license": "0BSD",
   "exports": {
     ".": "./main.js"
   },
   "files": [
     "main.js"
-  ]
+  ],
+  "devDependencies": {
+    "typedoc": "^0.28.20"
+  }
 }
