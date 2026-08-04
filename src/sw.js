@@ -1,4 +1,7 @@
-// Service worker for Web Push notifications (Tier 2 / cross-device relay).
+// Service worker backing system notifications. `notificationclick` handles
+// clicks for both Tier 1 (SystemNotificationService.notify(), shown via this
+// registration since raw `new Notification()` doesn't work on Android) and
+// Tier 2 (Web Push cross-device relay, handled by the `push` listener below).
 // Push messages are sent with no payload (see functions/push/relay.js), so
 // there's nothing to decrypt here — just show a generic notification.
 
