@@ -36,11 +36,16 @@ describe("SystemNotificationService", () => {
   let navigations;
   let router;
 
-  function startService(notificationService, chatNotificationService) {
+  function startService(
+    notificationService,
+    chatNotificationService,
+    pushSubscriptionService,
+  ) {
     const service = new SystemNotificationService(
       notificationService,
       chatNotificationService,
       router,
+      pushSubscriptionService,
     );
     const dispose = service.start();
     disposers.push(dispose);
@@ -198,6 +203,144 @@ describe("SystemNotificationService", () => {
       await flushEffects();
       instances[1].onclick();
       assert.deepEqual(navigations, ["/notifications", "/messages"]);
+    });
+  });
+
+  describe("service worker delivery", () => {
+    let hadServiceWorker;
+    let originalServiceWorker;
+    let swInstances;
+    let registration;
+
+    beforeEach(() => {
+      swInstances = [];
+      registration = {
+        showNotification: (title, options) => {
+          swInstances.push({ title, options });
+        },
+      };
+      hadServiceWorker = "serviceWorker" in navigator;
+      originalServiceWorker = navigator.serviceWorker;
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: {
+          register: async () => registration,
+          ready: Promise.resolve(registration),
+        },
+      });
+    });
+
+    afterEach(() => {
+      if (hadServiceWorker) {
+        Object.defineProperty(navigator, "serviceWorker", {
+          configurable: true,
+          value: originalServiceWorker,
+        });
+      } else {
+        delete navigator.serviceWorker;
+      }
+    });
+
+    it("shows notifications via the service worker instead of the raw constructor", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(
+        instances.length,
+        0,
+        "should not fall back to `new Notification()`",
+      );
+      assert.deepEqual(swInstances.length, 1);
+      assert.deepEqual(swInstances[0].title, "New activity on Impro");
+      assert.deepEqual(swInstances[0].options.data, { url: "/notifications" });
+      assert.deepEqual(swInstances[0].options.tag, "impro-activity");
+    });
+
+    it("falls back to the raw constructor if service worker registration fails", async () => {
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: {
+          register: async () => {
+            throw new Error("registration failed");
+          },
+          ready: Promise.resolve(registration),
+        },
+      });
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      const originalError = console.error;
+      console.error = () => {};
+      enable();
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      console.error = originalError;
+      assert.deepEqual(swInstances.length, 0);
+      assert.deepEqual(instances.length, 1);
+    });
+  });
+
+  describe("cross-device relay", () => {
+    it("relays to other devices when the relay toggle is enabled", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      const relayCalls = [];
+      const pushSubscriptionService = {
+        isEnabled: true,
+        relay: () => relayCalls.push(true),
+      };
+      enable();
+      startService(
+        notificationService,
+        chatNotificationService,
+        pushSubscriptionService,
+      );
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(relayCalls.length, 1);
+    });
+
+    it("does not relay when the relay toggle is disabled", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      const relayCalls = [];
+      const pushSubscriptionService = {
+        isEnabled: false,
+        relay: () => relayCalls.push(true),
+      };
+      enable();
+      startService(
+        notificationService,
+        chatNotificationService,
+        pushSubscriptionService,
+      );
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(relayCalls.length, 0);
+    });
+
+    it("does not relay when there is no push subscription service", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      startService(notificationService, chatNotificationService, null);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      // No assertion needed beyond "doesn't throw" -- pushSubscriptionService
+      // is optional and notify() must tolerate it being absent.
     });
   });
 

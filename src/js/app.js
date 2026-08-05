@@ -45,6 +45,7 @@ import { auth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
 import { SystemNotificationService } from "/js/systemNotificationService.js";
+import { PushSubscriptionService } from "/js/push/pushSubscriptionService.js";
 import { PostComposerService } from "/js/postComposerService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
@@ -123,12 +124,16 @@ export async function main() {
   const chatNotificationService = session
     ? new ChatNotificationService(api)
     : null;
+  const pushSubscriptionService = session
+    ? new PushSubscriptionService(session)
+    : null;
   const systemNotificationService =
     notificationService && chatNotificationService
       ? new SystemNotificationService(
           notificationService,
           chatNotificationService,
           router,
+          pushSubscriptionService,
         )
       : null;
   const postComposerService = session
@@ -209,6 +214,7 @@ export async function main() {
     notificationService,
     chatNotificationService,
     systemNotificationService,
+    pushSubscriptionService,
     postComposerService,
     accountSwitcherService,
     reportService,

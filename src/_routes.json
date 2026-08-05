@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/js/*", "/css/*", "/img/*", "/oauth/*"],
+  "include": ["/js/*", "/css/*", "/img/*", "/oauth/*", "/push/*"],
   "exclude": []
 }
