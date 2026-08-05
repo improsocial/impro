@@ -4,6 +4,7 @@ import { ImageLoader } from "/js/utils.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { pushOverlayHistoryEntry } from "/js/router.js";
 
 class LightboxDialog extends Component {
   connectedCallback() {
@@ -120,12 +121,23 @@ class LightboxDialog extends Component {
     this.isOpen = true;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
+    this.handlePopState = this.handlePopState.bind(this);
+    window.addEventListener("popstate", this.handlePopState);
+    pushOverlayHistoryEntry();
     this.render();
   }
 
-  close() {
+  handlePopState() {
+    this.close({ viaPopState: true });
+  }
+
+  close({ viaPopState = false } = {}) {
     document.body.style.overflow = "";
     document.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("popstate", this.handlePopState);
+    if (!viaPopState) {
+      window.history.back();
+    }
     this.isOpen = false;
     this._imageLoader.abort();
     this.render();

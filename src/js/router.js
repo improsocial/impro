@@ -4,6 +4,22 @@ import { BoundedMap } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
+// Lets an overlay (e.g. the image lightbox) claim the next back navigation
+// to close itself instead of the router navigating the underlying page.
+// Call once when the overlay opens; the pushed entry is consumed either by
+// a real back button press or by the overlay's own history.back() when
+// it's dismissed some other way (see the popstate listener below).
+let activeOverlayHistoryEntries = 0;
+
+export function pushOverlayHistoryEntry() {
+  activeOverlayHistoryEntries++;
+  window.history.pushState(
+    { ...window.history.state },
+    "",
+    window.location.href,
+  );
+}
+
 // Browsers fire auxclick rather than click for the middle button, so
 // we need to manually dispatch a click event for it
 function bindMiddleClickRedispatch() {
@@ -118,6 +134,10 @@ export class Router extends EventEmitter {
     });
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
+      if (activeOverlayHistoryEntries > 0) {
+        activeOverlayHistoryEntries--;
+        return;
+      }
       this.emit("navigate");
       await this.load(window.location.pathname + window.location.search, {
         isBack: true,

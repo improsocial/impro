@@ -334,6 +334,83 @@ describe("lightbox-image-group", () => {
     });
   });
 
+  describe("LightboxDialog - back button / history integration", () => {
+    it("should push a history entry when opened", () => {
+      const originalLength = window.history.length;
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      assert.deepEqual(window.history.length, originalLength + 1);
+
+      element.close();
+    });
+
+    it("should close when a popstate event fires while open (e.g. Android back button)", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      window.dispatchEvent(new Event("popstate"));
+
+      assert.deepEqual(element.isOpen, false);
+    });
+
+    it("should not call history.back() again when closed via popstate", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      const originalBack = window.history.back;
+      let backCalls = 0;
+      window.history.back = () => {
+        backCalls++;
+      };
+      try {
+        window.dispatchEvent(new Event("popstate"));
+      } finally {
+        window.history.back = originalBack;
+      }
+
+      assert.deepEqual(backCalls, 0);
+    });
+
+    it("should call history.back() to release its pushed entry when closed some other way", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      const originalBack = window.history.back;
+      let backCalls = 0;
+      window.history.back = () => {
+        backCalls++;
+      };
+      try {
+        element.close();
+      } finally {
+        window.history.back = originalBack;
+      }
+
+      assert.deepEqual(backCalls, 1);
+    });
+
+    it("should stop listening for popstate after closing", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+      element.close();
+
+      // A stray popstate after close should not throw or reopen the dialog.
+      window.dispatchEvent(new Event("popstate"));
+      assert.deepEqual(element.isOpen, false);
+    });
+  });
+
   describe("LightboxDialog - keyboard navigation", () => {
     it("should close on Escape key", () => {
       const element = document.createElement("lightbox-dialog");

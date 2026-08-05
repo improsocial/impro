@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Router, Layout } from "/js/router.js";
+import { Router, Layout, pushOverlayHistoryEntry } from "/js/router.js";
 
 class TestLayout extends Layout {
   constructor() {
@@ -318,6 +318,48 @@ describe("popstate", () => {
         !router.pages.has("/search"),
         "should not create a query-less duplicate page",
       );
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should not emit navigate when popstate fires while an overlay history entry is pending", async () => {
+    const originalState = window.history.state;
+    const originalPath =
+      window.location.pathname + window.location.search + window.location.hash;
+    const { router, popstateHandler } = createRouterWithPopstateHandler();
+    mountRouter(router);
+
+    const listener = mock.fn();
+    router.on("navigate", listener);
+
+    try {
+      // Mirrors what the image lightbox does when it opens.
+      pushOverlayHistoryEntry();
+      await popstateHandler(new Event("popstate"));
+
+      assert.deepEqual(listener.mock.callCount(), 0);
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should resume normal navigation on the popstate after an overlay entry is consumed", async () => {
+    const originalState = window.history.state;
+    const originalPath =
+      window.location.pathname + window.location.search + window.location.hash;
+    const { router, popstateHandler } = createRouterWithPopstateHandler();
+    mountRouter(router);
+
+    const listener = mock.fn();
+    router.on("navigate", listener);
+
+    try {
+      pushOverlayHistoryEntry();
+      await popstateHandler(new Event("popstate")); // consumes the overlay entry
+      await popstateHandler(new Event("popstate")); // a real back navigation
+
+      assert.deepEqual(listener.mock.callCount(), 1);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
