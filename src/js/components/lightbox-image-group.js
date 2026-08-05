@@ -119,23 +119,41 @@ class LightboxDialog extends Component {
   open() {
     document.body.style.overflow = "hidden";
     this.isOpen = true;
+    this._closed = false;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
     this.handlePopState = this.handlePopState.bind(this);
     window.addEventListener("popstate", this.handlePopState);
-    pushOverlayHistoryEntry();
+    this._historyMarker = pushOverlayHistoryEntry();
     this.render();
   }
 
   handlePopState() {
+    if (this._closed) {
+      // Just confirming the history.back() we triggered ourselves when
+      // closing some other way; release the marker that told the router
+      // to ignore this popstate.
+      window.removeEventListener("popstate", this.handlePopState);
+      this._historyMarker?.remove();
+      this._historyMarker = null;
+      return;
+    }
     this.close({ viaPopState: true });
   }
 
   close({ viaPopState = false } = {}) {
+    if (this._closed) return;
+    this._closed = true;
     document.body.style.overflow = "";
     document.removeEventListener("keydown", this.handleKeyDown);
-    window.removeEventListener("popstate", this.handlePopState);
-    if (!viaPopState) {
+    if (viaPopState) {
+      window.removeEventListener("popstate", this.handlePopState);
+      this._historyMarker?.remove();
+      this._historyMarker = null;
+    } else {
+      // Leave the popstate listener attached: handlePopState() above
+      // releases the marker once this history.back() actually consumes
+      // the entry pushed in open().
       window.history.back();
     }
     this.isOpen = false;

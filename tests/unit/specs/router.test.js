@@ -333,18 +333,19 @@ describe("popstate", () => {
     const listener = mock.fn();
     router.on("navigate", listener);
 
+    // Mirrors what the image lightbox does when it opens.
+    const marker = pushOverlayHistoryEntry();
     try {
-      // Mirrors what the image lightbox does when it opens.
-      pushOverlayHistoryEntry();
       await popstateHandler(new Event("popstate"));
 
       assert.deepEqual(listener.mock.callCount(), 0);
     } finally {
+      marker.remove();
       window.history.replaceState(originalState, "", originalPath);
     }
   });
 
-  it("should resume normal navigation on the popstate after an overlay entry is consumed", async () => {
+  it("should resume normal navigation once the overlay releases its marker", async () => {
     const originalState = window.history.state;
     const originalPath =
       window.location.pathname + window.location.search + window.location.hash;
@@ -354,9 +355,11 @@ describe("popstate", () => {
     const listener = mock.fn();
     router.on("navigate", listener);
 
+    const marker = pushOverlayHistoryEntry();
     try {
-      pushOverlayHistoryEntry();
-      await popstateHandler(new Event("popstate")); // consumes the overlay entry
+      await popstateHandler(new Event("popstate")); // overlay consumes this one
+      // Mirrors what the lightbox does once its own history.back() resolves.
+      marker.remove();
       await popstateHandler(new Event("popstate")); // a real back navigation
 
       assert.deepEqual(listener.mock.callCount(), 1);
