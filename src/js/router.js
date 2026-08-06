@@ -4,34 +4,6 @@ import { BoundedMap } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
-// Lets an overlay (e.g. the image lightbox) claim the next back navigation
-// to close itself instead of the router navigating the underlying page.
-// Call once when the overlay opens; it pushes a history entry and tags the
-// document with a marker element for as long as that entry hasn't been
-// consumed yet. The caller is responsible for removing the returned marker
-// once the entry is actually popped (either by a real back button press or
-// by the overlay's own history.back() when it's dismissed some other way)
-// — see the popstate listener below, which just checks for the marker's
-// presence. Tracking this via a DOM node rather than in-memory state means
-// a test that opens an overlay and never tears it down can't leave stale
-// state behind for unrelated code: the marker disappears the moment
-// something clears the document (e.g. a test's own cleanup), instead of
-// silently lingering for the lifetime of the module.
-const OVERLAY_HISTORY_PENDING_SELECTOR = "[data-overlay-history-pending]";
-
-export function pushOverlayHistoryEntry() {
-  const marker = document.createElement("span");
-  marker.hidden = true;
-  marker.setAttribute("data-overlay-history-pending", "");
-  document.body.appendChild(marker);
-  window.history.pushState(
-    { ...window.history.state },
-    "",
-    window.location.href,
-  );
-  return marker;
-}
-
 // Browsers fire auxclick rather than click for the middle button, so
 // we need to manually dispatch a click event for it
 function bindMiddleClickRedispatch() {
@@ -146,7 +118,6 @@ export class Router extends EventEmitter {
     });
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
-      if (document.querySelector(OVERLAY_HISTORY_PENDING_SELECTOR)) return;
       this.emit("navigate");
       await this.load(window.location.pathname + window.location.search, {
         isBack: true,

@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Router, Layout, pushOverlayHistoryEntry } from "/js/router.js";
+import { Router, Layout } from "/js/router.js";
 
 class TestLayout extends Layout {
   constructor() {
@@ -318,51 +318,6 @@ describe("popstate", () => {
         !router.pages.has("/search"),
         "should not create a query-less duplicate page",
       );
-    } finally {
-      window.history.replaceState(originalState, "", originalPath);
-    }
-  });
-
-  it("should not emit navigate when popstate fires while an overlay history entry is pending", async () => {
-    const originalState = window.history.state;
-    const originalPath =
-      window.location.pathname + window.location.search + window.location.hash;
-    const { router, popstateHandler } = createRouterWithPopstateHandler();
-    mountRouter(router);
-
-    const listener = mock.fn();
-    router.on("navigate", listener);
-
-    // Mirrors what the image lightbox does when it opens.
-    const marker = pushOverlayHistoryEntry();
-    try {
-      await popstateHandler(new Event("popstate"));
-
-      assert.deepEqual(listener.mock.callCount(), 0);
-    } finally {
-      marker.remove();
-      window.history.replaceState(originalState, "", originalPath);
-    }
-  });
-
-  it("should resume normal navigation once the overlay releases its marker", async () => {
-    const originalState = window.history.state;
-    const originalPath =
-      window.location.pathname + window.location.search + window.location.hash;
-    const { router, popstateHandler } = createRouterWithPopstateHandler();
-    mountRouter(router);
-
-    const listener = mock.fn();
-    router.on("navigate", listener);
-
-    const marker = pushOverlayHistoryEntry();
-    try {
-      await popstateHandler(new Event("popstate")); // overlay consumes this one
-      // Mirrors what the lightbox does once its own history.back() resolves.
-      marker.remove();
-      await popstateHandler(new Event("popstate")); // a real back navigation
-
-      assert.deepEqual(listener.mock.callCount(), 1);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }

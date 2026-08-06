@@ -1,16 +1,17 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { pushOverlayHistoryEntry } from "/js/router.js";
 
 class LightboxDialog extends Component {
   connectedCallback() {
     if (this._initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.innerHTML = "";
     this.hideAltText = this.getAttribute("hide-alt-text") === "true";
     this.imageShape = this.getAttribute("image-shape");
@@ -56,13 +57,25 @@ class LightboxDialog extends Component {
 
     render(
       html`
-        <div
+        <dialog
           class="lightbox"
-          style="display: flex;"
+          autofocus
           @click=${(e) => {
-            if (e.target.classList.contains("lightbox")) {
+            if (e.target.tagName === "DIALOG") {
               this.close();
             }
+          }}
+          @cancel=${(e) => {
+            e.preventDefault();
+            this.close();
+          }}
+          @close=${() => {
+            document.body.style.overflow = "";
+            document.removeEventListener("keydown", this.handleKeyDown);
+            this.isOpen = false;
+            this._imageLoader.abort();
+            this.render();
+            this.dispatchEvent(new Event("close"));
           }}
         >
           <div
@@ -110,7 +123,7 @@ class LightboxDialog extends Component {
           ${alt && !this.hideAltText
             ? html`<p class="lightbox-alt-text">${alt}</p>`
             : ""}
-        </div>
+        </dialog>
       `,
       this,
     );
@@ -119,47 +132,14 @@ class LightboxDialog extends Component {
   open() {
     document.body.style.overflow = "hidden";
     this.isOpen = true;
-    this._closed = false;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
-    this.handlePopState = this.handlePopState.bind(this);
-    window.addEventListener("popstate", this.handlePopState);
-    this._historyMarker = pushOverlayHistoryEntry();
     this.render();
+    this.querySelector(".lightbox").showModal();
   }
 
-  handlePopState() {
-    if (this._closed) {
-      // Just confirming the history.back() we triggered ourselves when
-      // closing some other way; release the marker that told the router
-      // to ignore this popstate.
-      window.removeEventListener("popstate", this.handlePopState);
-      this._historyMarker?.remove();
-      this._historyMarker = null;
-      return;
-    }
-    this.close({ viaPopState: true });
-  }
-
-  close({ viaPopState = false } = {}) {
-    if (this._closed) return;
-    this._closed = true;
-    document.body.style.overflow = "";
-    document.removeEventListener("keydown", this.handleKeyDown);
-    if (viaPopState) {
-      window.removeEventListener("popstate", this.handlePopState);
-      this._historyMarker?.remove();
-      this._historyMarker = null;
-    } else {
-      // Leave the popstate listener attached: handlePopState() above
-      // releases the marker once this history.back() actually consumes
-      // the entry pushed in open().
-      window.history.back();
-    }
-    this.isOpen = false;
-    this._imageLoader.abort();
-    this.render();
-    this.dispatchEvent(new Event("close"));
+  close() {
+    return closeWithAnimation(this.querySelector(".lightbox"));
   }
 
   navigate(steps) {
@@ -171,9 +151,7 @@ class LightboxDialog extends Component {
   }
 
   handleKeyDown(e) {
-    if (e.key === "Escape") {
-      this.close();
-    } else if (e.key === "ArrowLeft") {
+    if (e.key === "ArrowLeft") {
       this.navigate(-1);
     } else if (e.key === "ArrowRight") {
       this.navigate(1);
