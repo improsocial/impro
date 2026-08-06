@@ -137,7 +137,8 @@ class InstalledPluginsView extends View {
             await pluginService.enablePlugin(plugin.id);
             showToast(`Enabled ${plugin.name}`, { style: "success" });
           } catch (e) {
-            showToast(`Error when loading ${plugin.name}`, {
+            const message = e.message ?? String(e);
+            showToast(`Error when loading ${plugin.name} - ${message}`, {
               style: "error",
             });
           }

@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  "include": ["main.js"]
+}

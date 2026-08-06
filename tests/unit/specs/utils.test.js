@@ -31,6 +31,8 @@ import {
   BoundedMap,
   AsyncValueCache,
   isPromise,
+  throttleByKey,
+  WindowedCounter,
 } from "/js/utils.js";
 import { installFakeIndexedDB } from "../testHelpers.js";
 
@@ -1677,5 +1679,179 @@ describe("AsyncValueCache", () => {
     assert.deepEqual(cache.size, 2);
     assert.deepEqual(cache.peek("b"), null);
     assert.deepEqual(cache.peek("a").value, "A");
+  });
+});
+
+describe("throttleByKey", () => {
+  let now = 1_000_000;
+  const originalNow = Date.now;
+
+  beforeEach(() => {
+    now = 1_000_000;
+    Date.now = () => now;
+  });
+
+  afterEach(() => {
+    Date.now = originalNow;
+  });
+
+  function makeThrottled(options = {}) {
+    const calls = [];
+    const throttled = throttleByKey((...args) => calls.push(args), {
+      delay: 250,
+      ...options,
+    });
+    return { calls, throttled };
+  }
+
+  it("calls through on the leading edge and swallows the rest", () => {
+    const { calls, throttled } = makeThrottled();
+    throttled("a");
+    throttled("a");
+    now += 249;
+    throttled("a");
+    assert.deepEqual(calls, [["a"]]);
+  });
+
+  it("keys on the first argument by default, ignoring the rest", () => {
+    const { calls, throttled } = makeThrottled();
+    throttled("a", 1);
+    throttled("a", 2);
+    assert.deepEqual(calls, [["a", 1]]);
+  });
+
+  it("gives each key its own window", () => {
+    const { calls, throttled } = makeThrottled();
+    throttled("a");
+    throttled("b");
+    throttled("a");
+    assert.deepEqual(calls, [["a"], ["b"]]);
+  });
+
+  it("passes the key through to the wrapped function", () => {
+    const { calls, throttled } = makeThrottled();
+    throttled("a", "extra");
+    assert.deepEqual(calls, [["a", "extra"]]);
+  });
+
+  it("calls through again once the delay has passed", () => {
+    const { calls, throttled } = makeThrottled();
+    throttled("a");
+    now += 250;
+    throttled("a");
+    assert.deepEqual(calls, [["a"], ["a"]]);
+  });
+
+  it("throttles on a getKey built from several arguments", () => {
+    const { calls, throttled } = makeThrottled({
+      getKey: (name, index) => `${name}${index}`,
+    });
+    throttled("a", 1);
+    throttled("a", 2);
+    throttled("a", 1);
+    assert.deepEqual(calls, [
+      ["a", 1],
+      ["a", 2],
+    ]);
+  });
+});
+
+describe("WindowedCounter", () => {
+  let now = 1_000_000;
+  const originalNow = Date.now;
+
+  beforeEach(() => {
+    now = 1_000_000;
+    Date.now = () => now;
+  });
+
+  afterEach(() => {
+    Date.now = originalNow;
+  });
+
+  function makeCounter({ limit = 3, windowMs = 5000 } = {}) {
+    return new WindowedCounter({ windowMs, limit });
+  }
+
+  it("returns null until a key reaches the limit", () => {
+    const counter = makeCounter();
+    assert.deepEqual(counter.record("a", "x"), null);
+    assert.deepEqual(counter.record("a", "x"), null);
+    const exceeded = counter.record("a", "x");
+    assert.deepEqual(exceeded.total, 3);
+  });
+
+  it("counts the distinct tags seen in the window", () => {
+    const counter = makeCounter();
+    counter.record("a", "x");
+    counter.record("a", "y");
+    const exceeded = counter.record("a", "y");
+    assert.deepEqual(exceeded.distinct, 2);
+  });
+
+  it("reports a null distinct count when no tags are given", () => {
+    const counter = makeCounter();
+    counter.record("a");
+    counter.record("a");
+    assert.deepEqual(counter.record("a"), { total: 3, distinct: null });
+  });
+
+  it("counts only the tags it was given when some events are untagged", () => {
+    const counter = makeCounter();
+    counter.record("a");
+    counter.record("a", "x");
+    assert.deepEqual(counter.record("a"), { total: 3, distinct: 1 });
+  });
+
+  it("reports only once per window", () => {
+    const counter = makeCounter();
+    const results = Array.from({ length: 10 }, () => counter.record("a", "x"));
+    assert.deepEqual(results.filter(Boolean).length, 1);
+  });
+
+  it("stops counting once a window has reported", () => {
+    const counter = makeCounter();
+    counter.record("a", "x");
+    counter.record("a", "x");
+    const exceeded = counter.record("a", "x");
+    assert.deepEqual(exceeded, { total: 3, distinct: 1 });
+    for (let i = 0; i < 20; i++) counter.record("a", `tag-${i}`);
+    // The next window starts from scratch rather than inheriting those events
+    now += 5001;
+    counter.record("a", "x");
+    counter.record("a", "x");
+    assert.deepEqual(counter.record("a", "y"), { total: 3, distinct: 2 });
+  });
+
+  it("reports again after the window rolls over", () => {
+    const counter = makeCounter();
+    for (let i = 0; i < 3; i++) counter.record("a", "x");
+    now += 5001;
+    assert.deepEqual(counter.record("a", "x"), null);
+    counter.record("a", "x");
+    assert.deepEqual(counter.record("a", "x").total, 3);
+  });
+
+  it("stays under the limit when events straddle windows", () => {
+    const counter = makeCounter();
+    for (let i = 0; i < 10; i++) {
+      assert.deepEqual(counter.record("a", "x"), null);
+      now += 5001;
+    }
+  });
+
+  it("counts each key separately", () => {
+    const counter = makeCounter();
+    for (let i = 0; i < 5; i++) {
+      assert.deepEqual(counter.record(`key-${i}`, "x"), null);
+    }
+  });
+
+  it("forgets everything on clear", () => {
+    const counter = makeCounter();
+    counter.record("a", "x");
+    counter.record("a", "x");
+    counter.clear();
+    assert.deepEqual(counter.record("a", "x"), null);
   });
 });

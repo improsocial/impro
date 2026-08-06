@@ -30,7 +30,10 @@ const RECORD_LINK_PATTERNS = [
 export function parseRecordLink(url) {
   try {
     const parsedUrl = new URL(url);
-    if (!IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
+    if (
+      parsedUrl.hostname !== window.location.hostname &&
+      !IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
+    ) {
       return null;
     }
     for (const { pattern, collection } of RECORD_LINK_PATTERNS) {

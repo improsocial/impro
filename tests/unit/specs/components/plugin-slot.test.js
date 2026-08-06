@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { SignalMap } from "/js/signals.js";
 import { makeTestPluginService } from "../../testHelpers.js";
@@ -658,6 +658,157 @@ describe("plugin-slot", () => {
       await flushMicrotasks();
       assert.deepEqual(slot.children.length, 1);
       assert.deepEqual(slot.children[0].textContent, "A");
+    });
+  });
+
+  describe("PluginSlot - repeat request monitor", () => {
+    const warnings = [];
+    let now = 1_000_000;
+    const originalWarn = console.warn;
+    const originalNow = Date.now;
+
+    beforeEach(() => {
+      warnings.length = 0;
+      // The one-warning-per-slot-per-window gate is module-level, so each
+      // test has to start well past the previous test's window
+      now += 1_000_000;
+      console.warn = (...args) => warnings.push(args.join(" "));
+      Date.now = () => now;
+    });
+
+    afterEach(() => {
+      console.warn = originalWarn;
+      Date.now = originalNow;
+    });
+
+    function makeVersionedService() {
+      const registrations = [
+        {
+          pluginId: "alpha",
+          version: 0,
+          invoke: async () => ({ tag: "div", text: "A" }),
+        },
+      ];
+      const pluginService = makePluginService({
+        registrations: { "author-badges": registrations },
+      });
+      return { pluginService, registrations };
+    }
+
+    it("warns once when one mounted slot re-requests past the limit", async () => {
+      const { pluginService, registrations } = makeVersionedService();
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      for (let i = 0; i < 6; i++) {
+        registrations[0].version += 1;
+        pluginService.setSlotRegistrations("author-badges", registrations);
+        await flushMicrotasks();
+      }
+      assert.deepEqual(warnings.length, 1);
+      assert(warnings[0].includes("re-requested 5 times in 5s"));
+      assert(warnings[0].includes("across 1 contexts"));
+      assert(warnings[0].includes("refreshSlot loop"));
+    });
+
+    it("reports the distinct contexts when a context attribute churns", async () => {
+      const { pluginService } = makeVersionedService();
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:0" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      for (let i = 1; i < 6; i++) {
+        slot.setAttribute("context-did", `did:plc:${i}`);
+        await flushMicrotasks();
+      }
+      assert.deepEqual(warnings.length, 1);
+      assert(warnings[0].includes("across 5 contexts"));
+    });
+
+    // The case the dispatcher-level check got wrong: a page rendering the same
+    // slot many times for one author is not a loop.
+    it("stays quiet when many mounted slots share one context", async () => {
+      const { pluginService } = makeVersionedService();
+      for (let i = 0; i < 10; i++) {
+        document.body.appendChild(
+          makeSlot({
+            pluginService,
+            name: "author-badges",
+            context: { did: "did:plc:one" },
+          }),
+        );
+      }
+      await flushMicrotasks();
+      assert.deepEqual(warnings, []);
+    });
+
+    // One loop trips every mounted slot at once, so the warning is shared
+    it("warns once when the whole page's slots re-request past the limit", async () => {
+      const { pluginService, registrations } = makeVersionedService();
+      for (let i = 0; i < 10; i++) {
+        document.body.appendChild(
+          makeSlot({
+            pluginService,
+            name: "author-badges",
+            context: { did: `did:plc:${i}` },
+          }),
+        );
+      }
+      await flushMicrotasks();
+
+      for (let i = 0; i < 6; i++) {
+        registrations[0].version += 1;
+        pluginService.setSlotRegistrations("author-badges", registrations);
+        await flushMicrotasks();
+      }
+      assert.deepEqual(warnings.length, 1);
+    });
+
+    it("warns again for a loop that outlives the window", async () => {
+      const { pluginService, registrations } = makeVersionedService();
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      for (let i = 0; i < 12; i++) {
+        now += 1000;
+        registrations[0].version += 1;
+        pluginService.setSlotRegistrations("author-badges", registrations);
+        await flushMicrotasks();
+      }
+      assert.deepEqual(warnings.length, 2);
+    });
+
+    it("stays quiet for repeats spread across separate windows", async () => {
+      const { pluginService, registrations } = makeVersionedService();
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      for (let i = 0; i < 10; i++) {
+        now += 5001;
+        registrations[0].version += 1;
+        pluginService.setSlotRegistrations("author-badges", registrations);
+        await flushMicrotasks();
+      }
+      assert.deepEqual(warnings, []);
     });
   });
 });

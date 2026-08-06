@@ -40,6 +40,7 @@ export function makeTestPluginService(overrides = {}) {
     renderRichTextNodeToken: () => null,
     getClaimedFacetTypes: () => new Set(),
     getSidebarItems: () => [],
+    getPreviewPlugins: () => [],
     getPostContextMenuItems: async () => [],
     getProfileContextMenuItems: async () => [],
     ...overrides,

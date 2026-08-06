@@ -5,7 +5,7 @@ import {
   TEST_PLUGIN_MANIFEST,
   TEST_PLUGIN_RAW_MANIFEST,
   getTestPluginSource,
-} from "./testPlugin.js";
+} from "./testPlugins.js";
 
 export class MockServer {
   constructor() {

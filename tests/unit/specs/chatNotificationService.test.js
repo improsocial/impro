@@ -1,5 +1,6 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { waitFor } from "../testHelpers.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
 
 function createMockApi({
@@ -93,6 +94,36 @@ describe("fetchNumNotifications", () => {
     unreadRequestConvos = 1;
     await service.fetchNumNotifications();
     assert.deepEqual(service.$numUnreadRequestConvos.get(), 1);
+  });
+});
+
+describe("startPolling", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  beforeEach(() => {
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
+  it("keeps polling after a poll throws", async (t) => {
+    t.mock.method(console, "error", () => {});
+    let calls = 0;
+    const api = {
+      getChatUnreadCounts: async () => {
+        calls++;
+        if (calls === 1) {
+          throw new Error("network blip");
+        }
+        return { unreadAcceptedConvos: 3, unreadRequestConvos: 0 };
+      },
+    };
+    const service = new ChatNotificationService(api);
+
+    const stopPolling = service.startPolling();
+    t.after(stopPolling);
+
+    await waitFor(() => service.$numNotifications.get() === 3);
   });
 });
 

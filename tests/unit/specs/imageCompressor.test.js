@@ -22,6 +22,7 @@ describe("imageCompressor", () => {
   const originalCreateElement = document.createElement;
 
   function installImageStubs(toDataURL = () => "data:image/jpeg;base64,") {
+    const calls = { contexts: [], drawnSizes: [], encodeCount: 0 };
     globalThis.Image = class {
       /** @param {string} _ */
       set src(_) {
@@ -32,19 +33,31 @@ describe("imageCompressor", () => {
     };
     document.createElement = function (tag) {
       if (tag === "canvas") {
-        return {
+        const canvas = {
           width: 0,
           height: 0,
-          getContext: () => ({
-            fillStyle: "",
-            fillRect: () => {},
-            drawImage: () => {},
-          }),
-          toDataURL: () => toDataURL(),
+          getContext: () => {
+            const ctx = {
+              fillStyle: "",
+              imageSmoothingEnabled: false,
+              imageSmoothingQuality: "low",
+              fillRect: () => {},
+              drawImage: (img, x, y, width, height) =>
+                calls.drawnSizes.push({ width, height }),
+            };
+            calls.contexts.push(ctx);
+            return ctx;
+          },
+          toDataURL: () => {
+            calls.encodeCount++;
+            return toDataURL();
+          },
         };
+        return canvas;
       }
       return originalCreateElement.call(document, tag);
     };
+    return calls;
   }
 
   afterEach(() => {
@@ -203,6 +216,31 @@ describe("imageCompressor", () => {
       assert.deepEqual(result.blob.type, "image/jpeg");
       assert(result.width > 0 && result.width <= 4000);
       assert(result.height > 0 && result.height <= 4000);
+    });
+
+    it("resamples with high-quality smoothing", async () => {
+      const small = `data:image/jpeg;base64,${"A".repeat(16)}`;
+      const calls = installImageStubs(() => small);
+
+      await compressImage("data:image/jpeg;base64,AAAA");
+      assert(calls.contexts.length > 0, "expected a canvas context");
+      for (const ctx of calls.contexts) {
+        assert.deepEqual(ctx.imageSmoothingEnabled, true);
+        assert.deepEqual(ctx.imageSmoothingQuality, "high");
+      }
+    });
+
+    it("resamples once per output size, not once per quality probe", async () => {
+      const small = `data:image/jpeg;base64,${"A".repeat(16)}`;
+      const calls = installImageStubs(() => small);
+
+      await compressImage("data:image/jpeg;base64,AAAA");
+      // Every probe fits, so dimensions never shrink: one resample, many encodes.
+      assert.deepEqual(calls.drawnSizes, [{ width: 4000, height: 4000 }]);
+      assert(
+        calls.encodeCount > 1,
+        `expected multiple quality probes, got ${calls.encodeCount}`,
+      );
     });
   });
 });

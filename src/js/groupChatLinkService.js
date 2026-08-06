@@ -78,8 +78,9 @@ class JoinChatModal extends Modal {
 }
 
 export class GroupChatLinkService {
-  constructor(dataLayer) {
+  constructor(dataLayer, router) {
     this.dataLayer = dataLayer;
+    this.router = router;
   }
 
   handleAction(actionType, preview) {
@@ -98,7 +99,7 @@ export class GroupChatLinkService {
     }
     if (actionType === "open") {
       const convoId = preview.convo?.id ?? preview.convoId;
-      if (convoId) window.router.go(`/messages/${convoId}`);
+      if (convoId) this.router.go(`/messages/${convoId}`);
       return;
     }
     if (actionType === "join" || actionType === "request") {
@@ -127,7 +128,7 @@ export class GroupChatLinkService {
         { style: "success" },
       );
       if (res?.status === "joined" && res.convo?.id) {
-        window.router.go(`/messages/${res.convo.id}`);
+        this.router.go(`/messages/${res.convo.id}`);
       }
     } catch (error) {
       console.error(error);

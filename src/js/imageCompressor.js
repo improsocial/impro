@@ -27,15 +27,17 @@ export class ImageCompressor {
     return Math.round((base64.length * 3) / 4);
   }
 
-  drawImageToCanvas({ img, width, height, quality }) {
+  renderImageToCanvas({ img, width, height }) {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
-    return canvas.toDataURL("image/jpeg", quality);
+    return canvas;
   }
 
   dataUrlToBlob(dataUrl) {
@@ -62,6 +64,10 @@ export class ImageCompressor {
     let bestWidth = 0;
     let bestHeight = 0;
 
+    let resizedCanvas = null;
+    let resizedWidth = 0;
+    let resizedHeight = 0;
+
     while (maxQuality - minQuality > 1) {
       if (attempts >= 4) break;
 
@@ -82,12 +88,17 @@ export class ImageCompressor {
         maxHeight: maxDimension,
       });
 
-      const result = this.drawImageToCanvas({
-        img,
-        width,
-        height,
-        quality: quality / 100,
-      });
+      if (
+        !resizedCanvas ||
+        resizedWidth !== width ||
+        resizedHeight !== height
+      ) {
+        resizedCanvas = this.renderImageToCanvas({ img, width, height });
+        resizedWidth = width;
+        resizedHeight = height;
+      }
+
+      const result = resizedCanvas.toDataURL("image/jpeg", quality / 100);
 
       if (this.estimateDataUrlSize(result) <= MAX_IMAGE_SIZE) {
         bestDataUrl = result;

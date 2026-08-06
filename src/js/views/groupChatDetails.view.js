@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -183,6 +183,7 @@ class GroupChatDetailsView extends View {
     root,
     params,
     router,
+    layout,
     context: { dataLayer, isAuthenticated, pluginService },
   }) {
     await auth.requireAuth();
@@ -254,6 +255,11 @@ class GroupChatDetailsView extends View {
         showToast("Left group chat");
       }
     }
+
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/messages");
+    });
 
     bindPageTitle(root, () => "Group chat settings");
 

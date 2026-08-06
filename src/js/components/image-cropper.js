@@ -337,6 +337,8 @@ class ImageCropper extends Component {
     outputCanvas.width = outputWidth;
     outputCanvas.height = outputHeight;
     const outputCtx = outputCanvas.getContext("2d");
+    outputCtx.imageSmoothingEnabled = true;
+    outputCtx.imageSmoothingQuality = "high";
     outputCtx.fillStyle = "#ffffff";
     outputCtx.fillRect(0, 0, outputWidth, outputHeight);
     outputCtx.drawImage(
@@ -351,7 +353,7 @@ class ImageCropper extends Component {
       outputHeight,
     );
 
-    return outputCanvas.toDataURL("image/jpeg", 0.9);
+    return outputCanvas.toDataURL("image/png");
   }
 }
 

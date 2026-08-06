@@ -47,6 +47,26 @@ function requireHostMethodArg(method, name, value) {
 
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
 
+// Page id must also be a valid URL segment
+const PAGE_ID_PATTERN = /^[a-z0-9-]+$/;
+
+export function createPluginPageKey(pluginId, pageId) {
+  return `${pluginId}:${pageId}`;
+}
+
+// Small handle for registrations that render custom content,
+// can be passed through to <plugin-custom-content>
+export class CustomContent {
+  constructor(pluginId, { display }) {
+    this.pluginId = pluginId;
+    this.display = display;
+    this.$refresh = new Signal.State(null);
+  }
+  refresh({ reset = false } = {}) {
+    this.$refresh.set({ reset });
+  }
+}
+
 export function arePluginsDisabledByQueryParam() {
   const params = new URLSearchParams(window.location.search);
   return params.has(DISABLE_PLUGINS_QUERY_PARAM);
@@ -102,9 +122,16 @@ export class PermissionsDeclinedError extends Error {
 }
 
 export class PluginService extends ReactiveStore {
-  constructor(preferencesProvider, session, dataLayer, hiddenFeedItemsStore) {
+  constructor(
+    preferencesProvider,
+    session,
+    dataLayer,
+    hiddenFeedItemsStore,
+    router,
+  ) {
     super("pluginService");
     this.renderContext = null;
+    this.router = router;
     this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
@@ -142,11 +169,13 @@ export class PluginService extends ReactiveStore {
         version: entry.version,
         author: entry.author,
         enabled: entry.enabled,
-        loaded: this.pluginBridge.isLoaded(entry.id),
         hasSettings: this.$settingTabs.get(entry.id) !== null,
       }));
     });
     this.$settingTabs = new SignalMap();
+    // Keyed by `${pluginId}:${pageId}` — each plugin can register multiple pages
+    this.$pages = new SignalMap();
+    this.$initialLoadComplete = new Signal.State(false);
     this.slotDispatcher = new PluginSlotDispatcher();
     this.richTextDispatcher = new PluginRichTextDispatcher({
       getRenderer: (pluginId) => this.getRenderer(pluginId),
@@ -252,13 +281,40 @@ export class PluginService extends ReactiveStore {
       const entry = {
         pluginId: plugin.pluginId,
         name: message.name,
-        display: () => plugin.call(message.displayHandlerId),
+        customContent: new CustomContent(plugin.pluginId, {
+          display: () => plugin.call(message.displayHandlerId),
+        }),
         hide: () => plugin.call(message.hideHandlerId),
       };
       this.$settingTabs.set(plugin.pluginId, entry);
       return () => {
         if (this.$settingTabs.get(plugin.pluginId) === entry) {
           this.$settingTabs.delete(plugin.pluginId);
+        }
+      };
+    });
+    this.pluginBridge.addRegistrationTarget("page", (plugin, message) => {
+      const pageId = message.id;
+      if (typeof pageId !== "string" || !PAGE_ID_PATTERN.test(pageId)) {
+        console.warn(
+          `[plugins] "${plugin.pluginId}" tried to register a page with an invalid id:`,
+          pageId,
+        );
+        return null;
+      }
+      const key = createPluginPageKey(plugin.pluginId, pageId);
+      const entry = {
+        pluginId: plugin.pluginId,
+        pageId,
+        title: message.title ?? null,
+        customContent: new CustomContent(plugin.pluginId, {
+          display: () => plugin.call(message.displayHandlerId),
+        }),
+      };
+      this.$pages.set(key, entry);
+      return () => {
+        if (this.$pages.get(key) === entry) {
+          this.$pages.delete(key);
         }
       };
     });
@@ -346,7 +402,24 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
       (plugin, { reset = false } = {}) => {
-        this.emit("settingTabRefresh", { pluginId: plugin.pluginId, reset });
+        const tab = this.$settingTabs.get(plugin.pluginId);
+        tab?.customContent.refresh({ reset });
+      },
+    );
+
+    this.pluginBridge.addHostMethod("openPage", (plugin, { pageId } = {}) => {
+      requireHostMethodArg("openPage", "pageId", pageId);
+      const encodedPluginId = encodeURIComponent(plugin.pluginId);
+      const encodedPageId = encodeURIComponent(pageId);
+      this.router.go(`/plugin/${encodedPluginId}/pages/${encodedPageId}`);
+    });
+
+    this.pluginBridge.addHostMethod(
+      "refreshPage",
+      (plugin, { pageId, reset = false } = {}) => {
+        requireHostMethodArg("refreshPage", "pageId", pageId);
+        const page = this.getPage(plugin.pluginId, pageId);
+        page?.customContent.refresh({ reset });
       },
     );
 
@@ -552,6 +625,14 @@ export class PluginService extends ReactiveStore {
   }
 
   async loadEnabledPlugins() {
+    try {
+      await this._loadEnabledPlugins();
+    } finally {
+      this.$initialLoadComplete.set(true);
+    }
+  }
+
+  async _loadEnabledPlugins() {
     if (arePluginsDisabledByQueryParam()) {
       const enabledPluginIds = this.prefManager.$enabledPlugins
         .get()
@@ -957,6 +1038,13 @@ export class PluginService extends ReactiveStore {
 
   // Registry convenience methods
 
+  getPreviewPlugins() {
+    if (!this.isPreviewMode) return [];
+    return this.$pluginsInfo
+      .get()
+      .filter((plugin) => this.pluginBridge.isLoaded(plugin.id));
+  }
+
   getSidebarItems() {
     return [...this.registries.sidebarItems];
   }
@@ -976,6 +1064,20 @@ export class PluginService extends ReactiveStore {
 
   getSettingTab(pluginId) {
     return this.$settingTabs.get(pluginId);
+  }
+
+  getPage(pluginId, pageId) {
+    return this.$pages.get(createPluginPageKey(pluginId, pageId));
+  }
+
+  // Until the initial enabled-plugins load has settled, report every plugin
+  // as loading so views show a spinner instead of a premature not-found
+  getPluginLoadStatus(pluginId) {
+    const status = this.pluginBridge.$loadStatuses.get(pluginId);
+    return {
+      loading: status.loading || !this.$initialLoadComplete.get(),
+      error: status.error,
+    };
   }
 
   async getPostContextMenuItems(post, meta = null) {

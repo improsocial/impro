@@ -1,5 +1,6 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
+import { SignalMap, ComputedMap } from "/js/signals.js";
 
 const SANDBOX_URL = "/plugin-sandbox.html";
 
@@ -223,7 +224,15 @@ export class PluginBridge {
     this._loadPluginInstance = loadPluginInstance;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
+    this._inFlightLoads = new Map();
     this._hostCallHandlers = new Map();
+    // reactive loading state
+    this.$loading = new SignalMap();
+    this.$pluginLoadingErrors = new SignalMap();
+    this.$loadStatuses = new ComputedMap((pluginId) => ({
+      loading: this.$loading.get(pluginId) ?? false,
+      error: this.$pluginLoadingErrors.get(pluginId) ?? null,
+    }));
   }
 
   isLoaded(pluginId) {
@@ -272,12 +281,33 @@ export class PluginBridge {
 
   async loadPlugin(pluginId, version, repo) {
     if (this._loadedPlugins.has(pluginId)) return;
+    const inFlightLoad = this._inFlightLoads.get(pluginId);
+    if (inFlightLoad) return inFlightLoad;
+    const load = (async () => {
+      this.$loading.set(pluginId, true);
+      this.$pluginLoadingErrors.set(pluginId, null);
+      try {
+        const instance = await this._loadPlugin(pluginId, version, repo);
+        return instance;
+      } catch (error) {
+        this.$pluginLoadingErrors.set(pluginId, error);
+        throw error;
+      } finally {
+        this.$loading.set(pluginId, false);
+        this._inFlightLoads.delete(pluginId);
+      }
+    })();
+    this._inFlightLoads.set(pluginId, load);
+    return load;
+  }
+
+  async _loadPlugin(pluginId, version, repo) {
     let manifest;
     try {
       manifest = await this._provider.getManifest(pluginId, version, repo);
     } catch (error) {
       logger.warn(`failed to load "${pluginId}": invalid manifest`, error);
-      throw new Error("Failed to load plugin manifest");
+      throw new Error("Could not fetch plugin manifest");
     }
     let source;
     try {
@@ -287,7 +317,7 @@ export class PluginBridge {
         `failed to load "${pluginId}": could not fetch main.js`,
         error,
       );
-      throw new Error("Failed to load plugin source");
+      throw new Error("Could not fetch plugin source");
     }
     let cssText;
     try {
@@ -407,6 +437,8 @@ export class PluginBridge {
     if (!instance) return;
     instance.unload();
     this._loadedPlugins.delete(pluginId);
+    this.$loading.delete(pluginId);
+    this.$pluginLoadingErrors.delete(pluginId);
     this._pluginStylesLoader.unmount(pluginId);
   }
 

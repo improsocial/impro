@@ -12,12 +12,23 @@ export class ChatNotificationService {
     this._lastServerTotal = 0;
   }
 
-  async startPolling() {
+  startPolling() {
     const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    while (true) {
-      await this.fetchNumNotifications();
-      await wait(pollingInterval);
-    }
+    let stopped = false;
+    const poll = async () => {
+      while (!stopped) {
+        try {
+          await this.fetchNumNotifications();
+        } catch (error) {
+          console.error(error);
+        }
+        await wait(pollingInterval);
+      }
+    };
+    poll();
+    return () => {
+      stopped = true;
+    };
   }
 
   async fetchNumNotifications() {
