@@ -334,6 +334,60 @@ describe("lightbox-image-group", () => {
     });
   });
 
+  describe("LightboxDialog - viewport sizing", () => {
+    function setWindowSize(width, height) {
+      Object.defineProperty(window, "innerWidth", {
+        value: width,
+        configurable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: height,
+        configurable: true,
+      });
+    }
+
+    it("should size the lightbox to the current viewport when opened", () => {
+      setWindowSize(1200, 800);
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      const lightbox = element.querySelector(".lightbox");
+      assert.deepEqual(lightbox.style.width, "1200px");
+      assert.deepEqual(lightbox.style.height, "800px");
+    });
+
+    it("should resync its size when the window resizes while open", () => {
+      setWindowSize(1200, 800);
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      setWindowSize(500, 900);
+      window.dispatchEvent(new Event("resize"));
+
+      const lightbox = element.querySelector(".lightbox");
+      assert.deepEqual(lightbox.style.width, "500px");
+      assert.deepEqual(lightbox.style.height, "900px");
+    });
+
+    it("should stop resyncing after close", () => {
+      setWindowSize(1200, 800);
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+      element.close();
+
+      assert.doesNotThrow(() => {
+        setWindowSize(300, 400);
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
+  });
+
   describe("LightboxDialog - keyboard navigation", () => {
     it("should close on Escape key", () => {
       const element = document.createElement("lightbox-dialog");

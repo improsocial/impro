@@ -120,12 +120,44 @@ class LightboxDialog extends Component {
     this.isOpen = true;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
+    this.handleViewportResize = this.handleViewportResize.bind(this);
+    window.addEventListener("resize", this.handleViewportResize);
+    window.visualViewport?.addEventListener(
+      "resize",
+      this.handleViewportResize,
+    );
     this.render();
+    this.syncViewportSize();
+  }
+
+  // Some browsers size a position:fixed element's 100%/vw/vh/inset against
+  // something narrower than the true viewport in this app's layout (root
+  // cause unconfirmed - reproduces even with no transform/filter/contain
+  // anywhere in the ancestor chain, so it isn't the usual containing-block
+  // culprit). Measuring the viewport directly and applying it as an
+  // explicit pixel size sidesteps whatever CSS is getting that resolution
+  // wrong, and using visualViewport (with a fallback) keeps it correct
+  // through on-screen-keyboard/URL-bar-driven viewport changes on mobile.
+  syncViewportSize() {
+    const lightbox = this.querySelector(".lightbox");
+    if (!lightbox) return;
+    const vv = window.visualViewport;
+    lightbox.style.width = `${vv ? vv.width : window.innerWidth}px`;
+    lightbox.style.height = `${vv ? vv.height : window.innerHeight}px`;
+  }
+
+  handleViewportResize() {
+    this.syncViewportSize();
   }
 
   close() {
     document.body.style.overflow = "";
     document.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("resize", this.handleViewportResize);
+    window.visualViewport?.removeEventListener(
+      "resize",
+      this.handleViewportResize,
+    );
     this.isOpen = false;
     this._imageLoader.abort();
     this.render();

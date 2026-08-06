@@ -7684,11 +7684,17 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .lightbox {
+  /* width/height are set imperatively (see LightboxDialog.syncViewportSize())
+     - percentage/vw/vh/inset sizing was unreliable at resolving against the
+     true viewport in this app's layout, for reasons that didn't trace back
+     to any of the usual position:fixed containing-block culprits (no
+     transform/filter/contain/will-change anywhere in the ancestor chain). */
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   background-color: var(--overlay-color-darkest);
   display: flex;
   flex-direction: column;
