@@ -1,6 +1,7 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
+import { enablePinchZoom } from "/js/zoomHelpers.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -121,11 +122,16 @@ class LightboxDialog extends Component {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
     this.render();
+    this._zoomControl = enablePinchZoom(this.querySelector("img"), {
+      container: this.querySelector(".lightbox"),
+    });
   }
 
   close() {
     document.body.style.overflow = "";
     document.removeEventListener("keydown", this.handleKeyDown);
+    this._zoomControl?.cleanup();
+    this._zoomControl = null;
     this.isOpen = false;
     this._imageLoader.abort();
     this.render();
@@ -136,6 +142,7 @@ class LightboxDialog extends Component {
     const newIndex = this.currentIndex + steps;
     if (newIndex >= 0 && newIndex < this.images.length) {
       this.currentIndex = newIndex;
+      this._zoomControl?.reset();
       this.render();
     }
   }

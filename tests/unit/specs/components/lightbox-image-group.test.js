@@ -334,6 +334,74 @@ describe("lightbox-image-group", () => {
     });
   });
 
+  describe("LightboxDialog - zoom", () => {
+    it("should enable pinch zoom when opened", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      assert(element._zoomControl !== null);
+      assert.deepEqual(typeof element._zoomControl.cleanup, "function");
+      assert.deepEqual(typeof element._zoomControl.reset, "function");
+      assert.deepEqual(typeof element._zoomControl.getState, "function");
+    });
+
+    it("should reset zoom when navigating to a different image", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [
+        createTestImage("test1.jpg", "Test 1"),
+        createTestImage("test2.jpg", "Test 2"),
+      ];
+      document.body.appendChild(element);
+      element.open();
+
+      let resetCalled = false;
+      const originalReset = element._zoomControl.reset;
+      element._zoomControl.reset = (...args) => {
+        resetCalled = true;
+        return originalReset(...args);
+      };
+
+      element.navigate(1);
+      assert(resetCalled);
+    });
+
+    it("should clean up pinch zoom when closed", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+
+      let cleanupCalled = false;
+      const originalCleanup = element._zoomControl.cleanup;
+      element._zoomControl.cleanup = (...args) => {
+        cleanupCalled = true;
+        return originalCleanup(...args);
+      };
+
+      element.close();
+      assert(cleanupCalled);
+      assert.deepEqual(element._zoomControl, null);
+    });
+
+    it("should not throw on a stray event fired at the image after close", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+      const img = element.querySelector("img");
+
+      element.close();
+
+      assert.doesNotThrow(() => {
+        img.dispatchEvent(
+          new Event("wheel", { bubbles: true, cancelable: true }),
+        );
+      });
+    });
+  });
+
   describe("LightboxDialog - keyboard navigation", () => {
     it("should close on Escape key", () => {
       const element = document.createElement("lightbox-dialog");
