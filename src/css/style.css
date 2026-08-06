@@ -7684,6 +7684,10 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .lightbox {
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
   position: fixed;
   top: 0;
   left: 0;
