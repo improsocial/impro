@@ -51,6 +51,12 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/drafts-dialog.js";
 
 const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
+// A real keystroke (including a composed IME character) inserts a handful
+// of characters at most; anything longer in one input event is a paste or
+// autocomplete-style bulk insert, whatever the keyboard reports for
+// inputType. Comfortably above IME composition bursts, comfortably below
+// the shortest realistic pasted URL (e.g. "http://a.io" is 11 characters).
+const BULK_TEXT_INSERT_THRESHOLD = 8;
 
 function isDraftTextSavable(text) {
   return graphemeCount(text) <= MAX_DRAFT_GRAPHEME_LENGTH;
@@ -1144,19 +1150,28 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState) return;
     this._isDirty = true;
+    const previousText = postState.text;
     const previousFacets = postState.unresolvedFacets;
     const unresolvedFacets = e.detail.facets;
     this._updatePost(postId, { text: e.detail.text, unresolvedFacets });
     // If the facets *haven't* changed, and the latest change was a space or
     // newline, check for possible link embeds. Also check immediately if
-    // this input reports itself as a paste: some Android keyboards insert
-    // clipboard content as regular input events rather than firing a native
-    // paste event, so the dedicated paste handler below never sees it - this
-    // is the fallback for that case.
+    // this input reports itself as a paste (e.detail.inputType), or if a
+    // large chunk of text just appeared in one event regardless of what the
+    // keyboard reports: some Android keyboards insert clipboard content as
+    // regular input events rather than firing a native paste event, and
+    // don't reliably set inputType to "insertFromPaste" either - the
+    // dedicated paste handler below never sees these, so a real single
+    // keystroke's length is the only keyboard-agnostic signal left to catch
+    // them by.
+    const insertedLength = e.detail.text.length - previousText.length;
+    const looksLikeBulkInsert =
+      e.detail.inputType === "insertFromPaste" ||
+      insertedLength > BULK_TEXT_INSERT_THRESHOLD;
     if (
       (JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
         (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))) ||
-      e.detail.inputType === "insertFromPaste"
+      looksLikeBulkInsert
     ) {
       for (const facet of unresolvedFacets) {
         // Only handle one feature for now

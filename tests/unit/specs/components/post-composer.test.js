@@ -1008,6 +1008,45 @@ describe("post-composer", () => {
       );
     });
 
+    it("attaches an external link embed immediately when a large chunk of text appears in one input event, even without an inputType hint", () => {
+      // Some keyboards (e.g. Samsung Keyboard) don't reliably set
+      // inputType: "insertFromPaste" for IME-driven clipboard inserts
+      // either, so this is the keyboard-agnostic fallback: a big jump in
+      // text length within a single event, regardless of what (if
+      // anything) the keyboard reports.
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "", unresolvedFacets: [] });
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: "check this out https://example.com/article",
+          facets: [makeLinkFacet("https://example.com/article")],
+          inputType: null,
+        },
+      });
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
+        "https://example.com/article",
+      );
+    });
+
+    it("still waits for a trailing space when a link facet completes via a single ordinary keystroke", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        text: "https://example.co",
+        unresolvedFacets: [],
+      });
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: "https://example.com",
+          facets: [makeLinkFacet("https://example.com")],
+          inputType: null,
+        },
+      });
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
+    });
+
     it("does not attach an external link embed for a rejected URL", async () => {
       const element = createPostComposer();
       connectElement(element);
