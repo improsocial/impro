@@ -1147,10 +1147,16 @@ class PostComposer extends Component {
     const previousFacets = postState.unresolvedFacets;
     const unresolvedFacets = e.detail.facets;
     this._updatePost(postId, { text: e.detail.text, unresolvedFacets });
-    // If the facets *haven't* changed, and the latest change was a space or newline, check for possible link embeds
+    // If the facets *haven't* changed, and the latest change was a space or
+    // newline, check for possible link embeds. Also check immediately if
+    // this input reports itself as a paste: some Android keyboards insert
+    // clipboard content as regular input events rather than firing a native
+    // paste event, so the dedicated paste handler below never sees it - this
+    // is the fallback for that case.
     if (
-      JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
-      (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))
+      (JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
+        (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))) ||
+      e.detail.inputType === "insertFromPaste"
     ) {
       for (const facet of unresolvedFacets) {
         // Only handle one feature for now

@@ -985,6 +985,29 @@ describe("post-composer", () => {
       );
     });
 
+    it("attaches an external link embed immediately when handleInput reports a paste (no trailing space needed)", () => {
+      // Some Android keyboards insert clipboard content as a regular input
+      // event instead of firing a native paste event, so this exercises the
+      // handleInput fallback rather than handlePaste directly. previousFacets
+      // ([]) differs from the event's facets, so the pre-existing "unchanged
+      // facets + trailing space" branch can't be what triggers this - only
+      // the inputType check can.
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { unresolvedFacets: [] });
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: "check this out https://example.com/article",
+          facets: [makeLinkFacet("https://example.com/article")],
+          inputType: "insertFromPaste",
+        },
+      });
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
+        "https://example.com/article",
+      );
+    });
+
     it("does not attach an external link embed for a rejected URL", async () => {
       const element = createPostComposer();
       connectElement(element);
