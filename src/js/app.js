@@ -45,6 +45,7 @@ import { auth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
 import { SystemNotificationService } from "/js/systemNotificationService.js";
+import { CourierPushService } from "/js/push/courierPushService.js";
 import { PostComposerService } from "/js/postComposerService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
@@ -135,6 +136,7 @@ export async function main() {
           router,
         )
       : null;
+  const courierPushService = session ? new CourierPushService(api) : null;
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
         draftsEnabled: await checkDraftsEnabled(),
@@ -205,6 +207,12 @@ export async function main() {
     systemNotificationService.start();
   }
 
+  if (courierPushService) {
+    courierPushService.reassertIfEnabled().catch((error) => {
+      console.error("Failed to re-assert push registration", error);
+    });
+  }
+
   const context = {
     isAuthenticated: !!session,
     api,
@@ -213,6 +221,7 @@ export async function main() {
     notificationService,
     chatNotificationService,
     systemNotificationService,
+    courierPushService,
     postComposerService,
     accountSwitcherService,
     reportService,

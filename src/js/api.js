@@ -730,6 +730,32 @@ export class Api {
     return res.data.count;
   }
 
+  // PDS-forwarded to the notification service named by serviceDid (per
+  // BSKY_PUSH_NOTIFICATION_SERVICE_SPEC.md's "Device registration" section)
+  // rather than the appview, so atproto-proxy targets serviceDid's own
+  // #bsky_notif endpoint instead of bskyAppViewServiceDid.
+  async registerPush({ serviceDid, token, platform, appId }) {
+    const res = await this.request("app.bsky.notification.registerPush", {
+      method: "POST",
+      body: { serviceDid, token, platform, appId },
+      headers: {
+        "atproto-proxy": `${serviceDid}#bsky_notif`,
+      },
+    });
+    return res.data;
+  }
+
+  async unregisterPush({ serviceDid, token }) {
+    const res = await this.request("app.bsky.notification.unregisterPush", {
+      method: "POST",
+      body: { serviceDid, token },
+      headers: {
+        "atproto-proxy": `${serviceDid}#bsky_notif`,
+      },
+    });
+    return res.data;
+  }
+
   async getNotifications({ cursor, limit = 31, reasons, labelers = [] } = {}) {
     const query = { cursor: cursor ?? "", limit };
     if (reasons?.length) {

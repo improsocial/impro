@@ -24,7 +24,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 class SettingsView extends View {
-  async render({ root, context: { dataLayer } }) {
+  async render({ root, context: { dataLayer, courierPushService } }) {
     const currentSession = await auth.requireAuth();
     const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
@@ -331,6 +331,12 @@ class SettingsView extends View {
                     }))
                   ) {
                     return;
+                  }
+                  // Must always run on logout: courier polls server-side, so
+                  // nothing else stops pushes reaching this device once
+                  // signed out (see CourierPushService.disable).
+                  if (courierPushService?.isEnabled) {
+                    await courierPushService.disable();
                   }
                   await auth.logout();
                   window.location.reload();
