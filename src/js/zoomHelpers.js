@@ -91,16 +91,7 @@ export function enablePinchZoom(
   }
 
   // Zooms to `targetScale`, keeping the screen point (pointX, pointY)
-  // visually stationary. Given the transform translate(tx,ty) scale(s),
-  // a screen point P maps to image content at localOffset = (P - baseCenter
-  // - t) / s, where baseCenter is the element's unscaled/untranslated
-  // center. Keeping the same content point under P as s changes from s0 to
-  // s1 means (P - baseCenter - t0)/s0 = (P - baseCenter - t1)/s1; solving
-  // for t1 with d = P - baseCenter and ratio = s1/s0 gives:
-  //   t1 = d * (1 - ratio) + t0 * ratio
-  // e.g. zooming 2x around a point at offset d from center moves translate
-  // to -d, which exactly cancels the point's new scaled offset (2d),
-  // leaving it stationary.
+  // visually stationary.
   function zoomTo(targetScale, pointX, pointY, { animate = false } = {}) {
     const newScale = Math.max(minScale, Math.min(maxScale, targetScale));
     const rect = img.getBoundingClientRect();
@@ -162,11 +153,7 @@ export function enablePinchZoom(
 
   function onPointerDown(event) {
     if (event.button > 0) return;
-    // Best-effort: capture can throw (e.g. NotFoundError) if the browser
-    // considers the pointer no longer active by the time this runs. That
-    // shouldn't abort gesture tracking - without capture the gesture just
-    // breaks if a finger strays off the img mid-move, which is an
-    // acceptable degradation, not a hard failure.
+    // Tie pointer events to the img, if possible
     try {
       img.setPointerCapture?.(event.pointerId);
     } catch {
