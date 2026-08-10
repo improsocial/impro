@@ -1,10 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-// PluginBridge reads window.env.playwright during loadFromSource; provide it
-// so the import resolves cleanly. Individual tests avoid the real load path.
-globalThis.window.env = globalThis.window.env ?? { playwright: true };
-
 const {
   PluginBridge,
   PluginInstance,
