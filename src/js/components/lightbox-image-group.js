@@ -2,6 +2,8 @@ import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
 import { enablePinchZoom } from "/js/zoomHelpers.js";
+import { scrollLocks } from "/js/scrollLocks.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -11,12 +13,14 @@ class LightboxDialog extends Component {
     if (this._initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.innerHTML = "";
     this.hideAltText = this.getAttribute("hide-alt-text") === "true";
     this.imageShape = this.getAttribute("image-shape");
     this.currentIndex = this.currentIndex || 0;
     this.images = this.images || [];
     this.isOpen = false;
+    this.scrollLock = null;
     this._imageLoader = this._imageLoader || new ImageLoader();
     this.render();
     this._initialized = true;
@@ -56,13 +60,28 @@ class LightboxDialog extends Component {
 
     render(
       html`
-        <div
+        <dialog
           class="lightbox"
-          style="display: flex;"
+          autofocus
           @click=${(e) => {
-            if (e.target.classList.contains("lightbox")) {
+            if (e.target.tagName === "DIALOG") {
               this.close();
             }
+          }}
+          @cancel=${(e) => {
+            e.preventDefault();
+            this.close();
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this._zoomControl?.cleanup();
+            this._zoomControl = null;
+            document.removeEventListener("keydown", this.handleKeyDown);
+            this.isOpen = false;
+            this._imageLoader.abort();
+            this.render();
+            this.dispatchEvent(new Event("close"));
           }}
         >
           <div
@@ -110,32 +129,31 @@ class LightboxDialog extends Component {
           ${alt && !this.hideAltText
             ? html`<p class="lightbox-alt-text">${alt}</p>`
             : ""}
-        </div>
+        </dialog>
       `,
       this,
     );
   }
 
   open() {
-    document.body.style.overflow = "hidden";
     this.isOpen = true;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
     this.render();
+    this.querySelector(".lightbox").showModal();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     this._zoomControl = enablePinchZoom(this.querySelector("img"), {
       container: this.querySelector(".lightbox"),
     });
   }
 
+  disconnectedCallback() {
+    this.scrollLock?.release();
+    this.scrollLock = null;
+  }
+
   close() {
-    document.body.style.overflow = "";
-    document.removeEventListener("keydown", this.handleKeyDown);
-    this._zoomControl?.cleanup();
-    this._zoomControl = null;
-    this.isOpen = false;
-    this._imageLoader.abort();
-    this.render();
-    this.dispatchEvent(new Event("close"));
+    return closeWithAnimation(this.querySelector(".lightbox"));
   }
 
   navigate(steps) {
@@ -148,9 +166,7 @@ class LightboxDialog extends Component {
   }
 
   handleKeyDown(e) {
-    if (e.key === "Escape") {
-      this.close();
-    } else if (e.key === "ArrowLeft") {
+    if (e.key === "ArrowLeft") {
       this.navigate(-1);
     } else if (e.key === "ArrowRight") {
       this.navigate(1);

@@ -1,6 +1,21 @@
 {
   "entryPoints": ["main.js"],
+  "plugin": ["typedoc-plugin-markdown"],
   "tsconfig": "tsconfig.typedoc.json",
   "out": "docs",
-  "excludeInternal": true
+  "excludeInternal": true,
+  "disableSources": true,
+  "router": "module",
+  "mergeReadme": true,
+  "entryFileName": "docs",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "indexFormat": "table",
+  "parametersFormat": "table",
+  "classPropertiesFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "propertyMembersFormat": "table",
+  "typeAliasPropertiesFormat": "table",
+  "typeDeclarationFormat": "table",
+  "enumMembersFormat": "table"
 }

@@ -51,6 +51,8 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/drafts-dialog.js";
 
 const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
+// Threshold for detecting pasted text, since InputEvent.inputType is unreliable
+const BULK_TEXT_INSERT_THRESHOLD = 8;
 
 function isDraftTextSavable(text) {
   return graphemeCount(text) <= MAX_DRAFT_GRAPHEME_LENGTH;
@@ -1144,14 +1146,24 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState) return;
     this._isDirty = true;
+    const previousText = postState.text;
     const previousFacets = postState.unresolvedFacets;
     const unresolvedFacets = e.detail.facets;
     this._updatePost(postId, { text: e.detail.text, unresolvedFacets });
-    // If the facets *haven't* changed, and the latest change was a space or newline, check for possible link embeds
-    if (
-      JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
-      (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))
-    ) {
+    // If the facets *haven't* changed, and the latest change was a space or
+    // newline, check for possible link embeds. Also check for embeds
+    // immediately on bulk inserts (paste).
+    const facetsChanged =
+      JSON.stringify(previousFacets) !== JSON.stringify(unresolvedFacets);
+    const isCommit =
+      e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n");
+    const insertedLength =
+      graphemeCount(e.detail.text) - graphemeCount(previousText);
+    const isBulkInsert =
+      e.detail.inputType === "insertFromPaste" ||
+      e.detail.inputType === "insertFromDrop" ||
+      insertedLength > BULK_TEXT_INSERT_THRESHOLD;
+    if ((!facetsChanged && isCommit) || isBulkInsert) {
       for (const facet of unresolvedFacets) {
         // Only handle one feature for now
         const feature = facet.features[0];
@@ -1178,7 +1190,7 @@ class PostComposer extends Component {
     }
     // If the facets have changed, check to see if links have been removed.
     // This will allow links to be re-added after being rejected.
-    if (JSON.stringify(previousFacets) !== JSON.stringify(unresolvedFacets)) {
+    if (facetsChanged) {
       const linkFacetUrls = unresolvedFacets
         .filter(
           (facet) => facet.features[0].$type === "app.bsky.richtext.facet#link",
@@ -1199,28 +1211,6 @@ class PostComposer extends Component {
       this.addMediaFiles(postId, pastedFiles);
       return;
     }
-    // Attach link embeds immediately if a link is pasted
-    // Wait a tick so handleInput runs first
-    requestAnimationFrame(() => {
-      const postState = this._getPost(postId);
-      if (!postState) return;
-      for (const facet of postState.unresolvedFacets) {
-        const feature = facet.features[0];
-        if (feature.$type === "app.bsky.richtext.facet#link") {
-          const url = feature.uri;
-          if (postState.rejectedLinkEmbeds.has(url)) continue;
-          if (parseRecordLink(url)) {
-            if (!postState.quotedRecord && !postState.quotedRecordUrl) {
-              this._updatePost(postId, { quotedRecordUrl: url });
-              this.loadQuotedRecordFromLink(postId);
-            }
-          } else if (!postState.externalLinkUrl) {
-            this._updatePost(postId, { externalLinkUrl: url });
-            this.loadExternalLinkEmbedPreview(postId);
-          }
-        }
-      }
-    });
   }
 
   async loadExternalLinkEmbedPreview(postId) {

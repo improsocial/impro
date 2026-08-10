@@ -34,6 +34,7 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/_headers");
   eleventyConfig.addPassthroughCopy("src/_routes.json");
   eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
+  eleventyConfig.addWatchTarget("impro-plugin/main.js");
 
   // Prevent sandbox from being treated as a template
   eleventyConfig.ignores.add("src/plugin-sandbox.html");
