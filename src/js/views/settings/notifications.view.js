@@ -82,7 +82,7 @@ class SettingsNotificationsView extends View {
               data-testid="settings-section-system-notifications"
             >
               <div class="setting-item-info">
-                <h2 class="setting-item-name">Enable system notifications</h2>
+                <h2 class="setting-item-name">Enable desktop notifications</h2>
                 <p class="setting-item-desc">${description}</p>
               </div>
               <div class="setting-item-control">
