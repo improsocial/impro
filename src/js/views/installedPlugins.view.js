@@ -346,6 +346,7 @@ class InstalledPluginsView extends View {
     });
 
     root.addEventListener("page-restore", (e) => {
+      const scrollY = e.detail?.scrollY ?? 0;
       const isBack = e.detail?.isBack ?? false;
       if (isBack) {
         if (scrollY > 0) {
