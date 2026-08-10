@@ -300,6 +300,48 @@ test.describe("Installed plugins view", () => {
     await expect(sampleItem.locator("a.plugin-list-item-info")).toHaveCount(0);
   });
 
+  test("restores scroll position when navigating back", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REMOTE_REGISTRY_ENTRY];
+    mockServer.installedPlugins = [];
+    for (let i = 1; i <= 30; i++) {
+      mockServer.installedPlugins.push({
+        id: `remote-plugin-${i}`,
+        name: `Remote Plugin ${i}`,
+        author: "alice",
+        description: `Plugin number ${i}`,
+        repo: `alice/remote-plugin-${i}`,
+        version: "1.0.0",
+        enabled: false,
+      });
+    }
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/plugins/installed");
+
+    const lastItem = page.locator(".plugin-list-item", {
+      hasText: "Remote Plugin 30",
+    });
+    await expect(lastItem).toBeVisible({ timeout: 10000 });
+    await lastItem.scrollIntoViewIfNeeded();
+    const scrollY = await page.evaluate(() => window.scrollY);
+    expect(scrollY).toBeGreaterThan(0);
+
+    await lastItem.locator("a.plugin-list-item-info").click();
+    await expect(page.locator("#community-plugin-listing-view")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await page.goBack();
+    await expect(page.locator("#installed-plugins-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 })
+      .toBe(scrollY);
+  });
+
   test("redirects the old settings URLs", async ({ page }) => {
     const mockServer = new MockServer();
     seedInstalled(mockServer);
