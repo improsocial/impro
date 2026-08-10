@@ -735,25 +735,28 @@ export class Api {
   // rather than the appview, so atproto-proxy targets serviceDid's own
   // #bsky_notif endpoint instead of bskyAppViewServiceDid.
   async registerPush({ serviceDid, token, platform, appId }) {
-    const res = await this.request("app.bsky.notification.registerPush", {
+    // registerPush has no defined lexicon output, so the PDS proxies back an
+    // empty body on success — parseJson: false, since res.json() on an empty
+    // body throws (nothing here reads the response anyway).
+    await this.request("app.bsky.notification.registerPush", {
       method: "POST",
       body: { serviceDid, token, platform, appId },
       headers: {
         "atproto-proxy": `${serviceDid}#bsky_notif`,
       },
+      parseJson: false,
     });
-    return res.data;
   }
 
   async unregisterPush({ serviceDid, token }) {
-    const res = await this.request("app.bsky.notification.unregisterPush", {
+    await this.request("app.bsky.notification.unregisterPush", {
       method: "POST",
       body: { serviceDid, token },
       headers: {
         "atproto-proxy": `${serviceDid}#bsky_notif`,
       },
+      parseJson: false,
     });
-    return res.data;
   }
 
   async getNotifications({ cursor, limit = 31, reasons, labelers = [] } = {}) {
