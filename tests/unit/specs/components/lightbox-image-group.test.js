@@ -1,5 +1,6 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
+import { scrollLocks } from "/js/scrollLocks.js";
 import "/js/components/lightbox-image-group.js";
 
 describe("lightbox-image-group", () => {
@@ -323,21 +324,47 @@ describe("lightbox-image-group", () => {
       assert(eventFired);
     });
 
-    it("should set body overflow to hidden when opened", () => {
-      const element = document.createElement("lightbox-dialog");
-      element.images = [createTestImage("test.jpg", "Test")];
-      document.body.appendChild(element);
-      element.open();
-      assert.deepEqual(document.body.style.overflow, "hidden");
-    });
+    describe("scroll locking", () => {
+      let releaseCalls;
 
-    it("should restore body overflow when closed", () => {
-      const element = document.createElement("lightbox-dialog");
-      element.images = [createTestImage("test.jpg", "Test")];
-      document.body.appendChild(element);
-      element.open();
-      element.close();
-      assert.deepEqual(document.body.style.overflow, "");
+      beforeEach(() => {
+        releaseCalls = 0;
+        mock.method(scrollLocks, "acquire", () => ({
+          release: () => {
+            releaseCalls += 1;
+          },
+        }));
+      });
+
+      afterEach(() => {
+        mock.restoreAll();
+      });
+
+      function openLightbox() {
+        const element = document.createElement("lightbox-dialog");
+        element.images = [createTestImage("test.jpg", "Test")];
+        document.body.appendChild(element);
+        element.open();
+        return element;
+      }
+
+      it("should acquire a scroll lock when opened", () => {
+        openLightbox();
+        assert.deepEqual(scrollLocks.acquire.mock.callCount(), 1);
+      });
+
+      it("should release the scroll lock when closed", () => {
+        const element = openLightbox();
+        element.close();
+        assert.deepEqual(releaseCalls, 1);
+        assert.deepEqual(element.scrollLock, null);
+      });
+
+      it("should release the scroll lock when disconnected while open", () => {
+        const element = openLightbox();
+        element.remove();
+        assert.deepEqual(releaseCalls, 1);
+      });
     });
   });
 

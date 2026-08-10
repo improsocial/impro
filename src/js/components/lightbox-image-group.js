@@ -1,6 +1,7 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -18,6 +19,7 @@ class LightboxDialog extends Component {
     this.currentIndex = this.currentIndex || 0;
     this.images = this.images || [];
     this.isOpen = false;
+    this.scrollLock = null;
     this._imageLoader = this._imageLoader || new ImageLoader();
     this.render();
     this._initialized = true;
@@ -70,7 +72,8 @@ class LightboxDialog extends Component {
             this.close();
           }}
           @close=${() => {
-            document.body.style.overflow = "";
+            this.scrollLock?.release();
+            this.scrollLock = null;
             document.removeEventListener("keydown", this.handleKeyDown);
             this.isOpen = false;
             this._imageLoader.abort();
@@ -130,12 +133,17 @@ class LightboxDialog extends Component {
   }
 
   open() {
-    document.body.style.overflow = "hidden";
     this.isOpen = true;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
     this.render();
     this.querySelector(".lightbox").showModal();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
+  }
+
+  disconnectedCallback() {
+    this.scrollLock?.release();
+    this.scrollLock = null;
   }
 
   close() {
