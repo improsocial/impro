@@ -7688,6 +7688,8 @@ context-menu-item-group > context-menu-item > button {
   left: 0;
   width: 100%;
   height: 100%;
+  max-width: none;
+  max-height: none;
   background-color: var(--overlay-color-darkest);
   display: flex;
   flex-direction: column;
