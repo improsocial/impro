@@ -7704,6 +7704,8 @@ context-menu-item-group > context-menu-item > button {
   object-fit: contain;
   display: block;
   box-shadow: var(--shadow-color-lightbox);
+  touch-action: none;
+  will-change: transform;
 }
 
 .lightbox img.lightbox-image-circle {
