@@ -1227,7 +1227,9 @@ class PostComposer extends Component {
     });
     let res = null;
     try {
-      res = await fetch(`${LINK_CARD_SERVICE_URL}/v1/extract?url=${url}`);
+      res = await fetch(
+        `${LINK_CARD_SERVICE_URL}/v1/extract?url=${encodeURIComponent(url)}`,
+      );
     } catch (error) {
       console.error("Error loading external link embed preview: ", error);
       return;
