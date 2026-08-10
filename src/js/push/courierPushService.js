@@ -1,6 +1,7 @@
 import { NOTIFICATION_SERVICE_DID } from "/js/config.js";
 
 const STORAGE_KEY = "courier-push-enabled";
+const PREVIEWS_KEY = "courier-push-chat-previews";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
@@ -53,7 +54,7 @@ function urlBase64ToUint8Array(base64String) {
 
 // Client-side half of spec/IMPRO_PUSH_NOTIFICATIONS.md's "Enable flow",
 // scoped down to a single hardcoded service (no user-selectable-service
-// picker, counts-tier only — no message-preview consent).
+// picker).
 export class CourierPushService {
   constructor(api) {
     this.api = api;
@@ -69,6 +70,14 @@ export class CourierPushService {
 
   get isEnabled() {
     return this.isSupported && localStorage.getItem(STORAGE_KEY) === "true";
+  }
+
+  // The tier the service last confirmed, per the spec's callback echo — not
+  // what was asked for. The grant is account-level, so another device may
+  // have changed it; only the echo is truthful, and it self-corrects every
+  // time the flow runs.
+  get chatPreviewsEnabled() {
+    return localStorage.getItem(PREVIEWS_KEY) === "true";
   }
 
   async fetchServiceConfig() {
@@ -90,7 +99,7 @@ export class CourierPushService {
   // auth handoff. Call this only after the user has confirmed the consent
   // interstitial — per the spec, consent must precede burning the one-shot
   // permission prompt in step 2.
-  async startEnableFlow() {
+  async startEnableFlow({ chatPreviews = false } = {}) {
     const config = await this.fetchServiceConfig();
     const returnUrl = `${window.location.origin}/settings/notifications`;
     if (!config.authUrl) {
@@ -100,16 +109,19 @@ export class CourierPushService {
     const url = new URL(config.authUrl);
     url.searchParams.set("login_hint", this.api.session.did);
     url.searchParams.set("return_url", returnUrl);
-    url.searchParams.set("chat_previews", "0");
+    url.searchParams.set("chat_previews", chatPreviews ? "1" : "0");
     window.location.href = url.toString();
     await new Promise(() => {}); // unreachable: navigating away
   }
 
   // Step 2: called by the settings view when it detects a return from the
-  // auth handoff (a `chat_previews` query param with no `error`).
-  async completeEnableFlow() {
+  // auth handoff. `chatPreviews` is the service's echo of the tier it
+  // actually granted, which is what gets persisted — never what was
+  // requested.
+  async completeEnableFlow({ chatPreviews = false } = {}) {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
+    localStorage.setItem(PREVIEWS_KEY, chatPreviews ? "true" : "false");
   }
 
   async _subscribeAndRegister(config) {
@@ -159,6 +171,7 @@ export class CourierPushService {
   // for a logged-out account from reaching this device).
   async disable() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PREVIEWS_KEY);
     if (!("serviceWorker" in navigator)) return;
     const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
     const subscription = await registration?.pushManager.getSubscription();

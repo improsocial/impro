@@ -18,6 +18,9 @@ function consumeCourierCallbackParams() {
   const result = {
     error: params.get("error"),
     errorDescription: params.get("error_description"),
+    // The tier the service actually granted, which can differ from what was
+    // asked for — the grant is account-level.
+    chatPreviews: params.get("chat_previews") === "1",
   };
   history.replaceState(null, "", window.location.pathname);
   return result;
@@ -37,6 +40,9 @@ class SettingsNotificationsView extends View {
     );
     const $pushEnabled = new Signal.State(
       courierPushService?.isEnabled ?? false,
+    );
+    const $chatPreviews = new Signal.State(
+      courierPushService?.chatPreviewsEnabled ?? false,
     );
     const $pushBusy = new Signal.State(false);
 
@@ -84,7 +90,34 @@ class SettingsNotificationsView extends View {
       );
       if (!confirmed) return;
       try {
-        await courierPushService.startEnableFlow();
+        await courierPushService.startEnableFlow({
+          chatPreviews: $chatPreviews.get(),
+        });
+      } catch (error) {
+        console.error(error);
+        showToast("Couldn't reach the notification service.", {
+          style: "error",
+        });
+      }
+    }
+
+    // Changing tier is a re-authorization, not a local setting: it re-walks
+    // the handoff for the other scope set. Enabling previews additionally
+    // needs consent, since it lets the service read message content.
+    async function handlePreviewsToggle(checked) {
+      if (!courierPushService) return;
+      if (checked) {
+        const confirmed = await confirmModal(
+          "Message previews let Impro Courier read the content of your messages, so it can show who sent a message and what it says. Without this, chat notifications only tell you that you have unread messages.",
+          {
+            title: "Show message previews?",
+            confirmButtonText: "Continue",
+          },
+        );
+        if (!confirmed) return;
+      }
+      try {
+        await courierPushService.startEnableFlow({ chatPreviews: checked });
       } catch (error) {
         console.error(error);
         showToast("Couldn't reach the notification service.", {
@@ -107,8 +140,11 @@ class SettingsNotificationsView extends View {
       }
       $pushBusy.set(true);
       try {
-        await courierPushService.completeEnableFlow();
+        await courierPushService.completeEnableFlow({
+          chatPreviews: callback.chatPreviews,
+        });
         $pushEnabled.set(true);
+        $chatPreviews.set(callback.chatPreviews);
         showToast("Push notifications enabled.");
       } catch (error) {
         console.error(error);
@@ -147,6 +183,7 @@ class SettingsNotificationsView extends View {
 
       const pushEnabled = $pushEnabled.get();
       const pushBusy = $pushBusy.get();
+      const chatPreviews = $chatPreviews.get();
       const pushSupported = courierPushService?.isSupported ?? false;
       const pushDescription = pushSupported
         ? "Get notified even when Impro is closed, via Impro Courier."
@@ -197,6 +234,31 @@ class SettingsNotificationsView extends View {
                 ></toggle-switch>
               </div>
             </section>
+            ${pushEnabled
+              ? html`<section
+                  class="setting-item"
+                  data-testid="settings-section-chat-previews"
+                >
+                  <div class="setting-item-info">
+                    <h2 class="setting-item-name">Show message previews</h2>
+                    <p class="setting-item-desc">
+                      Include the sender and message text in chat notifications.
+                      This lets Impro Courier read your messages. With this off,
+                      chat notifications only say that you have unread messages.
+                    </p>
+                  </div>
+                  <div class="setting-item-control">
+                    <toggle-switch
+                      data-testid="chat-previews-toggle"
+                      label="Show message previews"
+                      ?checked=${chatPreviews}
+                      ?disabled=${pushBusy}
+                      @change=${(event) =>
+                        handlePreviewsToggle(event.detail.checked)}
+                    ></toggle-switch>
+                  </div>
+                </section>`
+              : null}
           </main>
         </div>`,
         root,
