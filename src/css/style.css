@@ -7010,10 +7010,18 @@ button.profile-list-item-button.is-disabled {
 .context-menu {
   z-index: var(--context-menu-z-index);
   background-color: var(--background-color);
-  padding: 16px 16px calc(var(--safe-area-inset-bottom) + 16px);
+  padding: 16px 0 0;
   touch-action: pan-y;
   max-height: 90dvh;
-  overflow-y: auto;
+  flex-direction: column;
+}
+
+.context-menu[open] {
+  display: flex;
+}
+
+.context-menu-body {
+  padding: 0 16px calc(var(--safe-area-inset-bottom) + 16px);
   overscroll-behavior: contain;
 }
 
