@@ -1,7 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { enablePinchZoom } from "/js/zoomHelpers.js";
-import { wait } from "/js/utils.js";
 
 function pointerEvent(
   type,
@@ -246,7 +245,9 @@ describe("enablePinchZoom", () => {
     assert.equal(control.getState().scale, 2.5);
   });
 
-  it("does not treat two slow taps as a double-tap", async () => {
+  it("does not treat two slow taps as a double-tap", (t) => {
+    let clock = 0;
+    t.mock.method(performance, "now", () => clock);
     const { img, control } = createZoomableImg({ trackScale: true });
 
     const tap = (pointerId) => {
@@ -259,7 +260,7 @@ describe("enablePinchZoom", () => {
     };
 
     tap(1);
-    await wait(350);
+    clock += 350;
     tap(2);
 
     assert.equal(control.getState().scale, 1);
