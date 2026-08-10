@@ -1,7 +1,8 @@
 npm run format && npm run test:unit
 
 # Rebuild plugin docs if source changed
-if git diff --cached --name-only --diff-filter=ACMR | grep -q '^impro-plugin/main\.js$'; then
+DOC_INPUTS='^impro-plugin/(main\.js|typedoc\.json|tsconfig\.typedoc\.json|typedoc-support/|docs/)'
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE "$DOC_INPUTS"; then
   npm run docs --prefix impro-plugin
   git add impro-plugin/docs
 fi

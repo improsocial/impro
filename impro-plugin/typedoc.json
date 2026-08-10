@@ -1,8 +1,12 @@
 {
   "entryPoints": ["main.js"],
-  "plugin": ["typedoc-plugin-markdown"],
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "./typedoc-support/stripEmptyParamComments.js"
+  ],
   "tsconfig": "tsconfig.typedoc.json",
   "out": "docs",
+  "readme": "./typedoc-support/docs-header.md",
   "excludeInternal": true,
   "disableSources": true,
   "router": "module",
