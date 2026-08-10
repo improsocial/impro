@@ -29,16 +29,15 @@ const logger = new Logger("[plugins]", isDev() ? "info" : "warn");
 
 // Has same API as Worker, but runs code in a sandboxed iframe
 export class SandboxedWorker extends EventTarget {
-  constructor(source) {
+  constructor(wrappedSource) {
     super();
-    this.source = source;
     this.frame = this._createSandboxFrame();
     this._messageTarget = this.frame.contentWindow;
     this._handleWindowMessage = this._handleWindowMessage.bind(this);
     window.addEventListener("message", this._handleWindowMessage);
     this.frame.addEventListener("load", () => {
       this.frame.contentWindow.postMessage(
-        { type: "init", workerSource: wrapWorkerSource(source) },
+        { type: "init", workerSource: wrappedSource },
         "*",
       );
     });
@@ -79,34 +78,63 @@ export class SandboxedWorker extends EventTarget {
   }
 }
 
-export function wrapWorkerSource(source) {
+export class PluginSdkError extends Error {}
+
+let __sdkSourcePromise = null;
+
+function getSdkSource() {
+  if (__sdkSourcePromise == null) {
+    __sdkSourcePromise = fetch(`/plugin-sdk/${window.env.pluginSdkFileName}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .catch((error) => {
+        __sdkSourcePromise = null;
+        throw new PluginSdkError(
+          `Could not fetch plugin SDK: ${error.message}`,
+        );
+      });
+  }
+  return __sdkSourcePromise;
+}
+
+export async function wrapWorkerSource(source) {
+  const sdkSource = await getSdkSource();
   return /* js */ `
     delete self.BroadcastChannel;
     delete self.SharedWorker;
 
-    self.module = {}
+    ${sdkSource}
+
+    self.module = {};
+
+    self.require = (name) => {
+      if (name === "@impro.social/impro-plugin") return ImproPlugin;
+      throw new Error("Cannot find module \\"" + name + "\\"");
+    };
 
     ${source}
 
-    const pluginClass = self.module.exports?.default
+    const pluginClass = self.module.exports?.default;
     if (pluginClass) {
-      pluginClass.register()
+      pluginClass.register();
     }
   `;
 }
 
-async function createSandboxedWorker(source) {
-  const worker = new SandboxedWorker(source);
+function createSandboxedWorker(wrappedSource) {
+  const worker = new SandboxedWorker(wrappedSource);
   // in the future, we could add a handshake here to ensure worker has loaded
   return worker;
 }
 
 // Direct (unsandboxed) Worker for e2e tests
-async function createDirectWorker(source) {
-  const blob = new Blob([wrapWorkerSource(source)], {
+function createDirectWorker(wrappedSource) {
+  const blob = new Blob([wrappedSource], {
     type: "text/javascript",
   });
-  return new Worker(URL.createObjectURL(blob), { type: "module" });
+  return new Worker(URL.createObjectURL(blob));
 }
 
 export class PluginInstance {
@@ -158,9 +186,10 @@ export class PluginInstance {
   }
 
   static async loadFromSource(pluginId, manifest, source, callbacks) {
+    const wrappedSource = await wrapWorkerSource(source);
     const worker = !window.env.playwright // don't sandbox in e2e tests
-      ? await createSandboxedWorker(source)
-      : await createDirectWorker(source);
+      ? createSandboxedWorker(wrappedSource)
+      : createDirectWorker(wrappedSource);
     const instance = new PluginInstance(pluginId, manifest, worker, callbacks);
     try {
       return await instance.waitForReady(2000);
@@ -377,6 +406,10 @@ export class PluginBridge {
       return pluginInstance;
     } catch (error) {
       this._pluginStylesLoader.unmount(pluginId);
+      if (error instanceof PluginSdkError) {
+        logger.error(`could not load "${pluginId}": plugin SDK unavailable`);
+        throw new Error("Plugin system failed to load");
+      }
       logger.error(`"${pluginId}" failed during initialization:`, error);
       throw new Error("Plugin failed during initialization");
     }

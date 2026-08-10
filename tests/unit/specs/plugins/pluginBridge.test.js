@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 // PluginBridge reads window.env.playwright during loadFromSource; provide it
@@ -10,8 +10,24 @@ const {
   PluginInstance,
   SandboxedWorker,
   Logger,
+  PluginSdkError,
   wrapWorkerSource,
 } = await import("/js/plugins/pluginBridge.js");
+
+const SDK_SOURCE = "var ImproPlugin = { Plugin: class {} };";
+
+// wrapWorkerSource fetches the built SDK bundle. Registered inside a describe
+// so the hooks stay scoped to it (spec files share one process).
+function useStubbedSdkFetch() {
+  let originalFetch;
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: true, text: async () => SDK_SOURCE });
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+}
 
 class FakeWorker {
   constructor() {
@@ -150,11 +166,78 @@ async function expectError(promise) {
 }
 
 describe("PluginBridge:wrapWorkerSource", () => {
-  it("prepends a prelude that removes BroadcastChannel/SharedWorker", () => {
-    const wrapped = wrapWorkerSource("console.info('hi')");
+  useStubbedSdkFetch();
+
+  it("prepends a prelude that removes BroadcastChannel/SharedWorker", async () => {
+    const wrapped = await wrapWorkerSource("console.info('hi')");
     assert(wrapped.includes("delete self.BroadcastChannel"));
     assert(wrapped.includes("delete self.SharedWorker"));
     assert(wrapped.includes("console.info('hi')"));
+  });
+
+  it("inlines the SDK bundle", async () => {
+    const wrapped = await wrapWorkerSource("console.info('hi')");
+    assert(wrapped.includes(SDK_SOURCE));
+  });
+
+  // Runs the wrapped source against a stand-in `self` so the require shim is
+  // exercised for real: a mismatch between the bundle's global name and the
+  // identifier the shim returns is a ReferenceError here rather than a
+  // runtime failure in the worker.
+  it("resolves the SDK package through the require shim", async () => {
+    const wrapped = await wrapWorkerSource("");
+    const workerSelf = {};
+    new Function("self", wrapped)(workerSelf);
+    const sdk = workerSelf.require("@impro.social/impro-plugin");
+    assert(typeof sdk.Plugin === "function");
+  });
+
+  it("throws from require for any other module name", async () => {
+    const wrapped = await wrapWorkerSource("");
+    const workerSelf = {};
+    new Function("self", wrapped)(workerSelf);
+    assert.throws(() => workerSelf.require("node:fs"), {
+      message: 'Cannot find module "node:fs"',
+    });
+  });
+});
+
+describe("PluginBridge:SDK fetch failures", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  // A fresh module instance per test, since the SDK source is memoized in a
+  // module global that other tests in this process may already have primed.
+  // The error class comes from that same instance, so instanceof still holds.
+  async function freshBridgeModule(name) {
+    return import(`/js/plugins/pluginBridge.js?${name}`);
+  }
+
+  it("rejects with a PluginSdkError rather than a generic error", async () => {
+    globalThis.fetch = async () => ({ ok: false, status: 503 });
+    const fresh = await freshBridgeModule("sdk-unavailable");
+    const error = await expectError(fresh.wrapWorkerSource("user();"));
+    assert(error instanceof fresh.PluginSdkError);
+    assert(error.message.includes("503"));
+  });
+
+  it("does not memoize the failure, so a later load can succeed", async () => {
+    globalThis.fetch = async () => {
+      throw new TypeError("network down");
+    };
+    const fresh = await freshBridgeModule("sdk-retry");
+    await expectError(fresh.wrapWorkerSource("user();"));
+
+    globalThis.fetch = async () => ({ ok: true, text: async () => SDK_SOURCE });
+    const wrapped = await fresh.wrapWorkerSource("user();");
+    assert(wrapped.includes(SDK_SOURCE));
   });
 });
 
@@ -659,6 +742,30 @@ describe("PluginBridge:loadPlugin success path", () => {
     assert.deepEqual(bridge.isLoaded("p1"), false);
   });
 
+  it("blames the host, not the plugin, when the SDK can't be loaded", async () => {
+    const provider = makeProvider({ source: "// js", styles: ".x {}" });
+    const stylesLoader = makeStylesLoader();
+    const loadPluginInstance = async () => {
+      throw new PluginSdkError("Could not fetch plugin SDK: HTTP 503");
+    };
+    const { bridge } = makeBridge({
+      provider,
+      stylesLoader,
+      loadPluginInstance,
+    });
+    const originalError = console.error;
+    console.error = () => {};
+    let error;
+    try {
+      error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
+    } finally {
+      console.error = originalError;
+    }
+    assert.deepEqual(error.message, "Plugin system failed to load");
+    assert.deepEqual(stylesLoader.unmounts, ["p1"]);
+    assert.deepEqual(bridge.isLoaded("p1"), false);
+  });
+
   it("routes onRegister and onHostCall callbacks back through the bridge", async () => {
     const provider = makeProvider({ source: "// js" });
     let capturedCallbacks;
@@ -985,8 +1092,10 @@ describe("internals:Logger", () => {
 });
 
 describe("internals:wrapWorkerSource ordering", () => {
-  it("places the prelude before the user source so it runs first", () => {
-    const wrapped = wrapWorkerSource("user();");
+  useStubbedSdkFetch();
+
+  it("places the prelude before the user source so it runs first", async () => {
+    const wrapped = await wrapWorkerSource("user();");
     const preludeIndex = wrapped.indexOf("delete self.BroadcastChannel");
     const sourceIndex = wrapped.indexOf("user();");
     assert(preludeIndex >= 0 && sourceIndex >= 0);
