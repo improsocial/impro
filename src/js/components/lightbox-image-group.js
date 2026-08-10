@@ -1,6 +1,7 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -10,6 +11,7 @@ class LightboxDialog extends Component {
     if (this._initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.innerHTML = "";
     this.hideAltText = this.getAttribute("hide-alt-text") === "true";
     this.imageShape = this.getAttribute("image-shape");
@@ -55,13 +57,25 @@ class LightboxDialog extends Component {
 
     render(
       html`
-        <div
+        <dialog
           class="lightbox"
-          style="display: flex;"
+          autofocus
           @click=${(e) => {
-            if (e.target.classList.contains("lightbox")) {
+            if (e.target.tagName === "DIALOG") {
               this.close();
             }
+          }}
+          @cancel=${(e) => {
+            e.preventDefault();
+            this.close();
+          }}
+          @close=${() => {
+            document.body.style.overflow = "";
+            document.removeEventListener("keydown", this.handleKeyDown);
+            this.isOpen = false;
+            this._imageLoader.abort();
+            this.render();
+            this.dispatchEvent(new Event("close"));
           }}
         >
           <div
@@ -109,7 +123,7 @@ class LightboxDialog extends Component {
           ${alt && !this.hideAltText
             ? html`<p class="lightbox-alt-text">${alt}</p>`
             : ""}
-        </div>
+        </dialog>
       `,
       this,
     );
@@ -121,15 +135,11 @@ class LightboxDialog extends Component {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     document.addEventListener("keydown", this.handleKeyDown);
     this.render();
+    this.querySelector(".lightbox").showModal();
   }
 
   close() {
-    document.body.style.overflow = "";
-    document.removeEventListener("keydown", this.handleKeyDown);
-    this.isOpen = false;
-    this._imageLoader.abort();
-    this.render();
-    this.dispatchEvent(new Event("close"));
+    return closeWithAnimation(this.querySelector(".lightbox"));
   }
 
   navigate(steps) {
@@ -141,9 +151,7 @@ class LightboxDialog extends Component {
   }
 
   handleKeyDown(e) {
-    if (e.key === "Escape") {
-      this.close();
-    } else if (e.key === "ArrowLeft") {
+    if (e.key === "ArrowLeft") {
       this.navigate(-1);
     } else if (e.key === "ArrowRight") {
       this.navigate(1);

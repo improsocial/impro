@@ -50,6 +50,13 @@ describe("lightbox-image-group", () => {
       element.open();
       const lightbox = element.querySelector(".lightbox");
       assert(lightbox !== null);
+      assert.deepEqual(lightbox.tagName, "DIALOG");
+    });
+
+    it("should set data-dialog-wrapper on the host element", () => {
+      const element = document.createElement("lightbox-dialog");
+      document.body.appendChild(element);
+      assert(element.hasAttribute("data-dialog-wrapper"));
     });
 
     it("should render close button", () => {
@@ -335,13 +342,14 @@ describe("lightbox-image-group", () => {
   });
 
   describe("LightboxDialog - keyboard navigation", () => {
-    it("should close on Escape key", () => {
+    it("should close on Escape key (native dialog cancel event)", () => {
       const element = document.createElement("lightbox-dialog");
       element.images = [createTestImage("test.jpg", "Test")];
       document.body.appendChild(element);
       element.open();
 
-      element.handleKeyDown({ key: "Escape" });
+      const dialog = element.querySelector(".lightbox");
+      dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
       assert.deepEqual(element.isOpen, false);
     });
 
