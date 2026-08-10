@@ -967,13 +967,16 @@ describe("post-composer", () => {
       delete globalThis.fetch;
     });
 
+    function pasteLink(element, url, inputType = "insertFromPaste") {
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: url, facets: [makeLinkFacet(url)], inputType },
+      });
+    }
+
     it("attaches an external link embed immediately when a link is pasted", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, {
-        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
-      });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
+      pasteLink(element, "https://example.com/article");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         getFirstPost(element).externalLinkUrl,
@@ -981,6 +984,16 @@ describe("post-composer", () => {
       );
       assert.deepEqual(
         getFirstPost(element).external.url,
+        "https://example.com/article",
+      );
+    });
+
+    it("attaches an external link embed immediately when a link is dropped", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      pasteLink(element, "https://example.com/article", "insertFromDrop");
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
         "https://example.com/article",
       );
     });
@@ -1030,6 +1043,27 @@ describe("post-composer", () => {
       );
     });
 
+    it("attaches an external link embed when a trailing space follows a typed link", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const facet = makeLinkFacet("https://example.com");
+      patchFirstPost(element, {
+        text: "https://example.com",
+        unresolvedFacets: [facet],
+      });
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: "https://example.com ",
+          facets: [facet],
+          inputType: "insertText",
+        },
+      });
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
+        "https://example.com",
+      );
+    });
+
     it("still waits for a trailing space when a link facet completes via a single ordinary keystroke", () => {
       const element = createPostComposer();
       connectElement(element);
@@ -1053,10 +1087,7 @@ describe("post-composer", () => {
       getFirstPost(element).rejectedLinkEmbeds.add(
         "https://example.com/article",
       );
-      patchFirstPost(element, {
-        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
-      });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
+      pasteLink(element, "https://example.com/article");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
       assert.deepEqual(getFirstPost(element).external, null);
@@ -1066,10 +1097,7 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, { externalLinkUrl: "https://existing.com/page" });
-      patchFirstPost(element, {
-        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
-      });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
+      pasteLink(element, "https://example.com/article");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         getFirstPost(element).externalLinkUrl,
@@ -1084,12 +1112,7 @@ describe("post-composer", () => {
       element.loadQuotedRecordFromLink = () => {
         loadedQuoteUrl = getFirstPost(element).quotedRecordUrl;
       };
-      patchFirstPost(element, {
-        unresolvedFacets: [
-          makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-        ],
-      });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
+      pasteLink(element, "https://bsky.app/profile/alice.test/post/3abc");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         loadedQuoteUrl,
@@ -1108,12 +1131,7 @@ describe("post-composer", () => {
       patchFirstPost(element, {
         quotedRecordUrl: "https://bsky.app/profile/bob.test/post/3xyz",
       });
-      patchFirstPost(element, {
-        unresolvedFacets: [
-          makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-        ],
-      });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
+      pasteLink(element, "https://bsky.app/profile/alice.test/post/3abc");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert(!loadCalled);
       assert.deepEqual(
@@ -1379,14 +1397,14 @@ describe("post-composer", () => {
       element.loadQuotedRecordFromLink = () => {
         loadedRecordUrl = getFirstPost(element).quotedRecordUrl;
       };
-      patchFirstPost(element, {
-        unresolvedFacets: [
-          makeLinkFacet(
-            "https://bsky.app/profile/creator1.test/feed/cool-feed",
-          ),
-        ],
+      const url = "https://bsky.app/profile/creator1.test/feed/cool-feed";
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: url,
+          facets: [makeLinkFacet(url)],
+          inputType: "insertFromPaste",
+        },
       });
-      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         loadedRecordUrl,

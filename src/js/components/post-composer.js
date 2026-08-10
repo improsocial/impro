@@ -51,11 +51,7 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/drafts-dialog.js";
 
 const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
-// A real keystroke (including a composed IME character) inserts a handful
-// of characters at most; anything longer in one input event is a paste or
-// autocomplete-style bulk insert, whatever the keyboard reports for
-// inputType. Comfortably above IME composition bursts, comfortably below
-// the shortest realistic pasted URL (e.g. "http://a.io" is 11 characters).
+// Threshold for detecting pasted text, since InputEvent.inputType is unreliable
 const BULK_TEXT_INSERT_THRESHOLD = 8;
 
 function isDraftTextSavable(text) {
@@ -1155,24 +1151,19 @@ class PostComposer extends Component {
     const unresolvedFacets = e.detail.facets;
     this._updatePost(postId, { text: e.detail.text, unresolvedFacets });
     // If the facets *haven't* changed, and the latest change was a space or
-    // newline, check for possible link embeds. Also check immediately if
-    // this input reports itself as a paste (e.detail.inputType), or if a
-    // large chunk of text just appeared in one event regardless of what the
-    // keyboard reports: some Android keyboards insert clipboard content as
-    // regular input events rather than firing a native paste event, and
-    // don't reliably set inputType to "insertFromPaste" either - the
-    // dedicated paste handler below never sees these, so a real single
-    // keystroke's length is the only keyboard-agnostic signal left to catch
-    // them by.
-    const insertedLength = e.detail.text.length - previousText.length;
-    const looksLikeBulkInsert =
+    // newline, check for possible link embeds. Also check for embeds
+    // immediately on bulk inserts (paste).
+    const facetsChanged =
+      JSON.stringify(previousFacets) !== JSON.stringify(unresolvedFacets);
+    const isCommit =
+      e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n");
+    const insertedLength =
+      graphemeCount(e.detail.text) - graphemeCount(previousText);
+    const isBulkInsert =
       e.detail.inputType === "insertFromPaste" ||
+      e.detail.inputType === "insertFromDrop" ||
       insertedLength > BULK_TEXT_INSERT_THRESHOLD;
-    if (
-      (JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
-        (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))) ||
-      looksLikeBulkInsert
-    ) {
+    if ((!facetsChanged && isCommit) || isBulkInsert) {
       for (const facet of unresolvedFacets) {
         // Only handle one feature for now
         const feature = facet.features[0];
@@ -1199,7 +1190,7 @@ class PostComposer extends Component {
     }
     // If the facets have changed, check to see if links have been removed.
     // This will allow links to be re-added after being rejected.
-    if (JSON.stringify(previousFacets) !== JSON.stringify(unresolvedFacets)) {
+    if (facetsChanged) {
       const linkFacetUrls = unresolvedFacets
         .filter(
           (facet) => facet.features[0].$type === "app.bsky.richtext.facet#link",
@@ -1220,28 +1211,6 @@ class PostComposer extends Component {
       this.addMediaFiles(postId, pastedFiles);
       return;
     }
-    // Attach link embeds immediately if a link is pasted
-    // Wait a tick so handleInput runs first
-    requestAnimationFrame(() => {
-      const postState = this._getPost(postId);
-      if (!postState) return;
-      for (const facet of postState.unresolvedFacets) {
-        const feature = facet.features[0];
-        if (feature.$type === "app.bsky.richtext.facet#link") {
-          const url = feature.uri;
-          if (postState.rejectedLinkEmbeds.has(url)) continue;
-          if (parseRecordLink(url)) {
-            if (!postState.quotedRecord && !postState.quotedRecordUrl) {
-              this._updatePost(postId, { quotedRecordUrl: url });
-              this.loadQuotedRecordFromLink(postId);
-            }
-          } else if (!postState.externalLinkUrl) {
-            this._updatePost(postId, { externalLinkUrl: url });
-            this.loadExternalLinkEmbedPreview(postId);
-          }
-        }
-      }
-    });
   }
 
   async loadExternalLinkEmbedPreview(postId) {
