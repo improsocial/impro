@@ -622,7 +622,7 @@ export class OauthClient {
       codeVerifier,
       did,
       handle,
-      serviceEndpoint,
+      serviceEndpoint: pdsEndpoint,
       authServerUrl,
       authServerMetadata,
       redirectUri: this.redirectUri,

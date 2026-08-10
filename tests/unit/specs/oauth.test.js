@@ -836,6 +836,243 @@ describe("oauth", () => {
       }
       assert(threw instanceof HandleNotFoundError);
     });
+
+    const AUTH_SERVER_URL = "https://auth.example.com";
+    const PAR_URL = "https://auth.example.com/par";
+    const AUTHORIZE_URL = "https://auth.example.com/authorize";
+    const REQUEST_URI = "urn:ietf:params:oauth:request_uri:abc123";
+
+    function mockAuthorizationFlow({
+      handle = "user.bsky.social",
+      did = "did:plc:test",
+      serviceEndpoint = "https://pds.example.com",
+      authorizationServers = [AUTH_SERVER_URL],
+      authorizationEndpoint = AUTHORIZE_URL,
+    } = {}) {
+      const authServerMetadata = {
+        issuer: AUTH_SERVER_URL,
+        authorization_endpoint: authorizationEndpoint,
+        pushed_authorization_request_endpoint: PAR_URL,
+        token_endpoint: TOKEN_URL,
+      };
+      globalThis.fetch.__interceptJson(/resolveHandle/, { did });
+      globalThis.fetch.__interceptJson(/plc\.directory/, {
+        alsoKnownAs: ["at://" + handle],
+        service: [{ id: "#atproto_pds", serviceEndpoint }],
+      });
+      // These two are fetched with a URL object, so they need regex matchers.
+      globalThis.fetch.__interceptJson(/oauth-protected-resource/, {
+        authorization_servers: authorizationServers,
+      });
+      globalThis.fetch.__interceptJson(
+        /oauth-authorization-server/,
+        authServerMetadata,
+      );
+      globalThis.fetch.__interceptJson(PAR_URL, {
+        request_uri: REQUEST_URI,
+        expires_in: 300,
+      });
+      return { handle, did, serviceEndpoint, authServerMetadata };
+    }
+
+    function readInFlightEntry() {
+      const keys = [];
+      for (let i = 0; i < globalThis.localStorage.length; i++) {
+        const key = globalThis.localStorage.key(i);
+        if (key.startsWith("oauth_in_flight_")) keys.push(key);
+      }
+      assert.deepEqual(keys.length, 1);
+      return {
+        requestId: keys[0].slice("oauth_in_flight_".length),
+        data: JSON.parse(globalThis.localStorage.getItem(keys[0])),
+      };
+    }
+
+    function readParParams() {
+      const parCall = globalThis.fetch.calls.find(
+        (call) => String(call.url) === PAR_URL,
+      );
+      assert(parCall !== undefined);
+      return new URLSearchParams(parCall.options.body);
+    }
+
+    async function sha256Base64Url(value) {
+      const digest = await globalThis.crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(value),
+      );
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=/g, "");
+    }
+
+    it("should return the authorization endpoint with client_id and the PAR request_uri", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+
+      const authUrl = new URL(
+        await client.getAuthorizationUrl("user.bsky.social"),
+      );
+
+      assert.deepEqual(authUrl.origin + authUrl.pathname, AUTHORIZE_URL);
+      assert.deepEqual(
+        authUrl.searchParams.get("client_id"),
+        "https://app.example.com/client-metadata.json",
+      );
+      assert.deepEqual(authUrl.searchParams.get("request_uri"), REQUEST_URI);
+    });
+
+    it("should store in-flight data for the resolved identity and PDS", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+
+      await client.getAuthorizationUrl("user.bsky.social");
+
+      const { requestId, data } = readInFlightEntry();
+      assert(requestId.length > 0);
+      assert.deepEqual(data.did, "did:plc:test");
+      assert.deepEqual(data.handle, "user.bsky.social");
+      assert.deepEqual(data.serviceEndpoint, "https://pds.example.com");
+      assert.deepEqual(data.authServerUrl, AUTH_SERVER_URL);
+      assert.deepEqual(data.authServerMetadata.token_endpoint, TOKEN_URL);
+      assert.deepEqual(data.redirectUri, "https://app.example.com/callback");
+      assert(typeof data.codeVerifier === "string");
+      assert(data.codeVerifier.length > 0);
+    });
+
+    it("should carry the in-flight PDS endpoint through to the created session", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+      await client.getAuthorizationUrl("user.bsky.social");
+      const { requestId } = readInFlightEntry();
+      globalThis.fetch.__interceptJson(TOKEN_URL, {
+        access_token: "at",
+        refresh_token: "rt",
+        expires_in: 3600,
+        sub: "did:plc:test",
+        scope: "atproto",
+      });
+
+      const session = await client.handleCallback({
+        code: "code",
+        state: encodeURIComponent(JSON.stringify({ requestId })),
+        iss: AUTH_SERVER_URL,
+      });
+
+      assert.deepEqual(session.serviceEndpoint, "https://pds.example.com");
+      assert.deepEqual(
+        client.listAccounts()[0].pdsUrl,
+        "https://pds.example.com",
+      );
+    });
+
+    it("should send a PKCE challenge derived from the stored code verifier", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+
+      await client.getAuthorizationUrl("user.bsky.social");
+
+      const { data } = readInFlightEntry();
+      const parParams = readParParams();
+      assert.deepEqual(parParams.get("code_challenge_method"), "S256");
+      assert.deepEqual(
+        parParams.get("code_challenge"),
+        await sha256Base64Url(data.codeVerifier),
+      );
+      assert.notDeepEqual(parParams.get("code_challenge"), data.codeVerifier);
+    });
+
+    it("should send PAR params matching the client and requested handle", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+
+      await client.getAuthorizationUrl("user.bsky.social");
+
+      const { requestId } = readInFlightEntry();
+      const parParams = readParParams();
+      assert.deepEqual(
+        parParams.get("client_id"),
+        "https://app.example.com/client-metadata.json",
+      );
+      assert.deepEqual(parParams.get("response_type"), "code");
+      assert.deepEqual(parParams.get("response_mode"), "query");
+      assert.deepEqual(
+        parParams.get("redirect_uri"),
+        "https://app.example.com/callback",
+      );
+      assert.deepEqual(parParams.get("scope"), "atproto");
+      assert.deepEqual(parParams.get("login_hint"), "user.bsky.social");
+      assert.deepEqual(JSON.parse(decodeURIComponent(parParams.get("state"))), {
+        requestId,
+      });
+    });
+
+    it("should pass through a custom scope and merge caller state into the state param", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow();
+
+      await client.getAuthorizationUrl("user.bsky.social", {
+        scope: "atproto transition:generic",
+        state: { addAccount: true },
+      });
+
+      const { requestId } = readInFlightEntry();
+      const parParams = readParParams();
+      assert.deepEqual(parParams.get("scope"), "atproto transition:generic");
+      assert.deepEqual(JSON.parse(decodeURIComponent(parParams.get("state"))), {
+        requestId,
+        addAccount: true,
+      });
+    });
+
+    it("should throw when the PDS does not advertise exactly one authorization server", async () => {
+      for (const authorizationServers of [
+        [],
+        [AUTH_SERVER_URL, "https://other.example.com"],
+        null,
+      ]) {
+        globalThis.fetch = new MockFetch();
+        const client = await buildClient();
+        mockAuthorizationFlow({ authorizationServers });
+        let threw = null;
+        try {
+          await client.getAuthorizationUrl("user.bsky.social");
+        } catch (error) {
+          threw = error;
+        }
+        assert.deepEqual(
+          threw?.message,
+          "Expected exactly one authorization server",
+        );
+      }
+    });
+
+    it("should throw InvalidAuthUrlError when the authorization endpoint is unparseable", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow({ authorizationEndpoint: "not a url" });
+      let threw = null;
+      try {
+        await client.getAuthorizationUrl("user.bsky.social");
+      } catch (error) {
+        threw = error;
+      }
+      assert(threw instanceof InvalidAuthUrlError);
+    });
+
+    it("should throw InvalidAuthUrlError when the authorization endpoint is not HTTPS", async () => {
+      const client = await buildClient();
+      mockAuthorizationFlow({
+        authorizationEndpoint: "http://auth.example.com/authorize",
+      });
+      let threw = null;
+      try {
+        await client.getAuthorizationUrl("user.bsky.social");
+      } catch (error) {
+        threw = error;
+      }
+      assert(threw instanceof InvalidAuthUrlError);
+    });
   });
 
   async function runCallback(
