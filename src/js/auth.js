@@ -336,8 +336,9 @@ export class Auth {
     // Mark accounts with out-of-date scopes as "needsReauth"
     return accounts.map((account) => {
       const scopesOutOfDate =
-        getMissingScopes(account.scope ?? "", requiredScope, optionalScope)
-          .length > 0;
+        account.scope != null &&
+        getMissingScopes(account.scope, requiredScope, optionalScope).length >
+          0;
       return {
         ...account,
         needsReauth: account.needsReauth || scopesOutOfDate,

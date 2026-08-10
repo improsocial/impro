@@ -27,7 +27,7 @@ function lockScroll(container) {
   body.style.overflow = "hidden";
   body.style.top = "0";
   body.style.width = "100%";
-  body.style.height = "100vh";
+  body.style.height = "100dvh";
   // Measure the column the header belongs to and pin the header to it.
   // Without this it would span the full viewport width.
   if (header) {
