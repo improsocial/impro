@@ -580,22 +580,20 @@ export class InvalidAuthUrlError extends Error {
 }
 
 export class OauthClient {
-  constructor({ clientId, redirectUri, dpopKeypair, proxyUrl = null }) {
+  constructor({ clientId, redirectUri, dpopKeypair }) {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
-    this.proxyUrl = proxyUrl;
     this.dpopRequests = new DPoPRequests(dpopKeypair);
     this.sessionsByDid = new Map();
   }
 
-  static async load({ clientId, redirectUri, proxyUrl = null }) {
+  static async load({ clientId, redirectUri }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
     migrateLegacySession();
     return new OauthClient({
       clientId,
       redirectUri,
       dpopKeypair,
-      proxyUrl,
     });
   }
 
@@ -606,8 +604,7 @@ export class OauthClient {
     }
     const { did, didDoc } = result;
     const pdsEndpoint = getServiceEndpointFromDidDoc(didDoc);
-    const serviceEndpoint = this.proxyUrl ?? pdsEndpoint;
-    const resourceMetadata = await fetchResourceServerMetadata(serviceEndpoint);
+    const resourceMetadata = await fetchResourceServerMetadata(pdsEndpoint);
     if (
       !resourceMetadata.authorization_servers ||
       resourceMetadata.authorization_servers.length !== 1
