@@ -958,6 +958,45 @@ describe("app.on event listeners", () => {
   });
 });
 
+describe("PluginSettingTab.plugin", () => {
+  it("returns the owning plugin once addSettingTab has run", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const tab = new PluginSettingTab();
+    plugin.addSettingTab(tab);
+    assert.deepEqual(tab.plugin, plugin);
+  });
+
+  it("is available in the constructor when passed to super", () => {
+    const plugin = new Plugin();
+    let seenInConstructor = null;
+    class EagerTab extends PluginSettingTab {
+      constructor(owner) {
+        super(owner);
+        seenInConstructor = this.plugin;
+      }
+    }
+    const tab = new EagerTab(plugin);
+    assert.deepEqual(seenInConstructor, plugin);
+    assert.deepEqual(tab.plugin, plugin);
+  });
+
+  it("still accepts the legacy no-arg super() followed by registration", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    class LegacyTab extends PluginSettingTab {
+      constructor() {
+        super();
+        this.setName("Legacy");
+      }
+    }
+    const tab = new LegacyTab();
+    plugin.addSettingTab(tab);
+    assert.deepEqual(tab.plugin, plugin);
+    assert.deepEqual(tab.name, "Legacy");
+  });
+});
+
 describe("PluginSettingTab.refresh", () => {
   it("posts a refreshSettingTab hostCall defaulting reset to false", () => {
     clearMessages();
@@ -1138,7 +1177,7 @@ describe("fetch — header serialization", () => {
     assert.deepEqual(sent.args[0].init.body, "hi");
   });
 
-  it("serializes a Map headers init via forEach(value, name)", () => {
+  it("serializes a Map headers init", () => {
     clearMessages();
     const headers = new Map([
       ["X-One", "1"],
@@ -1165,7 +1204,7 @@ describe("fetch — header serialization", () => {
     });
   });
 
-  it("falls back to Symbol.iterator entries when forEach is absent", () => {
+  it("serializes an iterable of [name, value] entries", () => {
     clearMessages();
     const headers = {
       *[Symbol.iterator]() {
@@ -1178,6 +1217,43 @@ describe("fetch — header serialization", () => {
     assert.deepEqual(sent.args[0].init.headers, {
       "X-Iter": "1",
       "X-Iter-2": "2",
+    });
+  });
+
+  it("serializes an array of [name, value] entries", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", {
+      headers: [
+        ["X-One", "1"],
+        ["X-Two", "2"],
+      ],
+    });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, { "X-One": "1", "X-Two": "2" });
+  });
+
+  it("serializes an iterator of [name, value] entries", () => {
+    clearMessages();
+    function* entries() {
+      yield ["X-Gen", "1"];
+      yield ["X-Gen-2", "2"];
+    }
+    pluginFetch("https://example.com/", { headers: entries() });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, {
+      "X-Gen": "1",
+      "X-Gen-2": "2",
+    });
+  });
+
+  it("serializes a Headers instance", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", {
+      headers: new Headers({ "content-type": "text/plain" }),
+    });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, {
+      "content-type": "text/plain",
     });
   });
 

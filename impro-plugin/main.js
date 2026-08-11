@@ -11,8 +11,32 @@
  *   A raw repo record: `{ uri, cid, value }`.
  * @typedef {Record<string, unknown>} FeedItem
  *   A `app.bsky.feed.defs#feedViewPost` (post + reply/repost context).
- * @typedef {Record<string, unknown>} RichTextToken
+ * @typedef {{ $type: string } & Record<string, unknown>} RichTextFacetFeature
+ *   One feature of a facet; fields beyond `$type` vary by service.
+ * @typedef {{ index: { byteStart: number, byteEnd: number }, features?: RichTextFacetFeature[] }} RichTextFacet
+ *   An `app.bsky.richtext.facet` — a byte range plus the features applying to it.
+ * @typedef {{ type: "text", value: string }} RichTextTextToken
+ *   A run of plain text.
+ * @typedef {{ type: "facet", facet: RichTextFacet, text: string }} RichTextFacetToken
+ *   The text covered by one facet; the host restores the original facet payload.
+ * @typedef {{ type: "inline" | "block", node: VirtualEl | Record<string, unknown>, pluginId?: string }} RichTextNodeToken
+ *   Custom content the plugin renders itself — `block` on its own line, `inline` in the text flow.
+ * @typedef {RichTextTextToken | RichTextFacetToken | RichTextNodeToken} RichTextToken
  *   One token in a rich-text stream — `text`, `facet`, `inline`, or `block`.
+ * @typedef {Record<string, string> | Headers | Map<string, string> | Iterable<[string, string], void, undefined>} PluginFetchHeaders
+ *   Any header collection {@link fetch} accepts — read structurally, not by class.
+ * @typedef {{ method?: string, headers?: PluginFetchHeaders, body?: string }} PluginFetchInit
+ *   Options for {@link fetch} — a subset of `RequestInit` the host proxy supports.
+ * @typedef {{ feedGenerator: Record<string, unknown> | null, feedContext: string | null, feedProxyUrl: string | null }} PostContextMenuMeta
+ *   Where a post was seen, passed to `post-context-menu` listeners.
+ * @typedef {{ kind: "post" | "reply" | "quote", replyTo: PostView | null, replyRoot: PostView | null, quotedPost: PostView | null }} PostComposerContext
+ *   What the composer is being opened for, passed to `post-composer-open` listeners.
+ * @typedef {{
+ *   "post-context-menu": (menu: Menu, post: PostView, meta?: PostContextMenuMeta) => void,
+ *   "profile-context-menu": (menu: Menu, profile: ProfileView) => void,
+ *   "post-composer-open": (composer: Composer, context: PostComposerContext) => void,
+ * }} PluginEventMap
+ *   The events {@link Plugin.on} accepts, and the listener each one takes.
  * @typedef {VirtualEl | null | undefined} RenderResult
  *   What a render callback may return: a tree to render, or nothing.
  */
@@ -26,21 +50,45 @@ export class SimpleUUID {
 
 const uuid = new SimpleUUID();
 
+/**
+ * Posts a message to the host. The only outbound channel, so every message
+ * is checked against {@link WorkerMessage}.
+ * @param {WorkerMessage} message
+ * @returns {void}
+ */
+function post(message) {
+  self.postMessage(message);
+}
+
+/** @type {Map<number, (...args: any[]) => unknown>} */
 const callHandlers = new Map();
 
+/** @type {Map<number, { resolve: (value: unknown) => void, reject: (reason: unknown) => void }>} */
 const pendingHostCalls = new Map();
 
+/**
+ * @param {string} method
+ * @param {...Cloneable} args
+ * @returns {Promise<unknown>}
+ */
 function hostCall(method, ...args) {
   const hostCallId = uuid.create();
   return new Promise((resolve, reject) => {
     pendingHostCalls.set(hostCallId, { resolve, reject });
-    self.postMessage({ type: "hostCall", method, hostCallId, args });
+    post({ type: "hostCall", method, hostCallId, args });
   });
 }
 
+/** @type {Map<string, Set<(...args: any[]) => unknown>>} */
 const eventListeners = new Map();
 const registeredEvents = new Set();
 
+/**
+ * @param {Iterable<(...args: any[]) => unknown>} listeners
+ * @param {string} event
+ * @param {unknown[]} args
+ * @returns {Promise<void>}
+ */
 async function invokeListeners(listeners, event, args) {
   for (const listener of listeners) {
     try {
@@ -51,6 +99,11 @@ async function invokeListeners(listeners, event, args) {
   }
 }
 
+/**
+ * @param {string} event
+ * @param {unknown[]} args
+ * @returns {Promise<unknown>}
+ */
 async function dispatchEvent(event, args) {
   const listeners = eventListeners.get(event) ?? new Set();
   switch (event) {
@@ -71,6 +124,11 @@ async function dispatchEvent(event, args) {
   }
 }
 
+/**
+ * @param {string} event
+ * @param {(...args: any[]) => unknown} listener
+ * @returns {void}
+ */
 function addEventListener(event, listener) {
   let listeners = eventListeners.get(event);
   if (!listeners) {
@@ -83,7 +141,7 @@ function addEventListener(event, listener) {
     registeredEvents.add(event);
     const handlerId = uuid.create();
     callHandlers.set(handlerId, (...args) => dispatchEvent(event, args));
-    self.postMessage({
+    post({
       type: "register",
       target: "eventListener",
       event,
@@ -173,6 +231,7 @@ export class Menu {
  * all listeners have run. operations from multiple plugins are applied in order.
  */
 export class Composer {
+  /** @type {{ op: string, text: string }[]} */
   #ops = [];
   /** @type {number | null} */
   #cursor = null;
@@ -229,7 +288,7 @@ export class PluginData {
    * @returns {Promise<PostView>}
    */
   getPost(uri) {
-    return hostCall("getPost", { uri });
+    return /** @type {Promise<PostView>} */ (hostCall("getPost", { uri }));
   }
   /**
    * Fetch the basic profile view for a DID.
@@ -237,7 +296,9 @@ export class PluginData {
    * @returns {Promise<ProfileView>}
    */
   getProfile(did) {
-    return hostCall("getProfile", { did });
+    return /** @type {Promise<ProfileView>} */ (
+      hostCall("getProfile", { did })
+    );
   }
   /**
    * Like {@link PluginData.getProfile}, but includes viewer relationship
@@ -248,7 +309,9 @@ export class PluginData {
    * @returns {Promise<DetailedProfileView>}
    */
   getDetailedProfile(did) {
-    return hostCall("getDetailedProfile", { did });
+    return /** @type {Promise<DetailedProfileView>} */ (
+      hostCall("getDetailedProfile", { did })
+    );
   }
   /**
    * The full known-followers list for `did`. The summary on
@@ -258,7 +321,9 @@ export class PluginData {
    * @returns {Promise<KnownFollowersResponse>}
    */
   getKnownFollowers(did) {
-    return hostCall("getKnownFollowers", { did });
+    return /** @type {Promise<KnownFollowersResponse>} */ (
+      hostCall("getKnownFollowers", { did })
+    );
   }
   /**
    * Fetch a raw repo record by `(repo, collection, rkey)`.
@@ -268,7 +333,9 @@ export class PluginData {
    * @returns {Promise<RepoRecord>}
    */
   getRecord(repo, collection, rkey) {
-    return hostCall("getRecord", { repo, collection, rkey });
+    return /** @type {Promise<RepoRecord>} */ (
+      hostCall("getRecord", { repo, collection, rkey })
+    );
   }
 }
 
@@ -299,9 +366,11 @@ export class App {
    * - `"post-composer-open"` — `(composer: Composer, context: { kind, replyTo, replyRoot, quotedPost }) => void`,
    *   called when the post composer opens; use `composer` to seed text.
    *
-   * The `listener` signature varies per event (see above).
-   * @param {string} event
-   * @param {Function} listener
+   * The `listener` signature varies per event — see {@link PluginEventMap}.
+   * @template {keyof PluginEventMap} K
+   * @param {K} event
+   * @param {PluginEventMap[K]} listener
+   * @returns {void}
    */
   on(event, listener) {
     addEventListener(event, listener);
@@ -314,7 +383,9 @@ export class App {
    * @returns {Promise<void>}
    */
   refreshFeedFilters(feedURI = null) {
-    return hostCall("refreshFeedFilters", feedURI);
+    return /** @type {Promise<void>} */ (
+      hostCall("refreshFeedFilters", feedURI)
+    );
   }
 
   /**
@@ -324,7 +395,9 @@ export class App {
    * @returns {Promise<void>}
    */
   muteActor(did) {
-    return hostCall("muteActor", { did, mute: true });
+    return /** @type {Promise<void>} */ (
+      hostCall("muteActor", { did, mute: true })
+    );
   }
   /**
    * Unmute an actor. Requires the `"mute"` scope.
@@ -332,7 +405,9 @@ export class App {
    * @returns {Promise<void>}
    */
   unmuteActor(did) {
-    return hostCall("muteActor", { did, mute: false });
+    return /** @type {Promise<void>} */ (
+      hostCall("muteActor", { did, mute: false })
+    );
   }
   /**
    * Block an actor on behalf of the signed-in user. Requires the `"block"`
@@ -341,7 +416,9 @@ export class App {
    * @returns {Promise<void>}
    */
   blockActor(did) {
-    return hostCall("blockActor", { did, block: true });
+    return /** @type {Promise<void>} */ (
+      hostCall("blockActor", { did, block: true })
+    );
   }
   /**
    * Unblock an actor. Requires the `"block"` scope.
@@ -349,7 +426,9 @@ export class App {
    * @returns {Promise<void>}
    */
   unblockActor(did) {
-    return hostCall("blockActor", { did, block: false });
+    return /** @type {Promise<void>} */ (
+      hostCall("blockActor", { did, block: false })
+    );
   }
   /**
    * Acts like the user clicking "Show less like this": sends the
@@ -361,7 +440,9 @@ export class App {
    * @returns {Promise<void>}
    */
   showLessLikeThis(postUri, feedUri) {
-    return hostCall("showLessLikeThis", { postUri, feedUri });
+    return /** @type {Promise<void>} */ (
+      hostCall("showLessLikeThis", { postUri, feedUri })
+    );
   }
   /**
    * Sends the `requestMore` feedback signal to `feedUri` for `postUri`.
@@ -371,7 +452,9 @@ export class App {
    * @returns {Promise<void>}
    */
   showMoreLikeThis(postUri, feedUri) {
-    return hostCall("showMoreLikeThis", { postUri, feedUri });
+    return /** @type {Promise<void>} */ (
+      hostCall("showMoreLikeThis", { postUri, feedUri })
+    );
   }
 }
 
@@ -382,31 +465,66 @@ export class App {
  * `[name, value]` iterable), and a string `body`. Resolves to a
  * {@link PluginResponse}.
  * @param {string} url
- * @param {{ method?: string, headers?: Record<string, string> | Headers | Map<string, string> | Iterable<[string, string], void, undefined>, body?: string }} [init]
+ * @param {PluginFetchInit} [init]
  * @returns {Promise<PluginResponse>}
  */
 export async function fetch(url, init = {}) {
-  const result = await hostCall("fetch", {
-    url,
-    init: serializeFetchInit(init),
-  });
+  const result = /** @type {SerializedFetchResponse} */ (
+    await hostCall("fetch", { url, init: serializeFetchInit(init) })
+  );
   return new PluginResponse(result);
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is { forEach: (callback: (value: string, name: string) => void) => void }}
+ */
+function hasForEach(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "forEach" in value &&
+    typeof value.forEach === "function"
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Iterable<[string, string]>}
+ */
+function isEntryIterable(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.iterator in value &&
+    typeof value[Symbol.iterator] === "function"
+  );
+}
+
+/**
+ * @param {PluginFetchInit} init
+ * @returns {SerializedFetchInit}
+ */
 function serializeFetchInit(init) {
+  /** @type {SerializedFetchInit} */
   const serialized = {};
   if (init.method != null) serialized.method = String(init.method);
   if (init.headers != null) {
+    /** @type {Record<string, string>} */
     const headers = {};
-    if (typeof init.headers.forEach === "function") {
-      // Headers, Map, and similar iterables expose forEach(value, name)
-      init.headers.forEach((value, name) => {
+    // Probed structurally rather than by class, so any forEach-able or
+    // iterable header collection works. Iteration is tried first because
+    // Headers, Map, arrays and iterators all yield [name, value] pairs,
+    // whereas forEach passes (value, index) on an array or iterator.
+    const headersInit = init.headers;
+    if (isEntryIterable(headersInit)) {
+      for (const [name, value] of headersInit) headers[name] = value;
+    } else if (hasForEach(headersInit)) {
+      headersInit.forEach((value, name) => {
         headers[name] = value;
       });
-    } else if (typeof init.headers[Symbol.iterator] === "function") {
-      for (const [name, value] of init.headers) headers[name] = value;
     } else {
-      Object.assign(headers, init.headers);
+      Object.assign(headers, headersInit);
     }
     serialized.headers = headers;
   }
@@ -421,7 +539,10 @@ function serializeFetchInit(init) {
  */
 export class PluginResponse {
   #body;
-  /** @internal */
+  /**
+   * @internal
+   * @param {SerializedFetchResponse} response
+   */
   constructor({ status, ok, headers, body }) {
     /** @type {number} */
     this.status = status;
@@ -523,7 +644,7 @@ export class StyleSnippet {
         hostCall("applyStyleSnippet", {
           snippetId: this.#snippetId,
           cssText,
-        }).then(resolve, reject);
+        }).then(() => resolve(), reject);
       });
     });
   }
@@ -547,8 +668,6 @@ let registered = false;
  * data. Call `MyPlugin.register()` at the top of your plugin's main.js to boot.
  */
 export class Plugin {
-  /** @type {PluginSettingTab | null} */
-  #settingTab = null;
   /** @internal */
   constructor() {
     /** @type {App} */
@@ -566,7 +685,7 @@ export class Plugin {
   addSidebarItem(icon, title, callback = () => {}) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, callback);
-    self.postMessage({
+    post({
       type: "register",
       target: "sidebarItem",
       icon: icon instanceof VirtualEl ? icon._serialize() : icon,
@@ -586,7 +705,7 @@ export class Plugin {
 
   /**
    * Persists `data` as this plugin's account-synced JSON blob.
-   * @param {unknown} data
+   * @param {Cloneable} data
    * @returns {Promise<void>}
    */
   async saveData(data) {
@@ -606,7 +725,7 @@ export class Plugin {
 
   /**
    * Device-local counterpart to {@link Plugin.saveData}.
-   * @param {unknown} data
+   * @param {Cloneable} data
    * @returns {Promise<void>}
    */
   async saveLocalData(data) {
@@ -627,13 +746,12 @@ export class Plugin {
       tab.display();
       return tab.containerEl._serialize();
     });
-    self.postMessage({
+    post({
       type: "register",
       target: "settingTab",
       name: tab.name ?? null,
       displayHandlerId,
     });
-    this.#settingTab = tab;
   }
 
   /**
@@ -646,7 +764,7 @@ export class Plugin {
   addFeedFilter(callback = () => ({})) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, callback);
-    self.postMessage({
+    post({
       type: "register",
       target: "feedFilter",
       handlerId,
@@ -660,6 +778,9 @@ export class Plugin {
    * text with an atproto facet feature), `inline` (a plugin-produced inline
    * {@link VirtualEl}), or `block` (a plugin-produced block VirtualEl). See
    * {@link FlattenedTokens} for pattern-matching across token boundaries.
+   *
+   * A node token's `node` is a {@link VirtualEl} when this transform creates it,
+   * but arrives in serialized form when an earlier transform produced it.
    *
    * `options.handlesFacetTypes` is an array of facet feature `$type` strings
    * this transform owns, so the host can suppress fallback rendering flash
@@ -677,7 +798,7 @@ export class Plugin {
           const value = await callback(tokens, context);
           results.push({ value: serializeTransformTokens(value) });
         } catch (error) {
-          results.push({ error: error?.message ?? String(error) });
+          results.push({ error: getErrorMessage(error) });
         }
       }
       return results;
@@ -685,7 +806,7 @@ export class Plugin {
     const handlesFacetTypes = Array.isArray(options.handlesFacetTypes)
       ? options.handlesFacetTypes.filter((type) => typeof type === "string")
       : [];
-    self.postMessage({
+    post({
       type: "register",
       target: "richTextTransform",
       handlerId,
@@ -722,7 +843,7 @@ export class Plugin {
             value: await getSlotContent(name, callback, context),
           });
         } catch (error) {
-          results.push({ error: error?.message ?? String(error) });
+          results.push({ error: getErrorMessage(error) });
         }
       }
       return results;
@@ -730,7 +851,7 @@ export class Plugin {
     const cacheKey = Array.isArray(options.cacheKey)
       ? options.cacheKey.filter((field) => typeof field === "string")
       : null;
-    self.postMessage({
+    post({
       type: "register",
       target: "slot",
       name,
@@ -759,7 +880,7 @@ export class Plugin {
       }
       return result._serialize();
     });
-    self.postMessage({
+    post({
       type: "register",
       target: "page",
       id,
@@ -774,7 +895,7 @@ export class Plugin {
    * @returns {Promise<void>}
    */
   openPage(pageId) {
-    return hostCall("openPage", { pageId });
+    return /** @type {Promise<void>} */ (hostCall("openPage", { pageId }));
   }
 
   /**
@@ -785,7 +906,9 @@ export class Plugin {
    * @returns {Promise<void>}
    */
   refreshPage(pageId, { reset = false } = {}) {
-    return hostCall("refreshPage", { pageId, reset });
+    return /** @type {Promise<void>} */ (
+      hostCall("refreshPage", { pageId, reset })
+    );
   }
 
   /**
@@ -803,7 +926,9 @@ export class Plugin {
    * @returns {Promise<void>}
    */
   refreshSlot(name, options = {}) {
-    return hostCall("refreshSlot", { name, keys: options.keys ?? null });
+    return /** @type {Promise<void>} */ (
+      hostCall("refreshSlot", { name, keys: options.keys ?? null })
+    );
   }
 
   /**
@@ -827,20 +952,33 @@ export class Plugin {
     if (registered) return;
     registered = true;
     const instance = new this();
-    hostCall("getCurrentUser")
+    /** @type {Promise<ProfileView | null>} */ (hostCall("getCurrentUser"))
       .then((user) => {
         instance.app.currentUser = user;
         return instance.onload();
       })
       .then(
-        () => self.postMessage({ type: "ready" }),
+        () => post({ type: "ready" }),
         (error) =>
-          self.postMessage({
+          post({
             type: "ready",
-            error: error?.message ?? String(error),
+            error: getErrorMessage(error),
           }),
       );
   }
+}
+
+/**
+ * Extracts a message from a caught value, which need not be an Error.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function getErrorMessage(error) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String(error.message);
+  }
+  return String(error);
 }
 
 /**
@@ -854,6 +992,12 @@ function describeValue(value) {
   return value.constructor?.name ?? "object";
 }
 
+/**
+ * @param {string} name
+ * @param {(context: Record<string, string>) => RenderResult | Promise<RenderResult>} callback
+ * @param {Record<string, string>} context
+ * @returns {Promise<SerializedElement | null>}
+ */
 async function getSlotContent(name, callback, context) {
   const result = /** @type {unknown} */ (await callback(context));
   if (result == null) return null;
@@ -865,6 +1009,10 @@ async function getSlotContent(name, callback, context) {
   return result._serialize();
 }
 
+/**
+ * @param {RichTextToken[]} tokens
+ * @returns {SerializedRichTextToken[]}
+ */
 function serializeTransformTokens(tokens) {
   if (!Array.isArray(tokens)) return tokens;
   return tokens.map((token) => {
@@ -885,6 +1033,7 @@ function serializeTransformTokens(tokens) {
  * back to the original tokens.
  */
 export class FlattenedTokens {
+  /** @type {{ token: RichTextToken, start: number, end: number }[]} */
   #segments = [];
   /**
    * @param {RichTextToken[]} tokens
@@ -922,6 +1071,7 @@ export class FlattenedTokens {
    * @returns {RichTextToken[]}
    */
   tokensFor(start, end) {
+    /** @type {RichTextToken[]} */
     const out = [];
     for (const segment of this.#segments) {
       if (segment.start === segment.end) {
@@ -953,6 +1103,7 @@ export function flattenForScan(tokens) {
   return new FlattenedTokens(tokens);
 }
 
+/** @type {Map<number, Modal>} */
 const openModals = new Map();
 
 /**
@@ -977,7 +1128,7 @@ export class Modal {
     if (openModals.has(this.#modalId)) return;
     openModals.set(this.#modalId, this);
     this.onOpen();
-    self.postMessage({
+    post({
       type: "hostCall",
       method: "openModal",
       args: [
@@ -996,7 +1147,7 @@ export class Modal {
    */
   update() {
     if (!openModals.has(this.#modalId)) return;
-    self.postMessage({
+    post({
       type: "hostCall",
       method: "updateModal",
       args: [
@@ -1016,7 +1167,7 @@ export class Modal {
   close() {
     if (!openModals.has(this.#modalId)) return;
     openModals.delete(this.#modalId);
-    self.postMessage({
+    post({
       type: "hostCall",
       method: "closeModal",
       args: [{ modalId: this.#modalId }],
@@ -1038,15 +1189,16 @@ export class Modal {
 
 /**
  * A tab in the plugin's settings UI. Subclass and override {@link PluginSettingTab.display}
- * to render into `this.containerEl`. Register with `plugin.addSettingTab(tab)`.
+ * to render into `this.containerEl`. Pass the owning plugin to `super(plugin)`
+ * and register with `plugin.addSettingTab(tab)`.
  */
 export class PluginSettingTab {
   /**
-   * The owning plugin. Set by the host in {@link Plugin.addSettingTab}.
-   * @type {Plugin}
+   * @param {Plugin} plugin The owning plugin, available as `this.plugin`.
    */
-  plugin;
-  constructor() {
+  constructor(plugin) {
+    /** @type {Plugin} */
+    this.plugin = plugin;
     /** @type {VirtualEl} */
     this.containerEl = new VirtualEl("div");
     /** @type {string | null} */
@@ -1072,7 +1224,9 @@ export class PluginSettingTab {
    * @returns {Promise<void>}
    */
   refresh({ reset = false } = {}) {
-    return hostCall("refreshSettingTab", { reset });
+    return /** @type {Promise<void>} */ (
+      hostCall("refreshSettingTab", { reset })
+    );
   }
 }
 
@@ -1171,7 +1325,10 @@ export class Setting {
 
 /** Single-line text input, built via {@link Setting.addText}. */
 export class TextComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("input", {
@@ -1210,7 +1367,10 @@ export class TextComponent {
 
 /** Multi-line text input, built via {@link Setting.addTextArea}. */
 export class TextAreaComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("textarea", {
@@ -1248,7 +1408,10 @@ export class TextAreaComponent {
 
 /** On/off toggle switch, built via {@link Setting.addToggle}. */
 export class ToggleComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("toggle-switch", {
@@ -1278,7 +1441,10 @@ export class ToggleComponent {
 
 /** Single-select dropdown, built via {@link Setting.addDropdown}. */
 export class DropdownComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("select", {
@@ -1335,7 +1501,10 @@ export class DropdownComponent {
 
 /** Clickable button, built via {@link Setting.addButton}. */
 export class ButtonComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("button", {
@@ -1372,7 +1541,10 @@ export class ButtonComponent {
 
 /** Renders a host-provided icon by name. Built via {@link VirtualEl.createIcon}. */
 export class IconComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("plugin-icon");
@@ -1393,7 +1565,10 @@ export class IconComponent {
  * {@link VirtualEl.createBlobImage}.
  */
 export class BlobImageComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("plugin-blob-image");
@@ -1441,7 +1616,10 @@ export class BlobImageComponent {
  * Built via {@link VirtualEl.createProfilesList}.
  */
 export class ProfilesListComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("plugin-profiles-list");
@@ -1472,7 +1650,10 @@ export class ProfilesListComponent {
  * Built via {@link VirtualEl.createPostsFeed}.
  */
 export class PostsFeedComponent {
-  /** @internal */
+  /**
+   * @internal
+   * @param {VirtualEl} containerEl
+   */
   constructor(containerEl) {
     /** @type {VirtualEl} */
     this.el = containerEl.createEl("plugin-posts-feed");
@@ -1510,7 +1691,10 @@ export class VirtualText {
     this.value = value == null ? "" : String(value);
   }
 
-  /** @internal */
+  /**
+   * @internal
+   * @returns {SerializedText}
+   */
   _serialize() {
     return { type: "text", value: this.value };
   }
@@ -1749,8 +1933,12 @@ export class VirtualEl {
     return component;
   }
 
-  /** @internal */
+  /**
+   * @internal
+   * @returns {SerializedElement}
+   */
   _serialize() {
+    /** @type {SerializedElement} */
     const serialized = {
       type: "element",
       tag: this.tag,
@@ -1763,7 +1951,63 @@ export class VirtualEl {
   }
 }
 
+/**
+ * @typedef {{ type: "text", value: string }} SerializedText
+ *   {@internal} The wire format of a {@link VirtualText} node.
+ * @typedef {{ type: "element", tag: string, attrs: Record<string, string>, events: Record<string, number>, children: SerializedNode[], styles?: Record<string, string> }} SerializedElement
+ *   {@internal} The wire format of a {@link VirtualEl} node.
+ * @typedef {SerializedText | SerializedElement} SerializedNode
+ *   {@internal} One node of the serialized tree the host renders and reconciles.
+ * @typedef {{ [key: string]: Cloneable }} CloneableObject
+ *   An object whose values are all {@link Cloneable}.
+ * @typedef {Cloneable[]} CloneableArray
+ *   An array of {@link Cloneable} values.
+ * @typedef {null | undefined | boolean | number | string | CloneableArray | CloneableObject} Cloneable
+ *   JSON-shaped data — the only thing that can cross between a plugin and the
+ *   host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * @typedef {{ type: "register", target: "eventListener", event: string, handlerId: number }} RegisterEventListenerMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "sidebarItem", icon: string | SerializedElement, title: string, handlerId: number }} RegisterSidebarItemMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "settingTab", name: string | null, displayHandlerId: number }} RegisterSettingTabMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "feedFilter", handlerId: number }} RegisterFeedFilterMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "richTextTransform", handlerId: number, handlesFacetTypes: string[] }} RegisterRichTextTransformMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "slot", name: string, handlerId: number, cacheKey: string[] | null, batch: true }} RegisterSlotMessage
+ *   {@internal}
+ * @typedef {{ type: "register", target: "page", id: string, title: string | null, displayHandlerId: number }} RegisterPageMessage
+ *   {@internal}
+ * @typedef {RegisterEventListenerMessage | RegisterSidebarItemMessage | RegisterSettingTabMessage | RegisterFeedFilterMessage | RegisterRichTextTransformMessage | RegisterSlotMessage | RegisterPageMessage} RegisterMessage
+ *   {@internal} Announces an extension point this plugin provides.
+ * @typedef {{ type: "hostCall", method: string, hostCallId?: number, args: Cloneable[] }} HostCallRequestMessage
+ *   {@internal} Calls a host method. Without a `hostCallId` it is fire-and-forget.
+ * @typedef {{ type: "result", callId: number, value?: unknown, error?: string }} CallResultMessage
+ *   {@internal} Answers a {@link HostCallMessage}.
+ * @typedef {{ type: "ready", error?: string }} ReadyMessage
+ *   {@internal} Reports the outcome of plugin load.
+ * @typedef {RegisterMessage | HostCallRequestMessage | CallResultMessage | ReadyMessage} WorkerMessage
+ *   {@internal} Anything this worker may post to the host.
+ * @typedef {{ type: "call", callId: number, handlerId: number, args: Cloneable[] }} HostCallMessage
+ *   {@internal} The host invoking a handler this worker registered.
+ * @typedef {{ type: "hostResult", hostCallId: number, value?: Cloneable, error?: string }} HostResultMessage
+ *   {@internal} The host answering a {@link hostCall}.
+ * @typedef {{ type: "event", event: "modalDismissed", data: { modalId: number } }} HostEventMessage
+ *   {@internal} An out-of-band notification from the host.
+ * @typedef {HostCallMessage | HostResultMessage | HostEventMessage} HostMessage
+ *   {@internal} Anything the host may post to this worker.
+ * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: string }} SerializedFetchResponse
+ *   {@internal} The host's reply to a proxied {@link fetch}.
+ * @typedef {{ method?: string, headers?: Record<string, string>, body?: string }} SerializedFetchInit
+ *   {@internal} A {@link PluginFetchInit} with its headers flattened for transfer.
+ * @typedef {Record<string, unknown>} SerializedRichTextToken
+ *   {@internal} A {@link RichTextToken} whose `inline`/`block` node, if any, has
+ *   been replaced by its serialized form.
+ */
+
 self.onmessage = async (event) => {
+  /** @type {HostMessage} */
   const message = event.data;
   if (!message || typeof message !== "object") return;
 
@@ -1771,7 +2015,7 @@ self.onmessage = async (event) => {
   if (message.type === "call") {
     const fn = callHandlers.get(message.handlerId);
     if (!fn) {
-      self.postMessage({
+      post({
         type: "result",
         callId: message.callId,
         error: `unknown handler ${message.handlerId}`,
@@ -1780,12 +2024,12 @@ self.onmessage = async (event) => {
     }
     try {
       const value = await fn(...message.args);
-      self.postMessage({ type: "result", callId: message.callId, value });
+      post({ type: "result", callId: message.callId, value });
     } catch (error) {
-      self.postMessage({
+      post({
         type: "result",
         callId: message.callId,
-        error: error.message ?? String(error),
+        error: getErrorMessage(error),
       });
     }
     return;
@@ -1813,6 +2057,5 @@ self.onmessage = async (event) => {
         return;
       }
     }
-    return;
   }
 };

@@ -55,7 +55,7 @@ scope in the plugin manifest's `permissions.actions`.
 
 ##### on()
 
-> **on**(`event`, `listener`): `void`
+> **on**\<`K`\>(`event`, `listener`): `void`
 
 Register an event listener. Supported events:
 
@@ -66,14 +66,20 @@ Register an event listener. Supported events:
 - `"post-composer-open"` — `(composer: Composer, context: { kind, replyTo, replyRoot, quotedPost }) => void`,
   called when the post composer opens; use `composer` to seed text.
 
-The `listener` signature varies per event (see above).
+The `listener` signature varies per event — see [PluginEventMap](#plugineventmap).
+
+###### Type Parameters
+
+| Type Parameter | Description |
+| ------ | ------ |
+| `K` *extends* keyof [`PluginEventMap`](#plugineventmap) |  |
 
 ###### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `event` | `string` |
-| `listener` | `Function` |
+| `event` | `K` |
+| `listener` | [`PluginEventMap`](#plugineventmap)\[`K`\] |
 
 ###### Returns
 
@@ -1032,6 +1038,9 @@ text with an atproto facet feature), `inline` (a plugin-produced inline
 [VirtualEl](#virtualel)), or `block` (a plugin-produced block VirtualEl). See
 [FlattenedTokens](#flattenedtokens) for pattern-matching across token boundaries.
 
+A node token's `node` is a [VirtualEl](#virtualel) when this transform creates it,
+but arrives in serialized form when an earlier transform produced it.
+
 `options.handlesFacetTypes` is an array of facet feature `$type` strings
 this transform owns, so the host can suppress fallback rendering flash
 while the transform runs.
@@ -1089,7 +1098,7 @@ Persists `data` as this plugin's account-synced JSON blob.
 
 | Parameter | Type |
 | ------ | ------ |
-| `data` | `unknown` |
+| `data` | [`Cloneable`](#cloneable) |
 
 ###### Returns
 
@@ -1105,7 +1114,7 @@ Device-local counterpart to [Plugin.saveData](#savedata).
 
 | Parameter | Type |
 | ------ | ------ |
-| `data` | `unknown` |
+| `data` | [`Cloneable`](#cloneable) |
 
 ###### Returns
 
@@ -1272,13 +1281,20 @@ Resolves with the response body as a string.
 ### PluginSettingTab
 
 A tab in the plugin's settings UI. Subclass and override [PluginSettingTab.display](#display)
-to render into `this.containerEl`. Register with `plugin.addSettingTab(tab)`.
+to render into `this.containerEl`. Pass the owning plugin to `super(plugin)`
+and register with `plugin.addSettingTab(tab)`.
 
 #### Constructors
 
 ##### Constructor
 
-> **new PluginSettingTab**(): [`PluginSettingTab`](#pluginsettingtab)
+> **new PluginSettingTab**(`plugin`): [`PluginSettingTab`](#pluginsettingtab)
+
+###### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `plugin` | [`Plugin`](#plugin) | The owning plugin, available as `this.plugin`. |
 
 ###### Returns
 
@@ -1286,11 +1302,11 @@ to render into `this.containerEl`. Register with `plugin.addSettingTab(tab)`.
 
 #### Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-containerel"></a> `containerEl` | [`VirtualEl`](#virtualel) | - |
-| <a id="property-name"></a> `name` | `string` \| `null` | - |
-| <a id="property-plugin"></a> `plugin` | [`Plugin`](#plugin) | The owning plugin. Set by the host in [Plugin.addSettingTab](#addsettingtab). |
+| Property | Type |
+| ------ | ------ |
+| <a id="property-containerel"></a> `containerEl` | [`VirtualEl`](#virtualel) |
+| <a id="property-name"></a> `name` | `string` \| `null` |
+| <a id="property-plugin"></a> `plugin` | [`Plugin`](#plugin) |
 
 #### Methods
 
@@ -2180,6 +2196,50 @@ A text node in a [VirtualEl](#virtualel) tree. Null/undefined coerce to `""`.
 
 ## Type Aliases
 
+### Cloneable
+
+> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
+
+JSON-shaped data — the only thing that can cross between a plugin and the
+  host. Functions, class instances, `Date`, `Map` and friends cannot.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### CloneableArray
+
+> **CloneableArray** = [`Cloneable`](#cloneable)[]
+
+An array of [Cloneable](#cloneable) values.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### CloneableObject
+
+> **CloneableObject** = `object`
+
+An object whose values are all [Cloneable](#cloneable).
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Index Signature
+
+\[`key`: `string`\]: [`Cloneable`](#cloneable)
+
+***
+
 ### DetailedProfileView
 
 > **DetailedProfileView** = `Record`\<`string`, `unknown`\>
@@ -2216,6 +2276,104 @@ Paginated response from `getKnownFollowers`: `{ followers, cursor }`.
 
 | Type Parameter |
 | ------ |
+
+***
+
+### PluginEventMap
+
+> **PluginEventMap** = `object`
+
+The events Plugin.on accepts, and the listener each one takes.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-post-composer-open"></a> `post-composer-open()` | (`composer`, `context`) => `void` |
+| <a id="property-post-context-menu"></a> `post-context-menu()` | (`menu`, `post`, `meta?`) => `void` |
+| <a id="property-profile-context-menu"></a> `profile-context-menu()` | (`menu`, `profile`) => `void` |
+
+***
+
+### PluginFetchHeaders
+
+> **PluginFetchHeaders** = `Record`\<`string`, `string`\> \| `Headers` \| `Map`\<`string`, `string`\> \| `Iterable`\<\[`string`, `string`\], `void`, `undefined`\>
+
+Any header collection [fetch](#fetch) accepts — read structurally, not by class.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### PluginFetchInit
+
+> **PluginFetchInit** = `object`
+
+Options for [fetch](#fetch) — a subset of `RequestInit` the host proxy supports.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-body"></a> `body?` | `string` |
+| <a id="property-headers-1"></a> `headers?` | [`PluginFetchHeaders`](#pluginfetchheaders) |
+| <a id="property-method"></a> `method?` | `string` |
+
+***
+
+### PostComposerContext
+
+> **PostComposerContext** = `object`
+
+What the composer is being opened for, passed to `post-composer-open` listeners.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-kind"></a> `kind` | `"post"` \| `"reply"` \| `"quote"` |
+| <a id="property-quotedpost"></a> `quotedPost` | [`PostView`](#postview) \| `null` |
+| <a id="property-replyroot"></a> `replyRoot` | [`PostView`](#postview) \| `null` |
+| <a id="property-replyto"></a> `replyTo` | [`PostView`](#postview) \| `null` |
+
+***
+
+### PostContextMenuMeta
+
+> **PostContextMenuMeta** = `object`
+
+Where a post was seen, passed to `post-context-menu` listeners.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-feedcontext"></a> `feedContext` | `string` \| `null` |
+| <a id="property-feedgenerator"></a> `feedGenerator` | `Record`\<`string`, `unknown`\> \| `null` |
+| <a id="property-feedproxyurl"></a> `feedProxyUrl` | `string` \| `null` |
 
 ***
 
@@ -2271,9 +2429,112 @@ A raw repo record: `{ uri, cid, value }`.
 
 ***
 
+### RichTextFacet
+
+> **RichTextFacet** = `object`
+
+An `app.bsky.richtext.facet` — a byte range plus the features applying to it.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-features"></a> `features?` | [`RichTextFacetFeature`](#richtextfacetfeature)[] |
+| <a id="property-index"></a> `index` | `object` |
+| `index.byteEnd` | `number` |
+| `index.byteStart` | `number` |
+
+***
+
+### RichTextFacetFeature
+
+> **RichTextFacetFeature** = `object` & `Record`\<`string`, `unknown`\>
+
+One feature of a facet; fields beyond `$type` vary by service.
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| `$type` | `string` |
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### RichTextFacetToken
+
+> **RichTextFacetToken** = `object`
+
+The text covered by one facet; the host restores the original facet payload.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-facet"></a> `facet` | [`RichTextFacet`](#richtextfacet) |
+| <a id="property-text-1"></a> `text` | `string` |
+| <a id="property-type"></a> `type` | `"facet"` |
+
+***
+
+### RichTextNodeToken
+
+> **RichTextNodeToken** = `object`
+
+Custom content the plugin renders itself — `block` on its own line, `inline` in the text flow.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-node"></a> `node` | [`VirtualEl`](#virtualel) \| `Record`\<`string`, `unknown`\> |
+| <a id="property-pluginid"></a> `pluginId?` | `string` |
+| <a id="property-type-1"></a> `type` | `"inline"` \| `"block"` |
+
+***
+
+### RichTextTextToken
+
+> **RichTextTextToken** = `object`
+
+A run of plain text.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-type-2"></a> `type` | `"text"` |
+| <a id="property-value-1"></a> `value` | `string` |
+
+***
+
 ### RichTextToken
 
-> **RichTextToken** = `Record`\<`string`, `unknown`\>
+> **RichTextToken** = [`RichTextTextToken`](#richtexttexttoken) \| [`RichTextFacetToken`](#richtextfacettoken) \| [`RichTextNodeToken`](#richtextnodetoken)
 
 One token in a rich-text stream — `text`, `facet`, `inline`, or `block`.
 
@@ -2299,10 +2560,7 @@ scope and the target URL must be covered by the plugin's manifest allowlist.
 | Parameter | Type |
 | ------ | ------ |
 | `url` | `string` |
-| `init?` | \{ `body?`: `string`; `headers?`: `Record`\<`string`, `string`\> \| `Headers` \| `Map`\<`string`, `string`\> \| `Iterable`\<\[`string`, `string`\], `void`, `undefined`\>; `method?`: `string`; \} |
-| `init.body?` | `string` |
-| `init.headers?` | `Record`\<`string`, `string`\> \| `Headers` \| `Map`\<`string`, `string`\> \| `Iterable`\<\[`string`, `string`\], `void`, `undefined`\> |
-| `init.method?` | `string` |
+| `init?` | [`PluginFetchInit`](#pluginfetchinit) |
 
 #### Returns
 
