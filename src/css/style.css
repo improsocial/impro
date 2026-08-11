@@ -7163,6 +7163,10 @@ context-menu-item-group > context-menu-item > button {
     touch-action: auto;
   }
 
+  .context-menu-body {
+    padding: 0;
+  }
+
   .context-menu::backdrop {
     background-color: transparent;
     animation: none;
@@ -7178,19 +7182,19 @@ context-menu-item-group > context-menu-item > button {
     margin-bottom: 0;
   }
 
-  .context-menu > context-menu-item {
+  .context-menu-body > context-menu-item {
     padding: 4px 0;
   }
 
-  .context-menu > context-menu-item:first-child {
+  .context-menu-body > context-menu-item:first-child {
     padding-top: 0;
   }
 
-  .context-menu > context-menu-item:last-child {
+  .context-menu-body > context-menu-item:last-child {
     padding-bottom: 0;
   }
 
-  .context-menu > context-menu-item:not(:last-child) {
+  .context-menu-body > context-menu-item:not(:last-child) {
     border-bottom: var(--hair) solid var(--post-border-color);
   }
 
