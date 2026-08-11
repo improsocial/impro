@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
+import { classnames } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
@@ -78,7 +79,9 @@ class SettingsNotificationsView extends View {
           })}
           <main>
             <section
-              class="setting-item"
+              class=${classnames("setting-item", {
+                "setting-item-disabled": !isSupported,
+              })}
               data-testid="settings-section-system-notifications"
             >
               <div class="setting-item-info">

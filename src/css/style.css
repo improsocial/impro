@@ -10707,6 +10707,10 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
   border-bottom: var(--hair) solid var(--generic-border-color);
 }
 
+.setting-item-disabled .setting-item-info {
+  opacity: 0.6;
+}
+
 .setting-item:last-child {
   border-bottom: none;
 }
