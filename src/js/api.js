@@ -1292,7 +1292,7 @@ export class Api {
     });
   }
 
-  async uploadBlob(blob) {
+  async uploadBlob(blob, { signal = null } = {}) {
     const res = await this.request("com.atproto.repo.uploadBlob", {
       method: "POST",
       headers: {
@@ -1300,20 +1300,22 @@ export class Api {
       },
       body: blob,
       stringifyBody: false,
+      signal,
     });
     return res.data.blob;
   }
 
-  async getServiceAuthToken({ aud, lxm, exp }) {
+  async getServiceAuthToken({ aud, lxm, exp, signal = null }) {
     const res = await this.request("com.atproto.server.getServiceAuth", {
       query: { aud, lxm, exp: exp ?? Math.floor(Date.now() / 1000) + 60 },
+      signal,
     });
     return res.data.token;
   }
 
   async serviceRequest(
     url,
-    { token, method = "GET", query, body, headers = {} } = {},
+    { token, method = "GET", query, body, headers = {}, signal = null } = {},
   ) {
     let queryString = "";
     if (query) {
@@ -1326,6 +1328,7 @@ export class Api {
         ...headers,
       },
       body,
+      signal,
     });
     const data = await res.json();
     res.data = data;
@@ -1335,24 +1338,26 @@ export class Api {
     return res;
   }
 
-  async getVideoUploadLimits() {
+  async getVideoUploadLimits({ signal = null } = {}) {
     const token = await this.getServiceAuthToken({
       aud: VIDEO_SERVICE_DID,
       lxm: "app.bsky.video.getUploadLimits",
+      signal,
     });
     const res = await this.serviceRequest(
       `${VIDEO_SERVICE_URL}/xrpc/app.bsky.video.getUploadLimits`,
-      { token },
+      { token, signal },
     );
     return res.data;
   }
 
-  async uploadVideoBlob(file) {
+  async uploadVideoBlob(file, { signal = null } = {}) {
     const pdsHostname = new URL(this.session.serviceEndpoint).hostname;
     const token = await this.getServiceAuthToken({
       aud: `did:web:${pdsHostname}`,
       lxm: "com.atproto.repo.uploadBlob",
       exp: Math.floor(Date.now() / 1000) + 60 * 30,
+      signal,
     });
     try {
       const res = await this.serviceRequest(
@@ -1363,6 +1368,7 @@ export class Api {
           query: { did: this.session.did, name: file.name },
           headers: { "Content-Type": file.type },
           body: file,
+          signal,
         },
       );
       return res.data;
@@ -1380,10 +1386,10 @@ export class Api {
     }
   }
 
-  async getVideoJobStatus(jobId) {
+  async getVideoJobStatus(jobId, { signal = null } = {}) {
     const res = await this.serviceRequest(
       `${VIDEO_SERVICE_URL}/xrpc/app.bsky.video.getJobStatus`,
-      { query: { jobId } },
+      { query: { jobId }, signal },
     );
     return res.data.jobStatus;
   }

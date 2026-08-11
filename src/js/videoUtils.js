@@ -73,21 +73,21 @@ export class VideoUploader {
   }
 
   async upload(file, { onJobStart, onProgress, signal, intervalMs } = {}) {
-    const limits = await this.api.getVideoUploadLimits();
+    const limits = await this.api.getVideoUploadLimits({ signal });
     if (!limits.canUpload) {
       throw new Error(limits.message || "Video uploads are not allowed");
     }
-    const job = await this.api.uploadVideoBlob(file);
+    const job = await this.api.uploadVideoBlob(file, { signal });
     onJobStart?.(job);
     return await this.pollJob(job.jobId, { onProgress, signal, intervalMs });
   }
 
   async pollJob(jobId, { onProgress, signal, intervalMs = 1500 } = {}) {
     while (true) {
-      if (signal?.aborted) {
-        throw new Error("Video upload aborted");
+      if (signal) {
+        signal.throwIfAborted();
       }
-      const status = await this.api.getVideoJobStatus(jobId);
+      const status = await this.api.getVideoJobStatus(jobId, { signal });
       onProgress?.(status.state, status.progress ?? 0);
       if (status.state === "JOB_STATE_COMPLETED") {
         if (!status.blob) {

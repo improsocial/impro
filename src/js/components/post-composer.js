@@ -369,6 +369,10 @@ class PostComposer extends Component {
     this._originalLocalRefs = null;
     // Pass through unsupported fields on drafts
     this._draftPassthrough = null;
+    this._sendAbortController = null;
+    this._sendAttemptId = null;
+    // postId -> AbortController for that post's in-flight video upload
+    this._videoAbortControllers = new Map();
     this.state = new ReactiveStore("postComposer");
     this.state.$posts = new Signal.State([
       this._createPostState({
@@ -377,6 +381,7 @@ class PostComposer extends Component {
     ]);
     this.state.$activePostIndex = new Signal.State(0);
     this.state.$isSending = new Signal.State(false);
+    this.state.$isCancellingSend = new Signal.State(false);
     this.state.$errorMessage = new Signal.State(null);
     this.state.$isSavingDraft = new Signal.State(false);
     this._pendingQuotedRecord = null;
@@ -396,6 +401,9 @@ class PostComposer extends Component {
 
   disconnectedCallback() {
     if (!this.initialized) return;
+    this._sendAbortController?.abort();
+    this._sendAbortController = null;
+    this._abortAllVideoUploads();
     this._disposers?.forEach((dispose) => dispose());
     this._disposers = null;
     this._disconnectDragAndDropObserver();
@@ -496,6 +504,7 @@ class PostComposer extends Component {
 
   render() {
     const isSending = this.state.$isSending.get();
+    const isCancellingSend = this.state.$isCancellingSend.get();
     const sendError = this.state.$errorMessage.get();
     const isSavingDraft = this.state.$isSavingDraft.get();
     const draftsEnabled = this.state.$draftsEnabled.get();
@@ -609,6 +618,7 @@ class PostComposer extends Component {
                 data-teststate=${submitTestState}
                 @click=${() => this.send()}
                 .disabled=${isSending ||
+                isCancellingSend ||
                 isAnyPostAboveCharLimit ||
                 isAnyVideoBlocking}
               >
@@ -738,6 +748,7 @@ class PostComposer extends Component {
 
   isSendBlocked() {
     const isSending = untrack(() => this.state.$isSending.get());
+    const isCancellingSend = untrack(() => this.state.$isCancellingSend.get());
     const posts = this._getPosts();
     const isAnyPostAboveCharLimit = posts.some(
       (postState) =>
@@ -748,7 +759,12 @@ class PostComposer extends Component {
         isVideoUploadPending(postState.video) ||
         postState.video?.status === "error",
     );
-    return isSending || isAnyPostAboveCharLimit || isAnyVideoBlocking;
+    return (
+      isSending ||
+      isCancellingSend ||
+      isAnyPostAboveCharLimit ||
+      isAnyVideoBlocking
+    );
   }
 
   handleActivatePost(index) {
@@ -798,6 +814,7 @@ class PostComposer extends Component {
       );
       if (!confirmed) return;
     }
+    this._abortVideoUpload(postId);
     if (postState.video?.previewUrl) {
       URL.revokeObjectURL(postState.video.previewUrl);
     }
@@ -1078,9 +1095,27 @@ class PostComposer extends Component {
     return video;
   }
 
+  _abortVideoUpload(postId) {
+    const controller = this._videoAbortControllers.get(postId);
+    if (controller) {
+      controller.abort();
+      this._videoAbortControllers.delete(postId);
+    }
+  }
+
+  _abortAllVideoUploads() {
+    for (const controller of this._videoAbortControllers.values()) {
+      controller.abort();
+    }
+    this._videoAbortControllers.clear();
+  }
+
   async uploadSelectedVideo(postId, token) {
     const video = this._getPost(postId)?.video;
     if (!video) return;
+    this._abortVideoUpload(postId);
+    const controller = new AbortController();
+    this._videoAbortControllers.set(postId, controller);
     try {
       const uploader = new VideoUploader(this.dataLayer.api);
       const blob = await uploader.upload(video.file, {
@@ -1093,9 +1128,11 @@ class PostComposer extends Component {
         onProgress: (_state, progress) => {
           this.patchSelectedVideo(postId, token, { progress });
         },
+        signal: controller.signal,
       });
       this.patchSelectedVideo(postId, token, { blob, status: "done" });
     } catch (error) {
+      if (error.name === "AbortError") return;
       console.error("Video upload error: ", error);
       const failedVideo = this.patchSelectedVideo(postId, token, {
         status: "error",
@@ -1104,12 +1141,17 @@ class PostComposer extends Component {
       if (failedVideo) {
         showToast(failedVideo.error, { style: "error" });
       }
+    } finally {
+      if (this._videoAbortControllers.get(postId) === controller) {
+        this._videoAbortControllers.delete(postId);
+      }
     }
   }
 
   handleRemoveVideo(postId) {
     const postState = this._getPost(postId);
     if (!postState) return;
+    this._abortVideoUpload(postId);
     if (postState.video?.previewUrl) {
       URL.revokeObjectURL(postState.video.previewUrl);
     }
@@ -1343,12 +1385,22 @@ class PostComposer extends Component {
     if (!postsToSend) return;
     this.state.$errorMessage.set(null);
     this.state.$isSending.set(true);
-    const successCallback = () => {
-      this.close();
-    };
+    const attemptId = Symbol();
+    this._sendAttemptId = attemptId;
+    this._sendAbortController = new AbortController();
+    const successCallback = () => this.close();
     const errorCallback = (error) => {
+      const isStale = this._sendAttemptId !== attemptId;
+      const isCancelled = untrack(() => this.state.$isCancellingSend.get());
+      if (isStale || isCancelled) return;
       this.state.$isSending.set(false);
       this.state.$errorMessage.set(getSendErrorMessage(error));
+    };
+    const settledCallback = () => {
+      if (this._sendAttemptId !== attemptId) return;
+      this._sendAttemptId = null;
+      this._sendAbortController = null;
+      this.state.$isCancellingSend.set(false);
     };
     this.dispatchEvent(
       new CustomEvent("send-post", {
@@ -1373,11 +1425,26 @@ class PostComposer extends Component {
                 localRefs: [...this._originalLocalRefs],
               }
             : null,
+          signal: this._sendAbortController.signal,
           successCallback,
           errorCallback,
+          settledCallback,
         },
       }),
     );
+  }
+
+  // Only the work before the repo commit is abortable, so a cancelled send may
+  // still publish (and still closes the composer on success). Disable
+  // sending until the previous send settles either way.
+  _cancelSend() {
+    if (this._sendAbortController) {
+      this._sendAbortController.abort();
+    }
+    this.state.$isSending.set(false);
+    if (this._sendAttemptId) {
+      this.state.$isCancellingSend.set(true);
+    }
   }
 
   hasContent() {
@@ -1483,6 +1550,7 @@ class PostComposer extends Component {
   }
 
   clearComposer() {
+    this._abortAllVideoUploads();
     for (const postState of this._getPosts()) {
       if (postState.video?.previewUrl) {
         URL.revokeObjectURL(postState.video.previewUrl);
@@ -1733,6 +1801,10 @@ class PostComposer extends Component {
   }
 
   async confirmClose() {
+    // Cancel before prompting so uploads stop while the user decides
+    if (this.state.$isSending.get()) {
+      this._cancelSend();
+    }
     if (this.replyTo) {
       if (!this.hasContent()) {
         return true;

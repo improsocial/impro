@@ -318,6 +318,121 @@ describe("post-composer", () => {
     });
   });
 
+  describe("PostComposer - cancelling a send", () => {
+    // Starts a send and returns the detail the service would have received.
+    async function startSend(element, text = "Hello world") {
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text, facets: [] },
+      });
+      let sendDetail = null;
+      element.addEventListener("send-post", (e) => {
+        sendDetail = e.detail;
+      });
+      await element.send();
+      return sendDetail;
+    }
+
+    it("carries a live abort signal in the send-post detail", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const sendDetail = await startSend(element);
+      assert(sendDetail.signal instanceof AbortSignal);
+      assert.deepEqual(sendDetail.signal.aborted, false);
+    });
+
+    it("aborts the send when the composer is closed mid-send", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const sendDetail = await startSend(element);
+
+      const closing = element.confirmClose();
+      assert.deepEqual(sendDetail.signal.aborted, true);
+      assert.deepEqual(element.state.$isSending.get(), false);
+      await chooseModal("discard");
+      assert.deepEqual(await closing, true);
+    });
+
+    it("leaves an editable composer when the user keeps editing", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const sendDetail = await startSend(element);
+
+      const closing = element.confirmClose();
+      await chooseModal("keep");
+      assert.deepEqual(await closing, false);
+      assert.deepEqual(sendDetail.signal.aborted, true);
+      assert.deepEqual(element.state.$isSending.get(), false);
+      assert.deepEqual(getFirstPost(element).text, "Hello world");
+      await nextFrame();
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton.disabled);
+      assert.deepEqual(postButton.textContent.includes("Sending"), false);
+
+      sendDetail.settledCallback();
+      await nextFrame();
+      assert(!postButton.disabled);
+    });
+
+    // The commit isn't abortable, so a cancelled send can still publish
+    it("blocks a second send until the cancelled attempt settles", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const sendDetails = [];
+      element.addEventListener("send-post", (e) => sendDetails.push(e.detail));
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "Hello world", facets: [] },
+      });
+      await element.send();
+
+      const closing = element.confirmClose();
+      await chooseModal("keep");
+      await closing;
+
+      await element.send();
+      assert.deepEqual(sendDetails.length, 1);
+
+      sendDetails[0].settledCallback();
+      await element.send();
+      assert.deepEqual(sendDetails.length, 2);
+    });
+
+    it("closes the composer when a cancelled send publishes anyway", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const sendDetail = await startSend(element);
+
+      const closing = element.confirmClose();
+      await chooseModal("keep");
+      await closing;
+
+      let closedEventFired = false;
+      element.addEventListener("post-composer-closed", () => {
+        closedEventFired = true;
+      });
+      await sendDetail.successCallback({ uris: ["at://did:plc:user/post/1"] });
+      sendDetail.settledCallback();
+      assert(closedEventFired);
+    });
+
+    it("does not show an error banner for a failure that races the cancel", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const sendDetail = await startSend(element);
+
+      const closing = element.confirmClose();
+      await chooseModal("keep");
+      await closing;
+      sendDetail.errorCallback(new Error("network down"));
+      await nextFrame();
+      const banner = element.querySelector(
+        '[data-testid="composer-error-banner"]',
+      );
+      assert.deepEqual(banner, null);
+      assert.deepEqual(element.state.$errorMessage.get(), null);
+    });
+  });
+
   describe("PostComposer - send error banner", () => {
     function getBanner(element) {
       return element.querySelector('[data-testid="composer-error-banner"]');
@@ -3370,6 +3485,55 @@ describe("post-composer", () => {
         await waitFor(() => getFirstPost(element).video?.status === "done");
         assert.deepEqual(dataLayer.statusCalls.length, 2);
         assert.deepEqual(getFirstPost(element).video.progress, 100);
+      });
+
+      // The poll loop checks for an abort once per iteration, so let any
+      // already-dispatched status request land before sampling the count.
+      async function settlePolling() {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+
+      function makeStuckUpload() {
+        const element = createPostComposer();
+        const dataLayer = makeVideoDataLayer({
+          statuses: [{ state: "JOB_STATE_PROCESSING", progress: 10 }],
+        });
+        element.dataLayer = dataLayer;
+        connectElement(element);
+        return { element, dataLayer };
+      }
+
+      it("stops polling the job when the video is removed", async () => {
+        const { element, dataLayer } = makeStuckUpload();
+        await element.addMediaFiles(getFirstPost(element).id, [
+          makeVideoFile(),
+        ]);
+        await waitFor(() => dataLayer.statusCalls.length >= 2);
+
+        element.handleRemoveVideo(getFirstPost(element).id);
+        await settlePolling();
+        const settledCallCount = dataLayer.statusCalls.length;
+        await settlePolling();
+        assert.deepEqual(dataLayer.statusCalls.length, settledCallCount);
+      });
+
+      it("stops polling the job when the composer is closed", async () => {
+        const { element, dataLayer } = makeStuckUpload();
+        await element.addMediaFiles(getFirstPost(element).id, [
+          makeVideoFile(),
+        ]);
+        await waitFor(() => dataLayer.statusCalls.length >= 2);
+
+        element.remove();
+        await settlePolling();
+        const settledCallCount = dataLayer.statusCalls.length;
+        await settlePolling();
+        assert.deepEqual(dataLayer.statusCalls.length, settledCallCount);
+        // A cancelled upload isn't a failure to report
+        assert.deepEqual(getFirstPost(element).video.status, "processing");
+        assert.deepEqual(toastText(), "");
       });
     });
 

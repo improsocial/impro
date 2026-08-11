@@ -278,6 +278,55 @@ test.describe("Post Composer Edge Cases", () => {
     await expect(errorBanner).not.toBeVisible();
   });
 
+  test("closing the composer while sending cancels the post", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+    // Hold the image upload long enough to close mid-send, but short enough
+    // that an uncancelled send would go on to commit while the test waits
+    mockServer.setBlobUploadDelay(1500);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type("This post gets cancelled");
+    await composer
+      .locator(".media-picker-input")
+      .setInputFiles(createTestImage("photo.png"));
+    await expect(composer.locator(".image-preview-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const postButton = composer.locator(
+      '[data-testid="composer-submit-button"]',
+    );
+    await postButton.click();
+    await expect(postButton).toBeDisabled();
+
+    await composer.locator(".post-composer-cancel-button").click();
+
+    const choiceModal = page.locator('[data-testid="choice-modal"]');
+    await expect(choiceModal).toBeVisible({ timeout: 10000 });
+    await choiceModal.locator('[data-testid="modal-choice-discard"]').click();
+
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+
+    // Past when the held upload would have resolved, nothing was committed
+    await page.waitForTimeout(3000);
+    await expect(page.locator('[data-testid="toast"]')).toHaveCount(0);
+    expect(mockServer.applyWritesCalls).toHaveLength(0);
+  });
+
   test("typeahead in post composer — mention suggestions appear and can be selected", async ({
     page,
   }) => {

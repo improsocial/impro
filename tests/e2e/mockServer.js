@@ -27,6 +27,7 @@ export class MockServer {
     this.draftLimitReached = false;
     this.interactionPayloads = [];
     this.blobCounter = 0;
+    this.blobUploadDelayMs = 0;
     this.messageCounter = 0;
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
@@ -192,6 +193,10 @@ export class MockServer {
   // let the initial load complete instantly and only slow down a reload.
   setTimelineDelay(delayMs) {
     this.timelineDelayMs = delayMs;
+  }
+
+  setBlobUploadDelay(delayMs) {
+    this.blobUploadDelayMs = delayMs;
   }
 
   setNotificationsDelay(delayMs) {
@@ -2592,27 +2597,36 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/com.atproto.repo.uploadBlob*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          blob: {
-            $type: "blob",
-            // suffix must stay within the base32 alphabet (computeRecordCid
-            // rejects invalid CID characters like "0", "1", "8", "9")
-            ref: {
-              $link: `bafkreimockblob${String(++this.blobCounter)
-                .split("")
-                .map((digit) => "abcdefghij"[digit])
-                .join("")}`,
+    await page.route("**/xrpc/com.atproto.repo.uploadBlob*", async (route) => {
+      if (this.blobUploadDelayMs > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.blobUploadDelayMs),
+        );
+      }
+      // The client can abort an upload (cancelling a send), which makes
+      // fulfilling a no-longer-pending route throw.
+      await route
+        .fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            blob: {
+              $type: "blob",
+              // suffix must stay within the base32 alphabet (computeRecordCid
+              // rejects invalid CID characters like "0", "1", "8", "9")
+              ref: {
+                $link: `bafkreimockblob${String(++this.blobCounter)
+                  .split("")
+                  .map((digit) => "abcdefghij"[digit])
+                  .join("")}`,
+              },
+              mimeType: "image/jpeg",
+              size: 50000,
             },
-            mimeType: "image/jpeg",
-            size: 50000,
-          },
-        }),
-      }),
-    );
+          }),
+        })
+        .catch(() => {});
+    });
 
     await page.route("**/xrpc/com.atproto.server.getServiceAuth*", (route) =>
       route.fulfill({
