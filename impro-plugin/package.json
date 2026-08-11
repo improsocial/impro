@@ -1,10 +1,11 @@
 {
   "name": "@impro.social/impro-plugin",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "type": "module",
   "main": "main.js",
   "scripts": {
-    "docs": "typedoc --options typedoc.json"
+    "docs": "typedoc --options typedoc.json",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "license": "0BSD",
   "exports": {

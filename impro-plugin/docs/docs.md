@@ -14,7 +14,7 @@ The plugin's handle to the running impro app. Exposed as `this.app` on a
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-currentuser"></a> `currentUser` | [`ProfileView`](#profileview) | The signed-in user's basic profile, populated before `onload()` runs. Null when no session is active. |
+| <a id="property-currentuser"></a> `currentUser` | [`ProfileView`](#profileview) \| `null` | The signed-in user's basic profile, populated before `onload()` runs. Null when no session is active. |
 | <a id="property-data"></a> `data` | [`PluginData`](#plugindata) | Read-only appview accessors — see [PluginData](#plugindata). |
 
 #### Methods
@@ -90,7 +90,7 @@ to one feed, or omit/pass `null` to refresh every feed.
 
 | Parameter | Type | Default value |
 | ------ | ------ | ------ |
-| `feedURI?` | `string` | `null` |
+| `feedURI?` | `string` \| `null` | `null` |
 
 ###### Returns
 
@@ -627,7 +627,7 @@ an `onClick` handler. Not constructed directly — obtained via
 
 | Property | Type |
 | ------ | ------ |
-| <a id="property-icon"></a> `icon` | `string` \| [`VirtualEl`](#virtualel) |
+| <a id="property-icon"></a> `icon` | `string` \| [`VirtualEl`](#virtualel) \| `null` |
 | <a id="property-title"></a> `title` | `string` |
 
 #### Methods
@@ -1005,16 +1005,17 @@ nothing else.
 > **registerPage**(`options`): `void`
 
 Registers a full-page view reachable via [Plugin.openPage](#openpage). `display()`
-is called on navigation and must return a [VirtualEl](#virtualel) or `null`.
+is called on navigation and must return a [VirtualEl](#virtualel), or nothing to
+render an empty page.
 
 ###### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `display?`: () => [`VirtualEl`](#virtualel) \| `Promise`\<[`VirtualEl`](#virtualel)\>; `id`: `string`; `title?`: `string`; \} |
-| `options.display?` | () => [`VirtualEl`](#virtualel) \| `Promise`\<[`VirtualEl`](#virtualel)\> |
+| `options` | \{ `display?`: () => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\>; `id`: `string`; `title?`: `string` \| `null`; \} |
+| `options.display?` | () => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\> |
 | `options.id` | `string` |
-| `options.title?` | `string` |
+| `options.title?` | `string` \| `null` |
 
 ###### Returns
 
@@ -1070,7 +1071,7 @@ The host batches all pending contexts of a render into one call.
 | Parameter | Type |
 | ------ | ------ |
 | `name` | `string` |
-| `callback` | (`context`) => [`VirtualEl`](#virtualel) \| `Promise`\<[`VirtualEl`](#virtualel)\> |
+| `callback` | (`context`) => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\> |
 | `options?` | \{ `cacheKey?`: `string`[]; \} |
 | `options.cacheKey?` | `string`[] |
 
@@ -1288,7 +1289,7 @@ to render into `this.containerEl`. Register with `plugin.addSettingTab(tab)`.
 | Property | Type | Description |
 | ------ | ------ | ------ |
 | <a id="property-containerel"></a> `containerEl` | [`VirtualEl`](#virtualel) | - |
-| <a id="property-name"></a> `name` | `string` | - |
+| <a id="property-name"></a> `name` | `string` \| `null` | - |
 | <a id="property-plugin"></a> `plugin` | [`Plugin`](#plugin) | The owning plugin. Set by the host in [Plugin.addSettingTab](#addsettingtab). |
 
 #### Methods
@@ -1700,7 +1701,7 @@ Set the current value.
 
 | Parameter | Type |
 | ------ | ------ |
-| `value` | `string` |
+| `value` | `string` \| `null` |
 
 ###### Returns
 
@@ -1762,7 +1763,7 @@ Set the current value.
 
 | Parameter | Type |
 | ------ | ------ |
-| `value` | `string` |
+| `value` | `string` \| `null` |
 
 ###### Returns
 
@@ -2110,7 +2111,7 @@ Set an attribute; `undefined` coerces to `""`.
 | Parameter | Type |
 | ------ | ------ |
 | `name` | `string` |
-| `value` | `string` |
+| `value` | `string` \| `undefined` |
 
 ###### Returns
 
@@ -2127,7 +2128,7 @@ Set an inline style.
 | Parameter | Type |
 | ------ | ------ |
 | `name` | `string` |
-| `value` | `string` |
+| `value` | `string` \| `null` |
 
 ###### Returns
 
@@ -2143,7 +2144,7 @@ Replace all children with a single [VirtualText](#virtualtext) node.
 
 | Parameter | Type |
 | ------ | ------ |
-| `text` | `string` |
+| `text` | `string` \| `null` |
 
 ###### Returns
 
@@ -2165,7 +2166,7 @@ A text node in a [VirtualEl](#virtualel) tree. Null/undefined coerce to `""`.
 
 | Parameter | Type |
 | ------ | ------ |
-| `value` | `string` |
+| `value` | `string` \| `null` \| `undefined` |
 
 ###### Returns
 
@@ -2236,6 +2237,19 @@ Hydrated `app.bsky.feed.defs#postView` shape.
 > **ProfileView** = `Record`\<`string`, `unknown`\>
 
 Basic `app.bsky.actor.defs#profileView` shape.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### RenderResult
+
+> **RenderResult** = [`VirtualEl`](#virtualel) \| `null` \| `undefined`
+
+What a render callback may return: a tree to render, or nothing.
 
 #### Type Parameters
 

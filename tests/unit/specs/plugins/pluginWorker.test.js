@@ -466,6 +466,38 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert(result.error.includes("must return a VirtualEl"));
   });
 
+  it("registerPage returns null when display returns undefined", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => undefined });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 10,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.value, null);
+  });
+
+  it("registerPage names the returned type in the error", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => () => null });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 11,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert(result.error.includes("got function"));
+  });
+
   it("openPage forwards the page id to the host", () => {
     clearMessages();
     const plugin = new Plugin();

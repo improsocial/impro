@@ -13,6 +13,8 @@
  *   A `app.bsky.feed.defs#feedViewPost` (post + reply/repost context).
  * @typedef {Record<string, unknown>} RichTextToken
  *   One token in a rich-text stream — `text`, `facet`, `inline`, or `block`.
+ * @typedef {VirtualEl | null | undefined} RenderResult
+ *   What a render callback may return: a tree to render, or nothing.
  */
 
 export class SimpleUUID {
@@ -172,6 +174,7 @@ export class Menu {
  */
 export class Composer {
   #ops = [];
+  /** @type {number | null} */
   #cursor = null;
   /**
    * Replace the composer's current text.
@@ -544,6 +547,7 @@ let registered = false;
  * data. Call `MyPlugin.register()` at the top of your plugin's main.js to boot.
  */
 export class Plugin {
+  /** @type {PluginSettingTab | null} */
   #settingTab = null;
   /** @internal */
   constructor() {
@@ -639,7 +643,7 @@ export class Plugin {
    * @param {(feedUri: string, feedItems: FeedItem[]) => Record<string, boolean> | Promise<Record<string, boolean>>} callback
    * @returns {void}
    */
-  addFeedFilter(callback = () => {}) {
+  addFeedFilter(callback = () => ({})) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, callback);
     self.postMessage({
@@ -704,7 +708,7 @@ export class Plugin {
    *
    * The host batches all pending contexts of a render into one call.
    * @param {string} name
-   * @param {(context: Record<string, string>) => VirtualEl | null | Promise<VirtualEl | null>} callback
+   * @param {(context: Record<string, string>) => RenderResult | Promise<RenderResult>} callback
    * @param {{ cacheKey?: string[] }} [options]
    * @returns {void}
    */
@@ -738,19 +742,19 @@ export class Plugin {
 
   /**
    * Registers a full-page view reachable via {@link Plugin.openPage}. `display()`
-   * is called on navigation and must return a {@link VirtualEl} or `null`.
-   * @param {{ id: string, title?: string | null, display?: () => VirtualEl | null | Promise<VirtualEl | null> }} options
+   * is called on navigation and must return a {@link VirtualEl}, or nothing to
+   * render an empty page.
+   * @param {{ id: string, title?: string | null, display?: () => RenderResult | Promise<RenderResult> }} options
    * @returns {void}
    */
   registerPage({ id, title = null, display = () => null }) {
     const displayHandlerId = uuid.create();
     callHandlers.set(displayHandlerId, async () => {
-      const result = await display();
+      const result = /** @type {unknown} */ (await display());
       if (result == null) return null;
       if (!(result instanceof VirtualEl)) {
-        const description = result?.constructor?.name ?? typeof result;
         throw new Error(
-          `Page "${id}" must return a VirtualEl or null, got ${description}`,
+          `Page "${id}" must return a VirtualEl or null, got ${describeValue(result)}`,
         );
       }
       return result._serialize();
@@ -839,13 +843,23 @@ export class Plugin {
   }
 }
 
+/**
+ * Names the type of an arbitrary value, for use in an error message.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function describeValue(value) {
+  if (value === null) return "null";
+  if (typeof value !== "object") return typeof value;
+  return value.constructor?.name ?? "object";
+}
+
 async function getSlotContent(name, callback, context) {
-  const result = await callback(context);
+  const result = /** @type {unknown} */ (await callback(context));
   if (result == null) return null;
   if (!(result instanceof VirtualEl)) {
-    const description = result?.constructor?.name ?? typeof result;
     throw new Error(
-      `Slot "${name}" must return a VirtualEl or null, got ${description}`,
+      `Slot "${name}" must return a VirtualEl or null, got ${describeValue(result)}`,
     );
   }
   return result._serialize();
@@ -1027,16 +1041,16 @@ export class Modal {
  * to render into `this.containerEl`. Register with `plugin.addSettingTab(tab)`.
  */
 export class PluginSettingTab {
+  /**
+   * The owning plugin. Set by the host in {@link Plugin.addSettingTab}.
+   * @type {Plugin}
+   */
+  plugin;
   constructor() {
     /** @type {VirtualEl} */
     this.containerEl = new VirtualEl("div");
     /** @type {string | null} */
     this.name = null;
-    /**
-     * The owning plugin. Set by the host in {@link Plugin.addSettingTab}.
-     * @type {Plugin}
-     */
-    this.plugin;
   }
   /**
    * Set the tab's label.
@@ -1189,7 +1203,7 @@ export class TextComponent {
    * @returns {this}
    */
   onChange(callback) {
-    this.el.onChange((event) => callback(event.target.value));
+    this.el.onChange((event) => callback(event.target.value ?? ""));
     return this;
   }
 }
@@ -1227,7 +1241,7 @@ export class TextAreaComponent {
    * @returns {this}
    */
   onChange(callback) {
-    this.el.onChange((event) => callback(event.target.value));
+    this.el.onChange((event) => callback(event.target.value ?? ""));
     return this;
   }
 }
@@ -1257,7 +1271,7 @@ export class ToggleComponent {
    * @returns {this}
    */
   onChange(callback) {
-    this.el.onChange((event) => callback(event.target.checked));
+    this.el.onChange((event) => callback(event.target.checked ?? false));
     return this;
   }
 }
@@ -1299,9 +1313,10 @@ export class DropdownComponent {
    */
   setValue(value) {
     for (const child of this.el.children) {
-      if (child.attrs?.value === value) {
+      if (!(child instanceof VirtualEl)) continue;
+      if (child.attrs.value === value) {
         child.attrs.selected = "";
-      } else if (child.attrs) {
+      } else {
         delete child.attrs.selected;
       }
     }
@@ -1313,7 +1328,7 @@ export class DropdownComponent {
    * @returns {this}
    */
   onChange(callback) {
-    this.el.onChange((event) => callback(event.target.value));
+    this.el.onChange((event) => callback(event.target.value ?? ""));
     return this;
   }
 }
