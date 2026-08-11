@@ -5,6 +5,10 @@ const PREVIEWS_KEY = "courier-push-chat-previews";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
+// The service's active-cadence window is minutes, not seconds, so a heartbeat
+// this often keeps the account pinned to the fast poll cadence for as long as
+// the user is around — and costs one PDS round-trip per interval.
+const HEARTBEAT_INTERVAL_MS = 120_000;
 
 // Resolves a did:web document to find its URL. impro doesn't otherwise need
 // general DID resolution here since the notification service is hardcoded
@@ -122,6 +126,7 @@ export class CourierPushService {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
     localStorage.setItem(PREVIEWS_KEY, chatPreviews ? "true" : "false");
+    this.startHeartbeat();
   }
 
   async _subscribeAndRegister(config) {
@@ -164,12 +169,96 @@ export class CourierPushService {
     } catch (error) {
       console.error("Failed to re-assert push registration", error);
     }
+    this.startHeartbeat();
+  }
+
+  // User-activity signal for the courier's adaptive cadence.
+  //
+  // The service decides poll frequency from "how recently was this account
+  // active", and the only activity signal in the protocol is registerPush
+  // (an idempotent upsert the service already counts as activity — no new
+  // method, no new scope). While the user has this app open, re-asserting
+  // keeps the account on the fast cadence; when the tab goes away the
+  // heartbeats stop and the service lets the account wind down to idle on
+  // its own, which is the correct behavior for a user who's gone.
+  startHeartbeat() {
+    if (this._heartbeatTimer) return;
+    const beat = () => this._heartbeat();
+    this._heartbeatTimer = setInterval(beat, HEARTBEAT_INTERVAL_MS);
+    // Coming back to the tab is activity right now — beat once on the way
+    // in rather than waiting up to a full interval.
+    this._visibilityHandler = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    document.addEventListener("visibilitychange", this._visibilityHandler);
+  }
+
+  stopHeartbeat() {
+    if (this._heartbeatTimer) {
+      clearInterval(this._heartbeatTimer);
+      this._heartbeatTimer = null;
+    }
+    if (this._visibilityHandler) {
+      document.removeEventListener("visibilitychange", this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
+  }
+
+  async _heartbeat() {
+    // A hidden tab is not the user being here. The interval keeps running so
+    // the beat resumes the moment the tab comes back (the visibilitychange
+    // listener also fires one immediately), but no traffic goes out while the
+    // user is elsewhere — and the service lets the account wind down to idle
+    // on its own, which is right for a user who's gone.
+    if (document.visibilityState !== "visible") return;
+
+    // Throttle: visibility flips can be rapid, and every beat is a PDS
+    // round-trip.
+    const now = Date.now();
+    if (now - (this._lastHeartbeat ?? 0) < HEARTBEAT_INTERVAL_MS / 2) return;
+    this._lastHeartbeat = now;
+
+    if (localStorage.getItem(STORAGE_KEY) !== "true" || !this.isSupported) {
+      this.stopHeartbeat();
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      this.stopHeartbeat();
+      return;
+    }
+    try {
+      // Direct re-registration with the subscription this device already
+      // holds — no permission prompt, no subscribe dance, one PDS
+      // round-trip. registerPush is an idempotent upsert, and the service
+      // counts it as activity, which is the whole point of the beat.
+      const registration =
+        await navigator.serviceWorker.getRegistration(SW_PATH);
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) {
+        // No local subscription (rotated or lost) — the full re-assert path
+        // is the self-healing recovery for exactly this case.
+        const config = await this.fetchServiceConfig();
+        await this._subscribeAndRegister(config);
+        return;
+      }
+      await this.api.registerPush({
+        serviceDid: NOTIFICATION_SERVICE_DID,
+        token: JSON.stringify(subscription),
+        platform: PLATFORM,
+        appId: APP_ID,
+      });
+    } catch (error) {
+      // A heartbeat that fails is just a heartbeat that didn't happen —
+      // the service's cadence degrades gracefully and the next one retries.
+      console.warn("Courier activity heartbeat failed", error);
+    }
   }
 
   // Unregisters just this device (per spec, callers must always do this on
   // logout — the service polls server-side, so nothing else stops pushes
   // for a logged-out account from reaching this device).
   async disable() {
+    this.stopHeartbeat();
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PREVIEWS_KEY);
     if (!("serviceWorker" in navigator)) return;
