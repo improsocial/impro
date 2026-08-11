@@ -64,7 +64,7 @@ class SettingsNotificationsView extends View {
       let description =
         "Get notified when you have new activity while Impro is open in a tab or window.";
       if (!isSupported) {
-        description = "Your browser doesn't support notifications.";
+        description = "Notifications aren't supported on this device.";
       } else if (isDenied) {
         description =
           "Notifications are blocked for this site. Re-enable them in your browser's site settings to turn this on.";

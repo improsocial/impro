@@ -32,9 +32,18 @@ function enable() {
 describe("SystemNotificationService", () => {
   let instances;
   let originalNotification;
+  let originalMatchMedia;
   let disposers;
   let navigations;
   let router;
+
+  function simulateTouchOnlyDevice() {
+    window.matchMedia = (query) => ({
+      matches: query === "(hover: none) and (pointer: coarse)",
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+  }
 
   function startService(notificationService, chatNotificationService) {
     const service = new SystemNotificationService(
@@ -53,6 +62,7 @@ describe("SystemNotificationService", () => {
     navigations = [];
     router = { go: (path) => navigations.push(path) };
     originalNotification = globalThis.Notification;
+    originalMatchMedia = window.matchMedia;
     globalThis.Notification = class {
       static permission = "granted";
       static async requestPermission() {
@@ -73,6 +83,7 @@ describe("SystemNotificationService", () => {
       dispose();
     }
     globalThis.Notification = originalNotification;
+    window.matchMedia = originalMatchMedia;
     localStorage.clear();
   });
 
@@ -238,6 +249,57 @@ describe("SystemNotificationService", () => {
       await flushEffects();
 
       assert.deepEqual(instances.length, 0);
+    });
+  });
+
+  describe("touch-only devices", () => {
+    it("reports as unsupported even though the Notification API exists", () => {
+      simulateTouchOnlyDevice();
+      const service = new SystemNotificationService(
+        createMockNotificationService(),
+        createMockChatNotificationService(),
+        router,
+      );
+
+      assert.deepEqual(typeof globalThis.Notification !== "undefined", true);
+      assert.deepEqual(service.isSupported, false);
+    });
+
+    it("reports as supported when hover and a fine pointer exist", () => {
+      const service = new SystemNotificationService(
+        createMockNotificationService(),
+        createMockChatNotificationService(),
+        router,
+      );
+
+      assert.deepEqual(service.isSupported, true);
+    });
+
+    it("does not notify even when enabled and permitted", async () => {
+      simulateTouchOnlyDevice();
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 0);
+    });
+
+    it("does not request permission or set the storage flag", async () => {
+      simulateTouchOnlyDevice();
+      const service = new SystemNotificationService(
+        createMockNotificationService(),
+        createMockChatNotificationService(),
+        router,
+      );
+
+      const result = await service.requestPermission();
+
+      assert.deepEqual(result, "unsupported");
+      assert.deepEqual(service.isEnabled, false);
     });
   });
 
