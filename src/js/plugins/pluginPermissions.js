@@ -1,7 +1,6 @@
 import { unique } from "/js/utils.js";
 
 const ACTION_SCOPES = ["mute", "block", "feedFeedback"];
-const STORAGE_SCOPES = ["binaryCache"];
 
 export function getPermissionsFromManifest(manifest) {
   return parsePermissions(manifest.permissions ?? {});
@@ -27,15 +26,6 @@ export function parsePermissions(permissions) {
     );
     if (actionScopes.length > 0) parsed.actions = actionScopes;
   }
-  if (permissions.storage) {
-    const storageArray = Array.isArray(permissions.storage)
-      ? permissions.storage
-      : [permissions.storage];
-    const storageScopes = unique(
-      storageArray.filter((entry) => STORAGE_SCOPES.includes(entry)),
-    );
-    if (storageScopes.length > 0) parsed.storage = storageScopes;
-  }
   return parsed;
 }
 
@@ -43,11 +33,6 @@ export function parsePermissions(permissions) {
 // like this" feed-interaction signal)
 export function isActionAllowed(action, permissions) {
   return (permissions.actions ?? []).includes(action);
-}
-
-// scope is one of STORAGE_SCOPES ("binaryCache" today).
-export function isStorageAllowed(scope, permissions) {
-  return (permissions.storage ?? []).includes(scope);
 }
 
 export function diffPermissions(current, next) {
@@ -68,20 +53,6 @@ export function isEmptyPermissions(obj) {
   return Object.values(obj).every(
     (entries) => !Array.isArray(entries) || entries.length === 0,
   );
-}
-
-// Like diffPermissions, but for manifest.executables: entries are objects
-// ({name, sourceUrl, sha256}), not primitive strings, so a plain Set can't
-// be used to compare them by value the way diffPermissions compares
-// permission-scope strings. sha256 is the identity a change is measured
-// against — a new or modified binary always gets a new hash, so "changed"
-// and "added" are the same case here and both require re-approval.
-export function diffExecutables(current, next) {
-  const currentHashes = new Set((current ?? []).map((entry) => entry.sha256));
-  const added = (next ?? []).filter(
-    (entry) => !currentHashes.has(entry.sha256),
-  );
-  return added.length > 0 ? added : null;
 }
 
 export function isFetchAllowed(url, permissions) {

@@ -23,20 +23,14 @@ import { PluginRichTextDispatcher } from "/js/plugins/pluginRichTextDispatcher.j
 import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import {
-  pluginFetch,
-  bytesToBase64,
-  base64ToArrayBuffer,
-} from "/js/plugins/pluginRequests.js";
+import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
   parsePermissions,
   diffPermissions,
-  diffExecutables,
   isEmptyPermissions,
   isActionAllowed,
-  isStorageAllowed,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
@@ -412,31 +406,41 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "getBinaryCacheEntry",
       async (plugin, { key }) => {
-        this._requireStoragePermission(plugin, "binaryCache");
         requireHostMethodArg("getBinaryCacheEntry", "key", key);
-        const buffer = await this.binaryCache.get(plugin.pluginId, key);
-        return buffer == null ? null : bytesToBase64(new Uint8Array(buffer));
+        return await this.binaryCache.get(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "hasBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("hasBinaryCacheEntry", "key", key);
+        return await this.binaryCache.has(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "listBinaryCacheEntries",
+      async (plugin) => {
+        return await this.binaryCache.keys(plugin.pluginId);
       },
     );
 
     this.pluginBridge.addHostMethod(
       "putBinaryCacheEntry",
       async (plugin, { key, data }) => {
-        this._requireStoragePermission(plugin, "binaryCache");
         requireHostMethodArg("putBinaryCacheEntry", "key", key);
         requireHostMethodArg("putBinaryCacheEntry", "data", data);
-        await this.binaryCache.put(
-          plugin.pluginId,
-          key,
-          base64ToArrayBuffer(data),
-        );
+        if (!(data instanceof ArrayBuffer)) {
+          throw new Error("putBinaryCacheEntry data must be an ArrayBuffer");
+        }
+        await this.binaryCache.put(plugin.pluginId, key, data);
       },
     );
 
     this.pluginBridge.addHostMethod(
       "deleteBinaryCacheEntry",
       async (plugin, { key }) => {
-        this._requireStoragePermission(plugin, "binaryCache");
         requireHostMethodArg("deleteBinaryCacheEntry", "key", key);
         await this.binaryCache.delete(plugin.pluginId, key);
       },
@@ -679,15 +683,6 @@ export class PluginService extends ReactiveStore {
     }
   }
 
-  _requireStoragePermission(plugin, scope) {
-    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
-    if (!isStorageAllowed(scope, permissions)) {
-      throw new Error(
-        `"${plugin.pluginId}" does not have "${scope}" storage permission`,
-      );
-    }
-  }
-
   async loadEnabledPlugins() {
     try {
       await this._loadEnabledPlugins();
@@ -773,8 +768,7 @@ export class PluginService extends ReactiveStore {
       return;
     }
     const permissions = getPermissionsFromManifest(manifest);
-    const executables = manifest.executables ?? [];
-    if (!isEmptyPermissions(permissions) || executables.length > 0) {
+    if (!isEmptyPermissions(permissions)) {
       showToast(
         `"${manifest.name}" can't be previewed because it requires user permissions.`,
         { style: "error", timeout: 5000 },
@@ -791,7 +785,6 @@ export class PluginService extends ReactiveStore {
       repo: listing.repo,
       enabled: true,
       permissions,
-      executables,
     });
   }
 
@@ -896,13 +889,11 @@ export class PluginService extends ReactiveStore {
       throw new Error("Failed to fetch manifest");
     }
     const permissions = getPermissionsFromManifest(manifest);
-    const executables = manifest.executables ?? [];
-    if (!isEmptyPermissions(permissions) || executables.length > 0) {
+    if (!isEmptyPermissions(permissions)) {
       if (
         !(await showPluginInstallPermissionsModal({
           pluginName: manifest.name,
           permissions,
-          executables,
         }))
       ) {
         throw new PermissionsDeclinedError();
@@ -918,7 +909,6 @@ export class PluginService extends ReactiveStore {
       repo,
       enabled: true,
       permissions,
-      executables,
     });
     try {
       await this.pluginBridge.loadPlugin(pluginId, version, repo);
@@ -942,13 +932,11 @@ export class PluginService extends ReactiveStore {
       throw new Error("Failed to fetch manifest");
     }
     const permissions = getPermissionsFromManifest(manifest);
-    const executables = manifest.executables ?? [];
-    if (!isEmptyPermissions(permissions) || executables.length > 0) {
+    if (!isEmptyPermissions(permissions)) {
       if (
         !(await showPluginInstallPermissionsModal({
           pluginName: manifest.name,
           permissions,
-          executables,
         }))
       ) {
         throw new PermissionsDeclinedError();
@@ -974,7 +962,6 @@ export class PluginService extends ReactiveStore {
       repo,
       enabled: true,
       permissions,
-      executables,
     });
     try {
       await this.pluginBridge.loadPlugin(id, version, repo);
@@ -1026,15 +1013,11 @@ export class PluginService extends ReactiveStore {
       const currentPermissions = installedPlugin.permissions ?? {};
       const permissions = getPermissionsFromManifest(liveManifest);
       const permissionsDiff = diffPermissions(currentPermissions, permissions);
-      const currentExecutables = installedPlugin.executables ?? [];
-      const executables = liveManifest.executables ?? [];
-      const executablesDiff = diffExecutables(currentExecutables, executables);
-      if (permissionsDiff || executablesDiff) {
+      if (permissionsDiff) {
         const accepted = await showPluginUpdatePermissionsModal({
           pluginName: liveManifest.name,
           pluginVersion: liveManifest.version,
-          permissionsDiff: permissionsDiff ?? {},
-          executablesDiff,
+          permissionsDiff,
         });
         if (!accepted) throw new PermissionsDeclinedError();
       }
@@ -1046,7 +1029,6 @@ export class PluginService extends ReactiveStore {
         author,
         description,
         permissions,
-        executables,
       }));
       await this.pluginBridge.reloadPlugin(
         pluginId,

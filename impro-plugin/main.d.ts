@@ -217,12 +217,9 @@ export class PluginData {
 }
 /**
  * Host-mediated persistent storage for binary data too large for
- * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData} (backed by
- * localStorage, a few MB shared across every installed plugin) — e.g. a
- * downloaded WASM engine or model file that shouldn't need re-fetching every
- * session. Namespaced per plugin; survives reloads but is cleared on
- * uninstall. Requires the `"binaryCache"` scope in the manifest's
- * `permissions.storage`.
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData}.
+ * Namespaced per plugin; survives reloads but is cleared on
+ * uninstall.
  */
 export class BinaryCache {
     /**
@@ -230,6 +227,19 @@ export class BinaryCache {
      * @returns {Promise<ArrayBuffer | null>}
      */
     get(key: string): Promise<ArrayBuffer | null>;
+    /**
+     * Whether an entry is stored under `key`, without transferring its bytes.
+     *
+     * @param {string} key
+     * @returns {Promise<boolean>}
+     */
+    has(key: string): Promise<boolean>;
+    /**
+     * Every key this plugin currently has stored, in no particular order.
+     *
+     * @returns {Promise<string[]>}
+     */
+    keys(): Promise<string[]>;
     /**
      * @param {string} key
      * @param {ArrayBuffer | ArrayBufferView} data
@@ -1324,10 +1334,11 @@ export type CloneableObject = {
  */
 export type CloneableArray = Cloneable[];
 /**
- * JSON-shaped data — the only thing that can cross between a plugin and the
- * host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+ * that can cross between a plugin and the host. Functions, class instances,
+ * `Date`, `Map` and friends cannot.
  */
-export type Cloneable = null | undefined | boolean | number | string | CloneableArray | CloneableObject;
+export type Cloneable = null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject;
 /**
  * {@internal}
  */

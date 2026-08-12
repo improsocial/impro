@@ -1,20 +1,13 @@
-// Host-mediated persistent storage for binary data a plugin's own worker
-// can't reliably cache itself: the plugin sandbox iframe runs with
-// sandbox="allow-scripts" and no allow-same-origin, which gives it an
-// opaque origin — indexedDB/caches/localStorage inside that context are
-// either unavailable or reset on every reload. Backed by the same Cache API
-// PluginCache already uses for plugin bundles, in a cache namespaced per
-// plugin (so clearing on uninstall is a single caches.delete(), not an
-// enumerate-and-filter pass).
-
 const CACHE_PREFIX = "plugin-binary-cache:";
 
-// Cache API keys are Request/URL, not arbitrary strings — this constructs a
-// stable, never-dereferenced pseudo-URL per cache key. The .invalid TLD
-// (RFC 2606) guarantees it can never resolve to a real host even if
-// something upstream ever did try to fetch it.
+// Cache API keys are Request/URL — this constructs a
+// stable, never-dereferenced pseudo-URL per cache key.
 function keyUrl(key) {
   return `https://plugin-binary-cache.invalid/${encodeURIComponent(key)}`;
+}
+
+function keyFromUrl(url) {
+  return decodeURIComponent(new URL(url).pathname.slice(1));
 }
 
 export class PluginBinaryCache {
@@ -27,6 +20,18 @@ export class PluginBinaryCache {
     const response = await cache.match(keyUrl(key));
     if (!response) return null;
     return await response.arrayBuffer();
+  }
+
+  async has(pluginId, key) {
+    const cache = await caches.open(this._cacheName(pluginId));
+    const matches = await cache.keys(keyUrl(key));
+    return matches.length > 0;
+  }
+
+  async keys(pluginId) {
+    const cache = await caches.open(this._cacheName(pluginId));
+    const requests = await cache.keys();
+    return requests.map((request) => keyFromUrl(request.url));
   }
 
   async put(pluginId, key, arrayBuffer) {

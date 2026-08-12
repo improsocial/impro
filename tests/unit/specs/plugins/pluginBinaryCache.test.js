@@ -21,6 +21,12 @@ class FakeCache {
   async delete(url) {
     return this._store.delete(url);
   }
+  async keys(url) {
+    const urls = [...this._store.keys()].filter(
+      (stored) => url === undefined || stored === url,
+    );
+    return urls.map((stored) => ({ url: stored }));
+  }
 }
 
 class FakeCaches {
@@ -99,6 +105,41 @@ describe("PluginBinaryCache", () => {
       await cache.delete("plugin-a", "k1");
       assert.deepEqual(await cache.get("plugin-a", "k1"), null);
       assert.notDeepEqual(await cache.get("plugin-a", "k2"), null);
+    } finally {
+      restore();
+    }
+  });
+
+  it("has reports presence without reading the body", async () => {
+    const { restore } = stubCaches();
+    try {
+      const cache = new PluginBinaryCache();
+      await cache.put("plugin-a", "k1", new Uint8Array([1]).buffer);
+      assert.deepEqual(await cache.has("plugin-a", "k1"), true);
+      assert.deepEqual(await cache.has("plugin-a", "k2"), false);
+      assert.deepEqual(await cache.has("plugin-b", "k1"), false);
+    } finally {
+      restore();
+    }
+  });
+
+  it("keys lists a plugin's stored keys, decoded and isolated", async () => {
+    const { restore } = stubCaches();
+    try {
+      const cache = new PluginBinaryCache();
+      await cache.put(
+        "plugin-a",
+        "models/en de.bin",
+        new Uint8Array([1]).buffer,
+      );
+      await cache.put("plugin-a", "k2", new Uint8Array([2]).buffer);
+      await cache.put("plugin-b", "other", new Uint8Array([3]).buffer);
+      assert.deepEqual((await cache.keys("plugin-a")).sort(), [
+        "k2",
+        "models/en de.bin",
+      ]);
+      assert.deepEqual(await cache.keys("plugin-b"), ["other"]);
+      assert.deepEqual(await cache.keys("plugin-c"), []);
     } finally {
       restore();
     }

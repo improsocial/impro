@@ -3,11 +3,9 @@ import assert from "node:assert/strict";
 import {
   parsePermissions,
   diffPermissions,
-  diffExecutables,
   isEmptyPermissions,
   isFetchAllowed,
   isActionAllowed,
-  isStorageAllowed,
 } from "/js/plugins/pluginPermissions.js";
 
 describe("parsePermissions", () => {
@@ -63,24 +61,6 @@ describe("parsePermissions", () => {
     assert.deepEqual(parsePermissions({ actions: [] }), {});
     assert.deepEqual(parsePermissions({ actions: ["feedback"] }), {});
   });
-
-  it("parses the binaryCache storage scope and drops unknown ones", () => {
-    assert.deepEqual(
-      parsePermissions({ storage: ["binaryCache", "everything"] }),
-      { storage: ["binaryCache"] },
-    );
-  });
-
-  it("wraps a string storage value into an array", () => {
-    assert.deepEqual(parsePermissions({ storage: "binaryCache" }), {
-      storage: ["binaryCache"],
-    });
-  });
-
-  it("omits the storage key when no valid scopes remain", () => {
-    assert.deepEqual(parsePermissions({ storage: [] }), {});
-    assert.deepEqual(parsePermissions({ storage: ["localStorage"] }), {});
-  });
 });
 
 describe("isActionAllowed", () => {
@@ -93,13 +73,6 @@ describe("isActionAllowed", () => {
 
   it("denies everything when the actions key is missing", () => {
     assert(!isActionAllowed("mute", {}));
-  });
-});
-
-describe("isStorageAllowed", () => {
-  it("allows only granted storage scopes", () => {
-    assert(isStorageAllowed("binaryCache", { storage: ["binaryCache"] }));
-    assert(!isStorageAllowed("binaryCache", {}));
   });
 });
 
@@ -217,51 +190,5 @@ describe("isFetchAllowed", () => {
 
   it("denies everything when the fetch key is missing", () => {
     assert(!isFetchAllowed("https://example.com/", {}));
-  });
-});
-
-describe("diffExecutables", () => {
-  const engineV1 = {
-    name: "engine",
-    sourceUrl: "https://example.com/engine",
-    sha256: "a".repeat(64),
-  };
-  const engineV2 = {
-    name: "engine",
-    sourceUrl: "https://example.com/engine",
-    sha256: "b".repeat(64),
-  };
-
-  it("returns null when there are no new executables", () => {
-    assert.deepEqual(diffExecutables([engineV1], [engineV1]), null);
-  });
-
-  it("returns null when current and next are both empty/missing", () => {
-    assert.deepEqual(diffExecutables(undefined, undefined), null);
-    assert.deepEqual(diffExecutables([], []), null);
-  });
-
-  it("treats a hash change as a new entry requiring approval", () => {
-    // Same name/sourceUrl, different bytes - identity is the hash, not the
-    // name, since a plugin swapping in different bytes under an unchanged
-    // name is exactly the case this needs to catch.
-    assert.deepEqual(diffExecutables([engineV1], [engineV2]), [engineV2]);
-  });
-
-  it("returns only the newly-added entries", () => {
-    const model = {
-      name: "model",
-      sourceUrl: "https://example.com/model",
-      sha256: "c".repeat(64),
-    };
-    assert.deepEqual(diffExecutables([engineV1], [engineV1, model]), [model]);
-  });
-
-  it("treats a missing current list as 'everything new'", () => {
-    assert.deepEqual(diffExecutables(undefined, [engineV1]), [engineV1]);
-  });
-
-  it("returns null when next has no entries", () => {
-    assert.deepEqual(diffExecutables([engineV1], []), null);
   });
 });

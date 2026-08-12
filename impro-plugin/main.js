@@ -361,12 +361,9 @@ export class PluginData {
 
 /**
  * Host-mediated persistent storage for binary data too large for
- * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData} (backed by
- * localStorage, a few MB shared across every installed plugin) — e.g. a
- * downloaded WASM engine or model file that shouldn't need re-fetching every
- * session. Namespaced per plugin; survives reloads but is cleared on
- * uninstall. Requires the `"binaryCache"` scope in the manifest's
- * `permissions.storage`.
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData}.
+ * Namespaced per plugin; survives reloads but is cleared on
+ * uninstall.
  */
 export class BinaryCache {
   /**
@@ -374,10 +371,28 @@ export class BinaryCache {
    * @returns {Promise<ArrayBuffer | null>}
    */
   async get(key) {
-    const stored = /** @type {string | null} */ (
-      await hostCall("getBinaryCacheEntry", { key: String(key) })
+    return /** @type {Promise<ArrayBuffer | null>} */ (
+      hostCall("getBinaryCacheEntry", { key: String(key) })
     );
-    return stored == null ? null : base64ToArrayBuffer(stored);
+  }
+  /**
+   * Whether an entry is stored under `key`, without transferring its bytes.
+   *
+   * @param {string} key
+   * @returns {Promise<boolean>}
+   */
+  async has(key) {
+    return /** @type {boolean} */ (
+      await hostCall("hasBinaryCacheEntry", { key: String(key) })
+    );
+  }
+  /**
+   * Every key this plugin currently has stored, in no particular order.
+   *
+   * @returns {Promise<string[]>}
+   */
+  async keys() {
+    return /** @type {string[]} */ (await hostCall("listBinaryCacheEntries"));
   }
   /**
    * @param {string} key
@@ -385,14 +400,13 @@ export class BinaryCache {
    * @returns {Promise<void>}
    */
   async put(key, data) {
-    const bytes =
+    // A view may be a window onto a larger buffer, so send just its bytes.
+    const buffer = /** @type {ArrayBuffer} */ (
       data instanceof ArrayBuffer
-        ? new Uint8Array(data)
-        : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-    await hostCall("putBinaryCacheEntry", {
-      key: String(key),
-      data: bytesToBase64(bytes),
-    });
+        ? data
+        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+    );
+    await hostCall("putBinaryCacheEntry", { key: String(key), data: buffer });
   }
   /**
    * @param {string} key
@@ -2037,9 +2051,10 @@ export class VirtualEl {
  *   An object whose values are all {@link Cloneable}.
  * @typedef {Cloneable[]} CloneableArray
  *   An array of {@link Cloneable} values.
- * @typedef {null | undefined | boolean | number | string | CloneableArray | CloneableObject} Cloneable
- *   JSON-shaped data — the only thing that can cross between a plugin and the
- *   host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * @typedef {null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject} Cloneable
+ *   JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+ *   that can cross between a plugin and the host. Functions, class instances,
+ *   `Date`, `Map` and friends cannot.
  * @typedef {{ type: "register", target: "eventListener", event: string, handlerId: number }} RegisterEventListenerMessage
  *   {@internal}
  * @typedef {{ type: "register", target: "sidebarItem", icon: string | SerializedElement, title: string, handlerId: number }} RegisterSidebarItemMessage

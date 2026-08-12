@@ -178,12 +178,9 @@ Unmute an actor. Requires the `"mute"` scope.
 ### BinaryCache
 
 Host-mediated persistent storage for binary data too large for
-[Plugin.loadLocalData](#loadlocaldata)/[Plugin.saveLocalData](#savelocaldata) (backed by
-localStorage, a few MB shared across every installed plugin) — e.g. a
-downloaded WASM engine or model file that shouldn't need re-fetching every
-session. Namespaced per plugin; survives reloads but is cleared on
-uninstall. Requires the `"binaryCache"` scope in the manifest's
-`permissions.storage`.
+[Plugin.loadLocalData](#loadlocaldata)/[Plugin.saveLocalData](#savelocaldata).
+Namespaced per plugin; survives reloads but is cleared on
+uninstall.
 
 #### Constructors
 
@@ -224,6 +221,32 @@ uninstall. Requires the `"binaryCache"` scope in the manifest's
 ###### Returns
 
 `Promise`\<`ArrayBuffer` \| `null`\>
+
+##### has()
+
+> **has**(`key`): `Promise`\<`boolean`\>
+
+Whether an entry is stored under `key`, without transferring its bytes.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`boolean`\>
+
+##### keys()
+
+> **keys**(): `Promise`\<`string`[]\>
+
+Every key this plugin currently has stored, in no particular order.
+
+###### Returns
+
+`Promise`\<`string`[]\>
 
 ##### put()
 
@@ -2324,10 +2347,11 @@ A record that links to a queried subject.
 
 ### Cloneable
 
-> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
+> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| `ArrayBuffer` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
 
-JSON-shaped data — the only thing that can cross between a plugin and the
-  host. Functions, class instances, `Date`, `Map` and friends cannot.
+JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+  that can cross between a plugin and the host. Functions, class instances,
+  `Date`, `Map` and friends cannot.
 
 #### Type Parameters
 

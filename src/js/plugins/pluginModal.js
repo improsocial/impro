@@ -118,10 +118,6 @@ const ACTION_LABELS = {
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
-const STORAGE_LABELS = {
-  binaryCache: "Cache downloaded files on this device (e.g. AI/ML models)",
-};
-
 function permissionsSectionTemplate({ title, items }) {
   return html`
     <div class="permission-prompt-section">
@@ -133,21 +129,7 @@ function permissionsSectionTemplate({ title, items }) {
   `;
 }
 
-function executablesSectionTemplate(executables) {
-  if (!executables?.length) return null;
-  return permissionsSectionTemplate({
-    title: "Execute compiled code from:",
-    items: executables.map(
-      (entry) =>
-        html`${entry.name} —
-          <a href=${entry.sourceUrl} target="_blank" rel="noopener noreferrer"
-            >${entry.sourceUrl}</a
-          >`,
-    ),
-  });
-}
-
-function permissionsListTemplate({ permissions, executables }) {
+function permissionsListTemplate({ permissions }) {
   const sections = [];
   const fetchPatterns = permissions.fetch ?? [];
   if (fetchPatterns.length > 0) {
@@ -167,30 +149,18 @@ function permissionsListTemplate({ permissions, executables }) {
       }),
     );
   }
-  const storageScopes = permissions.storage ?? [];
-  if (storageScopes.length > 0) {
-    sections.push(
-      permissionsSectionTemplate({
-        title: "Store data on your device:",
-        items: storageScopes.map((scope) => STORAGE_LABELS[scope] ?? scope),
-      }),
-    );
-  }
-  const executablesSection = executablesSectionTemplate(executables);
-  if (executablesSection) sections.push(executablesSection);
   return html`<div class="permission-prompt-sections">${sections}</div>`;
 }
 
 export async function showPluginInstallPermissionsModal({
   pluginName,
   permissions,
-  executables,
 }) {
   const name = pluginName ?? "This plugin";
   return confirmModal(
     html`<span class="permission-prompt" data-testid="permission-prompt">
       <span class="permission-prompt-intro">${name} wants permission to:</span>
-      ${permissionsListTemplate({ permissions, executables })}
+      ${permissionsListTemplate({ permissions })}
     </span>`,
     {
       title: "Grant permissions?",
@@ -203,7 +173,6 @@ export async function showPluginUpdatePermissionsModal({
   pluginName,
   pluginVersion,
   permissionsDiff,
-  executablesDiff,
 }) {
   const name = pluginName ?? "This plugin";
   const heading = pluginVersion
@@ -212,10 +181,7 @@ export async function showPluginUpdatePermissionsModal({
   return confirmModal(
     html`<span class="permission-prompt" data-testid="permission-update-prompt">
       <span class="permission-prompt-intro">${heading}</span>
-      ${permissionsListTemplate({
-        permissions: permissionsDiff,
-        executables: executablesDiff,
-      })}
+      ${permissionsListTemplate({ permissions: permissionsDiff })}
     </span>`,
     {
       title: "Grant new permissions?",
