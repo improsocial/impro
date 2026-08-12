@@ -1,6 +1,6 @@
 # Bluesky Push Notification Service Spec
 
-#### Version: 0.0.1
+#### Version: 0.0.2
 
 The normative interface between a Bluesky client (an app built on the
 `app.bsky.*` appview and `chat.bsky.*` chat services) and a push
@@ -27,6 +27,10 @@ This is the shape PDS request forwarding already resolves
 own origin is the expected common case, but any DID method that can
 publish the entry works. Everything below is served from the
 `serviceEndpoint` origin.
+
+A `did:web` document MUST be served with permissive CORS,
+(`Access-Control-Allow-Origin: *`) — clients fetch it cross-origin
+from the browser.
 
 ## Config document
 
@@ -76,6 +80,8 @@ browser to it and receives it back:
      the message-content scope (see "Grant tiers")
 2. The service runs the standard atproto OAuth flow under its own
    `client_id` and stores the grant server-side.
+   - The service's client metadata document MUST declare a `scope`
+     covering the union of both grant tiers.
 3. The service MUST verify the completed grant's `sub` matches the
    hinted DID before storing it.
 4. The service redirects to `return_url`, appending standard OAuth
@@ -134,6 +140,10 @@ called method. This JWT is the sole authentication — it is what makes
 registration sound for unauthed services too, since nobody can
 register a device against a DID they do not control.
 
+Signature verification MUST accept both `ES256` (P-256) and `ES256K`
+(secp256k1). Derive the algorithm from the resolved key in the DID
+document, not from the JWT header's `alg`.
+
 Token formats by `platform`:
 
 - `web` — `token` is the serialized `PushSubscription` JSON:
@@ -191,6 +201,10 @@ A `404` or `410` from a Web Push endpoint means the subscription is
 dead: the service MUST delete the device row (this is the only
 reliable unsubscribe signal, and it feeds the zero-device grant
 lifecycle above). Other failures are retried with backoff.
+
+A service SHOULD collapse a large burst of app notifications into a
+summary rather than sending them individually. A rapid burst of
+notifications can trigger browsers' abusive-notification checks.
 
 ## Security requirements
 
