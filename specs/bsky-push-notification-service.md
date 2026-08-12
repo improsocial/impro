@@ -185,20 +185,6 @@ VAPID key. The plaintext is JSON:
   origin. The client's service worker resolves it against its own
   origin (the service does not know or care where the client is
   hosted).
-
-  The target is the record the notification is _about_, not the
-  notification's own `uri`. For `reply`, `mention`, `quote`, and
-  `subscribed-post` those are the same record. For `like` and
-  `repost` they are not: the notification's `uri` is the reaction
-  record, which lives in the _reacting_ account's repo, so a post
-  link built from it names a post that does not exist. Follow the
-  reaction to its subject instead — `reasonSubject` for plain `like`
-  and `repost`, `record.subject.uri` for the `-via-repost` variants,
-  where `reasonSubject` is the reader's own repost rather than the
-  post itself. `follow` has no post at all and links to the follower.
-  Getting this wrong is not subtle in use: every like notification
-  opens a blank page.
-
 - `badge` — optional; total unread count at send time. Best-effort:
   reads on other devices cannot update it until the next push.
 - `tag` — optional collapse key: a new notification with the same tag
