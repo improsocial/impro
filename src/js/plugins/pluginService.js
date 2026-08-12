@@ -5,6 +5,7 @@ import {
   hidePluginModal,
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
+  showCustomEndpointApprovalModal,
 } from "/js/plugins/pluginModal.js";
 import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
@@ -17,12 +18,19 @@ import {
   PluginLocalDataStore,
   PluginMemoryDataStore,
 } from "/js/plugins/pluginLocalDataStore.js";
+import {
+  PluginCustomEndpointStore,
+  PluginCustomEndpointMemoryStore,
+} from "/js/plugins/pluginCustomEndpointStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { PluginRichTextDispatcher } from "/js/plugins/pluginRichTextDispatcher.js";
 import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import {
+  pluginFetch,
+  customEndpointFetch,
+} from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
@@ -30,6 +38,7 @@ import {
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
+  isNetworkAllowed,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
@@ -202,6 +211,9 @@ export class PluginService extends ReactiveStore {
     this.localDataStore = session?.did
       ? new PluginLocalDataStore(session.did)
       : new PluginMemoryDataStore();
+    this.customEndpointStore = session?.did
+      ? new PluginCustomEndpointStore(session.did)
+      : new PluginCustomEndpointMemoryStore();
     this.isPreviewMode = false;
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -400,6 +412,37 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
       this.localDataStore.set(plugin.pluginId, data);
     });
+
+    this.pluginBridge.addHostMethod("getCustomEndpointUrl", (plugin) => {
+      this._requireNetworkPermission(plugin, "customEndpoint");
+      return this.customEndpointStore.get(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod(
+      "requestCustomEndpointUrl",
+      async (plugin, { url }) => {
+        this._requireNetworkPermission(plugin, "customEndpoint");
+        requireHostMethodArg("requestCustomEndpointUrl", "url", url);
+        const accepted = await showCustomEndpointApprovalModal({
+          pluginName: plugin.manifest?.name,
+          url,
+        });
+        if (accepted) this.customEndpointStore.set(plugin.pluginId, url);
+        return {
+          accepted,
+          url: this.customEndpointStore.get(plugin.pluginId),
+        };
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "customEndpointFetch",
+      (plugin, { url, init }) => {
+        this._requireNetworkPermission(plugin, "customEndpoint");
+        const approvedUrl = this.customEndpointStore.get(plugin.pluginId);
+        return customEndpointFetch(approvedUrl, url, init);
+      },
+    );
 
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
@@ -634,6 +677,15 @@ export class PluginService extends ReactiveStore {
     if (!isActionAllowed(action, permissions)) {
       throw new Error(
         `"${plugin.pluginId}" does not have "${action}" action permission`,
+      );
+    }
+  }
+
+  _requireNetworkPermission(plugin, scope) {
+    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+    if (!isNetworkAllowed(scope, permissions)) {
+      throw new Error(
+        `"${plugin.pluginId}" does not have "${scope}" network permission`,
       );
     }
   }
@@ -933,6 +985,7 @@ export class PluginService extends ReactiveStore {
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
     this.localDataStore.clear(pluginId);
+    this.customEndpointStore.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 

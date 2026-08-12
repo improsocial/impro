@@ -2311,6 +2311,146 @@ describe("loadLocalData/saveLocalData host methods", () => {
   });
 });
 
+describe("customEndpoint host methods", () => {
+  function makeServiceWithPermissions(permissions, manifestName = "Translate") {
+    const { state, provider } = makeProvider();
+    state.installedPlugins = [
+      { id: "translate", version: "1.0.0", enabled: true, permissions },
+    ];
+    const service = makeServiceWithRealBridge({ provider });
+    const plugin = {
+      pluginId: "translate",
+      manifest: { name: manifestName },
+    };
+    return { service, plugin };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  function stubFetch(handler) {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url, init });
+      return handler(url, init);
+    };
+    return { calls };
+  }
+
+  function jsonResponse(status, body) {
+    return {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: {
+        get: (name) => (name === "content-type" ? "application/json" : null),
+      },
+      arrayBuffer: async () =>
+        new TextEncoder().encode(JSON.stringify(body)).buffer,
+    };
+  }
+
+  it("rejects every operation without the customEndpoint network scope", async () => {
+    const { service, plugin } = makeServiceWithPermissions({});
+    // getCustomEndpointUrl's handler is synchronous (unlike the other two),
+    // so it throws directly rather than returning a rejected promise.
+    assert.throws(
+      () => getHandler(service, "getCustomEndpointUrl")(plugin),
+      /"customEndpoint" network permission/,
+    );
+    await assert.rejects(
+      () =>
+        getHandler(service, "requestCustomEndpointUrl")(plugin, {
+          url: "http://localhost:11434/api/chat",
+        }),
+      /"customEndpoint" network permission/,
+    );
+    // customEndpointFetch's handler is also synchronous (it throws before
+    // ever reaching the customEndpointFetch() call that returns a promise).
+    assert.throws(
+      () =>
+        getHandler(service, "customEndpointFetch")(plugin, {
+          url: "http://localhost:11434/api/chat",
+          init: {},
+        }),
+      /"customEndpoint" network permission/,
+    );
+  });
+
+  it("returns null before anything has been approved", () => {
+    const { service, plugin } = makeServiceWithPermissions({
+      network: ["customEndpoint"],
+    });
+    assert.deepEqual(getHandler(service, "getCustomEndpointUrl")(plugin), null);
+  });
+
+  it("stores the URL and shows the plugin's name when approved", async () => {
+    const { service, plugin } = makeServiceWithPermissions(
+      { network: ["customEndpoint"] },
+      "Local Translate",
+    );
+    const requesting = getHandler(service, "requestCustomEndpointUrl")(plugin, {
+      url: "http://localhost:11434/api/chat",
+    });
+    await respondToConfirm(true);
+    const result = await requesting;
+    assert.deepEqual(result, {
+      accepted: true,
+      url: "http://localhost:11434/api/chat",
+    });
+    assert.deepEqual(
+      getHandler(service, "getCustomEndpointUrl")(plugin),
+      "http://localhost:11434/api/chat",
+    );
+  });
+
+  it("does not store the URL when declined", async () => {
+    const { service, plugin } = makeServiceWithPermissions({
+      network: ["customEndpoint"],
+    });
+    const requesting = getHandler(service, "requestCustomEndpointUrl")(plugin, {
+      url: "http://localhost:11434/api/chat",
+    });
+    await respondToConfirm(false);
+    const result = await requesting;
+    assert.deepEqual(result, { accepted: false, url: null });
+    assert.deepEqual(getHandler(service, "getCustomEndpointUrl")(plugin), null);
+  });
+
+  it("fetches only the exact approved URL", async () => {
+    const { service, plugin } = makeServiceWithPermissions({
+      network: ["customEndpoint"],
+    });
+    const requesting = getHandler(service, "requestCustomEndpointUrl")(plugin, {
+      url: "http://localhost:11434/api/chat",
+    });
+    await respondToConfirm(true);
+    await requesting;
+
+    const { calls } = stubFetch(async () => jsonResponse(200, { ok: true }));
+    const result = await getHandler(service, "customEndpointFetch")(plugin, {
+      url: "http://localhost:11434/api/chat",
+      init: { method: "POST", headers: { Authorization: "Bearer key" } },
+    });
+    assert.deepEqual(result.status, 200);
+    assert.deepEqual(calls[0].init.headers.Authorization, "Bearer key");
+
+    await assert.rejects(
+      () =>
+        getHandler(service, "customEndpointFetch")(plugin, {
+          url: "http://other-host/x",
+          init: {},
+        }),
+      /not the approved custom endpoint/,
+    );
+  });
+});
+
 describe("getPostComposerInit", () => {
   function addListener(service, pluginId, handler) {
     let listeners = service.registries.eventListeners.get("post-composer-open");

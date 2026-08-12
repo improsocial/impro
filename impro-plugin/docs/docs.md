@@ -15,6 +15,7 @@ The plugin's handle to the running impro app. Exposed as `this.app` on a
 | Property | Type | Description |
 | ------ | ------ | ------ |
 | <a id="property-currentuser"></a> `currentUser` | [`ProfileView`](#profileview) \| `null` | The signed-in user's basic profile, populated before `onload()` runs. Null when no session is active. |
+| <a id="property-customendpoint"></a> `customEndpoint` | [`CustomEndpoint`](#customendpoint) | A user-approved network address — see [CustomEndpoint](#customendpoint). |
 | <a id="property-data"></a> `data` | [`PluginData`](#plugindata) | Read-only appview accessors — see [PluginData](#plugindata). |
 
 #### Methods
@@ -390,6 +391,84 @@ Replace the composer's current text.
 ###### Returns
 
 [`Composer`](#composer)
+
+***
+
+### CustomEndpoint
+
+Lets a plugin talk to one network address a human has personally typed
+into its settings and approved — not a manifest-declared allowlist like
+[fetch](#fetch-1), and not "any address": [CustomEndpoint.requestUrl](#requesturl)
+always re-prompts the user with the exact address before it takes effect,
+and [CustomEndpoint.fetch](#fetch) only ever succeeds against that one
+approved address. Unlike the manifest-gated [fetch](#fetch-1), non-`https:`
+addresses (e.g. a local Ollama server on `http://localhost:11434`) and an
+`Authorization` header are both allowed — it's the plugin's own
+credential for an address the user explicitly approved, not an ambient
+one being smuggled to an unreviewed third-party host. Requires the
+`"customEndpoint"` scope in the manifest's `permissions.network`.
+
+#### Constructors
+
+##### Constructor
+
+> **new CustomEndpoint**(): [`CustomEndpoint`](#customendpoint)
+
+###### Returns
+
+[`CustomEndpoint`](#customendpoint)
+
+#### Methods
+
+##### fetch()
+
+> **fetch**(`url`, `init?`): `Promise`\<[`PluginResponse`](#pluginresponse)\>
+
+Fetches `url`, which must exactly match the currently-approved address
+(see [CustomEndpoint.requestUrl](#requesturl)) or this rejects.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` |
+| `init?` | [`PluginFetchInit`](#pluginfetchinit) |
+
+###### Returns
+
+`Promise`\<[`PluginResponse`](#pluginresponse)\>
+
+##### getUrl()
+
+> **getUrl**(): `Promise`\<`string` \| `null`\>
+
+The currently-approved URL, or null if none has been approved yet (or
+it was cleared, e.g. by uninstalling and reinstalling the plugin).
+
+###### Returns
+
+`Promise`\<`string` \| `null`\>
+
+##### requestUrl()
+
+> **requestUrl**(`url`): `Promise`\<\{ `accepted`: `boolean`; `url`: `string` \| `null`; \}\>
+
+Prompts the user to approve `url` as this plugin's one allowed network
+address.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` |
+
+###### Returns
+
+`Promise`\<\{ `accepted`: `boolean`; `url`: `string` \| `null`; \}\>
+
+`url` is
+  the *current* approved address (unchanged from before if declined);
+  `accepted` reflects whether this particular request was granted.
 
 ***
 
@@ -1268,7 +1347,7 @@ Fetch a raw repo record by `(repo, collection, rkey)`.
 
 ### PluginResponse
 
-Response returned from [fetch](#fetch). The host buffers the raw response
+Response returned from [fetch](#fetch-1). The host buffers the raw response
 bytes and sends them as an `ArrayBuffer`, and this class decodes them on
 demand depending on which accessor is called. `status`, `ok`, and `headers`
 (a `Map`) mirror the underlying HTTP response.
@@ -2362,7 +2441,7 @@ The events Plugin.on accepts, and the listener each one takes.
 
 > **PluginFetchHeaders** = `Record`\<`string`, `string`\> \| `Headers` \| `Map`\<`string`, `string`\> \| `Iterable`\<\[`string`, `string`\], `void`, `undefined`\>
 
-Any header collection [fetch](#fetch) accepts — read structurally, not by class.
+Any header collection [fetch](#fetch-1) accepts — read structurally, not by class.
 
 #### Type Parameters
 
@@ -2375,7 +2454,7 @@ Any header collection [fetch](#fetch) accepts — read structurally, not by clas
 
 > **PluginFetchInit** = `object`
 
-Options for [fetch](#fetch) — a subset of `RequestInit` the host proxy supports.
+Options for [fetch](#fetch-1) — a subset of `RequestInit` the host proxy supports.
 
 #### Type Parameters
 

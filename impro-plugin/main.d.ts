@@ -229,6 +229,8 @@ export class App {
     currentUser: ProfileView | null;
     /** Read-only appview accessors — see {@link PluginData}. */
     data: PluginData;
+    /** A user-approved network address — see {@link CustomEndpoint}. */
+    customEndpoint: CustomEndpoint;
     /**
      * Register an event listener. Supported events:
      *
@@ -332,6 +334,47 @@ export class PluginResponse {
      */
     json(): Promise<unknown>;
     #private;
+}
+/**
+ * Lets a plugin talk to one network address a human has personally typed
+ * into its settings and approved — not a manifest-declared allowlist like
+ * {@link fetch}, and not "any address": {@link CustomEndpoint.requestUrl}
+ * always re-prompts the user with the exact address before it takes effect,
+ * and {@link CustomEndpoint.fetch} only ever succeeds against that one
+ * approved address. Unlike the manifest-gated {@link fetch}, non-`https:`
+ * addresses (e.g. a local Ollama server on `http://localhost:11434`) and an
+ * `Authorization` header are both allowed — it's the plugin's own
+ * credential for an address the user explicitly approved, not an ambient
+ * one being smuggled to an unreviewed third-party host. Requires the
+ * `"customEndpoint"` scope in the manifest's `permissions.network`.
+ */
+export class CustomEndpoint {
+    /**
+     * The currently-approved URL, or null if none has been approved yet (or
+     * it was cleared, e.g. by uninstalling and reinstalling the plugin).
+     * @returns {Promise<string | null>}
+     */
+    getUrl(): Promise<string | null>;
+    /**
+     * Prompts the user to approve `url` as this plugin's one allowed network
+     * address.
+     * @param {string} url
+     * @returns {Promise<{ accepted: boolean, url: string | null }>} `url` is
+     *   the *current* approved address (unchanged from before if declined);
+     *   `accepted` reflects whether this particular request was granted.
+     */
+    requestUrl(url: string): Promise<{
+        accepted: boolean;
+        url: string | null;
+    }>;
+    /**
+     * Fetches `url`, which must exactly match the currently-approved address
+     * (see {@link CustomEndpoint.requestUrl}) or this rejects.
+     * @param {string} url
+     * @param {PluginFetchInit} [init]
+     * @returns {Promise<PluginResponse>}
+     */
+    fetch(url: string, init?: PluginFetchInit): Promise<PluginResponse>;
 }
 /**
  * Shows a toast notification. `noticeEl` is a {@link VirtualEl} that can be

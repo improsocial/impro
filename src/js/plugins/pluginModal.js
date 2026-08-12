@@ -118,6 +118,11 @@ const ACTION_LABELS = {
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
+const NETWORK_LABELS = {
+  customEndpoint:
+    "Send requests to one address of your choosing, which you'll approve separately",
+};
+
 function permissionsSectionTemplate({ title, items }) {
   return html`
     <div class="permission-prompt-section">
@@ -146,6 +151,15 @@ function permissionsListTemplate({ permissions }) {
       permissionsSectionTemplate({
         title: "Act on your account:",
         items: actionScopes.map((scope) => ACTION_LABELS[scope] ?? scope),
+      }),
+    );
+  }
+  const networkScopes = permissions.network ?? [];
+  if (networkScopes.length > 0) {
+    sections.push(
+      permissionsSectionTemplate({
+        title: "Connect to an address you approve:",
+        items: networkScopes.map((scope) => NETWORK_LABELS[scope] ?? scope),
       }),
     );
   }
@@ -186,6 +200,30 @@ export async function showPluginUpdatePermissionsModal({
     {
       title: "Grant new permissions?",
       confirmButtonText: "Allow and update",
+    },
+  );
+}
+
+// Shown by requestCustomEndpointUrl (pluginService.js) every time a plugin
+// asks to approve a network address — not just once at install, since the
+// address itself (e.g. a local Ollama server's port) is something the user
+// picks per-plugin, not something a manifest could declare in advance.
+export async function showCustomEndpointApprovalModal({ pluginName, url }) {
+  const name = pluginName ?? "This plugin";
+  return confirmModal(
+    html`<span class="permission-prompt" data-testid="custom-endpoint-prompt">
+      <span class="permission-prompt-intro">${name} wants to connect to:</span>
+      <div class="permission-prompt-sections">
+        <div class="permission-prompt-section">
+          <ul class="permission-prompt-list">
+            <li><code>${url}</code></li>
+          </ul>
+        </div>
+      </div>
+    </span>`,
+    {
+      title: "Approve this address?",
+      confirmButtonText: "Approve",
     },
   );
 }

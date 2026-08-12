@@ -6,6 +6,7 @@ import {
   isEmptyPermissions,
   isFetchAllowed,
   isActionAllowed,
+  isNetworkAllowed,
 } from "/js/plugins/pluginPermissions.js";
 
 describe("parsePermissions", () => {
@@ -61,6 +62,24 @@ describe("parsePermissions", () => {
     assert.deepEqual(parsePermissions({ actions: [] }), {});
     assert.deepEqual(parsePermissions({ actions: ["feedback"] }), {});
   });
+
+  it("parses the customEndpoint network scope and drops unknown ones", () => {
+    assert.deepEqual(
+      parsePermissions({ network: ["customEndpoint", "anyHost"] }),
+      { network: ["customEndpoint"] },
+    );
+  });
+
+  it("wraps a string network value into an array", () => {
+    assert.deepEqual(parsePermissions({ network: "customEndpoint" }), {
+      network: ["customEndpoint"],
+    });
+  });
+
+  it("omits the network key when no valid scopes remain", () => {
+    assert.deepEqual(parsePermissions({ network: [] }), {});
+    assert.deepEqual(parsePermissions({ network: ["anyHost"] }), {});
+  });
 });
 
 describe("isActionAllowed", () => {
@@ -73,6 +92,13 @@ describe("isActionAllowed", () => {
 
   it("denies everything when the actions key is missing", () => {
     assert(!isActionAllowed("mute", {}));
+  });
+});
+
+describe("isNetworkAllowed", () => {
+  it("allows only granted network scopes", () => {
+    assert(isNetworkAllowed("customEndpoint", { network: ["customEndpoint"] }));
+    assert(!isNetworkAllowed("customEndpoint", {}));
   });
 });
 
