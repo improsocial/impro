@@ -180,23 +180,18 @@ class HomeView extends View {
 
     function feedErrorTemplate({ feedGenerator }) {
       return html`<div class="error-state">
-        <div>
-          An issue occurred when contacting the feed server.<br />
-          Please let the feed owner know about this issue.<br />
-          ${feedGenerator.creator
-            ? html`<a
-                  href=${linkToProfile(feedGenerator.creator)}
-                  data-testid="feed-error-view-profile"
-                  >View profile</a
-                ><br />`
-            : ""}
-          <button
-            class="rounded-button"
-            @click=${() => window.location.reload()}
-          >
-            Try again
-          </button>
-        </div>
+        An issue occurred when contacting the feed server.<br />
+        Please let the feed owner know about this issue.<br />
+        ${feedGenerator.creator
+          ? html`<a
+                href=${linkToProfile(feedGenerator.creator)}
+                data-testid="feed-error-view-profile"
+                >View profile</a
+              ><br />`
+          : ""}
+        <button class="rounded-button" @click=${() => window.location.reload()}>
+          Try again
+        </button>
       </div>`;
     }
 
