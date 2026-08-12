@@ -128,11 +128,13 @@ export class PluginService extends ReactiveStore {
     dataLayer,
     hiddenFeedItemsStore,
     router,
+    constellation,
   ) {
     super("pluginService");
     this.renderContext = null;
     this.router = router;
     this.slingshot = new Slingshot();
+    this.constellation = constellation;
     this.registries = {
       sidebarItems: new SignalSet(),
       eventListeners: new Map(),
@@ -519,8 +521,20 @@ export class PluginService extends ReactiveStore {
       },
     );
 
-    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
-      this.slingshot.getRecord(args),
+    this.pluginBridge.addHostMethod(
+      "getRecord",
+      (plugin, { repo, collection, rkey }) =>
+        this.slingshot.getRecord({ repo, collection, rkey }),
+    );
+
+    this.pluginBridge.addHostMethod(
+      "getBacklinks",
+      (plugin, { subject, source, limit }) => {
+        if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+          throw new Error(`getBacklinks: invalid limit "${limit}"`);
+        }
+        return this.constellation.getLinks({ subject, source, limit });
+      },
     );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {

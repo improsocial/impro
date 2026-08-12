@@ -4,6 +4,7 @@ import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { Constellation } from "/js/constellation.js";
 
 function createMockApi(options = {}) {
   return {
@@ -22,6 +23,7 @@ function createDataLayer(api) {
     { resolveHandle: async () => null },
     new DraftMediaStore("test-media"),
     new HiddenFeedItemsStore(),
+    new Constellation(),
   );
 }
 

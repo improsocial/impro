@@ -2,7 +2,7 @@ import { buildQueryString } from "/js/utils.js";
 import { CONSTELLATION_URL } from "/js/config.js";
 
 export class Constellation {
-  async getLinks({ subject, source, limit = null, timeout = 10000 }) {
+  async getLinks({ subject, source, limit = null, timeout = null }) {
     let cursor = null;
     const links = [];
     const controller = new AbortController();
@@ -29,7 +29,18 @@ export class Constellation {
           signal: controller.signal,
         },
       );
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(
+          `getLinks: ${error?.error ?? `HTTP ${response.status}`} ${
+            error?.message ?? ""
+          }`.trim(),
+        );
+      }
       const data = await response.json();
+      if (!Array.isArray(data?.records)) {
+        throw new Error("getLinks: malformed response");
+      }
       links.push(...data.records);
       cursor = data.cursor;
     } while (cursor && (limit ? links.length < limit : true));

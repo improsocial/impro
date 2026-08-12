@@ -13,6 +13,7 @@ export class DataLayer extends EventEmitter {
     identityResolver,
     draftMediaStore,
     hiddenFeedItemsStore,
+    constellation,
   ) {
     super();
     this.api = api;
@@ -29,6 +30,7 @@ export class DataLayer extends EventEmitter {
       this.preferencesProvider,
       this.draftMediaStore,
       this,
+      constellation,
     );
     this.mutations = new Mutations(
       this.api,

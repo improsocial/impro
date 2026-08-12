@@ -1151,6 +1151,32 @@ Reached via [App.data](#property-data) on the plugin's [App](#app) instance.
 
 #### Methods
 
+##### getBacklinks()
+
+> **getBacklinks**(`params`): `Promise`\<[`BacklinkRecord`](#backlinkrecord)[]\>
+
+Get records that link to `subject`, from a backlink
+index of public records.
+
+`subject` is an AT-URI or a DID; `source` names the linking field as
+`<collection>:<dot.path.to.field>` (e.g.
+`"app.bsky.graph.listitem:list"`). The host paginates for you, up to
+`limit` records (max 1000 per call — page by making further calls
+with a narrower subject).
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `params` | \{ `limit?`: `number`; `source`: `string`; `subject`: `string`; \} |
+| `params.limit?` | `number` |
+| `params.source` | `string` |
+| `params.subject` | `string` |
+
+###### Returns
+
+`Promise`\<[`BacklinkRecord`](#backlinkrecord)[]\>
+
 ##### getDetailedProfile()
 
 > **getDetailedProfile**(`did`): `Promise`\<[`DetailedProfileView`](#detailedprofileview)\>
@@ -2195,6 +2221,27 @@ A text node in a [VirtualEl](#virtualel) tree. Null/undefined coerce to `""`.
 | <a id="property-value"></a> `value` | `string` |
 
 ## Type Aliases
+
+### BacklinkRecord
+
+> **BacklinkRecord** = `object`
+
+A record that links to a queried subject.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-collection"></a> `collection` | `string` |
+| <a id="property-did"></a> `did` | `string` |
+| <a id="property-rkey"></a> `rkey` | `string` |
+
+***
 
 ### Cloneable
 

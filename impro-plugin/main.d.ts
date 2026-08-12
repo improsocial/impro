@@ -26,6 +26,8 @@ export function flattenForScan(tokens: RichTextToken[]): FlattenedTokens;
  *   Paginated response from `getKnownFollowers`: `{ followers, cursor }`.
  * @typedef {Record<string, unknown>} RepoRecord
  *   A raw repo record: `{ uri, cid, value }`.
+ * @typedef {{ did: string, collection: string, rkey: string }} BacklinkRecord
+ *   A record that links to a queried subject.
  * @typedef {Record<string, unknown>} FeedItem
  *   A `app.bsky.feed.defs#feedViewPost` (post + reply/repost context).
  * @typedef {{ $type: string } & Record<string, unknown>} RichTextFacetFeature
@@ -194,6 +196,24 @@ export class PluginData {
      * @returns {Promise<RepoRecord>}
      */
     getRecord(repo: string, collection: string, rkey: string): Promise<RepoRecord>;
+    /**
+     * Get records that link to `subject`, from a backlink
+     * index of public records.
+     *
+     * `subject` is an AT-URI or a DID; `source` names the linking field as
+     * `<collection>:<dot.path.to.field>` (e.g.
+     * `"app.bsky.graph.listitem:list"`). The host paginates for you, up to
+     * `limit` records (max 1000 per call — page by making further calls
+     * with a narrower subject).
+     *
+     * @param {{ subject: string, source: string, limit?: number }} params
+     * @returns {Promise<BacklinkRecord[]>}
+     */
+    getBacklinks({ subject, source, limit }: {
+        subject: string;
+        source: string;
+        limit?: number;
+    }): Promise<BacklinkRecord[]>;
 }
 /**
  * The plugin's handle to the running impro app. Exposed as `this.app` on a
@@ -1140,6 +1160,14 @@ export type KnownFollowersResponse = Record<string, unknown>;
  * A raw repo record: `{ uri, cid, value }`.
  */
 export type RepoRecord = Record<string, unknown>;
+/**
+ * A record that links to a queried subject.
+ */
+export type BacklinkRecord = {
+    did: string;
+    collection: string;
+    rkey: string;
+};
 /**
  * A `app.bsky.feed.defs#feedViewPost` (post + reply/repost context).
  */

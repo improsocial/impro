@@ -83,6 +83,27 @@ export class IdentityResolver {
   }
 }
 
+const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
+const NSID_PATTERN = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*){2,}$/;
+const RKEY_PATTERN = /^[a-zA-Z0-9._~:-]{1,512}$/;
+
+export function isValidDid(value) {
+  return typeof value === "string" && DID_PATTERN.test(value);
+}
+
+export function isValidNsid(value) {
+  return typeof value === "string" && NSID_PATTERN.test(value);
+}
+
+export function isValidRkey(value) {
+  return (
+    typeof value === "string" &&
+    value !== "." &&
+    value !== ".." &&
+    RKEY_PATTERN.test(value)
+  );
+}
+
 const TID_ALPHABET = "234567abcdefghijklmnopqrstuvwxyz";
 
 let lastTimestamp = 0n;

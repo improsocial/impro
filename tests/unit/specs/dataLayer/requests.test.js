@@ -16,7 +16,7 @@ function createRequests(api, dataStore, preferencesProvider, events = null) {
     preferencesProvider,
     new DraftMediaStore("test-media"),
     events ?? new EventEmitter(),
-    { constellation: stubConstellation },
+    stubConstellation,
   );
 }
 
@@ -3265,7 +3265,7 @@ function makeRequestsWithConstellation(api, dataStore, constellation) {
     { requirePreferences: () => Preferences.createLoggedOutPreferences() },
     new DraftMediaStore("test-media"),
     new EventEmitter(),
-    { constellation },
+    constellation,
   );
 }
 
@@ -4094,7 +4094,7 @@ describe("loadDrafts", () => {
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
       draftMediaStore,
       new EventEmitter(),
-      { constellation: stubConstellation },
+      stubConstellation,
     );
   }
 
