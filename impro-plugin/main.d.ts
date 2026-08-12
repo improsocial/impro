@@ -299,9 +299,11 @@ export class App {
     showMoreLikeThis(postUri: string, feedUri: string): Promise<void>;
 }
 /**
- * Response returned from {@link fetch}. Body is buffered by the host and
- * exposed as text or parsed JSON. `status`, `ok`, and `headers` (a `Map`)
- * mirror the underlying HTTP response.
+ * Response returned from {@link fetch}. The host always buffers and
+ * base64-encodes the raw response bytes for transport (so binary bodies
+ * survive intact), and this class decodes that on demand depending on
+ * which accessor is called. `status`, `ok`, and `headers` (a `Map`) mirror
+ * the underlying HTTP response.
  */
 export class PluginResponse {
     /**
@@ -316,7 +318,12 @@ export class PluginResponse {
     /** @type {Map<string, string>} */
     headers: Map<string, string>;
     /**
-     * Resolves with the response body as a string.
+     * Resolves with the raw response bytes.
+     * @returns {Promise<ArrayBuffer>}
+     */
+    arrayBuffer(): Promise<ArrayBuffer>;
+    /**
+     * Resolves with the response body decoded as UTF-8 text.
      * @returns {Promise<string>}
      */
     text(): Promise<string>;
@@ -1425,7 +1432,8 @@ export type HostEventMessage = {
  */
 export type HostMessage = HostCallMessage | HostResultMessage | HostEventMessage;
 /**
- * {@internal} The host's reply to a proxied {@link fetch}.
+ * {@internal} The host's reply to a proxied {@link fetch}. `body` is
+ * always the raw response bytes, base64-encoded (see {@link PluginResponse}).
  */
 export type SerializedFetchResponse = {
     status: number;

@@ -553,12 +553,44 @@ function serializeFetchInit(init) {
 }
 
 /**
- * Response returned from {@link fetch}. Body is buffered by the host and
- * exposed as text or parsed JSON. `status`, `ok`, and `headers` (a `Map`)
- * mirror the underlying HTTP response.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+function bytesToBase64(bytes) {
+  // Encoded in fixed-size chunks rather than one
+  // String.fromCharCode(...bytes) call, which risks "too many
+  // arguments"/stack errors once bytes gets into the megabytes.
+  const CHUNK_SIZE = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE));
+  }
+  return btoa(binary);
+}
+
+/**
+ * @param {string} base64
+ * @returns {ArrayBuffer}
+ */
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+/**
+ * Response returned from {@link fetch}. The host always buffers and
+ * base64-encodes the raw response bytes for transport (so binary bodies
+ * survive intact), and this class decodes that on demand depending on
+ * which accessor is called. `status`, `ok`, and `headers` (a `Map`) mirror
+ * the underlying HTTP response.
  */
 export class PluginResponse {
-  #body;
+  /** @type {string} base64-encoded raw response bytes */
+  #bodyBase64;
   /**
    * @internal
    * @param {SerializedFetchResponse} response
@@ -570,21 +602,28 @@ export class PluginResponse {
     this.ok = ok;
     /** @type {Map<string, string>} */
     this.headers = new Map(Object.entries(headers ?? {}));
-    this.#body = body;
+    this.#bodyBase64 = body;
   }
   /**
-   * Resolves with the response body as a string.
+   * Resolves with the raw response bytes.
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async arrayBuffer() {
+    return base64ToArrayBuffer(this.#bodyBase64);
+  }
+  /**
+   * Resolves with the response body decoded as UTF-8 text.
    * @returns {Promise<string>}
    */
   async text() {
-    return this.#body;
+    return new TextDecoder().decode(await this.arrayBuffer());
   }
   /**
    * Resolves with the response body parsed as JSON.
    * @returns {Promise<unknown>}
    */
   async json() {
-    return JSON.parse(this.#body);
+    return JSON.parse(await this.text());
   }
 }
 
@@ -2018,7 +2057,8 @@ export class VirtualEl {
  * @typedef {HostCallMessage | HostResultMessage | HostEventMessage} HostMessage
  *   {@internal} Anything the host may post to this worker.
  * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: string }} SerializedFetchResponse
- *   {@internal} The host's reply to a proxied {@link fetch}.
+ *   {@internal} The host's reply to a proxied {@link fetch}. `body` is
+ *   always the raw response bytes, base64-encoded (see {@link PluginResponse}).
  * @typedef {{ method?: string, headers?: Record<string, string>, body?: string }} SerializedFetchInit
  *   {@internal} A {@link PluginFetchInit} with its headers flattened for transfer.
  * @typedef {Record<string, unknown>} SerializedRichTextToken

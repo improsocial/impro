@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import { pluginFetch, MAX_RESPONSE_BYTES } from "/js/plugins/pluginRequests.js";
 
 function makePermissions(patterns) {
   return { fetch: patterns };
@@ -16,10 +16,18 @@ function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
       headers: {
         get: (name) => headers[name.toLowerCase()] ?? null,
       },
-      text: async () => body,
+      arrayBuffer: async () => new TextEncoder().encode(body).buffer,
     };
   };
   return { fakeFetch, calls };
+}
+
+// pluginFetch now always base64-encodes the response body for transport
+// (see pluginRequests.js) so it can carry binary payloads, not just text -
+// tests that care about the actual body content decode it back rather than
+// comparing against raw text.
+function decodeBody(base64Body) {
+  return Buffer.from(base64Body, "base64").toString("utf8");
 }
 
 async function expectRejection(fn, includes) {
@@ -323,6 +331,30 @@ describe("response shape", () => {
     );
     assert.deepEqual(result.status, 404);
     assert.deepEqual(result.ok, false);
-    assert.deepEqual(result.body, "nope");
+    assert.deepEqual(decodeBody(result.body), "nope");
+  });
+});
+
+describe("response size", () => {
+  it("rejects a response over the byte cap", async () => {
+    // The cap check only reads .byteLength before any bytes are touched, so
+    // this fakes an over-limit length without actually allocating that much
+    // memory in the test.
+    const fakeFetch = async () => ({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: async () => ({ byteLength: MAX_RESPONSE_BYTES + 1 }),
+    });
+    await expectRejection(
+      () =>
+        pluginFetch(
+          makePermissions(["https://api.example.com/*"]),
+          "https://api.example.com/x",
+          {},
+          fakeFetch,
+        ),
+      "too large",
+    );
   });
 });
