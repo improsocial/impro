@@ -202,24 +202,6 @@ dead: the service MUST delete the device row (this is the only
 reliable unsubscribe signal, and it feeds the zero-device grant
 lifecycle above). Other failures are retried with backoff.
 
-A newly stored grant MUST establish its delivery baseline from the
-account's current state — unread counts, and for the previews tier the
-chat log cursor at its head — before the first poll. Activity that
-predates registration is not new. A service that baselines at zero
-reads the account's existing backlog as its first delta and delivers
-all of it, so enabling notifications is immediately followed by a
-burst of pushes for things the user read days ago. The chat log is the
-sharper version of this, since it contains read messages too.
-
-A service MUST NOT push the subscriber's own activity back to them.
-`chat.bsky.convo.getLog` returns everything said in a conversation,
-including the subscriber's own messages; the appview already
-suppresses self-notifications on the `app.bsky` side, and a chat
-delivery path that does not do the same notifies people about their
-own typing. Own messages are legitimate as _context_ in a previews
-push, marked as the reader's own — they simply must never be the
-event that triggers one.
-
 A service SHOULD collapse a large burst of app notifications into a
 summary rather than sending them individually. A rapid burst of
 notifications can trigger browsers' abusive-notification checks.
