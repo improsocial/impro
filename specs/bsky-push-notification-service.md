@@ -28,13 +28,9 @@ own origin is the expected common case, but any DID method that can
 publish the entry works. Everything below is served from the
 `serviceEndpoint` origin.
 
-A `did:web` document MUST be served with permissive CORS, for the same
-reason the config document below must be: a browser client resolves it
-cross-origin, and it is the *first* thing it fetches — before it knows
-the service's endpoint at all. A service that serves its DID document
-as a static file alongside the application is the likely place to miss
-this, since the application's own responses may set those headers in
-code that never runs for a static file.
+A `did:web` document MUST be served with permissive CORS,
+(`Access-Control-Allow-Origin: *`) — clients fetch it cross-origin
+from the browser.
 
 ## Config document
 
@@ -84,18 +80,8 @@ browser to it and receives it back:
      the message-content scope (see "Grant tiers")
 2. The service runs the standard atproto OAuth flow under its own
    `client_id` and stores the grant server-side.
-   - The PDS is not necessarily its own authorization server. Resolve
-     the AS from the PDS with RFC 9728 — `GET
-     <pds>/.well-known/oauth-protected-resource`, then
-     `authorization_servers[0]` — and read
-     `/.well-known/oauth-authorization-server` from *that* origin. For
-     accounts hosted on `bsky.social` the two differ, and a service
-     that assumes the PDS is the AS fails against every such account
-     while working perfectly against a PDS that happens to be both.
    - The service's client metadata document MUST declare a `scope`
-     covering the union of both grant tiers. Authorization servers
-     validate every pushed authorization request's scopes against this
-     list, so omitting it fails 100% of authorizations.
+     covering the union of both grant tiers.
 3. The service MUST verify the completed grant's `sub` matches the
    hinted DID before storing it.
 4. The service redirects to `return_url`, appending standard OAuth
@@ -136,16 +122,6 @@ Grant lifecycle expectations:
   or revoked by the user at their PDS): delete it and all stored
   state for that DID; the user re-authorizes through `authUrl`.
   PDS-side revocation is the immediate account-wide teardown path.
-- A failure that is about the *service* rather than the grant MUST NOT
-  be treated as grant death, and SHOULD NOT count toward any
-  per-account give-up threshold. The authorization server reporting
-  that it cannot read the service's own client metadata
-  (`invalid_client_metadata`, `invalid_client`,
-  `unauthorized_client`) is the clearest case: it says nothing about
-  any particular grant and fails identically for every account at
-  once. A service that counts these per-account converts one outage of
-  its own metadata endpoint into a forced re-authorization for its
-  entire user base. Back off, keep the grant.
 
 ## Device registration
 
@@ -165,13 +141,8 @@ registration sound for unauthed services too, since nobody can
 register a device against a DID they do not control.
 
 Signature verification MUST accept both `ES256` (P-256) and `ES256K`
-(secp256k1). secp256k1 is atproto's long-standing default signing key
-type and the large majority of live accounts use it; a service that
-implements P-256 only will pass every test written against P-256
-fixtures and then reject almost every real user. The curve is
-identified by the multicodec prefix of the DID document's
-`publicKeyMultibase` — `0xe701` for secp256k1, `0x8024` for P-256 —
-not by the JWT header alone.
+(secp256k1). Derive the algorithm from the resolved key in the DID
+document, not from the JWT header's `alg`.
 
 Token formats by `platform`:
 
@@ -184,21 +155,6 @@ Clients re-assert registration on every launch — there is no API to
 query registration state, and this is the self-healing mechanism for
 rotated or lost tokens. `unregisterPush` deletes the single matching
 device row.
-
-Neither procedure defines a lexicon output. Services SHOULD answer
-with an empty `200`, and clients MUST NOT assume a JSON body: a PDS
-may forward an empty body on success regardless of what the service
-returned, so a client that unconditionally parses the response throws
-on exactly the requests that succeeded.
-
-Re-assertion is also the only liveness signal this interface has.
-Beyond launch, clients SHOULD re-assert while the app is in the
-foreground — a few minutes apart is enough — and stop while
-backgrounded, so that going away is itself a signal. A service that
-polls MAY use the recency of registration to pick its poll cadence.
-Without this, an open and actively-read client is indistinguishable
-from an abandoned one, and a user watching the app receives pushes on
-whatever slow cadence the service reserves for dormant accounts.
 
 `appId` identifies the client app and MUST be stored per device, so one service can serve several apps.
 
@@ -228,20 +184,13 @@ VAPID key. The plaintext is JSON:
 - `url` — required; deeplink, path-relative to the client app's
   origin. The client's service worker resolves it against its own
   origin (the service does not know or care where the client is
-  hosted). Since only the path is shared, both sides must agree on
-  its shape:
+  hosted).
 
-  ```
-  /profile/<handle-or-did>
-  /profile/<handle-or-did>/post/<rkey>
-  /messages/<convoId>
-  ```
-
-  The target is the record the notification is *about*, not the
+  The target is the record the notification is _about_, not the
   notification's own `uri`. For `reply`, `mention`, `quote`, and
   `subscribed-post` those are the same record. For `like` and
   `repost` they are not: the notification's `uri` is the reaction
-  record, which lives in the *reacting* account's repo, so a post
+  record, which lives in the _reacting_ account's repo, so a post
   link built from it names a post that does not exist. Follow the
   reaction to its subject instead — `reasonSubject` for plain `like`
   and `repost`, `record.subject.uri` for the `-via-repost` variants,
@@ -249,17 +198,12 @@ VAPID key. The plaintext is JSON:
   post itself. `follow` has no post at all and links to the follower.
   Getting this wrong is not subtle in use: every like notification
   opens a blank page.
+
 - `badge` — optional; total unread count at send time. Best-effort:
   reads on other devices cannot update it until the next push.
 - `tag` — optional collapse key: a new notification with the same tag
   replaces the previous one. Counts-tier chat pushes SHOULD use a stable
   tag so an unread pile-up is one notification, not a stack.
-  Previews-tier chat pushes SHOULD collapse per conversation
-  (`chat:<convoId>`) rather than globally. Because each push then
-  replaces the last one for that conversation, a previews push SHOULD
-  carry the recent exchange rather than only the newest message —
-  otherwise a fast back-and-forth is unreadable from the banner, which
-  is the one place the previews tier exists to be read.
 
 **APNs** payloads map the same fields: `title`/`body` into
 `aps.alert`, `badge` into `aps.badge`, `tag` into
@@ -286,18 +230,13 @@ A service MUST NOT push the subscriber's own activity back to them.
 including the subscriber's own messages; the appview already
 suppresses self-notifications on the `app.bsky` side, and a chat
 delivery path that does not do the same notifies people about their
-own typing. Own messages are legitimate as *context* in a previews
+own typing. Own messages are legitimate as _context_ in a previews
 push, marked as the reader's own — they simply must never be the
 event that triggers one.
 
-A service SHOULD collapse a large burst of app notifications into one
-summarizing push rather than sending them individually. Beyond being
-unreadable, a rapid burst of individual notifications is what
-browsers' abusive-notification heuristics are built to catch — Chrome
-on Android flagged exactly this during a real deployment of this spec.
-That enforcement applies to the origin rather than to the one user who
-received the burst, so the cost of getting it wrong is borne by every
-user of the client.
+A service SHOULD collapse a large burst of app notifications into a
+summary rather than sending them individually. A rapid burst of
+notifications can trigger browsers' abusive-notification checks.
 
 ## Security requirements
 
