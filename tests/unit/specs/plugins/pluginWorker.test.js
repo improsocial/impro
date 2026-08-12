@@ -1268,6 +1268,42 @@ describe("fetch — header serialization", () => {
   });
 });
 
+describe("fetch — response body", () => {
+  function resolveFetchWith(bytes) {
+    clearMessages();
+    const responsePromise = pluginFetch("https://example.com/", {});
+    const sent = postedMessages.find(
+      (message) => message.type === "hostCall" && message.method === "fetch",
+    );
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: {
+        status: 200,
+        ok: true,
+        headers: {},
+        body: bytes.buffer,
+      },
+    });
+    return responsePromise;
+  }
+
+  it("decodes the raw bytes as text and JSON", async () => {
+    const response = await resolveFetchWith(
+      new TextEncoder().encode('{"a":1}'),
+    );
+    assert.deepEqual(await response.text(), '{"a":1}');
+    assert.deepEqual(await response.json(), { a: 1 });
+  });
+
+  it("exposes the raw bytes unchanged for a binary body", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+    const response = await resolveFetchWith(bytes);
+    const buffer = await response.arrayBuffer();
+    assert.deepEqual([...new Uint8Array(buffer)], [...bytes]);
+  });
+});
+
 describe("registerRichTextTransform", () => {
   it("posts a register message", () => {
     clearMessages();

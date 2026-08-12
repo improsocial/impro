@@ -22,12 +22,11 @@ function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
   return { fakeFetch, calls };
 }
 
-// pluginFetch now always base64-encodes the response body for transport
-// (see pluginRequests.js) so it can carry binary payloads, not just text -
-// tests that care about the actual body content decode it back rather than
-// comparing against raw text.
-function decodeBody(base64Body) {
-  return Buffer.from(base64Body, "base64").toString("utf8");
+// pluginFetch relays the response body as raw bytes so it can carry binary
+// payloads, not just text - tests that care about the actual body content
+// decode it back rather than comparing against a string.
+function decodeBody(bodyBuffer) {
+  return new TextDecoder().decode(bodyBuffer);
 }
 
 async function expectRejection(fn, includes) {
@@ -332,6 +331,24 @@ describe("response shape", () => {
     assert.deepEqual(result.status, 404);
     assert.deepEqual(result.ok, false);
     assert.deepEqual(decodeBody(result.body), "nope");
+  });
+
+  it("relays binary bytes intact", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+    const fakeFetch = async () => ({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: async () => bytes.buffer,
+    });
+    const result = await pluginFetch(
+      makePermissions(["https://api.example.com/*"]),
+      "https://api.example.com/x",
+      {},
+      fakeFetch,
+    );
+    assert(result.body instanceof ArrayBuffer);
+    assert.deepEqual([...new Uint8Array(result.body)], [...bytes]);
   });
 });
 

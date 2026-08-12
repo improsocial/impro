@@ -14,9 +14,16 @@ import {
 } from "/js/config.js";
 import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
-import { Signal, ReactiveStore } from "/js/signals.js";
+import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
+
+const requestIdle =
+  window.requestIdleCallback?.bind(window) ??
+  ((callback) => setTimeout(callback, 200));
+
+const cancelIdle =
+  window.cancelIdleCallback?.bind(window) ?? ((handle) => clearTimeout(handle));
 
 class HomeView extends View {
   async render({
@@ -43,6 +50,7 @@ class HomeView extends View {
       storedFeedUri ? JSON.parse(storedFeedUri) : null,
     );
     state.$isReloadingFeed = new Signal.State(false);
+    state.$materializedFeedUris = new SignalSet();
 
     function resetToDefaultFeed() {
       state.$currentFeedUri.set(
@@ -121,8 +129,8 @@ class HomeView extends View {
         getFeedGeneratorProxyUrl(feedGenerator),
       );
       // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
-      const feedFeedbackMessageElement = document.querySelector(
-        `.feed-feedback-message[data-post-uri="${post.uri}"]`,
+      const feedFeedbackMessageElement = root.querySelector(
+        `.feed-item[data-feed-generator-uri="${feedGenerator.uri}"] .feed-feedback-message[data-post-uri="${post.uri}"]`,
       );
       if (feedFeedbackMessageElement) {
         scrollIntoViewIfNeeded(feedFeedbackMessageElement);
@@ -161,6 +169,7 @@ class HomeView extends View {
       }
       // Save scroll state
       feedScrollState.set(currentFeedUri, window.scrollY);
+      state.$materializedFeedUris.add(currentFeedUri);
       // Switch feed
       state.$currentFeedUri.set(feedUri);
       // Scroll to saved position for new feed
@@ -210,11 +219,55 @@ class HomeView extends View {
       return $currentPinnedItem.get()?.displayName ?? null;
     });
 
-    pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
+    let materializeIdleHandle = null;
+
+    function scheduleMaterializeFeeds(pinnedItems) {
+      if (materializeIdleHandle !== null) return;
+      const pending = pinnedItems
+        .map((item) => item.uri)
+        .filter((uri) => !state.$materializedFeedUris.has(uri));
+      if (pending.length === 0) return;
+      materializeIdleHandle = requestIdle(() => {
+        materializeIdleHandle = null;
+        for (const feedUri of pending) {
+          state.$materializedFeedUris.add(feedUri);
+        }
+      });
+    }
+
+    function feedContentsTemplate({ item, currentUser }) {
+      const feedRequestStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadNextFeedPage-" + item.uri,
+      );
+      if (feedRequestStatus.error) {
+        return feedErrorTemplate({ feedGenerator: item });
+      }
+      const hiddenPostUris = dataLayer.derived.$showLessInteractions
+        .get(item.uri)
+        .map((interaction) => interaction.item);
+      return postFeedTemplate({
+        feed: dataLayer.derived.$hydratedFeeds.get(item.uri),
+        currentUser,
+        isAuthenticated,
+        feedGenerator: item,
+        hiddenPostUris,
+        postInteractionHandler,
+        onClickShowLess: (post, feedContext) =>
+          handleShowLess(post, feedContext, item),
+        onClickShowMore: (post, feedContext) =>
+          handleShowMore(post, feedContext, item),
+        enableFeedFeedback:
+          item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI,
+        onLoadMore: () => loadCurrentFeed(),
+        pluginService,
+        showEndMessage: true,
+      });
+    }
+
+    // Map of feed items -> feedContexts for postSeenObserver
+    const $feedContextsByFeedUri = new Signal.Computed(() => {
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
-      // Map of feed items -> feedContexts for postSeenObserver
-      const feedContextsByFeedUri = new Map(
+      return new Map(
         pinnedItems.map((item) => [
           item.uri,
           new Map(
@@ -224,6 +277,11 @@ class HomeView extends View {
           ),
         ]),
       );
+    });
+
+    pageEffect(root, () => {
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
       const currentFeedUri = state.$currentFeedUri.get();
       const currentFeedRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
@@ -262,38 +320,16 @@ class HomeView extends View {
           })}
           <main>
             ${pinnedItems.map((item) => {
-              const acceptsInteractions =
-                item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI;
-              const hiddenPostUris = dataLayer.derived.$showLessInteractions
-                .get(item.uri)
-                .map((interaction) => interaction.item);
-              const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
-              const feedRequestStatus =
-                dataLayer.requests.statusStore.$statuses.get(
-                  "loadNextFeedPage-" + item.uri,
-                );
+              const isMaterialized =
+                item.uri === currentFeedUri ||
+                state.$materializedFeedUris.has(item.uri);
               return html`<div
                 class="feed-container"
                 ?hidden=${currentFeedUri !== item.uri}
               >
-                ${feedRequestStatus.error
-                  ? feedErrorTemplate({ feedGenerator: item })
-                  : postFeedTemplate({
-                      feed,
-                      currentUser,
-                      isAuthenticated,
-                      feedGenerator: item,
-                      hiddenPostUris,
-                      postInteractionHandler,
-                      onClickShowLess: (post, feedContext) =>
-                        handleShowLess(post, feedContext, item),
-                      onClickShowMore: (post, feedContext) =>
-                        handleShowMore(post, feedContext, item),
-                      enableFeedFeedback: acceptsInteractions,
-                      onLoadMore: () => loadCurrentFeed(),
-                      pluginService,
-                      showEndMessage: true,
-                    })}
+                ${isMaterialized
+                  ? feedContentsTemplate({ item, currentUser })
+                  : null}
               </div>`;
             })}
           </main>
@@ -305,18 +341,22 @@ class HomeView extends View {
         </div>`,
         root,
       );
-      const feedItems = document.querySelectorAll(".feed-item");
-      feedItems.forEach((feedItem) => {
-        const { feedGeneratorUri, postUri } = feedItem.dataset;
-        if (feedGeneratorUri) {
-          const postSeenObserver = postSeenObservers.get(feedGeneratorUri);
-          if (postSeenObserver) {
-            const feedContext =
-              feedContextsByFeedUri.get(feedGeneratorUri)?.get(postUri) ?? null;
-            postSeenObserver.register(feedItem, postUri, feedContext);
+      if (postSeenObservers.size > 0) {
+        const feedContextsByFeedUri = $feedContextsByFeedUri.get();
+        root.querySelectorAll(".feed-item").forEach((feedItem) => {
+          const { feedGeneratorUri, postUri } = feedItem.dataset;
+          if (feedGeneratorUri) {
+            const postSeenObserver = postSeenObservers.get(feedGeneratorUri);
+            if (postSeenObserver) {
+              const feedContext =
+                feedContextsByFeedUri.get(feedGeneratorUri)?.get(postUri) ??
+                null;
+              postSeenObserver.register(feedItem, postUri, feedContext);
+            }
           }
-        }
-      });
+        });
+      }
+      scheduleMaterializeFeeds(pinnedItems);
     });
 
     function getFeedRequestDescriptor(uri) {
@@ -337,7 +377,7 @@ class HomeView extends View {
       const currentFeedUri = state.$currentFeedUri.get();
       const itemsToPreload = pinnedItems
         .filter((item) => item.uri !== currentFeedUri)
-        .slice(0, 3); // Up to 3 feeds
+        .slice(0, 5);
       for (const item of itemsToPreload) {
         await dataLayer.requests.loadNextFeedPage(item, {
           limit: FEED_PAGE_SIZE + 1,
@@ -376,12 +416,11 @@ class HomeView extends View {
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      const page = document.querySelector(".page-visible");
-      page.style.opacity = "0";
+      root.style.opacity = "0";
       window.scrollTo(0, scrollY);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          page.style.opacity = "1";
+          root.style.opacity = "1";
         });
       });
       for (const observer of postSeenObservers.values()) {
@@ -393,6 +432,11 @@ class HomeView extends View {
       for (const observer of postSeenObservers.values()) {
         observer.disconnect();
       }
+      if (materializeIdleHandle !== null) {
+        cancelIdle(materializeIdleHandle);
+        materializeIdleHandle = null;
+      }
+      state.$materializedFeedUris.clear();
     });
   }
 }

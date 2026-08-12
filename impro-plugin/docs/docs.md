@@ -1336,11 +1336,10 @@ Fetch a raw repo record by `(repo, collection, rkey)`.
 
 ### PluginResponse
 
-Response returned from [fetch](#fetch). The host always buffers and
-base64-encodes the raw response bytes for transport (so binary bodies
-survive intact), and this class decodes that on demand depending on
-which accessor is called. `status`, `ok`, and `headers` (a `Map`) mirror
-the underlying HTTP response.
+Response returned from [fetch](#fetch). The host buffers the raw response
+bytes and sends them as an `ArrayBuffer`, and this class decodes them on
+demand depending on which accessor is called. `status`, `ok`, and `headers`
+(a `Map`) mirror the underlying HTTP response.
 
 #### Properties
 
