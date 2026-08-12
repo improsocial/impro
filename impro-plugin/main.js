@@ -2020,8 +2020,11 @@ export class VirtualEl {
  *   {@internal} Anything this worker may post to the host.
  * @typedef {{ type: "call", callId: number, handlerId: number, args: Cloneable[] }} HostCallMessage
  *   {@internal} The host invoking a handler this worker registered.
- * @typedef {{ type: "hostResult", hostCallId: number, value?: Cloneable, error?: string }} HostResultMessage
- *   {@internal} The host answering a {@link hostCall}.
+ * @typedef {{ type: "hostResult", hostCallId: number, value?: Cloneable | SerializedFetchResponse, error?: string }} HostResultMessage
+ *   {@internal} The host answering a {@link hostCall}. Wider than
+ *   {@link Cloneable} because {@link SerializedFetchResponse} carries its
+ *   body as an `ArrayBuffer`, which structured clone handles but JSON
+ *   cannot.
  * @typedef {{ type: "event", event: "modalDismissed", data: { modalId: number } }} HostEventMessage
  *   {@internal} An out-of-band notification from the host.
  * @typedef {HostCallMessage | HostResultMessage | HostEventMessage} HostMessage

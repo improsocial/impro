@@ -1408,12 +1408,15 @@ export type HostCallMessage = {
     args: Cloneable[];
 };
 /**
- * {@internal} The host answering a {@link hostCall}.
+ * {@internal} The host answering a {@link hostCall}. Wider than
+ * {@link Cloneable} because {@link SerializedFetchResponse} carries its
+ * body as an `ArrayBuffer`, which structured clone handles but JSON
+ * cannot.
  */
 export type HostResultMessage = {
     type: "hostResult";
     hostCallId: number;
-    value?: Cloneable;
+    value?: Cloneable | SerializedFetchResponse;
     error?: string;
 };
 /**
