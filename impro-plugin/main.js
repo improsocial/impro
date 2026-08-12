@@ -553,44 +553,14 @@ function serializeFetchInit(init) {
 }
 
 /**
- * @param {Uint8Array} bytes
- * @returns {string}
- */
-function bytesToBase64(bytes) {
-  // Encoded in fixed-size chunks rather than one
-  // String.fromCharCode(...bytes) call, which risks "too many
-  // arguments"/stack errors once bytes gets into the megabytes.
-  const CHUNK_SIZE = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE));
-  }
-  return btoa(binary);
-}
-
-/**
- * @param {string} base64
- * @returns {ArrayBuffer}
- */
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-/**
- * Response returned from {@link fetch}. The host always buffers and
- * base64-encodes the raw response bytes for transport (so binary bodies
- * survive intact), and this class decodes that on demand depending on
- * which accessor is called. `status`, `ok`, and `headers` (a `Map`) mirror
- * the underlying HTTP response.
+ * Response returned from {@link fetch}. The host buffers the raw response
+ * bytes and sends them as an `ArrayBuffer`, and this class decodes them on
+ * demand depending on which accessor is called. `status`, `ok`, and `headers`
+ * (a `Map`) mirror the underlying HTTP response.
  */
 export class PluginResponse {
-  /** @type {string} base64-encoded raw response bytes */
-  #bodyBase64;
+  /** @type {ArrayBuffer} raw response bytes */
+  #body;
   /**
    * @internal
    * @param {SerializedFetchResponse} response
@@ -602,14 +572,14 @@ export class PluginResponse {
     this.ok = ok;
     /** @type {Map<string, string>} */
     this.headers = new Map(Object.entries(headers ?? {}));
-    this.#bodyBase64 = body;
+    this.#body = body;
   }
   /**
    * Resolves with the raw response bytes.
    * @returns {Promise<ArrayBuffer>}
    */
   async arrayBuffer() {
-    return base64ToArrayBuffer(this.#bodyBase64);
+    return this.#body;
   }
   /**
    * Resolves with the response body decoded as UTF-8 text.
@@ -2056,9 +2026,9 @@ export class VirtualEl {
  *   {@internal} An out-of-band notification from the host.
  * @typedef {HostCallMessage | HostResultMessage | HostEventMessage} HostMessage
  *   {@internal} Anything the host may post to this worker.
- * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: string }} SerializedFetchResponse
+ * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: ArrayBuffer }} SerializedFetchResponse
  *   {@internal} The host's reply to a proxied {@link fetch}. `body` is
- *   always the raw response bytes, base64-encoded (see {@link PluginResponse}).
+ *   always the raw response bytes (see {@link PluginResponse}).
  * @typedef {{ method?: string, headers?: Record<string, string>, body?: string }} SerializedFetchInit
  *   {@internal} A {@link PluginFetchInit} with its headers flattened for transfer.
  * @typedef {Record<string, unknown>} SerializedRichTextToken
