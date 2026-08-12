@@ -1,7 +1,7 @@
 import { wait } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
+import { pollIntervalMs, interruptibleWait } from "/js/pollCadence.js";
 
-const POLLING_INTERVAL_SECONDS = 10;
 const VERIFY_MAX_TRIES = 3;
 const VERIFY_RETRY_MS = 1000;
 
@@ -26,8 +26,10 @@ export class NotificationService {
     return snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
   }
 
-  startPolling() {
-    const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
+  // `isPushEnabled` lets the cadence back off for a hidden tab when push
+  // notifications are already covering timeliness. Read on each iteration
+  // rather than captured, so toggling push takes effect without a reload.
+  startPolling({ isPushEnabled = () => false } = {}) {
     let stopped = false;
     const poll = async () => {
       while (!stopped) {
@@ -38,7 +40,9 @@ export class NotificationService {
         } catch (error) {
           console.error(error);
         }
-        await wait(pollingInterval);
+        await interruptibleWait(
+          pollIntervalMs({ pushEnabled: isPushEnabled() }),
+        );
       }
     };
     poll();

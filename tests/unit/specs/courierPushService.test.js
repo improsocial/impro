@@ -158,4 +158,164 @@ describe("CourierPushService heartbeat", () => {
     const service = new CourierPushService(api);
     await assert.doesNotReject(() => service._heartbeat());
   });
+
+  it("registers against the selected service, not the default", async () => {
+    setupDom();
+    const { service, registerPush } = createService();
+    globalThis.localStorage.setItem(
+      "courier-push-service-did",
+      "did:web:elsewhere.example",
+    );
+    await service._heartbeat();
+    assert.equal(
+      registerPush.mock.calls[0].arguments[0].serviceDid,
+      "did:web:elsewhere.example",
+    );
+  });
+});
+
+describe("CourierPushService service selection", () => {
+  let originals;
+  let fetchCalls;
+
+  const CONFIG = { name: "Example Notifs", vapidPublicKey: "k", authUrl: "u" };
+
+  beforeEach(() => {
+    originals = {
+      localStorage: globalThis.localStorage,
+      notification: globalThis.Notification,
+      document: globalThis.document,
+      navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
+      pushManager: globalThis.window.PushManager,
+      fetch: globalThis.fetch,
+    };
+    setupDom({ enabled: false });
+    fetchCalls = [];
+    globalThis.fetch = async (url) => {
+      fetchCalls.push(String(url));
+      const body = String(url).includes("notif-service.json")
+        ? CONFIG
+        : {
+            service: [
+              {
+                id: "#bsky_notif",
+                type: "BskyNotificationService",
+                serviceEndpoint: "https://notifs.example",
+              },
+            ],
+          };
+      return { ok: true, status: 200, json: async () => body };
+    };
+  });
+
+  afterEach(() => {
+    globalThis.localStorage = originals.localStorage;
+    globalThis.Notification = originals.notification;
+    globalThis.document = originals.document;
+    Object.defineProperty(globalThis, "navigator", originals.navigator);
+    globalThis.fetch = originals.fetch;
+    if (originals.pushManager === undefined) {
+      delete globalThis.window.PushManager;
+    } else {
+      globalThis.window.PushManager = originals.pushManager;
+    }
+  });
+
+  it("defaults to the deployment's service until one is chosen", () => {
+    const { service } = createService();
+    assert.ok(service.isUsingDefaultService);
+    assert.ok(service.serviceDid.startsWith("did:"));
+  });
+
+  it("resolves a service through its DID document", async () => {
+    const { service } = createService();
+    const preview = await service.previewService("did:web:notifs.example");
+    assert.equal(preview.name, "Example Notifs");
+    assert.equal(preview.authUrl, "u");
+  });
+
+  it("caches the resolved config instead of refetching every launch", async () => {
+    const { service } = createService();
+    await service.fetchServiceConfig();
+    const afterFirst = fetchCalls.length;
+    await service.fetchServiceConfig();
+    assert.equal(
+      fetchCalls.length,
+      afterFirst,
+      "a second lookup should not hit the network",
+    );
+
+    // A fresh instance is the app-launch case: it must reuse the persisted
+    // entry rather than re-resolving the DID document and config.
+    const { service: relaunched } = createService();
+    await relaunched.fetchServiceConfig();
+    assert.equal(fetchCalls.length, afterFirst);
+  });
+
+  it("does not cache a failed lookup as the answer", async () => {
+    const { service } = createService();
+    globalThis.fetch = async () => {
+      throw new Error("offline");
+    };
+    await assert.rejects(() => service.fetchServiceConfig());
+
+    globalThis.fetch = async (url) => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        String(url).includes("notif-service.json")
+          ? CONFIG
+          : {
+              service: [
+                {
+                  id: "#bsky_notif",
+                  serviceEndpoint: "https://notifs.example",
+                },
+              ],
+            },
+    });
+    const config = await service.fetchServiceConfig();
+    assert.equal(config.name, "Example Notifs");
+  });
+
+  it("switching services unregisters the old one first", async () => {
+    const { service } = createService();
+    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    const unregisterPush = mock.fn(async () => {});
+    service.api.unregisterPush = unregisterPush;
+
+    await service.selectService("did:web:elsewhere.example");
+
+    // The old service polls server-side; leaving it registered would keep it
+    // delivering after the user believes they have moved away from it.
+    assert.equal(unregisterPush.mock.calls.length, 1);
+    assert.equal(service.serviceDid, "did:web:elsewhere.example");
+    assert.equal(service.isEnabled, false);
+  });
+
+  it("switching back to the default clears the override", async () => {
+    const { service } = createService();
+    const theDefault = service.serviceDid;
+    await service.selectService("did:web:elsewhere.example");
+    assert.ok(!service.isUsingDefaultService);
+
+    await service.selectService(theDefault);
+    assert.ok(service.isUsingDefaultService);
+    assert.equal(
+      globalThis.localStorage.getItem("courier-push-service-did"),
+      null,
+    );
+  });
+
+  it("switching services drops the previous service's cached config", async () => {
+    const { service } = createService();
+    await service.fetchServiceConfig();
+    await service.selectService("did:web:elsewhere.example");
+    const before = fetchCalls.length;
+    await service.fetchServiceConfig();
+    assert.ok(
+      fetchCalls.length > before,
+      "the new service must be resolved, not served from the old cache",
+    );
+  });
 });

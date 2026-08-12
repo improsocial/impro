@@ -46,6 +46,68 @@ class SettingsNotificationsView extends View {
     );
     const $pushBusy = new Signal.State(false);
 
+    // The service is user-selectable per the spec, so its name is data, not a
+    // constant — every mention of it in this view comes from the service's own
+    // config document. Falls back to the DID until that resolves.
+    const $serviceDid = new Signal.State(courierPushService?.serviceDid ?? "");
+    const $serviceName = new Signal.State(courierPushService?.serviceDid ?? "");
+    const $pickerOpen = new Signal.State(false);
+    const $pickerValue = new Signal.State("");
+    const $pickerBusy = new Signal.State(false);
+    const $pickerError = new Signal.State("");
+
+    async function loadServiceName() {
+      if (!courierPushService) return;
+      const did = courierPushService.serviceDid;
+      $serviceDid.set(did);
+      try {
+        const { name } = await courierPushService.previewService(did);
+        // Guard against a slow lookup landing after the user switched again.
+        if (courierPushService.serviceDid === did) $serviceName.set(name);
+      } catch {
+        // Unreachable service: show the DID rather than an empty heading. The
+        // failure surfaces properly when the user tries to enable.
+        if (courierPushService.serviceDid === did) $serviceName.set(did);
+      }
+    }
+    loadServiceName();
+
+    async function handleServiceSelect() {
+      const did = $pickerValue.get().trim();
+      if (!did || !courierPushService) return;
+      if (!did.startsWith("did:")) {
+        $pickerError.set("That doesn't look like a DID.");
+        return;
+      }
+      $pickerBusy.set(true);
+      $pickerError.set("");
+      try {
+        // Resolve before switching: an unreachable or non-conforming service
+        // should fail here, not after the current one has been torn down.
+        const { name } = await courierPushService.previewService(did);
+        const wasEnabled = courierPushService.isEnabled;
+        await courierPushService.selectService(did);
+        $pushEnabled.set(courierPushService.isEnabled);
+        $chatPreviews.set(courierPushService.chatPreviewsEnabled);
+        $serviceDid.set(did);
+        $serviceName.set(name);
+        $pickerOpen.set(false);
+        $pickerValue.set("");
+        showToast(
+          wasEnabled
+            ? `Switched to ${name}. Turn push notifications back on to finish.`
+            : `Switched to ${name}.`,
+        );
+      } catch (error) {
+        console.error(error);
+        $pickerError.set(
+          "Couldn't reach that service, or it isn't a notification service.",
+        );
+      } finally {
+        $pickerBusy.set(false);
+      }
+    }
+
     async function handleToggle(checked) {
       if (!systemNotificationService) return;
       if (!checked) {
@@ -185,8 +247,13 @@ class SettingsNotificationsView extends View {
       const pushBusy = $pushBusy.get();
       const chatPreviews = $chatPreviews.get();
       const pushSupported = courierPushService?.isSupported ?? false;
+      const serviceName = $serviceName.get();
+      const serviceDid = $serviceDid.get();
+      const pickerOpen = $pickerOpen.get();
+      const pickerBusy = $pickerBusy.get();
+      const pickerError = $pickerError.get();
       const pushDescription = pushSupported
-        ? "Get notified even when Impro is closed, via Impro Courier."
+        ? `Get notified even when Impro is closed, via ${serviceName}.`
         : "Your browser doesn't support push notifications.";
 
       render(
@@ -243,8 +310,9 @@ class SettingsNotificationsView extends View {
                     <h2 class="setting-item-name">Show message previews</h2>
                     <p class="setting-item-desc">
                       Include the sender and message text in chat notifications.
-                      This lets Impro Courier read your messages. With this off,
-                      chat notifications only say that you have unread messages.
+                      This lets ${serviceName} read your messages. With this
+                      off, chat notifications only say that you have unread
+                      messages.
                     </p>
                   </div>
                   <div class="setting-item-control">
@@ -256,6 +324,84 @@ class SettingsNotificationsView extends View {
                       @change=${(event) =>
                         handlePreviewsToggle(event.detail.checked)}
                     ></toggle-switch>
+                  </div>
+                </section>`
+              : null}
+            ${pushSupported
+              ? html`<section
+                  class="setting-item"
+                  data-testid="settings-section-notification-service"
+                >
+                  <div class="setting-item-info">
+                    <h2 class="setting-item-name">Notification service</h2>
+                    <p class="setting-item-desc">
+                      Push notifications are delivered by
+                      <strong>${serviceName}</strong>, which holds a read-only
+                      grant to watch this account's notifications on your
+                      behalf. You can point Impro at a different service, or run
+                      your own. <br /><code>${serviceDid}</code>
+                    </p>
+                    ${pickerOpen
+                      ? html`<div class="notification-service-picker">
+                          <input
+                            type="text"
+                            inputmode="url"
+                            autocapitalize="off"
+                            autocomplete="off"
+                            spellcheck="false"
+                            data-testid="notification-service-input"
+                            placeholder="did:web:notifs.example.com"
+                            .value=${$pickerValue.get()}
+                            ?disabled=${pickerBusy}
+                            @input=${(event) =>
+                              $pickerValue.set(event.target.value)}
+                            @keydown=${(event) => {
+                              if (event.key === "Enter") handleServiceSelect();
+                            }}
+                          />
+                          <p class="setting-item-desc">
+                            A notification service can read this account's
+                            notifications, and its message content if you turn
+                            previews on. Only use one you trust.
+                          </p>
+                          ${pickerError
+                            ? html`<p
+                                class="setting-item-desc error"
+                                data-testid="notification-service-error"
+                              >
+                                ${pickerError}
+                              </p>`
+                            : null}
+                          <button
+                            class="button"
+                            data-testid="notification-service-save"
+                            ?disabled=${pickerBusy}
+                            @click=${handleServiceSelect}
+                          >
+                            ${pickerBusy ? "Checking…" : "Use this service"}
+                          </button>
+                          <button
+                            class="button secondary"
+                            ?disabled=${pickerBusy}
+                            @click=${() => {
+                              $pickerOpen.set(false);
+                              $pickerError.set("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>`
+                      : html`<button
+                          class="button secondary"
+                          data-testid="notification-service-change"
+                          @click=${() => {
+                            $pickerValue.set(serviceDid);
+                            $pickerError.set("");
+                            $pickerOpen.set(true);
+                          }}
+                        >
+                          Change service
+                        </button>`}
                   </div>
                 </section>`
               : null}

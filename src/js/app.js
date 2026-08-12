@@ -195,12 +195,16 @@ export async function main() {
     console.error("Error loading plugins", error);
   }
 
+  // A hidden tab with push notifications on does not need a 10s badge poll —
+  // the push is what tells the user something happened. See pollCadence.js.
+  const isPushEnabled = () => courierPushService?.isEnabled ?? false;
+
   if (notificationService) {
-    notificationService.startPolling();
+    notificationService.startPolling({ isPushEnabled });
   }
 
   if (chatNotificationService) {
-    chatNotificationService.startPolling();
+    chatNotificationService.startPolling({ isPushEnabled });
   }
 
   if (systemNotificationService) {

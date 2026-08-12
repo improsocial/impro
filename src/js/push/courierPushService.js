@@ -1,48 +1,41 @@
-import { NOTIFICATION_SERVICE_DID } from "/js/config.js";
+import { DEFAULT_NOTIFICATION_SERVICE_DID } from "/js/config.js";
+import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 
 const STORAGE_KEY = "courier-push-enabled";
 const PREVIEWS_KEY = "courier-push-chat-previews";
+const SERVICE_KEY = "courier-push-service-did";
+const CONFIG_CACHE_KEY = "courier-push-service-config";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
-// The service's active-cadence window is minutes, not seconds, so a heartbeat
-// this often keeps the account pinned to the fast poll cadence for as long as
-// the user is around — and costs one PDS round-trip per interval.
-const HEARTBEAT_INTERVAL_MS = 120_000;
+const NOTIF_SERVICE_ID = "#bsky_notif";
 
-// Resolves a did:web document to find its URL. impro doesn't otherwise need
-// general DID resolution here since the notification service is hardcoded
-// to one did:web deployment (see NOTIFICATION_SERVICE_DID) rather than
-// user-selectable per the spec's full design.
-function didWebToDidDocUrl(did) {
-  const id = did.slice("did:web:".length);
-  const parts = id.split(":").map(decodeURIComponent);
-  const [host, ...pathParts] = parts;
-  return pathParts.length
-    ? `https://${host}/${pathParts.join("/")}/did.json`
-    : `https://${host}/.well-known/did.json`;
-}
+// Keeps the account on the service's fast poll cadence while the user is here.
+//
+// Must stay comfortably under the service's own active window (300s on the
+// reference deployment) — that is the coupling this number exists to satisfy,
+// and the only reason it is not larger. Every beat is a PDS round-trip, so
+// beating far more often than the window buys nothing and costs traffic on
+// somebody else's infrastructure.
+const HEARTBEAT_INTERVAL_MS = 240_000;
+
+// How long a fetched service config is reused before being re-fetched. The
+// documents are effectively static; without this the app re-fetches a DID
+// document and a config document on every launch.
+const CONFIG_TTL_MS = 6 * 60 * 60 * 1000;
 
 async function resolveNotifServiceEndpoint(did) {
-  if (!did.startsWith("did:web:")) {
-    throw new Error(`Unsupported notification service DID method: ${did}`);
-  }
-  const res = await fetch(didWebToDidDocUrl(did));
-  if (!res.ok) {
-    throw new Error(
-      `Failed to resolve notification service DID (${res.status})`,
-    );
-  }
-  const doc = await res.json();
-  const service = (doc.service ?? []).find(
-    (entry) => entry.id === "#bsky_notif",
-  );
-  if (!service?.serviceEndpoint) {
+  // resolveDid handles did:plc and did:web alike, so a service is not
+  // restricted to one DID method the way a hand-rolled did:web resolver
+  // would make it.
+  const doc = await resolveDid(did);
+  const endpoint = getServiceEndpointFromDidDoc(doc, NOTIF_SERVICE_ID);
+  if (!endpoint) {
     throw new Error(
       "Notification service DID document has no #bsky_notif entry",
     );
   }
-  return service.serviceEndpoint;
+  return endpoint;
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -56,12 +49,11 @@ function urlBase64ToUint8Array(base64String) {
   return bytes;
 }
 
-// Client-side half of spec/IMPRO_PUSH_NOTIFICATIONS.md's "Enable flow",
-// scoped down to a single hardcoded service (no user-selectable-service
-// picker).
+// Client-side half of the spec's "Enable flow".
 export class CourierPushService {
   constructor(api) {
     this.api = api;
+    this._configPromise = null;
   }
 
   get isSupported() {
@@ -76,6 +68,18 @@ export class CourierPushService {
     return this.isSupported && localStorage.getItem(STORAGE_KEY) === "true";
   }
 
+  // The service this device is pointed at. Per the spec any conforming DID
+  // works; the deployment's default is only a suggestion.
+  get serviceDid() {
+    return (
+      localStorage.getItem(SERVICE_KEY) || DEFAULT_NOTIFICATION_SERVICE_DID
+    );
+  }
+
+  get isUsingDefaultService() {
+    return this.serviceDid === DEFAULT_NOTIFICATION_SERVICE_DID;
+  }
+
   // The tier the service last confirmed, per the spec's callback echo — not
   // what was asked for. The grant is account-level, so another device may
   // have changed it; only the echo is truthful, and it self-corrects every
@@ -84,19 +88,107 @@ export class CourierPushService {
     return localStorage.getItem(PREVIEWS_KEY) === "true";
   }
 
-  async fetchServiceConfig() {
-    const serviceEndpoint = await resolveNotifServiceEndpoint(
-      NOTIFICATION_SERVICE_DID,
-    );
-    const res = await fetch(
-      `${serviceEndpoint}/.well-known/notif-service.json`,
-    );
-    if (!res.ok) {
-      throw new Error(
-        `Failed to fetch notification service config (${res.status})`,
-      );
+  // Resolves a service DID far enough to show the user what they are about to
+  // trust, without registering anything. Used by the picker to validate an
+  // entered DID before it can be selected.
+  async previewService(did) {
+    const config = await this._loadServiceConfig(did);
+    return { did, name: config.name ?? did, authUrl: config.authUrl ?? null };
+  }
+
+  // Switches to a different service, tearing down the current one first.
+  //
+  // Order matters: the old service polls server-side on the user's behalf, so
+  // leaving it registered would keep it delivering after the user thinks they
+  // have moved away from it.
+  async selectService(did) {
+    if (did === this.serviceDid) return;
+    if (this.isEnabled) {
+      await this.disable();
     }
-    return { ...(await res.json()), serviceEndpoint };
+    this._forgetConfig();
+    if (did === DEFAULT_NOTIFICATION_SERVICE_DID) {
+      localStorage.removeItem(SERVICE_KEY);
+    } else {
+      localStorage.setItem(SERVICE_KEY, did);
+    }
+  }
+
+  async fetchServiceConfig() {
+    return this._loadServiceConfig(this.serviceDid);
+  }
+
+  // Memoized per instance, then cached in localStorage for CONFIG_TTL_MS.
+  //
+  // Resolving a service costs two network round-trips (a DID document, then
+  // the config document) and both are effectively static. Without this the app
+  // pays for them on every launch, and again whenever a heartbeat has to fall
+  // back to a full re-assert.
+  async _loadServiceConfig(did) {
+    if (did === this.serviceDid && this._configPromise) {
+      return this._configPromise;
+    }
+
+    const cached = this._cachedConfig(did);
+    if (cached) {
+      if (did === this.serviceDid) {
+        this._configPromise = Promise.resolve(cached);
+      }
+      return cached;
+    }
+
+    const promise = (async () => {
+      const serviceEndpoint = await resolveNotifServiceEndpoint(did);
+      const res = await fetch(
+        `${serviceEndpoint}/.well-known/notif-service.json`,
+      );
+      if (!res.ok) {
+        throw new Error(
+          `Failed to fetch notification service config (${res.status})`,
+        );
+      }
+      const config = { ...(await res.json()), serviceEndpoint };
+      this._cacheConfig(did, config);
+      return config;
+    })();
+
+    if (did === this.serviceDid) {
+      this._configPromise = promise;
+      // A failed lookup must not be cached as the answer forever.
+      promise.catch(() => {
+        this._configPromise = null;
+      });
+    }
+    return promise;
+  }
+
+  _cachedConfig(did) {
+    try {
+      const raw = localStorage.getItem(CONFIG_CACHE_KEY);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (entry.did !== did) return null;
+      if (Date.now() - entry.at > CONFIG_TTL_MS) return null;
+      return entry.config;
+    } catch {
+      return null;
+    }
+  }
+
+  _cacheConfig(did, config) {
+    try {
+      localStorage.setItem(
+        CONFIG_CACHE_KEY,
+        JSON.stringify({ did, at: Date.now(), config }),
+      );
+    } catch {
+      // A full or unavailable localStorage costs a re-fetch, nothing more.
+    }
+  }
+
+  _forgetConfig() {
+    this._configPromise = null;
+    localStorage.removeItem(CONFIG_CACHE_KEY);
   }
 
   // Step 1 of the enable flow: navigates the browser away to the service's
@@ -144,7 +236,7 @@ export class CourierPushService {
       });
     }
     await this.api.registerPush({
-      serviceDid: NOTIFICATION_SERVICE_DID,
+      serviceDid: this.serviceDid,
       token: JSON.stringify(subscription),
       platform: PLATFORM,
       appId: APP_ID,
@@ -242,7 +334,7 @@ export class CourierPushService {
         return;
       }
       await this.api.registerPush({
-        serviceDid: NOTIFICATION_SERVICE_DID,
+        serviceDid: this.serviceDid,
         token: JSON.stringify(subscription),
         platform: PLATFORM,
         appId: APP_ID,
@@ -267,7 +359,7 @@ export class CourierPushService {
     if (!subscription) return;
     try {
       await this.api.unregisterPush({
-        serviceDid: NOTIFICATION_SERVICE_DID,
+        serviceDid: this.serviceDid,
         token: JSON.stringify(subscription),
       });
     } catch (error) {

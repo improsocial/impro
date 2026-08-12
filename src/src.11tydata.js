@@ -12,6 +12,13 @@ export default {
   playwright: process.env.PLAYWRIGHT ? "true" : "",
   oauthScopes: OAUTH_SCOPES,
   oauthOptionalScopes: OPTIONAL_OAUTH_SCOPES,
+  // Which push notification service this deployment suggests by default.
+  // Deployment config rather than a constant: a service holds a read-only
+  // OAuth grant for every subscriber and polls on their behalf, so which one
+  // a deployment points at is that deployment's decision, not this repo's.
+  // Users can pick a different one in settings.
+  notificationServiceDid:
+    process.env.NOTIFICATION_SERVICE_DID ?? "did:web:courier.7778777.online",
   oauthPublicJwk: process.env.OAUTH_PUBLIC_JWK ?? "",
   useConfidentialOauth: process.env.OAUTH_PUBLIC_JWK ? "true" : "",
 };
