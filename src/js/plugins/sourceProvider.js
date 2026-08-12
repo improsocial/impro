@@ -32,7 +32,46 @@ function parseFontEntry(entry, index) {
   return { ...entry, family, file };
 }
 
-function parsePluginManifest(pluginId, manifest) {
+// Case-insensitive on input (some checksum tools emit uppercase hex) - the
+// parsed entry is always normalized to lowercase below, matching the
+// lowercase hex the worker's own crypto.subtle-based digest produces (see
+// pluginBridge.js#wasmGatePrelude), so comparisons never need to
+// case-fold at the enforcement point.
+const SHA256_HEX = /^[0-9a-fA-F]{64}$/;
+
+// A plugin can only get compiled code (WASM) to run if its manifest points
+// at where that code came from and pins the exact bytes — see the
+// WebAssembly-gating prelude in pluginBridge.js#wrapWorkerSource, which
+// refuses to instantiate anything whose hash isn't listed here. sourceUrl is
+// intentionally unvalidated for "is this really open source" — it can point
+// at a proprietary vendor's page — its only job is to give a human
+// somewhere to look before approving the corresponding install/update
+// permissions prompt.
+function parseExecutableEntry(entry, index) {
+  if (!entry || typeof entry !== "object") {
+    throw new Error(`executables[${index}] must be an object`);
+  }
+  const { name, sourceUrl, sha256 } = entry;
+  if (typeof name !== "string" || name.length === 0) {
+    throw new Error(`executables[${index}] missing required field "name"`);
+  }
+  if (typeof sourceUrl !== "string" || sourceUrl.length === 0) {
+    throw new Error(`executables[${index}] missing required field "sourceUrl"`);
+  }
+  try {
+    new URL(sourceUrl);
+  } catch {
+    throw new Error(`executables[${index}] sourceUrl is not a valid URL`);
+  }
+  if (typeof sha256 !== "string" || !SHA256_HEX.test(sha256)) {
+    throw new Error(
+      `executables[${index}] sha256 must be a 64-character hex digest`,
+    );
+  }
+  return { ...entry, name, sourceUrl, sha256: sha256.toLowerCase() };
+}
+
+export function parsePluginManifest(pluginId, manifest) {
   for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (typeof manifest[field] !== "string") {
       throw new Error(`missing required field "${field}"`);
@@ -48,6 +87,14 @@ function parsePluginManifest(pluginId, manifest) {
       throw new Error(`fonts must be an array`);
     }
     manifest.fonts = manifest.fonts.map((entry, i) => parseFontEntry(entry, i));
+  }
+  if (manifest.executables !== undefined) {
+    if (!Array.isArray(manifest.executables)) {
+      throw new Error(`executables must be an array`);
+    }
+    manifest.executables = manifest.executables.map((entry, i) =>
+      parseExecutableEntry(entry, i),
+    );
   }
   return manifest;
 }

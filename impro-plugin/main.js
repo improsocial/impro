@@ -360,6 +360,50 @@ export class PluginData {
 }
 
 /**
+ * Host-mediated persistent storage for binary data too large for
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData} (backed by
+ * localStorage, a few MB shared across every installed plugin) — e.g. a
+ * downloaded WASM engine or model file that shouldn't need re-fetching every
+ * session. Namespaced per plugin; survives reloads but is cleared on
+ * uninstall. Requires the `"binaryCache"` scope in the manifest's
+ * `permissions.storage`.
+ */
+export class BinaryCache {
+  /**
+   * @param {string} key
+   * @returns {Promise<ArrayBuffer | null>}
+   */
+  async get(key) {
+    const stored = /** @type {string | null} */ (
+      await hostCall("getBinaryCacheEntry", { key: String(key) })
+    );
+    return stored == null ? null : base64ToArrayBuffer(stored);
+  }
+  /**
+   * @param {string} key
+   * @param {ArrayBuffer | ArrayBufferView} data
+   * @returns {Promise<void>}
+   */
+  async put(key, data) {
+    const bytes =
+      data instanceof ArrayBuffer
+        ? new Uint8Array(data)
+        : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    await hostCall("putBinaryCacheEntry", {
+      key: String(key),
+      data: bytesToBase64(bytes),
+    });
+  }
+  /**
+   * @param {string} key
+   * @returns {Promise<void>}
+   */
+  async delete(key) {
+    await hostCall("deleteBinaryCacheEntry", { key: String(key) });
+  }
+}
+
+/**
  * The plugin's handle to the running impro app. Exposed as `this.app` on a
  * {@link Plugin} instance. Owns event subscriptions, data accessors
  * ({@link App.data}), and user-scoped actions.
@@ -375,6 +419,8 @@ export class App {
     this.currentUser = null;
     /** Read-only appview accessors — see {@link PluginData}. */
     this.data = new PluginData();
+    /** Host-mediated binary storage — see {@link BinaryCache}. */
+    this.binaryCache = new BinaryCache();
   }
   /**
    * Register an event listener. Supported events:

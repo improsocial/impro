@@ -216,6 +216,33 @@ export class PluginData {
     }): Promise<BacklinkRecord[]>;
 }
 /**
+ * Host-mediated persistent storage for binary data too large for
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData} (backed by
+ * localStorage, a few MB shared across every installed plugin) — e.g. a
+ * downloaded WASM engine or model file that shouldn't need re-fetching every
+ * session. Namespaced per plugin; survives reloads but is cleared on
+ * uninstall. Requires the `"binaryCache"` scope in the manifest's
+ * `permissions.storage`.
+ */
+export class BinaryCache {
+    /**
+     * @param {string} key
+     * @returns {Promise<ArrayBuffer | null>}
+     */
+    get(key: string): Promise<ArrayBuffer | null>;
+    /**
+     * @param {string} key
+     * @param {ArrayBuffer | ArrayBufferView} data
+     * @returns {Promise<void>}
+     */
+    put(key: string, data: ArrayBuffer | ArrayBufferView): Promise<void>;
+    /**
+     * @param {string} key
+     * @returns {Promise<void>}
+     */
+    delete(key: string): Promise<void>;
+}
+/**
  * The plugin's handle to the running impro app. Exposed as `this.app` on a
  * {@link Plugin} instance. Owns event subscriptions, data accessors
  * ({@link App.data}), and user-scoped actions.
@@ -229,6 +256,8 @@ export class App {
     currentUser: ProfileView | null;
     /** Read-only appview accessors — see {@link PluginData}. */
     data: PluginData;
+    /** Host-mediated binary storage — see {@link BinaryCache}. */
+    binaryCache: BinaryCache;
     /**
      * Register an event listener. Supported events:
      *

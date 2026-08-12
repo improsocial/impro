@@ -14,6 +14,7 @@ The plugin's handle to the running impro app. Exposed as `this.app` on a
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
+| <a id="property-binarycache"></a> `binaryCache` | [`BinaryCache`](#binarycache) | Host-mediated binary storage — see [BinaryCache](#binarycache). |
 | <a id="property-currentuser"></a> `currentUser` | [`ProfileView`](#profileview) \| `null` | The signed-in user's basic profile, populated before `onload()` runs. Null when no session is active. |
 | <a id="property-data"></a> `data` | [`PluginData`](#plugindata) | Read-only appview accessors — see [PluginData](#plugindata). |
 
@@ -167,6 +168,73 @@ Unmute an actor. Requires the `"mute"` scope.
 | Parameter | Type |
 | ------ | ------ |
 | `did` | `string` |
+
+###### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### BinaryCache
+
+Host-mediated persistent storage for binary data too large for
+[Plugin.loadLocalData](#loadlocaldata)/[Plugin.saveLocalData](#savelocaldata) (backed by
+localStorage, a few MB shared across every installed plugin) — e.g. a
+downloaded WASM engine or model file that shouldn't need re-fetching every
+session. Namespaced per plugin; survives reloads but is cleared on
+uninstall. Requires the `"binaryCache"` scope in the manifest's
+`permissions.storage`.
+
+#### Constructors
+
+##### Constructor
+
+> **new BinaryCache**(): [`BinaryCache`](#binarycache)
+
+###### Returns
+
+[`BinaryCache`](#binarycache)
+
+#### Methods
+
+##### delete()
+
+> **delete**(`key`): `Promise`\<`void`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`void`\>
+
+##### get()
+
+> **get**(`key`): `Promise`\<`ArrayBuffer` \| `null`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`ArrayBuffer` \| `null`\>
+
+##### put()
+
+> **put**(`key`, `data`): `Promise`\<`void`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+| `data` | `ArrayBuffer` \| `ArrayBufferView`\<`ArrayBufferLike`\> |
 
 ###### Returns
 
