@@ -18,6 +18,13 @@ import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
+const requestIdle =
+  window.requestIdleCallback?.bind(window) ??
+  ((callback) => setTimeout(callback, 200));
+
+const cancelIdle =
+  window.cancelIdleCallback?.bind(window) ?? ((handle) => clearTimeout(handle));
+
 class HomeView extends View {
   async render({
     root,
@@ -212,6 +219,22 @@ class HomeView extends View {
       return $currentPinnedItem.get()?.displayName ?? null;
     });
 
+    let materializeIdleHandle = null;
+
+    function scheduleMaterializeFeeds(pinnedItems) {
+      if (materializeIdleHandle !== null) return;
+      const pending = pinnedItems
+        .map((item) => item.uri)
+        .filter((uri) => !state.$materializedFeedUris.has(uri));
+      if (pending.length === 0) return;
+      materializeIdleHandle = requestIdle(() => {
+        materializeIdleHandle = null;
+        for (const feedUri of pending) {
+          state.$materializedFeedUris.add(feedUri);
+        }
+      });
+    }
+
     function feedContentsTemplate({ item, currentUser }) {
       const feedRequestStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadNextFeedPage-" + item.uri,
@@ -333,6 +356,7 @@ class HomeView extends View {
           }
         });
       }
+      scheduleMaterializeFeeds(pinnedItems);
     });
 
     function getFeedRequestDescriptor(uri) {
@@ -369,7 +393,7 @@ class HomeView extends View {
           resetToDefaultFeed();
         }
 
-        // preloadHiddenFeeds(pinnedItems);
+        preloadHiddenFeeds(pinnedItems);
         initializePostSeenObservers(pinnedItems);
         window.scrollTo(0, 0);
       });
@@ -408,6 +432,11 @@ class HomeView extends View {
       for (const observer of postSeenObservers.values()) {
         observer.disconnect();
       }
+      if (materializeIdleHandle !== null) {
+        cancelIdle(materializeIdleHandle);
+        materializeIdleHandle = null;
+      }
+      state.$materializedFeedUris.clear();
     });
   }
 }

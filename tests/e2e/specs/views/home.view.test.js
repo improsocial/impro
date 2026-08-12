@@ -218,7 +218,7 @@ test.describe("Home view", () => {
     await expect(visibleFeed).toContainText("Trending feed post");
   });
 
-  test("should not build a feed tab's posts until its tab is visited", async ({
+  test("should build inactive feed tabs in the background after the active feed renders", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -251,21 +251,24 @@ test.describe("Home view", () => {
       view.locator('.feed-container:not([hidden]) [data-testid="feed-item"]'),
     ).toHaveCount(1, { timeout: 10000 });
 
-    // The unvisited feed's posts are prefetched, but no DOM is built for them
+    // Without ever switching tabs, the inactive feed fills in on its own
     await expect(
       view.locator('.feed-container[hidden] [data-testid="feed-item"]'),
-    ).toHaveCount(0);
+    ).toHaveCount(1, { timeout: 10000 });
 
     await view.locator(".tab-bar-button", { hasText: "Trending" }).click();
     await expect(
       view.locator('.feed-container:not([hidden]) [data-testid="feed-item"]'),
     ).toContainText("Trending feed post", { timeout: 10000 });
 
-    // Switching back keeps the now-visited feed's DOM in place
-    await view.locator(".tab-bar-button", { hasText: "Following" }).click();
+    // Background feeds are dropped on the way out and rebuilt on the way back
+    await page.locator('[data-testid="sidebar-nav-search"]').click();
+    await expect(view).toBeHidden();
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
+    await expect(view).toBeVisible();
     await expect(
       view.locator('.feed-container[hidden] [data-testid="feed-item"]'),
-    ).toHaveCount(1);
+    ).toHaveCount(1, { timeout: 10000 });
   });
 
   test("should display post author name, handle, and action bar", async ({
