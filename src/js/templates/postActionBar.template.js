@@ -251,6 +251,19 @@ function postContextMenuTemplate({
   `;
 }
 
+function openContextMenu(event, contents, { className = null } = {}) {
+  const menu = document.createElement("context-menu");
+  if (className) menu.classList.add(className);
+  const itemHolder = document.createElement("div");
+  render(contents, itemHolder);
+  while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+  document.body.appendChild(menu);
+  menu.open(event.clientX, event.clientY);
+  menu
+    .querySelector("dialog")
+    .addEventListener("close", () => menu.remove(), { once: true });
+}
+
 async function openPostContextMenu(event, props) {
   const pluginItems = await props.pluginService.getPostContextMenuItems(
     props.post,
@@ -260,16 +273,50 @@ async function openPostContextMenu(event, props) {
       feedProxyUrl: getFeedGeneratorProxyUrl(props.feedGenerator),
     },
   );
-  const menu = document.createElement("context-menu");
-  menu.classList.add("post-context-menu");
-  const itemHolder = document.createElement("div");
-  render(postContextMenuTemplate({ ...props, pluginItems }), itemHolder);
-  while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
-  document.body.appendChild(menu);
-  menu.open(event.clientX, event.clientY);
-  menu
-    .querySelector("dialog")
-    .addEventListener("close", () => menu.remove(), { once: true });
+  openContextMenu(event, postContextMenuTemplate({ ...props, pluginItems }), {
+    className: "post-context-menu",
+  });
+}
+
+function repostMenuTemplate({
+  post,
+  currentUser,
+  isAuthenticated,
+  isReposted,
+  canQuotePost,
+  onClickRepost,
+  onClickQuotePost,
+}) {
+  return html`
+    <context-menu-item
+      data-testid="menu-action-repost"
+      data-teststate=${isReposted ? "reposted" : "not-reposted"}
+      icon="repost"
+      @click=${() => {
+        if (!isAuthenticated) {
+          SignInModal.open();
+          return;
+        }
+        onClickRepost(post, !isReposted);
+      }}
+    >
+      ${isReposted ? "Undo repost" : "Repost"}
+    </context-menu-item>
+    <context-menu-item
+      data-testid="menu-action-quote-post"
+      ?disabled=${!canQuotePost || !currentUser}
+      icon="quote-line"
+      @click=${() => {
+        if (!isAuthenticated) {
+          SignInModal.open();
+          return;
+        }
+        onClickQuotePost(post);
+      }}
+    >
+      ${canQuotePost ? "Quote post" : "Quote posts disabled"}
+    </context-menu-item>
+  `;
 }
 
 export function postActionBarTemplate({
@@ -334,13 +381,23 @@ export function postActionBarTemplate({
               reposted: isReposted,
             })}
             data-testid="repost-button"
-            @click=${function (e) {
+            @click=${(e) => {
               e.stopPropagation();
               if (!isAuthenticated) {
                 return SignInModal.open();
               }
-              const contextMenu = this.nextElementSibling;
-              contextMenu.open(e.clientX, e.clientY);
+              openContextMenu(
+                e,
+                repostMenuTemplate({
+                  post,
+                  currentUser,
+                  isAuthenticated,
+                  isReposted,
+                  canQuotePost,
+                  onClickRepost,
+                  onClickQuotePost,
+                }),
+              );
             }}
           >
             <div class="post-action-icon">${repostIconTemplate()}</div>
@@ -350,36 +407,6 @@ export function postActionBarTemplate({
                 >`
               : null}
           </button>
-          <context-menu>
-            <context-menu-item
-              data-testid="menu-action-repost"
-              data-teststate=${isReposted ? "reposted" : "not-reposted"}
-              icon="repost"
-              @click=${() => {
-                if (!isAuthenticated) {
-                  SignInModal.open();
-                  return;
-                }
-                onClickRepost(post, !isReposted);
-              }}
-            >
-              ${isReposted ? "Undo repost" : "Repost"}
-            </context-menu-item>
-            <context-menu-item
-              data-testid="menu-action-quote-post"
-              ?disabled=${!canQuotePost || !currentUser}
-              icon="quote-line"
-              @click=${() => {
-                if (!isAuthenticated) {
-                  SignInModal.open();
-                  return;
-                }
-                onClickQuotePost(post);
-              }}
-            >
-              ${canQuotePost ? "Quote post" : "Quote posts disabled"}
-            </context-menu-item>
-          </context-menu>
         </div>
         <div class="post-action">
           ${keyed(
