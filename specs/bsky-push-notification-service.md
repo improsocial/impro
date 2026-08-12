@@ -28,7 +28,7 @@ own origin is the expected common case, but any DID method that can
 publish the entry works. Everything below is served from the
 `serviceEndpoint` origin.
 
-A `did:web` document MUST be served with permissive CORS,
+A `did:web` document MUST be served with permissive CORS
 (`Access-Control-Allow-Origin: *`) — clients fetch it cross-origin
 from the browser.
 
@@ -184,7 +184,12 @@ VAPID key. The plaintext is JSON:
 - `url` — required; deeplink, path-relative to the client app's
   origin. The client's service worker resolves it against its own
   origin (the service does not know or care where the client is
-  hosted).
+  hosted). The deeplink MUST target the record the notification is
+  about. For `like`, `repost`, and the `-via-repost` variants that is
+  the reaction's subject, not the notification's own `uri` — which is
+  the reaction record, in the reacting account's repo. Note that
+  `reasonSubject` is the reader's own repost for the `-via-repost`
+  variants, so those take the subject from the reaction record.
 - `badge` — optional; total unread count at send time. Best-effort:
   reads on other devices cannot update it until the next push.
 - `tag` — optional collapse key: a new notification with the same tag
