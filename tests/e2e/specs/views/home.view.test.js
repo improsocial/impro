@@ -218,6 +218,56 @@ test.describe("Home view", () => {
     await expect(visibleFeed).toContainText("Trending feed post");
   });
 
+  test("should not build a feed tab's posts until its tab is visited", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    const timelinePost = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Timeline post here",
+      authorHandle: "author1.bsky.social",
+    });
+    const feedPost = createPost({
+      uri: "at://did:plc:author2/app.bsky.feed.post/post2",
+      text: "Trending feed post",
+      authorHandle: "author2.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.addTimelinePosts([timelinePost]);
+    mockServer.addFeedItems(feed.uri, [feedPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(
+      view.locator('.feed-container:not([hidden]) [data-testid="feed-item"]'),
+    ).toHaveCount(1, { timeout: 10000 });
+
+    // The unvisited feed's posts are prefetched, but no DOM is built for them
+    await expect(
+      view.locator('.feed-container[hidden] [data-testid="feed-item"]'),
+    ).toHaveCount(0);
+
+    await view.locator(".tab-bar-button", { hasText: "Trending" }).click();
+    await expect(
+      view.locator('.feed-container:not([hidden]) [data-testid="feed-item"]'),
+    ).toContainText("Trending feed post", { timeout: 10000 });
+
+    // Switching back keeps the now-visited feed's DOM in place
+    await view.locator(".tab-bar-button", { hasText: "Following" }).click();
+    await expect(
+      view.locator('.feed-container[hidden] [data-testid="feed-item"]'),
+    ).toHaveCount(1);
+  });
+
   test("should display post author name, handle, and action bar", async ({
     page,
   }) => {
