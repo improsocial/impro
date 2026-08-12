@@ -369,7 +369,7 @@ class HomeView extends View {
           resetToDefaultFeed();
         }
 
-        preloadHiddenFeeds(pinnedItems);
+        // preloadHiddenFeeds(pinnedItems);
         initializePostSeenObservers(pinnedItems);
         window.scrollTo(0, 0);
       });
