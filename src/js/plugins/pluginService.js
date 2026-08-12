@@ -23,11 +23,7 @@ import { PluginRichTextDispatcher } from "/js/plugins/pluginRichTextDispatcher.j
 import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import {
-  pluginFetch,
-  bytesToBase64,
-  base64ToArrayBuffer,
-} from "/js/plugins/pluginRequests.js";
+import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
@@ -414,8 +410,7 @@ export class PluginService extends ReactiveStore {
       async (plugin, { key }) => {
         this._requireStoragePermission(plugin, "binaryCache");
         requireHostMethodArg("getBinaryCacheEntry", "key", key);
-        const buffer = await this.binaryCache.get(plugin.pluginId, key);
-        return buffer == null ? null : bytesToBase64(new Uint8Array(buffer));
+        return await this.binaryCache.get(plugin.pluginId, key);
       },
     );
 
@@ -425,11 +420,7 @@ export class PluginService extends ReactiveStore {
         this._requireStoragePermission(plugin, "binaryCache");
         requireHostMethodArg("putBinaryCacheEntry", "key", key);
         requireHostMethodArg("putBinaryCacheEntry", "data", data);
-        await this.binaryCache.put(
-          plugin.pluginId,
-          key,
-          base64ToArrayBuffer(data),
-        );
+        await this.binaryCache.put(plugin.pluginId, key, data);
       },
     );
 

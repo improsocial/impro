@@ -2324,10 +2324,12 @@ A record that links to a queried subject.
 
 ### Cloneable
 
-> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
+> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| `ArrayBuffer` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
 
-JSON-shaped data — the only thing that can cross between a plugin and the
-  host. Functions, class instances, `Date`, `Map` and friends cannot.
+JSON-shaped data, plus `ArrayBuffer` (structured-clones natively, both
+  directions - see [BinaryCache](#binarycache) and [PluginResponse](#pluginresponse)) - the
+  only things that can cross between a plugin and the host. Functions,
+  class instances, `Date`, `Map` and friends cannot.
 
 #### Type Parameters
 

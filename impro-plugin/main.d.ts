@@ -1324,10 +1324,12 @@ export type CloneableObject = {
  */
 export type CloneableArray = Cloneable[];
 /**
- * JSON-shaped data — the only thing that can cross between a plugin and the
- * host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * JSON-shaped data, plus `ArrayBuffer` (structured-clones natively, both
+ * directions - see {@link BinaryCache} and {@link PluginResponse}) - the
+ * only things that can cross between a plugin and the host. Functions,
+ * class instances, `Date`, `Map` and friends cannot.
  */
-export type Cloneable = null | undefined | boolean | number | string | CloneableArray | CloneableObject;
+export type Cloneable = null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject;
 /**
  * {@internal}
  */

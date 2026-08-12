@@ -2366,7 +2366,7 @@ describe("binaryCache host methods", () => {
       () =>
         getHandler(service, "putBinaryCacheEntry")(plugin, {
           key: "k",
-          data: "AQ==",
+          data: new Uint8Array([1]).buffer,
         }),
       /"binaryCache" storage permission/,
     );
@@ -2376,20 +2376,22 @@ describe("binaryCache host methods", () => {
     );
   });
 
-  it("round-trips bytes through put/get when permitted", async () => {
+  it("round-trips raw bytes through put/get when permitted", async () => {
+    // data crosses the worker<->host postMessage boundary as a real
+    // ArrayBuffer (structured clone), not a base64 string - the host
+    // methods are a plain passthrough to binaryCache, no encoding involved.
     const { service } = makeServiceWithPermissions({
       storage: ["binaryCache"],
     });
-    // base64 for the bytes [1, 2, 3]
+    const buffer = new Uint8Array([1, 2, 3]).buffer;
     await getHandler(service, "putBinaryCacheEntry")(plugin, {
       key: "engine",
-      data: "AQID",
+      data: buffer,
     });
-    const base64 = await getHandler(service, "getBinaryCacheEntry")(plugin, {
+    const stored = await getHandler(service, "getBinaryCacheEntry")(plugin, {
       key: "engine",
     });
-    const stored = new Uint8Array(Buffer.from(base64, "base64"));
-    assert.deepEqual([...stored], [1, 2, 3]);
+    assert.deepEqual([...new Uint8Array(stored)], [1, 2, 3]);
   });
 
   it("returns null for a key that was never stored", async () => {
@@ -2410,7 +2412,7 @@ describe("binaryCache host methods", () => {
     });
     await getHandler(service, "putBinaryCacheEntry")(plugin, {
       key: "engine",
-      data: "AQID",
+      data: new Uint8Array([1, 2, 3]).buffer,
     });
     await getHandler(service, "deleteBinaryCacheEntry")(plugin, {
       key: "engine",

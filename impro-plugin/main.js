@@ -374,10 +374,9 @@ export class BinaryCache {
    * @returns {Promise<ArrayBuffer | null>}
    */
   async get(key) {
-    const stored = /** @type {string | null} */ (
-      await hostCall("getBinaryCacheEntry", { key: String(key) })
+    return /** @type {Promise<ArrayBuffer | null>} */ (
+      hostCall("getBinaryCacheEntry", { key: String(key) })
     );
-    return stored == null ? null : base64ToArrayBuffer(stored);
   }
   /**
    * @param {string} key
@@ -385,14 +384,17 @@ export class BinaryCache {
    * @returns {Promise<void>}
    */
   async put(key, data) {
-    const bytes =
+    const view =
       data instanceof ArrayBuffer
         ? new Uint8Array(data)
         : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-    await hostCall("putBinaryCacheEntry", {
-      key: String(key),
-      data: bytesToBase64(bytes),
-    });
+    // Always copies into a fresh, plain ArrayBuffer (never the wider
+    // ArrayBufferLike a view's .buffer is typed as) - postMessage clones
+    // ArrayBuffer natively, so this is just about giving hostCall a
+    // definite Cloneable-compatible type, not about avoiding aliasing.
+    const buffer = new ArrayBuffer(view.byteLength);
+    new Uint8Array(buffer).set(view);
+    await hostCall("putBinaryCacheEntry", { key: String(key), data: buffer });
   }
   /**
    * @param {string} key
@@ -2037,9 +2039,11 @@ export class VirtualEl {
  *   An object whose values are all {@link Cloneable}.
  * @typedef {Cloneable[]} CloneableArray
  *   An array of {@link Cloneable} values.
- * @typedef {null | undefined | boolean | number | string | CloneableArray | CloneableObject} Cloneable
- *   JSON-shaped data — the only thing that can cross between a plugin and the
- *   host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * @typedef {null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject} Cloneable
+ *   JSON-shaped data, plus `ArrayBuffer` (structured-clones natively, both
+ *   directions - see {@link BinaryCache} and {@link PluginResponse}) - the
+ *   only things that can cross between a plugin and the host. Functions,
+ *   class instances, `Date`, `Map` and friends cannot.
  * @typedef {{ type: "register", target: "eventListener", event: string, handlerId: number }} RegisterEventListenerMessage
  *   {@internal}
  * @typedef {{ type: "register", target: "sidebarItem", icon: string | SerializedElement, title: string, handlerId: number }} RegisterSidebarItemMessage
