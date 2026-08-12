@@ -216,6 +216,43 @@ export class PluginData {
     }): Promise<BacklinkRecord[]>;
 }
 /**
+ * Host-mediated persistent storage for binary data too large for
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData}.
+ * Namespaced per plugin; survives reloads but is cleared on
+ * uninstall.
+ */
+export class BinaryCache {
+    /**
+     * @param {string} key
+     * @returns {Promise<ArrayBuffer | null>}
+     */
+    get(key: string): Promise<ArrayBuffer | null>;
+    /**
+     * Whether an entry is stored under `key`, without transferring its bytes.
+     *
+     * @param {string} key
+     * @returns {Promise<boolean>}
+     */
+    has(key: string): Promise<boolean>;
+    /**
+     * Every key this plugin currently has stored, in no particular order.
+     *
+     * @returns {Promise<string[]>}
+     */
+    keys(): Promise<string[]>;
+    /**
+     * @param {string} key
+     * @param {ArrayBuffer | ArrayBufferView} data
+     * @returns {Promise<void>}
+     */
+    put(key: string, data: ArrayBuffer | ArrayBufferView): Promise<void>;
+    /**
+     * @param {string} key
+     * @returns {Promise<void>}
+     */
+    delete(key: string): Promise<void>;
+}
+/**
  * The plugin's handle to the running impro app. Exposed as `this.app` on a
  * {@link Plugin} instance. Owns event subscriptions, data accessors
  * ({@link App.data}), and user-scoped actions.
@@ -229,6 +266,8 @@ export class App {
     currentUser: ProfileView | null;
     /** Read-only appview accessors — see {@link PluginData}. */
     data: PluginData;
+    /** Host-mediated binary storage — see {@link BinaryCache}. */
+    binaryCache: BinaryCache;
     /**
      * Register an event listener. Supported events:
      *
@@ -1295,10 +1334,11 @@ export type CloneableObject = {
  */
 export type CloneableArray = Cloneable[];
 /**
- * JSON-shaped data — the only thing that can cross between a plugin and the
- * host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+ * that can cross between a plugin and the host. Functions, class instances,
+ * `Date`, `Map` and friends cannot.
  */
-export type Cloneable = null | undefined | boolean | number | string | CloneableArray | CloneableObject;
+export type Cloneable = null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject;
 /**
  * {@internal}
  */

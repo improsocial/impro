@@ -143,6 +143,12 @@ function makeService({
       reconcileCalls.push(urls);
     },
   };
+  const binaryCacheClearCalls = [];
+  service.binaryCache = {
+    clear: async (pluginId) => {
+      binaryCacheClearCalls.push(pluginId);
+    },
+  };
   return {
     service,
     state,
@@ -151,6 +157,7 @@ function makeService({
     reloadCalls,
     unloadCalls,
     reconcileCalls,
+    binaryCacheClearCalls,
   };
 }
 
@@ -2307,6 +2314,169 @@ describe("loadLocalData/saveLocalData host methods", () => {
     assert.deepEqual(
       getHandler(service, "loadLocalData")({ pluginId: "other" }),
       { a: 2 },
+    );
+  });
+});
+
+describe("binaryCache host methods", () => {
+  function bytes(values) {
+    return new Uint8Array(values).buffer;
+  }
+
+  function makeServiceWithBinaryCache() {
+    const { state, provider } = makeProvider();
+    state.installedPlugins = [
+      { id: "translate", version: "1.0.0", enabled: true, permissions: {} },
+    ];
+    const service = makeServiceWithRealBridge({ provider });
+    // The real store is Cache-API backed; these tests are about argument
+    // plumbing, which pluginBinaryCache.test.js already covers directly
+    // against the real class - swap in an inert fake here.
+    const calls = [];
+    service.binaryCache = {
+      _data: new Map(),
+      async get(pluginId, key) {
+        calls.push(["get", pluginId, key]);
+        return this._data.get(`${pluginId}:${key}`) ?? null;
+      },
+      async put(pluginId, key, buffer) {
+        calls.push(["put", pluginId, key]);
+        this._data.set(`${pluginId}:${key}`, buffer);
+      },
+      async delete(pluginId, key) {
+        calls.push(["delete", pluginId, key]);
+        this._data.delete(`${pluginId}:${key}`);
+      },
+      async has(pluginId, key) {
+        calls.push(["has", pluginId, key]);
+        return this._data.has(`${pluginId}:${key}`);
+      },
+      async keys(pluginId) {
+        calls.push(["keys", pluginId]);
+        return [...this._data.keys()]
+          .filter((stored) => stored.startsWith(`${pluginId}:`))
+          .map((stored) => stored.slice(pluginId.length + 1));
+      },
+    };
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const plugin = { pluginId: "translate" };
+
+  it("has reports whether a key is stored", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    assert.deepEqual(
+      await getHandler(service, "hasBinaryCacheEntry")(plugin, {
+        key: "engine",
+      }),
+      true,
+    );
+    assert.deepEqual(
+      await getHandler(service, "hasBinaryCacheEntry")(plugin, {
+        key: "missing",
+      }),
+      false,
+    );
+  });
+
+  it("lists this plugin's keys", async () => {
+    const { service, calls } = makeServiceWithBinaryCache();
+    assert.deepEqual(
+      await getHandler(service, "listBinaryCacheEntries")(plugin),
+      [],
+    );
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "model",
+      data: bytes([1, 2, 3]),
+    });
+    assert.deepEqual(
+      (await getHandler(service, "listBinaryCacheEntries")(plugin)).sort(),
+      ["engine", "model"],
+    );
+    assert.deepEqual(
+      calls.every(([, pluginId]) => pluginId === "translate"),
+      true,
+    );
+  });
+
+  it("round-trips bytes through put/get when permitted", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    const buffer = await getHandler(service, "getBinaryCacheEntry")(plugin, {
+      key: "engine",
+    });
+    assert.deepEqual([...new Uint8Array(buffer)], [1, 2, 3]);
+  });
+
+  it("returns null for a key that was never stored", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    assert.deepEqual(
+      await getHandler(service, "getBinaryCacheEntry")(plugin, {
+        key: "missing",
+      }),
+      null,
+    );
+  });
+
+  it("delete removes the entry and calls are scoped to this plugin's id", async () => {
+    const { service, calls } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    await getHandler(service, "deleteBinaryCacheEntry")(plugin, {
+      key: "engine",
+    });
+    assert.deepEqual(
+      await getHandler(service, "getBinaryCacheEntry")(plugin, {
+        key: "engine",
+      }),
+      null,
+    );
+    assert.deepEqual(
+      calls.every(([, pluginId]) => pluginId === "translate"),
+      true,
+    );
+  });
+
+  it("rejects put data that isn't an ArrayBuffer", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    for (const data of ["AQID", new Uint8Array([1, 2, 3]), { byteLength: 3 }]) {
+      await assert.rejects(
+        () =>
+          getHandler(service, "putBinaryCacheEntry")(plugin, {
+            key: "engine",
+            data,
+          }),
+        /must be an ArrayBuffer/,
+      );
+    }
+  });
+
+  it("requires a key argument", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await assert.rejects(
+      () => getHandler(service, "getBinaryCacheEntry")(plugin, {}),
+      /key/,
+    );
+    await assert.rejects(
+      () => getHandler(service, "hasBinaryCacheEntry")(plugin, {}),
+      /key/,
     );
   });
 });

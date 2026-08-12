@@ -360,6 +360,64 @@ export class PluginData {
 }
 
 /**
+ * Host-mediated persistent storage for binary data too large for
+ * {@link Plugin.loadLocalData}/{@link Plugin.saveLocalData}.
+ * Namespaced per plugin; survives reloads but is cleared on
+ * uninstall.
+ */
+export class BinaryCache {
+  /**
+   * @param {string} key
+   * @returns {Promise<ArrayBuffer | null>}
+   */
+  async get(key) {
+    return /** @type {Promise<ArrayBuffer | null>} */ (
+      hostCall("getBinaryCacheEntry", { key: String(key) })
+    );
+  }
+  /**
+   * Whether an entry is stored under `key`, without transferring its bytes.
+   *
+   * @param {string} key
+   * @returns {Promise<boolean>}
+   */
+  async has(key) {
+    return /** @type {boolean} */ (
+      await hostCall("hasBinaryCacheEntry", { key: String(key) })
+    );
+  }
+  /**
+   * Every key this plugin currently has stored, in no particular order.
+   *
+   * @returns {Promise<string[]>}
+   */
+  async keys() {
+    return /** @type {string[]} */ (await hostCall("listBinaryCacheEntries"));
+  }
+  /**
+   * @param {string} key
+   * @param {ArrayBuffer | ArrayBufferView} data
+   * @returns {Promise<void>}
+   */
+  async put(key, data) {
+    // A view may be a window onto a larger buffer, so send just its bytes.
+    const buffer = /** @type {ArrayBuffer} */ (
+      data instanceof ArrayBuffer
+        ? data
+        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+    );
+    await hostCall("putBinaryCacheEntry", { key: String(key), data: buffer });
+  }
+  /**
+   * @param {string} key
+   * @returns {Promise<void>}
+   */
+  async delete(key) {
+    await hostCall("deleteBinaryCacheEntry", { key: String(key) });
+  }
+}
+
+/**
  * The plugin's handle to the running impro app. Exposed as `this.app` on a
  * {@link Plugin} instance. Owns event subscriptions, data accessors
  * ({@link App.data}), and user-scoped actions.
@@ -375,6 +433,8 @@ export class App {
     this.currentUser = null;
     /** Read-only appview accessors — see {@link PluginData}. */
     this.data = new PluginData();
+    /** Host-mediated binary storage — see {@link BinaryCache}. */
+    this.binaryCache = new BinaryCache();
   }
   /**
    * Register an event listener. Supported events:
@@ -1991,9 +2051,10 @@ export class VirtualEl {
  *   An object whose values are all {@link Cloneable}.
  * @typedef {Cloneable[]} CloneableArray
  *   An array of {@link Cloneable} values.
- * @typedef {null | undefined | boolean | number | string | CloneableArray | CloneableObject} Cloneable
- *   JSON-shaped data — the only thing that can cross between a plugin and the
- *   host. Functions, class instances, `Date`, `Map` and friends cannot.
+ * @typedef {null | undefined | boolean | number | string | ArrayBuffer | CloneableArray | CloneableObject} Cloneable
+ *   JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+ *   that can cross between a plugin and the host. Functions, class instances,
+ *   `Date`, `Map` and friends cannot.
  * @typedef {{ type: "register", target: "eventListener", event: string, handlerId: number }} RegisterEventListenerMessage
  *   {@internal}
  * @typedef {{ type: "register", target: "sidebarItem", icon: string | SerializedElement, title: string, handlerId: number }} RegisterSidebarItemMessage

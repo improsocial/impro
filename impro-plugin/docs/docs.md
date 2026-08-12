@@ -14,6 +14,7 @@ The plugin's handle to the running impro app. Exposed as `this.app` on a
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
+| <a id="property-binarycache"></a> `binaryCache` | [`BinaryCache`](#binarycache) | Host-mediated binary storage — see [BinaryCache](#binarycache). |
 | <a id="property-currentuser"></a> `currentUser` | [`ProfileView`](#profileview) \| `null` | The signed-in user's basic profile, populated before `onload()` runs. Null when no session is active. |
 | <a id="property-data"></a> `data` | [`PluginData`](#plugindata) | Read-only appview accessors — see [PluginData](#plugindata). |
 
@@ -167,6 +168,96 @@ Unmute an actor. Requires the `"mute"` scope.
 | Parameter | Type |
 | ------ | ------ |
 | `did` | `string` |
+
+###### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### BinaryCache
+
+Host-mediated persistent storage for binary data too large for
+[Plugin.loadLocalData](#loadlocaldata)/[Plugin.saveLocalData](#savelocaldata).
+Namespaced per plugin; survives reloads but is cleared on
+uninstall.
+
+#### Constructors
+
+##### Constructor
+
+> **new BinaryCache**(): [`BinaryCache`](#binarycache)
+
+###### Returns
+
+[`BinaryCache`](#binarycache)
+
+#### Methods
+
+##### delete()
+
+> **delete**(`key`): `Promise`\<`void`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`void`\>
+
+##### get()
+
+> **get**(`key`): `Promise`\<`ArrayBuffer` \| `null`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`ArrayBuffer` \| `null`\>
+
+##### has()
+
+> **has**(`key`): `Promise`\<`boolean`\>
+
+Whether an entry is stored under `key`, without transferring its bytes.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+
+###### Returns
+
+`Promise`\<`boolean`\>
+
+##### keys()
+
+> **keys**(): `Promise`\<`string`[]\>
+
+Every key this plugin currently has stored, in no particular order.
+
+###### Returns
+
+`Promise`\<`string`[]\>
+
+##### put()
+
+> **put**(`key`, `data`): `Promise`\<`void`\>
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+| `data` | `ArrayBuffer` \| `ArrayBufferView`\<`ArrayBufferLike`\> |
 
 ###### Returns
 
@@ -2256,10 +2347,11 @@ A record that links to a queried subject.
 
 ### Cloneable
 
-> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
+> **Cloneable** = `null` \| `undefined` \| `boolean` \| `number` \| `string` \| `ArrayBuffer` \| [`CloneableArray`](#cloneablearray) \| [`CloneableObject`](#cloneableobject)
 
-JSON-shaped data — the only thing that can cross between a plugin and the
-  host. Functions, class instances, `Date`, `Map` and friends cannot.
+JSON-shaped data, plus `ArrayBuffer` for binary payloads — the only thing
+  that can cross between a plugin and the host. Functions, class instances,
+  `Date`, `Map` and friends cannot.
 
 #### Type Parameters
 

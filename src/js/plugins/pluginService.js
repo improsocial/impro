@@ -13,6 +13,7 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import { PluginBinaryCache } from "/js/plugins/pluginBinaryCache.js";
 import {
   PluginLocalDataStore,
   PluginMemoryDataStore,
@@ -188,6 +189,7 @@ export class PluginService extends ReactiveStore {
       ? new LocalPluginRegistry()
       : null;
     this.pluginCache = new PluginCache();
+    this.binaryCache = new PluginBinaryCache();
     this.sourceProvider = new SourceProvider(this.pluginCache);
     this.pluginStylesLoader = new PluginStylesLoader();
     this.pluginBridge = new PluginBridge(
@@ -400,6 +402,49 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
       this.localDataStore.set(plugin.pluginId, data);
     });
+
+    this.pluginBridge.addHostMethod(
+      "getBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("getBinaryCacheEntry", "key", key);
+        return await this.binaryCache.get(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "hasBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("hasBinaryCacheEntry", "key", key);
+        return await this.binaryCache.has(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "listBinaryCacheEntries",
+      async (plugin) => {
+        return await this.binaryCache.keys(plugin.pluginId);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "putBinaryCacheEntry",
+      async (plugin, { key, data }) => {
+        requireHostMethodArg("putBinaryCacheEntry", "key", key);
+        requireHostMethodArg("putBinaryCacheEntry", "data", data);
+        if (!(data instanceof ArrayBuffer)) {
+          throw new Error("putBinaryCacheEntry data must be an ArrayBuffer");
+        }
+        await this.binaryCache.put(plugin.pluginId, key, data);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "deleteBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("deleteBinaryCacheEntry", "key", key);
+        await this.binaryCache.delete(plugin.pluginId, key);
+      },
+    );
 
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
@@ -933,6 +978,7 @@ export class PluginService extends ReactiveStore {
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
     this.localDataStore.clear(pluginId);
+    await this.binaryCache.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 
