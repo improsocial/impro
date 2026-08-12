@@ -553,11 +553,13 @@ function serializeFetchInit(init) {
 }
 
 /**
- * Response returned from {@link fetch}. Body is buffered by the host and
- * exposed as text or parsed JSON. `status`, `ok`, and `headers` (a `Map`)
- * mirror the underlying HTTP response.
+ * Response returned from {@link fetch}. The host buffers the raw response
+ * bytes and sends them as an `ArrayBuffer`, and this class decodes them on
+ * demand depending on which accessor is called. `status`, `ok`, and `headers`
+ * (a `Map`) mirror the underlying HTTP response.
  */
 export class PluginResponse {
+  /** @type {ArrayBuffer} raw response bytes */
   #body;
   /**
    * @internal
@@ -573,18 +575,25 @@ export class PluginResponse {
     this.#body = body;
   }
   /**
-   * Resolves with the response body as a string.
+   * Resolves with the raw response bytes.
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async arrayBuffer() {
+    return this.#body;
+  }
+  /**
+   * Resolves with the response body decoded as UTF-8 text.
    * @returns {Promise<string>}
    */
   async text() {
-    return this.#body;
+    return new TextDecoder().decode(await this.arrayBuffer());
   }
   /**
    * Resolves with the response body parsed as JSON.
    * @returns {Promise<unknown>}
    */
   async json() {
-    return JSON.parse(this.#body);
+    return JSON.parse(await this.text());
   }
 }
 
@@ -2011,14 +2020,18 @@ export class VirtualEl {
  *   {@internal} Anything this worker may post to the host.
  * @typedef {{ type: "call", callId: number, handlerId: number, args: Cloneable[] }} HostCallMessage
  *   {@internal} The host invoking a handler this worker registered.
- * @typedef {{ type: "hostResult", hostCallId: number, value?: Cloneable, error?: string }} HostResultMessage
- *   {@internal} The host answering a {@link hostCall}.
+ * @typedef {{ type: "hostResult", hostCallId: number, value?: Cloneable | SerializedFetchResponse, error?: string }} HostResultMessage
+ *   {@internal} The host answering a {@link hostCall}. Wider than
+ *   {@link Cloneable} because {@link SerializedFetchResponse} carries its
+ *   body as an `ArrayBuffer`, which structured clone handles but JSON
+ *   cannot.
  * @typedef {{ type: "event", event: "modalDismissed", data: { modalId: number } }} HostEventMessage
  *   {@internal} An out-of-band notification from the host.
  * @typedef {HostCallMessage | HostResultMessage | HostEventMessage} HostMessage
  *   {@internal} Anything the host may post to this worker.
- * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: string }} SerializedFetchResponse
- *   {@internal} The host's reply to a proxied {@link fetch}.
+ * @typedef {{ status: number, ok: boolean, headers: Record<string, string>, body: ArrayBuffer }} SerializedFetchResponse
+ *   {@internal} The host's reply to a proxied {@link fetch}. `body` is
+ *   always the raw response bytes (see {@link PluginResponse}).
  * @typedef {{ method?: string, headers?: Record<string, string>, body?: string }} SerializedFetchInit
  *   {@internal} A {@link PluginFetchInit} with its headers flattened for transfer.
  * @typedef {Record<string, unknown>} SerializedRichTextToken

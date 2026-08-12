@@ -299,9 +299,10 @@ export class App {
     showMoreLikeThis(postUri: string, feedUri: string): Promise<void>;
 }
 /**
- * Response returned from {@link fetch}. Body is buffered by the host and
- * exposed as text or parsed JSON. `status`, `ok`, and `headers` (a `Map`)
- * mirror the underlying HTTP response.
+ * Response returned from {@link fetch}. The host buffers the raw response
+ * bytes and sends them as an `ArrayBuffer`, and this class decodes them on
+ * demand depending on which accessor is called. `status`, `ok`, and `headers`
+ * (a `Map`) mirror the underlying HTTP response.
  */
 export class PluginResponse {
     /**
@@ -316,7 +317,12 @@ export class PluginResponse {
     /** @type {Map<string, string>} */
     headers: Map<string, string>;
     /**
-     * Resolves with the response body as a string.
+     * Resolves with the raw response bytes.
+     * @returns {Promise<ArrayBuffer>}
+     */
+    arrayBuffer(): Promise<ArrayBuffer>;
+    /**
+     * Resolves with the response body decoded as UTF-8 text.
      * @returns {Promise<string>}
      */
     text(): Promise<string>;
@@ -1402,12 +1408,15 @@ export type HostCallMessage = {
     args: Cloneable[];
 };
 /**
- * {@internal} The host answering a {@link hostCall}.
+ * {@internal} The host answering a {@link hostCall}. Wider than
+ * {@link Cloneable} because {@link SerializedFetchResponse} carries its
+ * body as an `ArrayBuffer`, which structured clone handles but JSON
+ * cannot.
  */
 export type HostResultMessage = {
     type: "hostResult";
     hostCallId: number;
-    value?: Cloneable;
+    value?: Cloneable | SerializedFetchResponse;
     error?: string;
 };
 /**
@@ -1425,13 +1434,14 @@ export type HostEventMessage = {
  */
 export type HostMessage = HostCallMessage | HostResultMessage | HostEventMessage;
 /**
- * {@internal} The host's reply to a proxied {@link fetch}.
+ * {@internal} The host's reply to a proxied {@link fetch}. `body` is
+ * always the raw response bytes (see {@link PluginResponse}).
  */
 export type SerializedFetchResponse = {
     status: number;
     ok: boolean;
     headers: Record<string, string>;
-    body: string;
+    body: ArrayBuffer;
 };
 /**
  * {@internal} A {@link PluginFetchInit} with its headers flattened for transfer.

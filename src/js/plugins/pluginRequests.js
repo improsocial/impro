@@ -4,6 +4,7 @@ const ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 
 const FORBIDDEN_HEADERS = ["authorization", "cookie"];
 const MAX_BODY_CHARS = 1_000_000;
+export const MAX_RESPONSE_BYTES = 100_000_000;
 
 export async function pluginFetch(
   permissions,
@@ -21,12 +22,17 @@ export async function pluginFetch(
     mode: "cors",
     referrerPolicy: "no-referrer",
   });
-  const bodyText = await response.text();
+  const bodyBuffer = await response.arrayBuffer();
+  if (bodyBuffer.byteLength > MAX_RESPONSE_BYTES) {
+    throw new Error(
+      `fetch response too large (${bodyBuffer.byteLength} bytes, max ${MAX_RESPONSE_BYTES})`,
+    );
+  }
   return {
     status: response.status,
     ok: response.ok,
     headers: filterResponseHeaders(response.headers, ["content-type"]),
-    body: bodyText,
+    body: bodyBuffer,
   };
 }
 

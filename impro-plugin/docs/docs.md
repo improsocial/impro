@@ -1268,9 +1268,10 @@ Fetch a raw repo record by `(repo, collection, rkey)`.
 
 ### PluginResponse
 
-Response returned from [fetch](#fetch). Body is buffered by the host and
-exposed as text or parsed JSON. `status`, `ok`, and `headers` (a `Map`)
-mirror the underlying HTTP response.
+Response returned from [fetch](#fetch). The host buffers the raw response
+bytes and sends them as an `ArrayBuffer`, and this class decodes them on
+demand depending on which accessor is called. `status`, `ok`, and `headers`
+(a `Map`) mirror the underlying HTTP response.
 
 #### Properties
 
@@ -1281,6 +1282,16 @@ mirror the underlying HTTP response.
 | <a id="property-status"></a> `status` | `number` |
 
 #### Methods
+
+##### arrayBuffer()
+
+> **arrayBuffer**(): `Promise`\<`ArrayBuffer`\>
+
+Resolves with the raw response bytes.
+
+###### Returns
+
+`Promise`\<`ArrayBuffer`\>
 
 ##### json()
 
@@ -1296,7 +1307,7 @@ Resolves with the response body parsed as JSON.
 
 > **text**(): `Promise`\<`string`\>
 
-Resolves with the response body as a string.
+Resolves with the response body decoded as UTF-8 text.
 
 ###### Returns
 
