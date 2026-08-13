@@ -10751,17 +10751,49 @@ h2.setting-item-name {
 }
 
 .setting-item-dropdown,
-.plugin-content textarea {
+.setting-item-text-input,
+.setting-item-textarea,
+.plugin-content textarea,
+.plugin-content
+  :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"]
+  ) {
   font-size: 16px;
-  padding: 8px 10px;
+  font-family: inherit;
+  padding: 10px 12px;
   border-radius: var(--text-input-border-radius);
-  border: var(--hair) solid var(--generic-border-color);
+  border: var(--hair) solid var(--post-border-color);
   background: var(--text-input-background-color);
   color: var(--text-color);
 }
 
+.setting-item-text-input:focus,
+.setting-item-textarea:focus,
+.plugin-content textarea:focus,
+.plugin-content
+  :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"]
+  ):focus {
+  outline: 2px solid var(--highlight-color);
+  outline-offset: -1px;
+}
+
+.setting-item-textarea,
 .plugin-content textarea {
-  font-family: inherit;
   resize: vertical;
 }
 
