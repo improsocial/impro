@@ -188,6 +188,54 @@ describe("isFetchAllowed", () => {
     assert(!isFetchAllowed("http://example.com/", permissions));
   });
 
+  it("rejects http patterns for non-loopback hosts", () => {
+    const permissions = { fetch: ["http://example.com/*"] };
+    assert(!isFetchAllowed("http://example.com/", permissions));
+  });
+
+  it("allows http for loopback hosts", () => {
+    const permissions = {
+      fetch: [
+        "http://localhost:11434/*",
+        "http://127.0.0.1:1234/*",
+        "http://[::1]:8080/*",
+        "http://ollama.localhost/*",
+      ],
+    };
+    assert(isFetchAllowed("http://localhost:11434/api/generate", permissions));
+    assert(isFetchAllowed("http://127.0.0.1:1234/v1/chat", permissions));
+    assert(isFetchAllowed("http://[::1]:8080/v1/chat", permissions));
+    assert(isFetchAllowed("http://ollama.localhost/api", permissions));
+  });
+
+  it("does not let an https pattern authorize an http url", () => {
+    const permissions = { fetch: ["https://localhost/*"] };
+    assert(!isFetchAllowed("http://localhost/", permissions));
+  });
+
+  it("does not let an http loopback pattern authorize a remote host", () => {
+    const permissions = { fetch: ["http://localhost/*"] };
+    assert(!isFetchAllowed("http://localhost.evil.com/", permissions));
+    assert(!isFetchAllowed("http://notlocalhost/", permissions));
+  });
+
+  it("enforces the port when the pattern specifies one", () => {
+    const permissions = { fetch: ["http://localhost:11434/*"] };
+    assert(!isFetchAllowed("http://localhost:1234/api", permissions));
+    assert(!isFetchAllowed("http://localhost/api", permissions));
+  });
+
+  it("matches any port when the pattern omits one", () => {
+    const permissions = { fetch: ["https://example.com/*"] };
+    assert(isFetchAllowed("https://example.com/foo", permissions));
+    assert(isFetchAllowed("https://example.com:8443/foo", permissions));
+  });
+
+  it("treats a default port in the url as matching an explicit pattern port", () => {
+    const permissions = { fetch: ["https://example.com:443/*"] };
+    assert(isFetchAllowed("https://example.com/foo", permissions));
+  });
+
   it("denies everything when the fetch key is missing", () => {
     assert(!isFetchAllowed("https://example.com/", {}));
   });
