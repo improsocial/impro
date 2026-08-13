@@ -206,19 +206,9 @@ export class OAuthProvider {
 
   async getClient() {
     if (!this._client) {
-      const proxyClientId = window.env.oatproxyClientId || null;
-      const proxyOrigin = proxyClientId ? new URL(proxyClientId).origin : null;
-      const baseRedirect = `https://${window.env.hostName}/callback.html`;
-      const redirectUri =
-        proxyOrigin && new URL(baseRedirect).origin !== proxyOrigin
-          ? `${proxyOrigin}?oatproxyActualRedirect=${encodeURIComponent(baseRedirect)}`
-          : baseRedirect;
       this._client = await OauthClient.load({
-        clientId:
-          proxyClientId ??
-          `https://${window.env.hostName}/oauth-client-metadata.json`,
-        redirectUri,
-        proxyUrl: proxyOrigin,
+        clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
+        redirectUri: `https://${window.env.hostName}/callback.html`,
       });
     }
     return this._client;
@@ -336,8 +326,9 @@ export class Auth {
     // Mark accounts with out-of-date scopes as "needsReauth"
     return accounts.map((account) => {
       const scopesOutOfDate =
-        getMissingScopes(account.scope ?? "", requiredScope, optionalScope)
-          .length > 0;
+        account.scope != null &&
+        getMissingScopes(account.scope, requiredScope, optionalScope).length >
+          0;
       return {
         ...account,
         needsReauth: account.needsReauth || scopesOutOfDate,

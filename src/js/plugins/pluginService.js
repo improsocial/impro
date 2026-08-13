@@ -13,6 +13,7 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import { PluginBinaryCache } from "/js/plugins/pluginBinaryCache.js";
 import {
   PluginLocalDataStore,
   PluginMemoryDataStore,
@@ -128,11 +129,13 @@ export class PluginService extends ReactiveStore {
     dataLayer,
     hiddenFeedItemsStore,
     router,
+    constellation,
   ) {
     super("pluginService");
     this.renderContext = null;
     this.router = router;
     this.slingshot = new Slingshot();
+    this.constellation = constellation;
     this.registries = {
       sidebarItems: new SignalSet(),
       eventListeners: new Map(),
@@ -186,6 +189,7 @@ export class PluginService extends ReactiveStore {
       ? new LocalPluginRegistry()
       : null;
     this.pluginCache = new PluginCache();
+    this.binaryCache = new PluginBinaryCache();
     this.sourceProvider = new SourceProvider(this.pluginCache);
     this.pluginStylesLoader = new PluginStylesLoader();
     this.pluginBridge = new PluginBridge(
@@ -400,6 +404,49 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod(
+      "getBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("getBinaryCacheEntry", "key", key);
+        return await this.binaryCache.get(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "hasBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("hasBinaryCacheEntry", "key", key);
+        return await this.binaryCache.has(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "listBinaryCacheEntries",
+      async (plugin) => {
+        return await this.binaryCache.keys(plugin.pluginId);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "putBinaryCacheEntry",
+      async (plugin, { key, data }) => {
+        requireHostMethodArg("putBinaryCacheEntry", "key", key);
+        requireHostMethodArg("putBinaryCacheEntry", "data", data);
+        if (!(data instanceof ArrayBuffer)) {
+          throw new Error("putBinaryCacheEntry data must be an ArrayBuffer");
+        }
+        await this.binaryCache.put(plugin.pluginId, key, data);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "deleteBinaryCacheEntry",
+      async (plugin, { key }) => {
+        requireHostMethodArg("deleteBinaryCacheEntry", "key", key);
+        await this.binaryCache.delete(plugin.pluginId, key);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
       "refreshSettingTab",
       (plugin, { reset = false } = {}) => {
         const tab = this.$settingTabs.get(plugin.pluginId);
@@ -519,8 +566,20 @@ export class PluginService extends ReactiveStore {
       },
     );
 
-    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
-      this.slingshot.getRecord(args),
+    this.pluginBridge.addHostMethod(
+      "getRecord",
+      (plugin, { repo, collection, rkey }) =>
+        this.slingshot.getRecord({ repo, collection, rkey }),
+    );
+
+    this.pluginBridge.addHostMethod(
+      "getBacklinks",
+      (plugin, { subject, source, limit }) => {
+        if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+          throw new Error(`getBacklinks: invalid limit "${limit}"`);
+        }
+        return this.constellation.getLinks({ subject, source, limit });
+      },
     );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
@@ -919,6 +978,7 @@ export class PluginService extends ReactiveStore {
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
     this.localDataStore.clear(pluginId);
+    await this.binaryCache.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 

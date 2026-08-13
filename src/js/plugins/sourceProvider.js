@@ -32,7 +32,7 @@ function parseFontEntry(entry, index) {
   return { ...entry, family, file };
 }
 
-function parsePluginManifest(pluginId, manifest) {
+export function parsePluginManifest(pluginId, manifest) {
   for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (typeof manifest[field] !== "string") {
       throw new Error(`missing required field "${field}"`);

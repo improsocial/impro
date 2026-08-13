@@ -1,19 +1,27 @@
 {
   "name": "@impro.social/impro-plugin",
-  "version": "0.0.20",
+  "version": "0.0.23",
   "type": "module",
   "main": "main.js",
+  "types": "./main.d.ts",
   "scripts": {
-    "docs": "typedoc --options typedoc.json"
+    "docs": "typedoc --options typedoc.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "build:types": "tsc -p tsconfig.types.json"
   },
   "license": "0BSD",
   "exports": {
-    ".": "./main.js"
+    ".": {
+      "types": "./main.d.ts",
+      "default": "./main.js"
+    }
   },
   "files": [
-    "main.js"
+    "main.js",
+    "main.d.ts"
   ],
   "devDependencies": {
-    "typedoc": "^0.28.20"
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.12.0"
   }
 }

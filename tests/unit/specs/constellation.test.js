@@ -157,6 +157,67 @@ describe("constellation", () => {
       assert.deepEqual(links, []);
     });
 
+    it("should throw the upstream error name and message on an error response", async () => {
+      globalThis.fetch.__intercept(BACKLINKS_URL, async () => ({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: "InvalidRequest",
+          message: "invalid source",
+        }),
+      }));
+
+      await assert.rejects(
+        getLinks({ subject: "subj", source: "not-an-nsid" }),
+        /getLinks: InvalidRequest invalid source/,
+      );
+    });
+
+    it("should throw the status when an error response has no JSON body", async () => {
+      globalThis.fetch.__intercept(BACKLINKS_URL, async () => ({
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new Error("not JSON");
+        },
+      }));
+
+      await assert.rejects(
+        getLinks({ subject: "subj", source: "src" }),
+        /getLinks: HTTP 502/,
+      );
+    });
+
+    it("should throw when a successful response has no records array", async () => {
+      globalThis.fetch.__interceptJson(BACKLINKS_URL, { cursor: null });
+
+      await assert.rejects(
+        getLinks({ subject: "subj", source: "src" }),
+        /getLinks: malformed response/,
+      );
+    });
+
+    it("should stop paginating when a later page fails", async () => {
+      const pages = [
+        { records: [{ uri: "a" }], cursor: "cursor1" },
+        null,
+        { records: [{ uri: "b" }], cursor: null },
+      ];
+      let pageIndex = 0;
+      globalThis.fetch.__intercept(BACKLINKS_URL, async () => {
+        const page = pages[pageIndex++];
+        return page
+          ? jsonResponse(page)
+          : { ok: false, status: 500, json: async () => ({}) };
+      });
+
+      await assert.rejects(
+        getLinks({ subject: "subj", source: "src" }),
+        /getLinks: HTTP 500/,
+      );
+      assert.deepEqual(globalThis.fetch.calls.length, 2);
+    });
+
     it("should pass an AbortSignal to fetch so the request can be cancelled on timeout", async () => {
       globalThis.fetch.__interceptJson(BACKLINKS_URL, {
         records: [],
@@ -194,6 +255,18 @@ describe("constellation", () => {
         (error) => error.name === "AbortError",
       );
       assert.deepEqual(globalThis.fetch.calls[0].options.signal.aborted, true);
+    });
+
+    it("should not wire up an abort timer when no timeout is given", async () => {
+      globalThis.fetch.__interceptJson(BACKLINKS_URL, {
+        records: [],
+        cursor: null,
+      });
+
+      await getLinks({ subject: "subj", source: "src" });
+
+      mock.timers.tick(60000);
+      assert.deepEqual(globalThis.fetch.calls[0].options.signal.aborted, false);
     });
 
     it("should not wire up an abort timer when timeout is 0", async () => {

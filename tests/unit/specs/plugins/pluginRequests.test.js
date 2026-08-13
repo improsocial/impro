@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import { pluginFetch, MAX_RESPONSE_BYTES } from "/js/plugins/pluginRequests.js";
 
 function makePermissions(patterns) {
   return { fetch: patterns };
@@ -16,10 +16,17 @@ function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
       headers: {
         get: (name) => headers[name.toLowerCase()] ?? null,
       },
-      text: async () => body,
+      arrayBuffer: async () => new TextEncoder().encode(body).buffer,
     };
   };
   return { fakeFetch, calls };
+}
+
+// pluginFetch relays the response body as raw bytes so it can carry binary
+// payloads, not just text - tests that care about the actual body content
+// decode it back rather than comparing against a string.
+function decodeBody(bodyBuffer) {
+  return new TextDecoder().decode(bodyBuffer);
 }
 
 async function expectRejection(fn, includes) {
@@ -323,6 +330,48 @@ describe("response shape", () => {
     );
     assert.deepEqual(result.status, 404);
     assert.deepEqual(result.ok, false);
-    assert.deepEqual(result.body, "nope");
+    assert.deepEqual(decodeBody(result.body), "nope");
+  });
+
+  it("relays binary bytes intact", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+    const fakeFetch = async () => ({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: async () => bytes.buffer,
+    });
+    const result = await pluginFetch(
+      makePermissions(["https://api.example.com/*"]),
+      "https://api.example.com/x",
+      {},
+      fakeFetch,
+    );
+    assert(result.body instanceof ArrayBuffer);
+    assert.deepEqual([...new Uint8Array(result.body)], [...bytes]);
+  });
+});
+
+describe("response size", () => {
+  it("rejects a response over the byte cap", async () => {
+    // The cap check only reads .byteLength before any bytes are touched, so
+    // this fakes an over-limit length without actually allocating that much
+    // memory in the test.
+    const fakeFetch = async () => ({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: async () => ({ byteLength: MAX_RESPONSE_BYTES + 1 }),
+    });
+    await expectRejection(
+      () =>
+        pluginFetch(
+          makePermissions(["https://api.example.com/*"]),
+          "https://api.example.com/x",
+          {},
+          fakeFetch,
+        ),
+      "too large",
+    );
   });
 });

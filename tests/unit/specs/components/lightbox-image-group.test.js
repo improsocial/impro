@@ -1,5 +1,6 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
+import { scrollLocks } from "/js/scrollLocks.js";
 import "/js/components/lightbox-image-group.js";
 
 describe("lightbox-image-group", () => {
@@ -50,6 +51,13 @@ describe("lightbox-image-group", () => {
       element.open();
       const lightbox = element.querySelector(".lightbox");
       assert(lightbox !== null);
+      assert.deepEqual(lightbox.tagName, "DIALOG");
+    });
+
+    it("should set data-dialog-wrapper on the host element", () => {
+      const element = document.createElement("lightbox-dialog");
+      document.body.appendChild(element);
+      assert(element.hasAttribute("data-dialog-wrapper"));
     });
 
     it("should render close button", () => {
@@ -316,32 +324,127 @@ describe("lightbox-image-group", () => {
       assert(eventFired);
     });
 
-    it("should set body overflow to hidden when opened", () => {
+    describe("scroll locking", () => {
+      let releaseCalls;
+
+      beforeEach(() => {
+        releaseCalls = 0;
+        mock.method(scrollLocks, "acquire", () => ({
+          release: () => {
+            releaseCalls += 1;
+          },
+        }));
+      });
+
+      afterEach(() => {
+        mock.restoreAll();
+      });
+
+      function openLightbox() {
+        const element = document.createElement("lightbox-dialog");
+        element.images = [createTestImage("test.jpg", "Test")];
+        document.body.appendChild(element);
+        element.open();
+        return element;
+      }
+
+      it("should acquire a scroll lock when opened", () => {
+        openLightbox();
+        assert.deepEqual(scrollLocks.acquire.mock.callCount(), 1);
+      });
+
+      it("should release the scroll lock when closed", () => {
+        const element = openLightbox();
+        element.close();
+        assert.deepEqual(releaseCalls, 1);
+        assert.deepEqual(element.scrollLock, null);
+      });
+
+      it("should release the scroll lock when disconnected while open", () => {
+        const element = openLightbox();
+        element.remove();
+        assert.deepEqual(releaseCalls, 1);
+      });
+    });
+  });
+
+  describe("LightboxDialog - zoom", () => {
+    it("should enable pinch zoom when opened", () => {
       const element = document.createElement("lightbox-dialog");
       element.images = [createTestImage("test.jpg", "Test")];
       document.body.appendChild(element);
       element.open();
-      assert.deepEqual(document.body.style.overflow, "hidden");
+
+      assert(element._zoomControl !== null);
+      assert.deepEqual(typeof element._zoomControl.cleanup, "function");
+      assert.deepEqual(typeof element._zoomControl.reset, "function");
+      assert.deepEqual(typeof element._zoomControl.getState, "function");
     });
 
-    it("should restore body overflow when closed", () => {
+    it("should reset zoom when navigating to a different image", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [
+        createTestImage("test1.jpg", "Test 1"),
+        createTestImage("test2.jpg", "Test 2"),
+      ];
+      document.body.appendChild(element);
+      element.open();
+
+      let resetCalled = false;
+      const originalReset = element._zoomControl.reset;
+      element._zoomControl.reset = (...args) => {
+        resetCalled = true;
+        return originalReset(...args);
+      };
+
+      element.navigate(1);
+      assert(resetCalled);
+    });
+
+    it("should clean up pinch zoom when closed", () => {
       const element = document.createElement("lightbox-dialog");
       element.images = [createTestImage("test.jpg", "Test")];
       document.body.appendChild(element);
       element.open();
+
+      let cleanupCalled = false;
+      const originalCleanup = element._zoomControl.cleanup;
+      element._zoomControl.cleanup = (...args) => {
+        cleanupCalled = true;
+        return originalCleanup(...args);
+      };
+
       element.close();
-      assert.deepEqual(document.body.style.overflow, "");
+      assert(cleanupCalled);
+      assert.deepEqual(element._zoomControl, null);
+    });
+
+    it("should not throw on a stray event fired at the image after close", () => {
+      const element = document.createElement("lightbox-dialog");
+      element.images = [createTestImage("test.jpg", "Test")];
+      document.body.appendChild(element);
+      element.open();
+      const img = element.querySelector("img");
+
+      element.close();
+
+      assert.doesNotThrow(() => {
+        img.dispatchEvent(
+          new Event("wheel", { bubbles: true, cancelable: true }),
+        );
+      });
     });
   });
 
   describe("LightboxDialog - keyboard navigation", () => {
-    it("should close on Escape key", () => {
+    it("should close on Escape key (native dialog cancel event)", () => {
       const element = document.createElement("lightbox-dialog");
       element.images = [createTestImage("test.jpg", "Test")];
       document.body.appendChild(element);
       element.open();
 
-      element.handleKeyDown({ key: "Escape" });
+      const dialog = element.querySelector(".lightbox");
+      dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
       assert.deepEqual(element.isOpen, false);
     });
 

@@ -345,8 +345,16 @@ class InstalledPluginsView extends View {
       );
     });
 
-    root.addEventListener("page-restore", () => {
-      window.scrollTo(0, 0);
+    root.addEventListener("page-restore", (e) => {
+      const scrollY = e.detail?.scrollY ?? 0;
+      const isBack = e.detail?.isBack ?? false;
+      if (isBack) {
+        if (scrollY > 0) {
+          window.scrollTo(0, scrollY);
+        }
+      } else {
+        window.scrollTo(0, 0);
+      }
     });
   }
 }

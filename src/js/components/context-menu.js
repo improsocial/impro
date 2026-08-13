@@ -79,7 +79,9 @@ class ContextMenu extends Component {
               this.render();
             }}
           >
-            ${this._childNodes}
+            <div class="context-menu-body sheet-scroll-region">
+              ${this._childNodes}
+            </div>
           </dialog>
         </div>
       `,
@@ -126,7 +128,7 @@ class ContextMenu extends Component {
       onDismiss: () => this.close(),
       allowOppositeStretch: true,
       ignoreTouchTarget: (el) => el.closest("button, a") !== null,
-      scrollContainer: this.querySelector(".context-menu"),
+      scrollContainer: this.querySelector(".context-menu-body"),
     });
   }
 

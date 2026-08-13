@@ -9,6 +9,12 @@
 <title>Impro</title>
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="preload" as="image" href="/img/icons.svg" type="image/svg+xml" />
+<link
+  rel="preload"
+  as="fetch"
+  href="/plugin-sdk/{{ pluginSdk.fileName }}"
+  crossorigin="anonymous"
+/>
 <!-- SEO tags -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Impro" />
@@ -33,11 +39,11 @@
     gitCommit: "{{ gitCommit }}",
     environment: "{{ environment }}",
     version: "{{ version }}",
+    pluginSdkFileName: "{{ pluginSdk.fileName }}",
     oauthScopes: "{{ oauthScopes }}",
     oauthOptionalScopes: "{{ oauthOptionalScopes }}",
     playwright: "{{ playwright }}" === "true",
     useConfidentialOauth: "{{ useConfidentialOauth }}" === "true",
-    oatproxyClientId: "{{ oatproxyClientId }}",
   };
 </script>
 <script>

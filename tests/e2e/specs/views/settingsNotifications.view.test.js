@@ -118,6 +118,39 @@ test.describe("Settings > Notifications view", () => {
     await expect(toggle).not.toHaveAttribute("checked", "");
   });
 
+  test.describe("on a touch-only device", () => {
+    test.use({
+      viewport: { width: 375, height: 667 },
+      hasTouch: true,
+      isMobile: true,
+    });
+
+    test("shows the toggle disabled", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator(
+        '[data-testid="system-notifications-toggle"]',
+      );
+      await expect(toggle).toBeVisible({ timeout: 10000 });
+      await expect(toggle).toHaveAttribute("disabled", "");
+
+      await toggle.click({ force: true });
+
+      await expect(page.locator('[data-testid="confirm-modal"]')).toHaveCount(
+        0,
+      );
+      expect(
+        await page.evaluate(() =>
+          localStorage.getItem("system-notifications-enabled"),
+        ),
+      ).toBeNull();
+    });
+  });
+
   test("turning the toggle off clears the stored preference without a confirm dialog", async ({
     page,
   }) => {

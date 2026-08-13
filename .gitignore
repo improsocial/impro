@@ -1,6 +1,5 @@
 node_modules
 build
-impro-plugin/docs
 .env
 .context
 tests/e2e/.results

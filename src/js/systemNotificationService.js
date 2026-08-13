@@ -1,4 +1,5 @@
 import { effect } from "/js/signals.js";
+import { isTouchOnlyDevice } from "/js/utils.js";
 
 const STORAGE_KEY = "system-notifications-enabled";
 const ICON_URL = "/img/impro-logo-192.png";
@@ -51,7 +52,8 @@ export class SystemNotificationService {
   }
 
   get isSupported() {
-    return typeof Notification !== "undefined";
+    // "touch-only device" is a proxy for mobile / tablets where background notifications are unreliable
+    return typeof Notification !== "undefined" && !isTouchOnlyDevice();
   }
 
   get isEnabled() {

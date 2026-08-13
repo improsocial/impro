@@ -1273,6 +1273,7 @@ export class Mutations {
     replyRoot,
     threadgateAllow,
     postgateEmbeddingRules,
+    signal = null,
   }) {
     const { uris, posts: hydratedPosts } = await this.postCreator.createThread({
       posts,
@@ -1280,6 +1281,7 @@ export class Mutations {
       replyRoot,
       threadgateAllow,
       postgateEmbeddingRules,
+      signal,
     });
     if (hydratedPosts) {
       for (const post of hydratedPosts) {

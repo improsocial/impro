@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
+import { classnames } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
@@ -62,9 +63,9 @@ class SettingsNotificationsView extends View {
       const isDenied = permissionState === "denied";
 
       let description =
-        "Get notified when you have new activity while Impro is open in a tab or window.";
+        "Get notified of new activity while Impro is open in a tab or window.";
       if (!isSupported) {
-        description = "Your browser doesn't support notifications.";
+        description = "Not supported on this device.";
       } else if (isDenied) {
         description =
           "Notifications are blocked for this site. Re-enable them in your browser's site settings to turn this on.";
@@ -78,7 +79,9 @@ class SettingsNotificationsView extends View {
           })}
           <main>
             <section
-              class="setting-item"
+              class=${classnames("setting-item", {
+                "setting-item-disabled": !isSupported,
+              })}
               data-testid="settings-section-system-notifications"
             >
               <div class="setting-item-info">

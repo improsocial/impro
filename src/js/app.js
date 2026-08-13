@@ -67,6 +67,7 @@ import {
 } from "/js/appViewConfig.js";
 import { PluginService } from "/js/plugins/pluginService.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
 
 async function checkDraftsEnabled() {
@@ -102,12 +103,14 @@ export async function main() {
   const identityResolver = new IdentityResolver();
   const draftMediaStore = new DraftMediaStore();
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
+  const constellation = new Constellation();
   const dataLayer = new DataLayer(
     api,
     preferencesProvider,
     identityResolver,
     draftMediaStore,
     hiddenFeedItemsStore,
+    constellation,
   );
   const router = new Router();
   const pluginService = new PluginService(
@@ -116,6 +119,7 @@ export async function main() {
     dataLayer,
     hiddenFeedItemsStore,
     router,
+    constellation,
   );
   // put dataLayer on window for easy access in dev tools
   window.dataLayer = dataLayer;

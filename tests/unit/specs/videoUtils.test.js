@@ -96,6 +96,7 @@ describe("VideoUploader.pollJob", () => {
       err = e;
     }
     assert(err);
+    assert.deepEqual(err.name, "AbortError");
   });
 });
 
@@ -131,6 +132,32 @@ describe("VideoUploader.upload", () => {
     assert.deepEqual(result, blob);
     assert.deepEqual(calls, ["limits", "upload", "poll"]);
     assert.deepEqual(observedJob.jobId, "job-1");
+  });
+
+  it("passes the abort signal to every request it makes", async () => {
+    const blob = { ref: { $link: "bafy" }, mimeType: "video/mp4", size: 1 };
+    const controller = new AbortController();
+    const seenSignals = [];
+    const api = {
+      getVideoUploadLimits: async ({ signal }) => {
+        seenSignals.push(signal);
+        return { canUpload: true };
+      },
+      uploadVideoBlob: async (_file, { signal }) => {
+        seenSignals.push(signal);
+        return { jobId: "job-1" };
+      },
+      getVideoJobStatus: async (_jobId, { signal }) => {
+        seenSignals.push(signal);
+        return { state: "JOB_STATE_COMPLETED", blob };
+      },
+    };
+    const uploader = new VideoUploader(api);
+    await uploader.upload({}, { intervalMs: 0, signal: controller.signal });
+    assert.deepEqual(seenSignals.length, 3);
+    for (const signal of seenSignals) {
+      assert.deepEqual(signal, controller.signal);
+    }
   });
 
   it("throws when limits service rejects upload", async () => {

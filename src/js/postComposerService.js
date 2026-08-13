@@ -49,8 +49,10 @@ export class PostComposerService {
           threadgateAllow,
           postgateEmbeddingRules,
           draft,
+          signal,
           successCallback,
           errorCallback,
+          settledCallback,
         } = e.detail;
         try {
           const res = await this.dataLayer.mutations.createThread({
@@ -59,6 +61,7 @@ export class PostComposerService {
             replyRoot: sendReplyRoot,
             threadgateAllow,
             postgateEmbeddingRules,
+            signal,
           });
           let toastMessage = "Your post was sent";
           if (posts.length > 1) {
@@ -83,9 +86,15 @@ export class PostComposerService {
           successCallback(res);
           resolve(res);
         } catch (error) {
+          if (error.name === "AbortError") {
+            // If aborted via signal, don't call successCallback or errorCallback
+            return;
+          }
           console.error(error);
           errorCallback(error);
           reject(error);
+        } finally {
+          settledCallback();
         }
       });
       //  Destroy on close

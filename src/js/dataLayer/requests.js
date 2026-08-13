@@ -16,7 +16,6 @@ import {
   getPostsFromPostThread,
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
-import { Constellation } from "/js/constellation.js";
 import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
@@ -175,14 +174,14 @@ export class Requests {
     preferencesProvider,
     draftMediaStore,
     events,
-    { constellation } = {},
+    constellation,
   ) {
     this.api = api;
     this.events = events;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
-    this.constellation = constellation ?? new Constellation();
+    this.constellation = constellation;
     this.statusStore = new StatusStore();
     // Enable status tracking
     this.enableStatus(

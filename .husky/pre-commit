@@ -1,1 +1,16 @@
 npm run format && npm run test:unit
+
+# Typecheck the plugin SDK and regenerate its declarations
+TYPECHECK_INPUTS='^impro-plugin/(main\.js|tsconfig\.json|tsconfig\.types\.json)'
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE "$TYPECHECK_INPUTS"; then
+  npm run typecheck --prefix impro-plugin
+  npm run build:types --prefix impro-plugin
+  git add impro-plugin/main.d.ts
+fi
+
+# Rebuild plugin docs if source changed
+DOC_INPUTS='^impro-plugin/(main\.js|typedoc\.json|tsconfig\.json|tsconfig\.typedoc\.json|typedoc-support/|docs/)'
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE "$DOC_INPUTS"; then
+  npm run docs --prefix impro-plugin
+  git add impro-plugin/docs
+fi

@@ -764,3 +764,108 @@ describe("createThread", () => {
     await assert.rejects(() => pc.createThread({ posts: [] }), /at least one/);
   });
 });
+
+describe("send cancellation", () => {
+  const isAbortError = (error) => error.name === "AbortError";
+
+  it("does not commit when the signal is already aborted", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(
+      () =>
+        pc.createThread({
+          posts: [{ postText: "hi" }],
+          signal: controller.signal,
+        }),
+      isAbortError,
+    );
+    assert.deepEqual(api.lastWrites, null);
+  });
+
+  it("stops between image uploads and does not commit", async () => {
+    const api = makeApi();
+    const controller = new AbortController();
+    const uploadedBlobs = [];
+    api.uploadBlob = async (blob) => {
+      uploadedBlobs.push(blob);
+      controller.abort();
+      return { ref: { $link: "bafyimg" }, mimeType: "image/jpeg", size: 100 };
+    };
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await assert.rejects(
+      () =>
+        pc.createThread({
+          posts: [
+            {
+              postText: "hi",
+              images: [
+                { dataUrl: "data:image/png;base64,aaa", alt: "one" },
+                { dataUrl: "data:image/png;base64,bbb", alt: "two" },
+              ],
+            },
+          ],
+          signal: controller.signal,
+        }),
+      isAbortError,
+    );
+    assert.deepEqual(uploadedBlobs.length, 1);
+    assert.deepEqual(api.lastWrites, null);
+  });
+
+  it("propagates an abort during the preview image upload", async () => {
+    const originalFetch = globalThis.fetch;
+    const controller = new AbortController();
+    globalThis.fetch = async (url, options) => {
+      controller.abort();
+      options.signal.throwIfAborted();
+    };
+    try {
+      const api = makeApi();
+      const pc = new PostCreator(api, mockIdentityResolver);
+      await assert.rejects(
+        () =>
+          pc.createThread({
+            posts: [
+              {
+                postText: "hi",
+                external: {
+                  title: "Example",
+                  description: "An example link",
+                  url: "https://example.com",
+                  image: "https://example.com/preview.png",
+                },
+              },
+            ],
+            signal: controller.signal,
+          }),
+        isAbortError,
+      );
+      assert.deepEqual(api.lastWrites, null);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("still publishes when the abort lands during the commit", async () => {
+    const api = makeApi();
+    const controller = new AbortController();
+    const originalApplyWrites = api.applyWrites;
+    api.applyWrites = async function (writes) {
+      controller.abort();
+      return originalApplyWrites.call(this, writes);
+    };
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const res = await pc.createThread({
+      posts: [{ postText: "hi" }],
+      signal: controller.signal,
+    });
+    assert.deepEqual(res.uris.length, 1);
+    assert(api.lastWrites);
+  });
+});

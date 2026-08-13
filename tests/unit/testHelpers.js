@@ -3,6 +3,7 @@ import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { Constellation } from "/js/constellation.js";
 import { Signal, SignalMap } from "/js/signals.js";
 
 export function makeTestDataLayer({
@@ -10,6 +11,7 @@ export function makeTestDataLayer({
   identityResolver,
   draftMediaStore,
   hiddenFeedItemsStore,
+  constellation,
 } = {}) {
   const api = {
     getProfile: async () => null,
@@ -25,6 +27,7 @@ export function makeTestDataLayer({
     identityResolver ?? { resolveHandle: async () => null },
     draftMediaStore ?? new DraftMediaStore("test-media"),
     hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),
+    constellation ?? new Constellation(),
   );
 }
 

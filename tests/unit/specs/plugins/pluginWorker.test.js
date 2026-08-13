@@ -466,6 +466,38 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert(result.error.includes("must return a VirtualEl"));
   });
 
+  it("registerPage returns null when display returns undefined", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => undefined });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 10,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.value, null);
+  });
+
+  it("registerPage names the returned type in the error", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", display: () => () => null });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.displayHandlerId,
+      callId: 11,
+      args: [],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert(result.error.includes("got function"));
+  });
+
   it("openPage forwards the page id to the host", () => {
     clearMessages();
     const plugin = new Plugin();
@@ -926,6 +958,45 @@ describe("app.on event listeners", () => {
   });
 });
 
+describe("PluginSettingTab.plugin", () => {
+  it("returns the owning plugin once addSettingTab has run", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const tab = new PluginSettingTab();
+    plugin.addSettingTab(tab);
+    assert.deepEqual(tab.plugin, plugin);
+  });
+
+  it("is available in the constructor when passed to super", () => {
+    const plugin = new Plugin();
+    let seenInConstructor = null;
+    class EagerTab extends PluginSettingTab {
+      constructor(owner) {
+        super(owner);
+        seenInConstructor = this.plugin;
+      }
+    }
+    const tab = new EagerTab(plugin);
+    assert.deepEqual(seenInConstructor, plugin);
+    assert.deepEqual(tab.plugin, plugin);
+  });
+
+  it("still accepts the legacy no-arg super() followed by registration", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    class LegacyTab extends PluginSettingTab {
+      constructor() {
+        super();
+        this.setName("Legacy");
+      }
+    }
+    const tab = new LegacyTab();
+    plugin.addSettingTab(tab);
+    assert.deepEqual(tab.plugin, plugin);
+    assert.deepEqual(tab.name, "Legacy");
+  });
+});
+
 describe("PluginSettingTab.refresh", () => {
   it("posts a refreshSettingTab hostCall defaulting reset to false", () => {
     clearMessages();
@@ -1106,7 +1177,7 @@ describe("fetch — header serialization", () => {
     assert.deepEqual(sent.args[0].init.body, "hi");
   });
 
-  it("serializes a Map headers init via forEach(value, name)", () => {
+  it("serializes a Map headers init", () => {
     clearMessages();
     const headers = new Map([
       ["X-One", "1"],
@@ -1133,7 +1204,7 @@ describe("fetch — header serialization", () => {
     });
   });
 
-  it("falls back to Symbol.iterator entries when forEach is absent", () => {
+  it("serializes an iterable of [name, value] entries", () => {
     clearMessages();
     const headers = {
       *[Symbol.iterator]() {
@@ -1149,6 +1220,43 @@ describe("fetch — header serialization", () => {
     });
   });
 
+  it("serializes an array of [name, value] entries", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", {
+      headers: [
+        ["X-One", "1"],
+        ["X-Two", "2"],
+      ],
+    });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, { "X-One": "1", "X-Two": "2" });
+  });
+
+  it("serializes an iterator of [name, value] entries", () => {
+    clearMessages();
+    function* entries() {
+      yield ["X-Gen", "1"];
+      yield ["X-Gen-2", "2"];
+    }
+    pluginFetch("https://example.com/", { headers: entries() });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, {
+      "X-Gen": "1",
+      "X-Gen-2": "2",
+    });
+  });
+
+  it("serializes a Headers instance", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", {
+      headers: new Headers({ "content-type": "text/plain" }),
+    });
+    const sent = findFetchCall();
+    assert.deepEqual(sent.args[0].init.headers, {
+      "content-type": "text/plain",
+    });
+  });
+
   it("omits headers from the serialized init when not provided", () => {
     clearMessages();
     pluginFetch("https://example.com/", { method: "GET" });
@@ -1157,6 +1265,42 @@ describe("fetch — header serialization", () => {
       !("headers" in sent.args[0].init),
       "headers should be omitted when init.headers is null",
     );
+  });
+});
+
+describe("fetch — response body", () => {
+  function resolveFetchWith(bytes) {
+    clearMessages();
+    const responsePromise = pluginFetch("https://example.com/", {});
+    const sent = postedMessages.find(
+      (message) => message.type === "hostCall" && message.method === "fetch",
+    );
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: {
+        status: 200,
+        ok: true,
+        headers: {},
+        body: bytes.buffer,
+      },
+    });
+    return responsePromise;
+  }
+
+  it("decodes the raw bytes as text and JSON", async () => {
+    const response = await resolveFetchWith(
+      new TextEncoder().encode('{"a":1}'),
+    );
+    assert.deepEqual(await response.text(), '{"a":1}');
+    assert.deepEqual(await response.json(), { a: 1 });
+  });
+
+  it("exposes the raw bytes unchanged for a binary body", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]);
+    const response = await resolveFetchWith(bytes);
+    const buffer = await response.arrayBuffer();
+    assert.deepEqual([...new Uint8Array(buffer)], [...bytes]);
   });
 });
 

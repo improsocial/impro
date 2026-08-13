@@ -7,6 +7,7 @@ import {
 import { Signal, SignalMap } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { Constellation } from "/js/constellation.js";
 import { respondToConfirm } from "../../testHelpers.js";
 
 function emptyDataLayer() {
@@ -57,6 +58,26 @@ function makeProvider() {
   };
 }
 
+// A real PluginService, wired to a real PluginBridge — for tests that drive
+// the bridge's registration targets and host-call handlers directly.
+function makeServiceWithRealBridge({
+  provider,
+  session = null,
+  dataLayer,
+  hiddenFeedItemsStore,
+  router = null,
+  constellation,
+} = {}) {
+  return new PluginService(
+    provider ?? makeProvider().provider,
+    session,
+    dataLayer ?? emptyDataLayer(),
+    hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),
+    router,
+    constellation ?? new Constellation(),
+  );
+}
+
 // Build a PluginService with its async-heavy dependencies replaced by
 // inert fakes so we can exercise the install/update orchestration logic
 // without spinning up sandbox iframes or real fetches.
@@ -67,12 +88,7 @@ function makeService({
   liveManifestsByRepo = {},
 } = {}) {
   const { state, provider } = makeProvider();
-  const service = new PluginService(
-    provider,
-    null,
-    emptyDataLayer(),
-    new HiddenFeedItemsStore(),
-  );
+  const service = makeServiceWithRealBridge({ provider });
   const loadCalls = [];
   const reloadCalls = [];
   const unloadCalls = [];
@@ -127,6 +143,12 @@ function makeService({
       reconcileCalls.push(urls);
     },
   };
+  const binaryCacheClearCalls = [];
+  service.binaryCache = {
+    clear: async (pluginId) => {
+      binaryCacheClearCalls.push(pluginId);
+    },
+  };
   return {
     service,
     state,
@@ -135,6 +157,7 @@ function makeService({
     reloadCalls,
     unloadCalls,
     reconcileCalls,
+    binaryCacheClearCalls,
   };
 }
 
@@ -811,13 +834,10 @@ describe("$pluginsInfo", () => {
 
   it("lists only loaded plugins as previewing, and only in preview mode", () => {
     const { state, provider } = makeProvider();
-    const service = new PluginService(
+    const service = makeServiceWithRealBridge({
       provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-      { go: () => {} },
-    );
+      router: { go: () => {} },
+    });
     state.installedPlugins = [
       { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
       { id: "beta", name: "Beta", version: "1.0.0", enabled: true },
@@ -1263,15 +1283,12 @@ describe("getFilteredFeedItems", () => {
 
 describe("feed filter integration", () => {
   function makeHarness(getFilteredFeedItems) {
-    const { provider } = makeProvider();
     const dataLayer = emptyDataLayer();
     const hiddenFeedItemsStore = new HiddenFeedItemsStore();
-    const service = new PluginService(
-      provider,
-      null,
+    const service = makeServiceWithRealBridge({
       dataLayer,
       hiddenFeedItemsStore,
-    );
+    });
     service.getFilteredFeedItems = getFilteredFeedItems;
     return { service, dataLayer, hiddenFeedItemsStore };
   }
@@ -1344,16 +1361,6 @@ describe("feed filter integration", () => {
 // The dispatcher's own behavior is covered in pluginRichTextDispatcher.test.js;
 // these cover the bridge wiring and the facade rich-text elements read through.
 describe("rich text wiring", () => {
-  function makeServiceWithRealBridge() {
-    const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
-  }
-
   function registerTransform(service, plugin, message) {
     return service.pluginBridge._registrationTargets.get("richTextTransform")(
       plugin,
@@ -1435,16 +1442,6 @@ describe("rich text wiring", () => {
 // The dispatcher's own behavior is covered in pluginSlotDispatcher.test.js; these
 // cover the bridge wiring and the facade the slot element reads through.
 describe("slot wiring", () => {
-  function makeServiceWithRealBridge() {
-    const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
-  }
-
   function registerSlot(service, plugin, message = {}) {
     return service.pluginBridge._registrationTargets.get("slot")(plugin, {
       target: "slot",
@@ -1520,15 +1517,8 @@ describe("page wiring", () => {
     return { paths, router: { go: (path) => paths.push(path) } };
   }
 
-  function makeServiceWithRealBridge(router = makeRecordingRouter().router) {
-    const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-      router,
-    );
+  function makeServiceWithRouter(router = makeRecordingRouter().router) {
+    return makeServiceWithRealBridge({ router });
   }
 
   function registerPage(service, plugin, message = {}) {
@@ -1546,7 +1536,7 @@ describe("page wiring", () => {
   }
 
   it("exposes a registered page and invokes its display handler", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     const calls = [];
     registerPage(
       service,
@@ -1566,7 +1556,7 @@ describe("page wiring", () => {
   });
 
   it("keeps pages of the same plugin separate and scoped by plugin id", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin("alpha"), { id: "one", title: "One" });
     registerPage(service, makePlugin("alpha"), { id: "two", title: "Two" });
     registerPage(service, makePlugin("beta"), { id: "one", title: "Beta One" });
@@ -1577,13 +1567,13 @@ describe("page wiring", () => {
   });
 
   it("defaults a missing title to null", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin(), { title: undefined });
     assert.deepEqual(service.getPage("alpha", "dashboard").title, null);
   });
 
   it("rejects page ids that aren't URL-safe", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     for (const id of ["Dashboard", "a/b", "a b", "a?b", "", 7, null]) {
       assert.deepEqual(
         registerPage(service, makePlugin(), { id }),
@@ -1595,7 +1585,7 @@ describe("page wiring", () => {
   });
 
   it("replaces an earlier registration of the same id", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin(), { title: "First" });
     registerPage(service, makePlugin(), { title: "Second" });
     assert.deepEqual(service.$pages.size, 1);
@@ -1603,7 +1593,7 @@ describe("page wiring", () => {
   });
 
   it("disposes only its own entry, not a replacement", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     const disposeFirst = registerPage(service, makePlugin(), {
       title: "First",
     });
@@ -1613,14 +1603,14 @@ describe("page wiring", () => {
   });
 
   it("removes the page when its registration is disposed", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     const dispose = registerPage(service, makePlugin());
     dispose();
     assert.deepEqual(service.getPage("alpha", "dashboard"), null);
   });
 
   it("bumps the page's customContent refresh signal", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     assert.deepEqual(customContent.$refresh.get(), null);
@@ -1633,7 +1623,7 @@ describe("page wiring", () => {
   });
 
   it("defaults refreshPage's reset flag to false and requires a pageId", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     const refreshPage =
@@ -1645,7 +1635,7 @@ describe("page wiring", () => {
   });
 
   it("signals a fresh value on every refresh so repeats still notify", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     const refreshPage =
@@ -1658,7 +1648,7 @@ describe("page wiring", () => {
   });
 
   it("ignores a refresh for a page that is not registered", () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     const refreshPage =
       service.pluginBridge._hostCallHandlers.get("refreshPage");
     refreshPage({ pluginId: "alpha" }, { pageId: "missing" });
@@ -1666,7 +1656,7 @@ describe("page wiring", () => {
 
   it("routes openPage to the calling plugin's own page path", () => {
     const { paths, router } = makeRecordingRouter();
-    const service = makeServiceWithRealBridge(router);
+    const service = makeServiceWithRouter(router);
     const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
     openPage({ pluginId: "alpha" }, { pageId: "dashboard" });
     assert.deepEqual(paths, ["/plugin/alpha/pages/dashboard"]);
@@ -1674,7 +1664,7 @@ describe("page wiring", () => {
 
   it("encodes the plugin id in the openPage path and requires a pageId", () => {
     const { paths, router } = makeRecordingRouter();
-    const service = makeServiceWithRealBridge(router);
+    const service = makeServiceWithRouter(router);
     const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
     openPage({ pluginId: "alpha/../beta" }, { pageId: "dashboard" });
     assert.deepEqual(paths, ["/plugin/alpha%2F..%2Fbeta/pages/dashboard"]);
@@ -1682,7 +1672,7 @@ describe("page wiring", () => {
   });
 
   it("reports the plugin's load status", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = makeServiceWithRouter();
     service.$initialLoadComplete.set(true);
     assert.deepEqual(service.getPluginLoadStatus("alpha"), {
       loading: false,
@@ -1716,14 +1706,8 @@ describe("app.data host methods", () => {
   }
 
   function makeService(dataLayerOverrides) {
-    const { provider } = makeProvider();
     const dataLayer = Object.assign(emptyDataLayer(), dataLayerOverrides);
-    return new PluginService(
-      provider,
-      null,
-      dataLayer,
-      new HiddenFeedItemsStore(),
-    );
+    return makeServiceWithRealBridge({ dataLayer });
   }
 
   it("getProfile host method returns the hydrated profile from derived", async () => {
@@ -1890,12 +1874,7 @@ describe("action host methods", () => {
       },
     });
     const session = { did: "did:plc:me", handle: "me.test" };
-    const service = new PluginService(
-      provider,
-      session,
-      dataLayer,
-      new HiddenFeedItemsStore(),
-    );
+    const service = makeServiceWithRealBridge({ provider, session, dataLayer });
     return { service, calls };
   }
 
@@ -2055,13 +2034,7 @@ describe("action host methods", () => {
   });
 
   it("all action methods reject when signed out", async () => {
-    const { provider } = makeProvider();
-    const service = new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
+    const service = makeServiceWithRealBridge();
     const allActionsPlugin = {
       pluginId: "test-plugin",
       permissions: { actions: ["mute", "block", "feedFeedback"] },
@@ -2082,16 +2055,6 @@ describe("action host methods", () => {
 });
 
 describe("getRecord host method", () => {
-  function makeServiceWithRealBridge() {
-    const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
-  }
-
   function jsonResponse(status, body) {
     return {
       ok: status >= 200 && status < 300,
@@ -2211,17 +2174,117 @@ describe("getRecord host method", () => {
   });
 });
 
-describe("loadLocalData/saveLocalData host methods", () => {
-  function makeServiceWithRealBridge() {
+describe("getBacklinks host method", () => {
+  const SUBJECT = "at://did:plc:test000001/app.bsky.graph.list/3laa";
+  const SOURCE = "app.bsky.graph.listitem:list";
+
+  function makeServiceWithStubbedConstellation() {
     const { provider } = makeProvider();
-    return new PluginService(
-      provider,
-      null,
-      emptyDataLayer(),
-      new HiddenFeedItemsStore(),
-    );
+    const calls = [];
+    const constellation = {
+      getLinks: async (args) => {
+        calls.push(args);
+        return [
+          { did: "did:plc:test000002", collection: SOURCE, rkey: "3lbb" },
+        ];
+      },
+    };
+    return { service: makeServiceWithRealBridge({ constellation }), calls };
   }
 
+  function getHandler(service) {
+    return service.pluginBridge._hostCallHandlers.get("getBacklinks");
+  }
+
+  it("passes validated args through to the constellation client", async () => {
+    const { service, calls } = makeServiceWithStubbedConstellation();
+    const result = await getHandler(service)(null, {
+      subject: SUBJECT,
+      source: SOURCE,
+      limit: 50,
+    });
+    assert.deepEqual(calls, [{ subject: SUBJECT, source: SOURCE, limit: 50 }]);
+    assert.deepEqual(result.length, 1);
+  });
+
+  it("accepts a bare did as the subject", async () => {
+    const { service, calls } = makeServiceWithStubbedConstellation();
+    await getHandler(service)(null, {
+      subject: "did:plc:test000001",
+      source: "app.bsky.graph.follow:subject",
+      limit: 10,
+    });
+    assert.deepEqual(calls[0].subject, "did:plc:test000001");
+  });
+
+  it("ignores a plugin-supplied timeout", async () => {
+    const { service, calls } = makeServiceWithStubbedConstellation();
+    await getHandler(service)(null, {
+      subject: SUBJECT,
+      source: SOURCE,
+      limit: 1000,
+      timeout: 1,
+    });
+    assert.deepEqual(calls[0], {
+      subject: SUBJECT,
+      source: SOURCE,
+      limit: 1000,
+    });
+  });
+
+  // A malformed subject/source is the plugin author's problem: it comes back
+  // as an upstream 400 rather than being second-guessed here.
+  it("passes through subject/source syntax it doesn't recognize", async () => {
+    const { service, calls } = makeServiceWithStubbedConstellation();
+    await getHandler(service)(null, {
+      subject: "https://example.com/not-atproto",
+      source: "not-an-nsid",
+      limit: 10,
+    });
+    assert.deepEqual(calls[0].subject, "https://example.com/not-atproto");
+    assert.deepEqual(calls[0].source, "not-an-nsid");
+  });
+
+  // A limit that isn't a positive integer under the cap would leave the
+  // host's pagination loop unbounded (missing/null) or silently empty
+  // (NaN, non-numeric strings), so none of them may reach constellation.
+  it("rejects a limit that isn't a positive integer within the cap", async () => {
+    const { service, calls } = makeServiceWithStubbedConstellation();
+    const invalidLimits = [
+      undefined,
+      null,
+      0,
+      -1,
+      1.5,
+      1001,
+      "10",
+      "abc",
+      NaN,
+      Infinity,
+    ];
+    for (const limit of invalidLimits) {
+      await assert.rejects(
+        (async () =>
+          getHandler(service)(null, {
+            subject: SUBJECT,
+            source: SOURCE,
+            limit,
+          }))(),
+        /getBacklinks: invalid limit/,
+        `expected rejection for limit ${limit}`,
+      );
+    }
+    assert.deepEqual(calls, []);
+  });
+
+  it("requires no permissions and no session", () => {
+    const { service } = makeServiceWithStubbedConstellation();
+    assert.deepEqual(service.session, null);
+    assert(getHandler(service) !== undefined);
+  });
+});
+
+describe("loadLocalData/saveLocalData host methods", () => {
   function getHandler(service, name) {
     return service.pluginBridge._hostCallHandlers.get(name);
   }
@@ -2251,6 +2314,169 @@ describe("loadLocalData/saveLocalData host methods", () => {
     assert.deepEqual(
       getHandler(service, "loadLocalData")({ pluginId: "other" }),
       { a: 2 },
+    );
+  });
+});
+
+describe("binaryCache host methods", () => {
+  function bytes(values) {
+    return new Uint8Array(values).buffer;
+  }
+
+  function makeServiceWithBinaryCache() {
+    const { state, provider } = makeProvider();
+    state.installedPlugins = [
+      { id: "translate", version: "1.0.0", enabled: true, permissions: {} },
+    ];
+    const service = makeServiceWithRealBridge({ provider });
+    // The real store is Cache-API backed; these tests are about argument
+    // plumbing, which pluginBinaryCache.test.js already covers directly
+    // against the real class - swap in an inert fake here.
+    const calls = [];
+    service.binaryCache = {
+      _data: new Map(),
+      async get(pluginId, key) {
+        calls.push(["get", pluginId, key]);
+        return this._data.get(`${pluginId}:${key}`) ?? null;
+      },
+      async put(pluginId, key, buffer) {
+        calls.push(["put", pluginId, key]);
+        this._data.set(`${pluginId}:${key}`, buffer);
+      },
+      async delete(pluginId, key) {
+        calls.push(["delete", pluginId, key]);
+        this._data.delete(`${pluginId}:${key}`);
+      },
+      async has(pluginId, key) {
+        calls.push(["has", pluginId, key]);
+        return this._data.has(`${pluginId}:${key}`);
+      },
+      async keys(pluginId) {
+        calls.push(["keys", pluginId]);
+        return [...this._data.keys()]
+          .filter((stored) => stored.startsWith(`${pluginId}:`))
+          .map((stored) => stored.slice(pluginId.length + 1));
+      },
+    };
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const plugin = { pluginId: "translate" };
+
+  it("has reports whether a key is stored", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    assert.deepEqual(
+      await getHandler(service, "hasBinaryCacheEntry")(plugin, {
+        key: "engine",
+      }),
+      true,
+    );
+    assert.deepEqual(
+      await getHandler(service, "hasBinaryCacheEntry")(plugin, {
+        key: "missing",
+      }),
+      false,
+    );
+  });
+
+  it("lists this plugin's keys", async () => {
+    const { service, calls } = makeServiceWithBinaryCache();
+    assert.deepEqual(
+      await getHandler(service, "listBinaryCacheEntries")(plugin),
+      [],
+    );
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "model",
+      data: bytes([1, 2, 3]),
+    });
+    assert.deepEqual(
+      (await getHandler(service, "listBinaryCacheEntries")(plugin)).sort(),
+      ["engine", "model"],
+    );
+    assert.deepEqual(
+      calls.every(([, pluginId]) => pluginId === "translate"),
+      true,
+    );
+  });
+
+  it("round-trips bytes through put/get when permitted", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    const buffer = await getHandler(service, "getBinaryCacheEntry")(plugin, {
+      key: "engine",
+    });
+    assert.deepEqual([...new Uint8Array(buffer)], [1, 2, 3]);
+  });
+
+  it("returns null for a key that was never stored", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    assert.deepEqual(
+      await getHandler(service, "getBinaryCacheEntry")(plugin, {
+        key: "missing",
+      }),
+      null,
+    );
+  });
+
+  it("delete removes the entry and calls are scoped to this plugin's id", async () => {
+    const { service, calls } = makeServiceWithBinaryCache();
+    await getHandler(service, "putBinaryCacheEntry")(plugin, {
+      key: "engine",
+      data: bytes([1, 2, 3]),
+    });
+    await getHandler(service, "deleteBinaryCacheEntry")(plugin, {
+      key: "engine",
+    });
+    assert.deepEqual(
+      await getHandler(service, "getBinaryCacheEntry")(plugin, {
+        key: "engine",
+      }),
+      null,
+    );
+    assert.deepEqual(
+      calls.every(([, pluginId]) => pluginId === "translate"),
+      true,
+    );
+  });
+
+  it("rejects put data that isn't an ArrayBuffer", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    for (const data of ["AQID", new Uint8Array([1, 2, 3]), { byteLength: 3 }]) {
+      await assert.rejects(
+        () =>
+          getHandler(service, "putBinaryCacheEntry")(plugin, {
+            key: "engine",
+            data,
+          }),
+        /must be an ArrayBuffer/,
+      );
+    }
+  });
+
+  it("requires a key argument", async () => {
+    const { service } = makeServiceWithBinaryCache();
+    await assert.rejects(
+      () => getHandler(service, "getBinaryCacheEntry")(plugin, {}),
+      /key/,
+    );
+    await assert.rejects(
+      () => getHandler(service, "hasBinaryCacheEntry")(plugin, {}),
+      /key/,
     );
   });
 });

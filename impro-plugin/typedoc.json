@@ -1,6 +1,25 @@
 {
   "entryPoints": ["main.js"],
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "./typedoc-support/stripEmptyParamComments.js"
+  ],
   "tsconfig": "tsconfig.typedoc.json",
   "out": "docs",
-  "excludeInternal": true
+  "readme": "./typedoc-support/docs-header.md",
+  "excludeInternal": true,
+  "disableSources": true,
+  "router": "module",
+  "mergeReadme": true,
+  "entryFileName": "docs",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "indexFormat": "table",
+  "parametersFormat": "table",
+  "classPropertiesFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "propertyMembersFormat": "table",
+  "typeAliasPropertiesFormat": "table",
+  "typeDeclarationFormat": "table",
+  "enumMembersFormat": "table"
 }

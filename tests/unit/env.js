@@ -22,6 +22,20 @@ globalThis.MutationObserver = dom.window.MutationObserver;
 globalThis.FileReader = dom.window.FileReader;
 globalThis.Blob = dom.window.Blob;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
+
+// Matches head.html template
+globalThis.window.env = {
+  hostName: "localhost",
+  gitCommit: "test",
+  environment: "test",
+  version: "0.0.0",
+  pluginSdkFileName: "pluginSdk.test.js",
+  oauthScopes: "atproto",
+  oauthOptionalScopes: "",
+  playwright: false,
+  useConfidentialOauth: false,
+};
+
 // Node has its own global navigator; alias JSDOM's so code under test and
 // tests (which mock properties on window.navigator) see the same object.
 Object.defineProperty(globalThis, "navigator", {

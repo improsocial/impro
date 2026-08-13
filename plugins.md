@@ -39,6 +39,7 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Transform rich text in posts
 - Make whitelisted network requests (requires permissions)
 - Read appview data with the current user as the viewer (profiles, posts, etc.)
+- Query a backlink index for records that link to a subject (e.g. list members, replies)
 - Mute, block, or send feed feedback ("show more/less like this") on the user's behalf (requires permissions)
 - Store private plugin data on a user's account (shared across devices) or in local storage
 

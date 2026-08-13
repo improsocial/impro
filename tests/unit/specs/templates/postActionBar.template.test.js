@@ -6,6 +6,17 @@ import { render } from "/js/lib/lit-html.js";
 import { mockWindowLocation, restoreWindow } from "../../testHelpers.js";
 
 describe("postActionBarTemplate", () => {
+  afterEach(() => {
+    document.body
+      .querySelectorAll("context-menu")
+      .forEach((menu) => menu.remove());
+  });
+
+  function openRepostMenu(container) {
+    container.querySelector("[data-testid='repost-button']").click();
+    return document.body.querySelector("context-menu");
+  }
+
   it("should render action bar with reply button", () => {
     const result = postActionBarTemplate({
       post,
@@ -184,10 +195,11 @@ describe("postActionBarTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const quoteItem = Array.from(
-      container.querySelectorAll("context-menu-item"),
-    ).find((item) => item.textContent.trim().startsWith("Quote"));
-    assert(quoteItem !== undefined);
+    const menu = openRepostMenu(container);
+    const quoteItem = menu.querySelector(
+      "[data-testid='menu-action-quote-post']",
+    );
+    assert(quoteItem !== null);
     assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
     assert(quoteItem.hasAttribute("disabled"));
   });
@@ -205,10 +217,11 @@ describe("postActionBarTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const quoteItem = Array.from(
-      container.querySelectorAll("context-menu-item"),
-    ).find((item) => item.textContent.trim().startsWith("Quote"));
-    assert(quoteItem !== undefined);
+    const menu = openRepostMenu(container);
+    const quoteItem = menu.querySelector(
+      "[data-testid='menu-action-quote-post']",
+    );
+    assert(quoteItem !== null);
     assert.deepEqual(quoteItem.textContent.trim(), "Quote posts disabled");
     assert(quoteItem.hasAttribute("disabled"));
   });
@@ -222,10 +235,11 @@ describe("postActionBarTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const quoteItem = Array.from(
-      container.querySelectorAll("context-menu-item"),
-    ).find((item) => item.textContent.trim().startsWith("Quote"));
-    assert(quoteItem !== undefined);
+    const menu = openRepostMenu(container);
+    const quoteItem = menu.querySelector(
+      "[data-testid='menu-action-quote-post']",
+    );
+    assert(quoteItem !== null);
     assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
     assert(!quoteItem.hasAttribute("disabled"));
   });

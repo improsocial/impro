@@ -30,6 +30,7 @@ export class PostCreator {
     replyRoot,
     threadgateAllow = null,
     postgateEmbeddingRules = null,
+    signal = null,
   }) {
     if (!posts || posts.length === 0) {
       throw new Error("createThread requires at least one post");
@@ -54,7 +55,10 @@ export class PostCreator {
     const baseTime = Date.now();
 
     for (let i = 0; i < posts.length; i++) {
-      const { text, facets, embed } = await this._buildPostContent(posts[i]);
+      signal?.throwIfAborted();
+      const { text, facets, embed } = await this._buildPostContent(posts[i], {
+        signal,
+      });
       const rkey = generateTid();
       const uri = `at://${did}/app.bsky.feed.post/${rkey}`;
       const createdAt = new Date(baseTime + i).toISOString();
@@ -116,6 +120,8 @@ export class PostCreator {
       }
     }
 
+    // Last chance to cancel: the commit itself is deliberately not abortable
+    signal?.throwIfAborted();
     await this.api.applyWrites(writes);
 
     // Attempt to get the full posts from the app view, null on failure.
@@ -137,12 +143,18 @@ export class PostCreator {
     return { uris, posts: fullPosts };
   }
 
-  async _buildPostContent({ postText, external, quotedRecord, images, video }) {
+  async _buildPostContent(
+    { postText, external, quotedRecord, images, video },
+    { signal = null } = {},
+  ) {
     const trimmedText = trimPostText(postText);
     const unresolvedFacets = getUnresolvedFacetsFromText(trimmedText);
     const facets = await resolveFacets(unresolvedFacets, this.identityResolver);
-    const externalEmbed = await this._prepareExternalEmbed(external);
-    const imagesEmbed = await this._prepareImagesEmbed(images);
+    signal?.throwIfAborted();
+    const externalEmbed = await this._prepareExternalEmbed(external, {
+      signal,
+    });
+    const imagesEmbed = await this._prepareImagesEmbed(images, { signal });
     const videoEmbed = this._prepareVideoEmbed(video);
 
     let quotedRecordEmbed = null;
@@ -175,17 +187,18 @@ export class PostCreator {
     return { text: trimmedText, facets, embed };
   }
 
-  async _prepareImagesEmbed(images) {
+  async _prepareImagesEmbed(images, { signal = null } = {}) {
     if (!images || images.length === 0) {
       return null;
     }
 
     const uploadedImages = [];
     for (const img of images) {
+      signal?.throwIfAborted();
       const compressedImage = await this.imageCompressor.compressImage(
         img.dataUrl,
       );
-      const blob = await this.api.uploadBlob(compressedImage.blob);
+      const blob = await this.api.uploadBlob(compressedImage.blob, { signal });
 
       uploadedImages.push({
         $type: "app.bsky.embed.images#image",
@@ -242,7 +255,7 @@ export class PostCreator {
     return embed;
   }
 
-  async _prepareExternalEmbed(external) {
+  async _prepareExternalEmbed(external, { signal = null } = {}) {
     if (!external) {
       return null;
     }
@@ -258,12 +271,14 @@ export class PostCreator {
     // If there's an external link, upload the preview image
     if (externalImage) {
       try {
-        const imageRes = await fetch(externalImage);
+        const imageRes = await fetch(externalImage, { signal });
         const imageBlob = await imageRes.blob();
         const dataUrl = await readFileAsDataUrl(imageBlob);
         const compressedImage =
           await this.imageCompressor.compressImage(dataUrl);
-        const blob = await this.api.uploadBlob(compressedImage.blob);
+        const blob = await this.api.uploadBlob(compressedImage.blob, {
+          signal,
+        });
         externalEmbed.external.thumb = {
           $type: "blob",
           mimeType: blob.mimeType,
@@ -273,6 +288,9 @@ export class PostCreator {
           size: blob.size,
         };
       } catch (error) {
+        if (error.name === "AbortError") {
+          throw error;
+        }
         // Don't fail the post creation if the image can't be uploaded
         console.error("Error uploading external link image: ", error);
       }
