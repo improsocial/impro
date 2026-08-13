@@ -767,7 +767,6 @@ input[type="color"]::-moz-color-swatch {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .skeleton-content {
@@ -784,21 +783,18 @@ input[type="color"]::-moz-color-swatch {
   width: 100%;
   height: 10px;
   border-radius: var(--skeleton-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .skeleton-line-short {
   width: 10em;
   height: 12px;
   border-radius: var(--skeleton-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .skeleton-line-shorter {
   width: 7em;
   height: 12px;
   border-radius: var(--skeleton-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .skeleton-actions {
@@ -821,8 +817,7 @@ input[type="color"]::-moz-color-swatch {
 .skeleton-action .skeleton-action-icon {
   width: 18px;
   height: 18px;
-  color: var(--post-action-icon-color);
-  opacity: 0.4;
+  color: var(--skeleton-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2039,6 +2034,10 @@ container-link {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.no-unauthenticated-skeleton-text .skeleton-line {
+  background-color: var(--skeleton-color);
 }
 
 .no-unauthenticated-message-large {
@@ -6178,14 +6177,12 @@ button.profile-list-item-button.is-disabled {
   width: 30px;
   height: 30px;
   border-radius: var(--list-avatar-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .feeds-list-item-skeleton-title {
   height: 14px;
   width: 45%;
   border-radius: var(--skeleton-border-radius);
-  background-color: var(--skeleton-color);
   margin-bottom: 6px;
   margin-top: 2px;
 }
@@ -6194,7 +6191,6 @@ button.profile-list-item-button.is-disabled {
   height: 12px;
   width: 30%;
   border-radius: var(--skeleton-border-radius);
-  background-color: var(--skeleton-color);
 }
 
 .post-composer.bottom-sheet {
