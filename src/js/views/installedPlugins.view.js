@@ -304,7 +304,8 @@ class InstalledPluginsView extends View {
                                         : "Update"}
                                     </button>`
                                   : ""}
-                                ${plugin.enabled && plugin.hasSettings
+                                ${plugin.enabled &&
+                                (plugin.hasSettings || plugin.hasSystemSettings)
                                   ? html`<a
                                       class="plugin-settings-link icon-button"
                                       href=${linkToPluginSettings(plugin.id)}

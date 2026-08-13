@@ -7350,6 +7350,13 @@ context-menu-item-group > context-menu-item > button {
   word-break: break-all;
 }
 
+.permission-prompt-note {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-color-muted);
+}
+
 @media (hover: hover) {
   .modal-dialog-message a:hover {
     text-decoration: underline;
@@ -10636,6 +10643,55 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
 .plugin-content h3,
 .plugin-content h4 {
   color: var(--text-color);
+}
+
+.plugin-system-settings {
+  display: block;
+  margin-top: 16px;
+}
+
+.plugin-system-settings-bar {
+  padding: 8px 16px;
+  background-color: var(--background-color-secondary);
+  border-top: 1px solid var(--generic-border-color);
+  border-bottom: 1px solid var(--generic-border-color);
+  color: var(--text-color-muted);
+}
+
+.plugin-system-settings-body {
+  padding: 16px;
+}
+
+.plugin-network-access-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.plugin-network-access-description {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-color-muted);
+}
+
+.plugin-network-access-list {
+  margin-top: 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugin-network-access-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plugin-network-access-item code {
+  font-family: var(--monospace-font, monospace);
+  font-size: 13px;
+  word-break: break-all;
 }
 
 .plugin-content {

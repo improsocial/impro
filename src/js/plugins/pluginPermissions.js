@@ -17,6 +17,7 @@ export function parsePermissions(permissions) {
     );
     if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
   }
+  if (permissions.userFetch === true) parsed.userFetch = true;
   if (permissions.actions) {
     const actionsArray = Array.isArray(permissions.actions)
       ? permissions.actions
@@ -39,8 +40,17 @@ export function diffPermissions(current, next) {
   const diff = {};
   let hasAny = false;
   for (const key of Object.keys(next)) {
-    const have = new Set(current[key] ?? []);
-    const added = (next[key] ?? []).filter((entry) => !have.has(entry));
+    const nextValue = next[key];
+    // Scope flags (userFetch) are booleans, not pattern lists
+    if (!Array.isArray(nextValue)) {
+      if (nextValue && !current[key]) {
+        diff[key] = nextValue;
+        hasAny = true;
+      }
+      continue;
+    }
+    const have = new Set(Array.isArray(current[key]) ? current[key] : []);
+    const added = nextValue.filter((entry) => !have.has(entry));
     if (added.length > 0) {
       diff[key] = added;
       hasAny = true;
@@ -50,9 +60,43 @@ export function diffPermissions(current, next) {
 }
 
 export function isEmptyPermissions(obj) {
-  return Object.values(obj).every(
-    (entries) => !Array.isArray(entries) || entries.length === 0,
+  return Object.values(obj).every((value) =>
+    Array.isArray(value) ? value.length === 0 : !value,
   );
+}
+
+export function isUserFetchAllowed(permissions) {
+  return permissions.userFetch === true;
+}
+
+// Canonicalizes a plugin-supplied URL into an origin-scoped fetch pattern,
+// or null if it can't be one. User grants cover a whole origin: path is
+// discarded, port kept.
+export function normalizeFetchOrigin(url) {
+  let parsedUrl = null;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsedUrl.username || parsedUrl.password) return null;
+  const host = parsedUrl.hostname.toLowerCase();
+  if (!host || host.includes("*")) return null;
+  if (parsedUrl.protocol === "http:") {
+    if (!isLoopbackHost(host)) return null;
+  } else if (parsedUrl.protocol !== "https:") {
+    return null;
+  }
+  const port = parsedUrl.port ? `:${parsedUrl.port}` : "";
+  return `${parsedUrl.protocol}//${host}${port}/*`;
+}
+
+// Sanitizes stored user-granted origins into canonical fetch patterns. The
+// installed-plugins list lives in the user's preferences record, we need to
+// sanitize before using it.
+export function parseUserGrantedFetchOrigins(origins) {
+  if (!Array.isArray(origins)) return [];
+  return unique(origins.map(normalizeFetchOrigin).filter(Boolean));
 }
 
 export function isFetchAllowed(url, permissions) {
