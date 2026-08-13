@@ -34,13 +34,13 @@
         `;
       }
 
-      // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
+      // Show loading state if the app hasn't loaded within 1 second, and show an error state if it hasn't loaded within 10 seconds.
       setTimeout(() => {
         if (window.hasLoaded || window.hasErrored) {
           return;
         }
         showGlobalLoadingState();
-      }, 2000);
+      }, 1000);
 
       setTimeout(() => {
         if (window.hasLoaded || window.hasErrored) {
