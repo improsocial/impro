@@ -63,7 +63,7 @@ class SettingsNotificationsView extends View {
       const isDenied = permissionState === "denied";
 
       let description =
-        "Get notified when you have new activity while Impro is open in a tab or window.";
+        "Get notified of new activity while Impro is open in a tab or window.";
       if (!isSupported) {
         description = "Not supported on this device.";
       } else if (isDenied) {
