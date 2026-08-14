@@ -391,26 +391,18 @@ export default async function homeView({
     });
   }
 
-  root.addEventListener("page-enter", async () => {
+  root.addEventListener("page-create", async () => {
     const currentFeedUri = state.$currentFeedUri.get();
-    await dataLayer.declarative.ensurePinnedItems().then((pinnedItems) => {
-      if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
-        resetToDefaultFeed();
-      }
-
-      preloadHiddenFeeds(pinnedItems);
-      initializePostSeenObservers(pinnedItems);
-    });
-
-    // Ensure current user before loading feed to prevent flash of unfiltered feed
-    if (isAuthenticated) {
-      await dataLayer.declarative.ensureCurrentUser();
+    const pinnedItems = await dataLayer.declarative.ensurePinnedItems();
+    if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
+      resetToDefaultFeed();
     }
-
+    preloadHiddenFeeds(pinnedItems);
+    initializePostSeenObservers(pinnedItems);
     await loadCurrentFeed({ reload: true });
   });
 
-  root.addEventListener("page-restore", () => {
+  root.addEventListener("page-show", () => {
     for (const observer of postSeenObservers.values()) {
       observer.connect();
     }

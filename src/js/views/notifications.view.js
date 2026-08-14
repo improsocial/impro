@@ -827,6 +827,7 @@ export default async function notificationsView({
   root.addEventListener("page-restore", async (e) => {
     const scrollY = e.detail?.scrollY ?? 0;
     if (scrollY <= 200) {
+      window.scrollTo(0, 0);
       await loadNotifications({ reload: true });
     }
   });

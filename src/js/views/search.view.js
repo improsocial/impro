@@ -749,7 +749,7 @@ export default async function searchView({
     );
   });
 
-  root.addEventListener("page-enter", () => {
+  root.addEventListener("page-create", () => {
     const query = new URLSearchParams(window.location.search);
     if (query.get("tab")) {
       const tab = query.get("tab");
@@ -763,13 +763,7 @@ export default async function searchView({
       loadedTabs.clear();
       tabScrollState.clear();
       loadTabIfNeeded(state.$activeTab.get());
-    } else {
-      // Arriving with no query clears whatever the last search left behind
-      state.$inputValue.set("");
-      state.$showTypeahead.set(false);
-      state.$committedQuery.set("");
-      loadedTabs.clear();
     }
-    hydrateAndPruneRecentProfiles().catch(console.warn);
+    hydrateAndPruneRecentProfiles();
   });
 }

@@ -26,8 +26,7 @@ function bindMiddleClickRedispatch() {
 // Runs attach whenever the page becomes active (first entry or a return from
 // the route cache) and detach when it's swapped out.
 function bindActive(root, attach, detach) {
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-show", attach);
   root.addEventListener("page-exit", detach);
 }
 
@@ -122,11 +121,11 @@ export class Router extends EventEmitter {
         window.scrollTo(0, scrollY);
       }
     });
-    // on back button, go back to the previous page
+    // Any history traversal (back or forward button, swipe gesture, history.go)
     window.addEventListener("popstate", async (e) => {
       this.emit("navigate");
       await this.load(window.location.pathname + window.location.search, {
-        isBack: true,
+        isRestore: true,
       });
     });
   }
@@ -239,7 +238,7 @@ export class Router extends EventEmitter {
     return this.match(path).route !== null;
   }
 
-  async load(path, { isBack = false } = {}) {
+  async load(path, { isRestore = false } = {}) {
     const [pathnameForRedirect, query] = path.split("?");
     const redirectTarget = this.matchRedirect(pathnameForRedirect);
     if (redirectTarget !== null) {
@@ -247,7 +246,7 @@ export class Router extends EventEmitter {
         ? `${redirectTarget}?${query}`
         : redirectTarget;
       window.history.replaceState(window.history.state, "", redirectPath);
-      return this.load(redirectPath, { isBack });
+      return this.load(redirectPath, { isRestore });
     }
     // Save the scroll position of the page we're leaving before swapping it out
     if (this.currentPath != null) {
@@ -286,7 +285,7 @@ export class Router extends EventEmitter {
           window.scrollTo(0, scrollY);
           break;
         case "back":
-          window.scrollTo(0, isBack ? scrollY : 0);
+          window.scrollTo(0, isRestore ? scrollY : 0);
           break;
         case "manual":
           break;
@@ -300,11 +299,13 @@ export class Router extends EventEmitter {
       await raf();
       if (this.currentPage !== page || this.currentPath !== path) return;
       this.currentPage.dispatchEvent(
-        new CustomEvent(isBack ? "page-restore" : "page-enter", {
+        new CustomEvent(isRestore ? "page-restore" : "page-enter", {
           detail: { scrollY },
         }),
       );
-      this.emit("page-shown", this.currentPage);
+      this.currentPage.dispatchEvent(
+        new CustomEvent("page-show", { detail: { scrollY } }),
+      );
       return;
     }
     // First load of new page
@@ -333,8 +334,13 @@ export class Router extends EventEmitter {
     this.currentPage.classList.add("page-visible");
     outgoingPage?.classList.remove("page-visible");
     outgoingPage?.classList.add("page-hidden");
-    this.currentPage.dispatchEvent(new CustomEvent("page-enter"));
-    this.emit("page-shown", this.currentPage);
+    this.currentPage.dispatchEvent(new CustomEvent("page-create"));
+    this.currentPage.dispatchEvent(
+      new CustomEvent("page-enter", { detail: { scrollY: 0 } }),
+    );
+    this.currentPage.dispatchEvent(
+      new CustomEvent("page-show", { detail: { scrollY: 0 } }),
+    );
   }
 
   _shouldOpenInNewTab() {

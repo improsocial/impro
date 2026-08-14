@@ -291,8 +291,7 @@ export default async function feedsView({ root, context: { dataLayer } }) {
   }
 
   // Reset whenever the page changes visibility, unlike the data load below
-  root.addEventListener("page-enter", resetEditingState);
-  root.addEventListener("page-restore", resetEditingState);
+  root.addEventListener("page-show", resetEditingState);
   root.addEventListener("page-exit", resetEditingState);
 
   function loadPageData() {

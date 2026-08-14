@@ -537,19 +537,21 @@ export default async function profileView({
     }
   }
 
-  let didSelectInitialTab = false;
-
   async function loadProfile() {
     await dataLayer.requests.loadDetailedProfile(profileDid);
     return dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
   }
 
-  function loadPageData(profile) {
+  root.addEventListener("page-create", async () => {
+    const profile = await loadProfile();
+    if (!profile) {
+      return;
+    }
     const isLabeler = isLabelerProfile(profile);
-    if (isLabeler) {
+    if (isLabelerProfile(profile)) {
+      state.$activeTab.set("labeler-settings");
       dataLayer.requests.loadLabelerInfo(profile.did);
     }
-
     if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
       const isCurrentUser =
         profile.did === dataLayer.derived.$currentUser.get()?.did;
@@ -563,22 +565,5 @@ export default async function profileView({
     ) {
       dataLayer.requests.loadProfileChatStatus(profile.did);
     }
-  }
-
-  root.addEventListener("page-enter", async () => {
-    const profile = await loadProfile();
-    if (!profile) {
-      return;
-    }
-    // Labeler profiles open on their settings tab, but only the first time so
-    // a revisit doesn't reset the user's tab. Must precede the feed loads,
-    // which skip the author feed while that tab is active.
-    if (!didSelectInitialTab) {
-      didSelectInitialTab = true;
-      if (isLabelerProfile(profile)) {
-        state.$activeTab.set("labeler-settings");
-      }
-    }
-    loadPageData(profile);
   });
 }

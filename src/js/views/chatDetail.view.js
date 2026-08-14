@@ -1692,11 +1692,7 @@ export default async function chatDetailView({
   root.addEventListener("click", handleRootClick);
 
   // The fetcher runs whenever the page is visible, in both restore directions
-  root.addEventListener("page-enter", () => {
-    messageFetcher.start();
-  });
-
-  root.addEventListener("page-restore", () => {
+  root.addEventListener("page-show", () => {
     messageFetcher.start();
   });
 

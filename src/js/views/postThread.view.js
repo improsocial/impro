@@ -632,11 +632,7 @@ export default async function postThreadView({
     if (largePost && header) {
       scrollToLargePost(largePost, header);
     }
-    try {
-      await dataLayer.declarative.ensurePostThread(postUri);
-    } catch (error) {
-      // pass
-    }
+    await dataLayer.requests.loadPostThread(postUri);
   });
 
   root.addEventListener("page-restore", async (e) => {

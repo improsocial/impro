@@ -519,6 +519,4 @@ export default async function loginView({
       state.$pendingAccountDid.set(null);
     }
   });
-
-  root.nativeRefreshDisabled = true;
 }

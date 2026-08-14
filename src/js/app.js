@@ -54,11 +54,7 @@ import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative, wait } from "/js/utils.js";
 import { effect, untrack } from "/js/signals.js";
-import {
-  enableNativeRefresh,
-  disableNativeRefresh,
-  dispatchNativeRefreshEnded,
-} from "/js/nativeRefresh.js";
+import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE, IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import {
@@ -286,6 +282,7 @@ export async function main() {
   });
   router.addRoute("/search", () => searchView, {
     layoutOptions: { activeNavItem: "search", isNavItemPage: true },
+    scrollRestore: "always",
   });
   router.addRoute("/hashtag/:tag", () => hashtagView);
   router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
@@ -405,14 +402,6 @@ export async function main() {
       params,
       context,
     });
-  });
-
-  router.on("page-shown", (page) => {
-    if (page.nativeRefreshDisabled) {
-      disableNativeRefresh();
-    } else {
-      enableNativeRefresh();
-    }
   });
 
   router.on("navigate", () => {

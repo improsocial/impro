@@ -415,8 +415,7 @@ export default async function listDetailView({
   const resetUserScrolled = () => {
     userHasScrolled = false;
   };
-  root.addEventListener("page-enter", resetUserScrolled);
-  root.addEventListener("page-restore", resetUserScrolled);
+  root.addEventListener("page-show", resetUserScrolled);
 
   root.addEventListener("page-enter", () => loadPageData());
 }
