@@ -87,7 +87,6 @@ class ListsView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      window.scrollTo(0, 0);
       await loadLists();
     });
 

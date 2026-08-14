@@ -386,7 +386,6 @@ class HomeView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      window.scrollTo(0, 0);
       const currentFeedUri = state.$currentFeedUri.get();
       await dataLayer.declarative.ensurePinnedItems().then((pinnedItems) => {
         if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
