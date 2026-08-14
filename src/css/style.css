@@ -6024,7 +6024,8 @@ button.profile-list-item-button.is-disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--highlight-color);
+  background-color: #0070ff;
+  color: white;
 }
 
 .following-avatar .icon svg {
