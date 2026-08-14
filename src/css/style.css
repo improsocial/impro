@@ -1950,7 +1950,7 @@ container-link {
 }
 
 .small-post .repost-label .icon path {
-  fill: var(--text-color-muted);
+  stroke: var(--text-color-muted);
 }
 
 .small-post .missing-post-indicator {
@@ -3346,7 +3346,7 @@ image-carousel {
 }
 
 .notification-icon .repost-icon path {
-  fill: var(--highlight-color);
+  stroke: var(--highlight-color);
 }
 
 .notification-icon.verified-icon svg {
