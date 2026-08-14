@@ -416,13 +416,7 @@ class HomeView extends View {
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      root.style.opacity = "0";
       window.scrollTo(0, scrollY);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          root.style.opacity = "1";
-        });
-      });
       for (const observer of postSeenObservers.values()) {
         observer.connect();
       }
