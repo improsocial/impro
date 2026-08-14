@@ -115,7 +115,7 @@ function showNestedEmbed(embed) {
   return true;
 }
 
-function condensedMediaTemplate({ embed }) {
+function condensedMediaTemplate({ embed, lazyLoadImages }) {
   if (embed?.$type === "app.bsky.embed.images#view") {
     return html`<div class="quoted-post-media-thumbs">
       ${embed.images
@@ -126,6 +126,7 @@ function condensedMediaTemplate({ embed }) {
               class="quoted-post-media-thumb"
               src="${image.thumb}"
               alt="${image.alt || ""}"
+              loading=${lazyLoadImages ? "lazy" : "eager"}
             />`,
         )}
     </div>`;
@@ -137,6 +138,7 @@ function condensedMediaTemplate({ embed }) {
           class="quoted-post-media-thumb"
           src="${embed.thumbnail}"
           alt="${embed.alt || ""}"
+          loading=${lazyLoadImages ? "lazy" : "eager"}
         />
         <div class="video-preview-play-button"></div>
       </div>
@@ -243,7 +245,7 @@ export function quotedPostTemplate({
                 </div>`
               : ""}
             ${embed && condensed
-              ? condensedMediaTemplate({ embed })
+              ? condensedMediaTemplate({ embed, lazyLoadImages })
               : embed && showNestedEmbed(embed)
                 ? html`<div class="post-embed">
                     ${postEmbedTemplate({
