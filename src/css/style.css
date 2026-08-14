@@ -1864,6 +1864,8 @@ container-link {
   color: var(--text-color-muted);
   width: fit-content;
   border-radius: var(--label-badge-border-radius);
+  border: none;
+  background-color: inherit;
 }
 
 .label-badge-image {
