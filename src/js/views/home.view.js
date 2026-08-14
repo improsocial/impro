@@ -400,7 +400,6 @@ export default async function homeView({
 
       preloadHiddenFeeds(pinnedItems);
       initializePostSeenObservers(pinnedItems);
-      window.scrollTo(0, 0);
     });
 
     // Ensure current user before loading feed to prevent flash of unfiltered feed

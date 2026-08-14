@@ -258,16 +258,15 @@ export class Router extends EventEmitter {
     window.dispatchEvent(new CustomEvent("page-transition"));
     // Strip query parameters for route matching (but keep full path for caching)
     const pathname = path.split("?")[0];
-    if (this.currentPage) {
+    const outgoingPage = this.currentPage;
+    if (outgoingPage) {
       // Safari can keep processing a focused search control after its page is
       // hidden. Release focus before moving the page into the route cache.
       const activeElement = document.activeElement;
-      if (activeElement && this.currentPage.contains(activeElement)) {
+      if (activeElement && outgoingPage.contains(activeElement)) {
         activeElement.blur();
       }
-      this.currentPage.dispatchEvent(new CustomEvent("page-exit"));
-      this.currentPage.classList.remove("page-visible");
-      this.currentPage.classList.add("page-hidden");
+      outgoingPage.dispatchEvent(new CustomEvent("page-exit"));
     }
     if (this.pages.has(path)) {
       // Return to existing page
@@ -278,6 +277,8 @@ export class Router extends EventEmitter {
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
+      outgoingPage.classList.remove("page-visible");
+      outgoingPage.classList.add("page-hidden");
       // Scroll before dispatching so a "manual" view's own scroll wins
       const scrollRestore = routeInfo.options.scrollRestore ?? "back";
       switch (scrollRestore) {
@@ -315,7 +316,7 @@ export class Router extends EventEmitter {
     const view = await viewGetter();
 
     const newPage = document.createElement("div");
-    newPage.classList.add("page", "page-visible");
+    newPage.classList.add("page", "page-hidden");
     const container =
       options.layout === false ? this.containers.bare : this.containers.default;
     container.appendChild(newPage);
@@ -328,6 +329,10 @@ export class Router extends EventEmitter {
       layout: options.layout === false ? null : this.layout,
       container: this.currentPage,
     });
+    this.currentPage.classList.remove("page-hidden");
+    this.currentPage.classList.add("page-visible");
+    outgoingPage?.classList.remove("page-visible");
+    outgoingPage?.classList.add("page-hidden");
     this.currentPage.dispatchEvent(new CustomEvent("page-enter"));
     this.emit("page-shown", this.currentPage);
   }
