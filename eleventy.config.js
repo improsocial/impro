@@ -59,6 +59,7 @@ export default async function (eleventyConfig) {
 
   // Create content-hashed filenames
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
+    if (isDev) return;
     await applyContentHashing({
       outputDir: dir.output,
       htmlFiles: results

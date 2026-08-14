@@ -286,7 +286,6 @@ export async function main() {
   });
   router.addRoute("/search", () => searchView, {
     layoutOptions: { activeNavItem: "search", isNavItemPage: true },
-    scrollRestore: "manual",
   });
   router.addRoute("/hashtag/:tag", () => hashtagView);
   router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);

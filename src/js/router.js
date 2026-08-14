@@ -1,6 +1,6 @@
 import { EventEmitter, EventTarget } from "/js/eventEmitter.js";
 import { effect, Signal } from "/js/signals.js";
-import { BoundedMap } from "/js/utils.js";
+import { BoundedMap, raf } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
@@ -292,6 +292,12 @@ export class Router extends EventEmitter {
         default:
           console.warn(`unknown scrollRestore type: ${scrollRestore}`);
       }
+      // Let the swapped-in page paint before route effects and restore
+      // handlers run, so iOS Safari has a live page to replace its
+      // interactive back-swipe snapshot with.
+      await raf();
+      await raf();
+      if (this.currentPage !== page || this.currentPath !== path) return;
       this.currentPage.dispatchEvent(
         new CustomEvent(isBack ? "page-restore" : "page-enter", {
           detail: { scrollY },

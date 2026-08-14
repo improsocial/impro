@@ -769,12 +769,7 @@ export default async function searchView({
       state.$showTypeahead.set(false);
       state.$committedQuery.set("");
       loadedTabs.clear();
-      window.scrollTo(0, 0);
     }
     hydrateAndPruneRecentProfiles().catch(console.warn);
-  });
-
-  root.addEventListener("page-restore", (event) => {
-    window.scrollTo(0, event.detail?.scrollY ?? 0);
   });
 }
