@@ -66,14 +66,8 @@ class BookmarksView extends View {
     });
 
     root.addEventListener("page-restore", async (e) => {
-      const scrollY = e.detail?.scrollY ?? 0;
-      const isBack = e.detail?.isBack ?? false;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
-        window.scrollTo(0, 0);
-        await loadBookmarks({ reload: true });
-      }
+      if (e.detail?.isBack) return;
+      await loadBookmarks({ reload: true });
     });
   }
 }

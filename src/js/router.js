@@ -272,6 +272,20 @@ export class Router extends EventEmitter {
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
+      // Scroll before dispatching so a "manual" view's own scroll wins
+      const scrollRestore = routeInfo.options.scrollRestore ?? "back";
+      switch (scrollRestore) {
+        case "always":
+          window.scrollTo(0, scrollY);
+          break;
+        case "back":
+          window.scrollTo(0, isBack ? scrollY : 0);
+          break;
+        case "manual":
+          break;
+        default:
+          console.warn(`unknown scrollRestore type: ${scrollRestore}`);
+      }
       this.currentPage.dispatchEvent(
         new CustomEvent("page-restore", {
           detail: {

@@ -103,10 +103,6 @@ class SettingsNotificationsView extends View {
         root,
       );
     });
-
-    root.addEventListener("page-restore", () => {
-      window.scrollTo(0, 0);
-    });
   }
 }
 

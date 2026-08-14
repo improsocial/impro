@@ -285,10 +285,6 @@ class CommunityPluginListingView extends View {
       await loadListings();
       await loadDetails();
     });
-
-    root.addEventListener("page-restore", () => {
-      window.scrollTo(0, 0);
-    });
   }
 }
 

@@ -119,11 +119,6 @@ class HashtagView extends View {
     root.addEventListener("page-enter", async () => {
       await loadCurrentFeed();
     });
-
-    root.addEventListener("page-restore", (e) => {
-      const scrollY = e.detail?.scrollY ?? 0;
-      window.scrollTo(0, scrollY);
-    });
   }
 }
 

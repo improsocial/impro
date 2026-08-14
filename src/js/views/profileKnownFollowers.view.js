@@ -96,16 +96,8 @@ class ProfileKnownFollowersView extends View {
     });
 
     root.addEventListener("page-restore", async (event) => {
-      const scrollY = event.detail?.scrollY ?? 0;
-      const isBack = event.detail?.isBack ?? false;
-      if (isBack) {
-        if (scrollY > 0) {
-          window.scrollTo(0, scrollY);
-        }
-      } else {
-        window.scrollTo(0, 0);
-        await dataLayer.requests.loadKnownFollowers(profileDid);
-      }
+      if (event.detail?.isBack) return;
+      await dataLayer.requests.loadKnownFollowers(profileDid);
     });
   }
 }

@@ -581,15 +581,6 @@ class ProfileView extends View {
         dataLayer.requests.loadProfileChatStatus(profile.did);
       }
     });
-
-    root.addEventListener("page-restore", (e) => {
-      const { isBack, scrollY } = e.detail;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
-        window.scrollTo(0, 0);
-      }
-    });
   }
 }
 

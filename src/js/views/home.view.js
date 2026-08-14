@@ -414,9 +414,7 @@ class HomeView extends View {
       await loadCurrentFeed();
     });
 
-    root.addEventListener("page-restore", (e) => {
-      const scrollY = e.detail?.scrollY ?? 0;
-      window.scrollTo(0, scrollY);
+    root.addEventListener("page-restore", () => {
       for (const observer of postSeenObservers.values()) {
         observer.connect();
       }

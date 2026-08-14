@@ -28,6 +28,27 @@ function mountRouter(router, { layout = null } = {}) {
   };
 }
 
+// JSDOM's window.scrollY is a read-only getter, so temporarily override it to
+// simulate the page being scrolled before we navigate away.
+function withScrollY(value, callback) {
+  const original = Object.getOwnPropertyDescriptor(window, "scrollY");
+  Object.defineProperty(window, "scrollY", {
+    value,
+    configurable: true,
+  });
+  return (async () => {
+    try {
+      return await callback();
+    } finally {
+      if (original) {
+        Object.defineProperty(window, "scrollY", original);
+      } else {
+        delete window.scrollY;
+      }
+    }
+  })();
+}
+
 describe("constructor and initialization", () => {
   it("should initialize with empty routes", () => {
     const router = new Router();
@@ -1088,27 +1109,6 @@ describe("page cache", () => {
 });
 
 describe("scroll position persistence", () => {
-  // JSDOM's window.scrollY is a read-only getter, so temporarily override it to
-  // simulate the page being scrolled before we navigate away.
-  function withScrollY(value, callback) {
-    const original = Object.getOwnPropertyDescriptor(window, "scrollY");
-    Object.defineProperty(window, "scrollY", {
-      value,
-      configurable: true,
-    });
-    return (async () => {
-      try {
-        return await callback();
-      } finally {
-        if (original) {
-          Object.defineProperty(window, "scrollY", original);
-        } else {
-          delete window.scrollY;
-        }
-      }
-    })();
-  }
-
   function createRouter() {
     const router = new Router();
     mountRouter(router);
@@ -1166,5 +1166,96 @@ describe("scroll position persistence", () => {
     });
 
     assert.deepEqual(restoredScrollY, 175);
+  });
+});
+
+describe("scrollRestore", () => {
+  let scrollTo;
+
+  beforeEach(() => {
+    scrollTo = mock.method(window, "scrollTo", () => {});
+  });
+
+  afterEach(() => {
+    scrollTo.mock.restore();
+  });
+
+  function scrollCalls() {
+    return scrollTo.mock.calls.map((call) => call.arguments);
+  }
+
+  function createRouter(scrollRestore) {
+    const router = new Router();
+    mountRouter(router);
+    router.addRoute(
+      "/a",
+      () => Promise.resolve({}),
+      scrollRestore ? { scrollRestore } : {},
+    );
+    router.addRoute("/b", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+    return router;
+  }
+
+  // Returns to /a after leaving it scrolled to 175
+  async function revisit(router, { isBack }) {
+    await router.load("/a");
+    await withScrollY(175, () => router.load("/b"));
+    scrollTo.mock.resetCalls();
+    await router.load("/a", { isBack });
+  }
+
+  it("restores the saved position on back navigation by default", async () => {
+    const router = createRouter();
+
+    await revisit(router, { isBack: true });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("scrolls to the top on forward navigation by default", async () => {
+    const router = createRouter();
+
+    await revisit(router, { isBack: false });
+
+    assert.deepEqual(scrollCalls(), [[0, 0]]);
+  });
+
+  it("restores the saved position on forward navigation when set to always", async () => {
+    const router = createRouter("always");
+
+    await revisit(router, { isBack: false });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("still restores the saved position on back navigation when set to always", async () => {
+    const router = createRouter("always");
+
+    await revisit(router, { isBack: true });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("does not touch the scroll position when set to manual", async () => {
+    const router = createRouter("manual");
+
+    await revisit(router, { isBack: false });
+    await revisit(router, { isBack: true });
+
+    assert.deepEqual(scrollCalls(), []);
+  });
+
+  it("scrolls before dispatching page-restore so a view can override it", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    let scrolledBeforeDispatch = null;
+    router.pages.get("/a").el.addEventListener("page-restore", () => {
+      scrolledBeforeDispatch = scrollCalls();
+    });
+
+    await revisit(router, { isBack: true });
+
+    assert.deepEqual(scrolledBeforeDispatch, [[0, 175]]);
   });
 });

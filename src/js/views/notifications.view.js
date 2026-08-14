@@ -841,7 +841,6 @@ class NotificationsView extends View {
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      window.scrollTo(0, scrollY);
       if (scrollY <= 200) {
         await loadNotifications({ reload: true });
       }

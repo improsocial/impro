@@ -255,10 +255,12 @@ export async function main() {
 
   router.addRoute(["/", "/intent/compose"], () => homeView, {
     layoutOptions: { activeNavItem: "home" },
+    scrollRestore: "always",
   });
   router.addRoute("/login", () => loginView, { layout: false });
   router.addRoute("/notifications", () => notificationsView, {
     layoutOptions: { activeNavItem: "notifications" },
+    scrollRestore: "always",
   });
   router.addRoute("/messages/inbox", () => chatRequestsView, {
     layoutOptions: { activeNavItem: "chat" },
@@ -268,6 +270,7 @@ export async function main() {
   });
   router.addRoute("/messages/:convoId", () => chatDetailView, {
     layoutOptions: { activeNavItem: "chat" },
+    scrollRestore: "manual",
   });
   router.addRoute("/messages", () => chatView, {
     layoutOptions: { activeNavItem: "chat" },
@@ -283,6 +286,7 @@ export async function main() {
   });
   router.addRoute("/search", () => searchView, {
     layoutOptions: { activeNavItem: "search" },
+    scrollRestore: "manual",
   });
   router.addRoute("/hashtag/:tag", () => hashtagView);
   router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
@@ -299,7 +303,9 @@ export async function main() {
     "/profile/:handleOrDid/post/:rkey/reposts",
     () => postRepostsView,
   );
-  router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView);
+  router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView, {
+    scrollRestore: "manual",
+  });
   router.addRoute(
     "/profile/:handleOrDid/known-followers",
     () => profileKnownFollowersView,

@@ -396,10 +396,6 @@ class SettingsView extends View {
       loadOtherAccounts();
     });
 
-    root.addEventListener("page-restore", () => {
-      window.scrollTo(0, 0);
-    });
-
     // Account actions navigate away with the pending spinner showing; if the
     // user comes back via the back/forward cache the document is restored
     // as-is, so reset the stuck pending state.

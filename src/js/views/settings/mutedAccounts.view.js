@@ -78,10 +78,6 @@ class SettingsMutedAccountsView extends View {
     root.addEventListener("page-enter", async () => {
       await loadMore();
     });
-
-    root.addEventListener("page-restore", () => {
-      window.scrollTo(0, 0);
-    });
   }
 }
 
