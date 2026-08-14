@@ -83,7 +83,7 @@ export function footerTemplate({
       template: () =>
         html`${currentUser
           ? avatarTemplate({ author: currentUser, clickAction: "none" })
-          : html`<div class="avatar-image-placeholder"></div>`}`,
+          : html`<div class="avatar-placeholder"></div>`}`,
     },
   ];
 

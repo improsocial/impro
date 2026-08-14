@@ -874,7 +874,8 @@ input[type="color"]::-moz-color-swatch {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-  background-color: var(--generic-border-color);
+  border: var(--hair) solid var(--post-border-color);
+  background-color: var(--skeleton-color);
 }
 
 header {
@@ -1216,12 +1217,6 @@ tab-bar:not([full-width]) {
   border: var(--hair) solid var(--post-border-color);
 }
 
-.sidebar-profile-avatar .avatar-placeholder {
-  border-radius: var(--avatar-border-radius);
-  background-color: var(--skeleton-color);
-  border: var(--hair) solid var(--post-border-color);
-}
-
 .sidebar-profile-info {
   margin-bottom: 12px;
 }
@@ -1556,12 +1551,9 @@ button.sidebar-plugin-nav-item {
   height: var(--avatar-size-footer-nav);
 }
 
-.footer-nav-item .avatar-image-placeholder {
+.footer-nav-item .avatar-placeholder {
   width: var(--avatar-size-footer-nav);
   height: var(--avatar-size-footer-nav);
-  border-radius: var(--avatar-border-radius);
-  background-color: var(--skeleton-color);
-  border: var(--hair) solid var(--post-border-color);
 }
 
 .footer-nav-item[disabled] {
@@ -3568,7 +3560,8 @@ image-carousel {
   flex-shrink: 0;
 }
 
-.convo-avatar .avatar-image-frame {
+.convo-avatar .avatar-image-frame,
+.convo-avatar .avatar-placeholder {
   width: var(--avatar-size-convo);
   height: var(--avatar-size-convo);
 }
@@ -3579,10 +3572,16 @@ image-carousel {
   height: var(--avatar-size-convo);
 }
 
+.avatar-group > .avatar-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
 .avatar-group-item {
   position: absolute;
 }
 
+.avatar-group-item .avatar,
 .avatar-group-item .avatar-image-frame {
   display: block;
   width: 100%;
@@ -4122,7 +4121,8 @@ image-carousel {
   align-self: flex-start;
 }
 
-.message-avatar .avatar-image-frame {
+.message-avatar .avatar-image-frame,
+.message-avatar .avatar-placeholder {
   width: var(--avatar-size-message);
   height: var(--avatar-size-message);
 }
@@ -5071,6 +5071,7 @@ chat-input .rich-text-input-placeholder {
 
 .reaction-row-avatar .avatar,
 .reaction-row-avatar .avatar-image-frame,
+.reaction-row-avatar .avatar-placeholder,
 .reaction-row-avatar .avatar-image {
   width: 42px;
   height: 42px;
@@ -8486,7 +8487,7 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .account-switcher-item .avatar,
-.account-switcher-item .avatar-image-placeholder,
+.account-switcher-item .avatar-placeholder,
 .account-switcher-item .skeleton-avatar {
   width: 40px;
   height: 40px;

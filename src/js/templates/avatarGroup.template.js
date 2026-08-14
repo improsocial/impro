@@ -3,7 +3,9 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 
 export function avatarGroupTemplate({ authors }) {
   if (authors.length === 0) {
-    return html`<div class="avatar-placeholder"></div>`;
+    return html`<div class="avatar-group">
+      <div class="avatar-placeholder"></div>
+    </div>`;
   }
   if (authors.length === 1) {
     return avatarTemplate({ author: authors[0], clickAction: "none" });

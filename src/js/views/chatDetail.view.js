@@ -1297,7 +1297,6 @@ class ChatDetailView extends View {
       const reversedMessages = messages.toReversed();
       const messageGroups = groupMessages(reversedMessages, currentUserDid);
       const days = groupMessageGroupsByDay(messageGroups);
-      // const message
       return html`
         <infinite-scroll-container
           ${ref((el) => {
