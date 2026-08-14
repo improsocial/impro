@@ -254,12 +254,12 @@ export async function main() {
   }
 
   router.addRoute(["/", "/intent/compose"], () => homeView, {
-    layoutOptions: { activeNavItem: "home" },
+    layoutOptions: { activeNavItem: "home", isNavItemPage: true },
     scrollRestore: "always",
   });
   router.addRoute("/login", () => loginView, { layout: false });
   router.addRoute("/notifications", () => notificationsView, {
-    layoutOptions: { activeNavItem: "notifications" },
+    layoutOptions: { activeNavItem: "notifications", isNavItemPage: true },
     scrollRestore: "always",
   });
   router.addRoute("/messages/inbox", () => chatRequestsView, {
@@ -273,19 +273,19 @@ export async function main() {
     scrollRestore: "manual",
   });
   router.addRoute("/messages", () => chatView, {
-    layoutOptions: { activeNavItem: "chat" },
+    layoutOptions: { activeNavItem: "chat", isNavItemPage: true },
   });
   router.addRoute("/feeds", () => feedsView, {
-    layoutOptions: { activeNavItem: "feeds" },
+    layoutOptions: { activeNavItem: "feeds", isNavItemPage: true },
   });
   router.addRoute("/lists", () => listsView, {
-    layoutOptions: { activeNavItem: "lists" },
+    layoutOptions: { activeNavItem: "lists", isNavItemPage: true },
   });
   router.addRoute("/bookmarks", () => bookmarksView, {
-    layoutOptions: { activeNavItem: "bookmarks" },
+    layoutOptions: { activeNavItem: "bookmarks", isNavItemPage: true },
   });
   router.addRoute("/search", () => searchView, {
-    layoutOptions: { activeNavItem: "search" },
+    layoutOptions: { activeNavItem: "search", isNavItemPage: true },
     scrollRestore: "manual",
   });
   router.addRoute("/hashtag/:tag", () => hashtagView);
@@ -322,12 +322,15 @@ export async function main() {
   router.addRoute(["/profile/:handleOrDid", "/profile"], () => profileView, {
     layoutOptions: {
       activeNavItem: (params) => (isOwnProfile(params) ? "profile" : null),
+      isNavItemPage: (params) => isOwnProfile(params),
     },
   });
   const settingsRouteOptions = {
     layoutOptions: { activeNavItem: "settings" },
   };
-  router.addRoute("/settings", () => settingsView, settingsRouteOptions);
+  router.addRoute("/settings", () => settingsView, {
+    layoutOptions: { activeNavItem: "settings", isNavItemPage: true },
+  });
   router.addRoute(
     "/settings/appearance",
     () => settingsAppearanceView,
@@ -361,11 +364,9 @@ export async function main() {
   const pluginsRouteOptions = {
     layoutOptions: { activeNavItem: "plugins" },
   };
-  router.addRoute(
-    "/plugins/installed",
-    () => installedPluginsView,
-    pluginsRouteOptions,
-  );
+  router.addRoute("/plugins/installed", () => installedPluginsView, {
+    layoutOptions: { activeNavItem: "plugins", isNavItemPage: !!session },
+  });
   router.addRoute(
     "/plugin/:pluginId/settings",
     () => pluginSettingsView,
@@ -376,11 +377,10 @@ export async function main() {
     () => pluginPageView,
     pluginsRouteOptions,
   );
-  router.addRoute(
-    "/plugins/community",
-    () => communityPluginsView,
-    pluginsRouteOptions,
-  );
+  router.addRoute("/plugins/community", () => communityPluginsView, {
+    // Logged out, the Plugins nav item points here instead
+    layoutOptions: { activeNavItem: "plugins", isNavItemPage: !session },
+  });
   router.addRoute(
     "/plugins/community/:pluginId",
     () => communityPluginListingView,
@@ -399,7 +399,7 @@ export async function main() {
   router.setNotFoundView(() => notFoundView);
 
   router.renderRoute(({ view, params, container, layout }) => {
-    return view.render({
+    return view({
       root: container,
       layout,
       router,

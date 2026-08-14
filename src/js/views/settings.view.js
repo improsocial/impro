@@ -1,4 +1,3 @@
-import { View } from "/js/views/view.js";
 import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
@@ -23,388 +22,381 @@ import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
-class SettingsView extends View {
-  async render({ root, context: { dataLayer } }) {
-    const currentSession = await auth.requireAuth();
-    const supportsMultipleAccounts = auth.supportsMultipleAccounts();
+export default async function settingsView({ root, context: { dataLayer } }) {
+  const currentSession = await auth.requireAuth();
+  const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
-    const $otherAccounts = new Signal.State(null);
-    const $otherAccountProfiles = new Signal.State({});
-    const $accountSwitcherExpanded = new Signal.State(false);
-    const $pendingAccountSwitcherAction = new Signal.State(null); // { type, did? }
+  const $otherAccounts = new Signal.State(null);
+  const $otherAccountProfiles = new Signal.State({});
+  const $accountSwitcherExpanded = new Signal.State(false);
+  const $pendingAccountSwitcherAction = new Signal.State(null); // { type, did? }
 
-    function accountsSwitcherTemplate({
-      expanded,
-      accounts,
-      accountProfiles,
-      pendingAction,
-      onToggle,
-      onSwitch,
-      onAdd,
-      onRemove,
-    }) {
-      const hasOthers = accounts.length > 0;
-      return html`
-        <button
-          class="vertical-nav-item"
-          data-testid="settings-switch-account-toggle"
-          data-teststate=${expanded ? "expanded" : "collapsed"}
-          aria-expanded=${hasOthers ? (expanded ? "true" : "false") : null}
-          @click=${hasOthers ? onToggle : onAdd}
+  function accountsSwitcherTemplate({
+    expanded,
+    accounts,
+    accountProfiles,
+    pendingAction,
+    onToggle,
+    onSwitch,
+    onAdd,
+    onRemove,
+  }) {
+    const hasOthers = accounts.length > 0;
+    return html`
+      <button
+        class="vertical-nav-item"
+        data-testid="settings-switch-account-toggle"
+        data-teststate=${expanded ? "expanded" : "collapsed"}
+        aria-expanded=${hasOthers ? (expanded ? "true" : "false") : null}
+        @click=${hasOthers ? onToggle : onAdd}
+      >
+        <span class="vertical-nav-icon"
+          >${hasOthers ? userIconTemplate() : userPlusIconTemplate()}</span
         >
-          <span class="vertical-nav-icon"
-            >${hasOthers ? userIconTemplate() : userPlusIconTemplate()}</span
-          >
-          <span class="vertical-nav-label"
-            >${hasOthers ? "Switch account" : "Add another account"}</span
-          >
-          ${!hasOthers
-            ? pendingAction?.type === "add"
-              ? html`<span class="account-spinner" data-testid="account-spinner"
-                  ><span class="loading-spinner"></span
-                ></span>`
-              : null
-            : expanded
-              ? html`<span class="vertical-nav-arrow"
-                  >${chevronUpIconTemplate()}</span
-                >`
-              : html`<span
-                  class="settings-account-avatar-stack"
-                  data-testid="settings-account-avatar-stack"
-                >
-                  ${accounts.slice(0, 5).map((account) => {
-                    const profile = accountProfiles[account.did] ?? null;
-                    if (!profile) {
-                      return null;
-                    }
-                    return avatarTemplate({
-                      author: profile,
-                      clickAction: "none",
-                    });
-                  })}
-                </span>`}
-        </button>
-        ${expanded && hasOthers
-          ? html`
-              <div
-                class="settings-accounts-list"
-                data-testid="settings-accounts"
+        <span class="vertical-nav-label"
+          >${hasOthers ? "Switch account" : "Add another account"}</span
+        >
+        ${!hasOthers
+          ? pendingAction?.type === "add"
+            ? html`<span class="account-spinner" data-testid="account-spinner"
+                ><span class="loading-spinner"></span
+              ></span>`
+            : null
+          : expanded
+            ? html`<span class="vertical-nav-arrow"
+                >${chevronUpIconTemplate()}</span
+              >`
+            : html`<span
+                class="settings-account-avatar-stack"
+                data-testid="settings-account-avatar-stack"
               >
-                ${accounts.map((account) => {
+                ${accounts.slice(0, 5).map((account) => {
                   const profile = accountProfiles[account.did] ?? null;
-                  return html`
-                    <div
-                      class="vertical-nav-item settings-account-row"
-                      data-testid="settings-account-row"
-                      data-account-did=${account.did}
-                      data-teststate=${account.needsReauth ? "reauth" : "ok"}
-                      role="button"
-                      tabindex="0"
-                      @click=${() => onSwitch(account)}
-                      @keydown=${(event) => {
-                        if (event.target !== event.currentTarget) return;
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          onSwitch(account);
-                        }
-                      }}
-                    >
-                      ${profile
-                        ? html`<span class="vertical-nav-icon"
-                            >${avatarTemplate({
-                              author: profile,
-                              clickAction: "none",
-                            })}</span
+                  if (!profile) {
+                    return null;
+                  }
+                  return avatarTemplate({
+                    author: profile,
+                    clickAction: "none",
+                  });
+                })}
+              </span>`}
+      </button>
+      ${expanded && hasOthers
+        ? html`
+            <div class="settings-accounts-list" data-testid="settings-accounts">
+              ${accounts.map((account) => {
+                const profile = accountProfiles[account.did] ?? null;
+                return html`
+                  <div
+                    class="vertical-nav-item settings-account-row"
+                    data-testid="settings-account-row"
+                    data-account-did=${account.did}
+                    data-teststate=${account.needsReauth ? "reauth" : "ok"}
+                    role="button"
+                    tabindex="0"
+                    @click=${() => onSwitch(account)}
+                    @keydown=${(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onSwitch(account);
+                      }
+                    }}
+                  >
+                    ${profile
+                      ? html`<span class="vertical-nav-icon"
+                          >${avatarTemplate({
+                            author: profile,
+                            clickAction: "none",
+                          })}</span
+                        >`
+                      : null}
+                    <span class="vertical-nav-label">
+                      ${getDisplayName(account)}
+                      ${account.needsReauth
+                        ? html`<span class="account-switcher-reauth-hint"
+                            >Sign in again</span
                           >`
                         : null}
-                      <span class="vertical-nav-label">
-                        ${getDisplayName(account)}
-                        ${account.needsReauth
-                          ? html`<span class="account-switcher-reauth-hint"
-                              >Sign in again</span
-                            >`
-                          : null}
-                      </span>
-                      ${pendingAction?.type === "switch" &&
-                      pendingAction.did === account.did
-                        ? html`<span
-                            class="account-spinner"
-                            data-testid="account-spinner"
-                            ><span class="loading-spinner"></span
-                          ></span>`
-                        : html`<button
-                              class="settings-account-ellipsis"
-                              data-testid="settings-account-menu-trigger"
-                              aria-label="Account actions"
-                              @click=${function (event) {
-                                event.stopPropagation();
-                                this.nextElementSibling.open(
-                                  event.clientX,
-                                  event.clientY,
-                                );
-                              }}
+                    </span>
+                    ${pendingAction?.type === "switch" &&
+                    pendingAction.did === account.did
+                      ? html`<span
+                          class="account-spinner"
+                          data-testid="account-spinner"
+                          ><span class="loading-spinner"></span
+                        ></span>`
+                      : html`<button
+                            class="settings-account-ellipsis"
+                            data-testid="settings-account-menu-trigger"
+                            aria-label="Account actions"
+                            @click=${function (event) {
+                              event.stopPropagation();
+                              this.nextElementSibling.open(
+                                event.clientX,
+                                event.clientY,
+                              );
+                            }}
+                          >
+                            ${moreMenuIconTemplate()}
+                          </button>
+                          <context-menu>
+                            <context-menu-item
+                              data-testid="settings-account-remove"
+                              icon="delete-bin-line"
+                              @click=${() => onRemove(account)}
                             >
-                              ${moreMenuIconTemplate()}
-                            </button>
-                            <context-menu>
-                              <context-menu-item
-                                data-testid="settings-account-remove"
-                                icon="delete-bin-line"
-                                @click=${() => onRemove(account)}
-                              >
-                                Remove account
-                              </context-menu-item>
-                            </context-menu>`}
-                    </div>
-                  `;
-                })}
-                <button
-                  class="vertical-nav-item"
-                  data-testid="settings-account-add"
-                  @click=${onAdd}
-                >
-                  <span class="vertical-nav-icon"
-                    >${userPlusIconTemplate()}</span
-                  >
-                  <span class="vertical-nav-label">Add account</span>
-                  ${pendingAction?.type === "add"
-                    ? html`<span
-                        class="account-spinner"
-                        data-testid="account-spinner"
-                        ><span class="loading-spinner"></span
-                      ></span>`
-                    : null}
-                </button>
-              </div>
-            `
-          : null}
-        <hr />
-      `;
-    }
+                              Remove account
+                            </context-menu-item>
+                          </context-menu>`}
+                  </div>
+                `;
+              })}
+              <button
+                class="vertical-nav-item"
+                data-testid="settings-account-add"
+                @click=${onAdd}
+              >
+                <span class="vertical-nav-icon">${userPlusIconTemplate()}</span>
+                <span class="vertical-nav-label">Add account</span>
+                ${pendingAction?.type === "add"
+                  ? html`<span
+                      class="account-spinner"
+                      data-testid="account-spinner"
+                      ><span class="loading-spinner"></span
+                    ></span>`
+                  : null}
+              </button>
+            </div>
+          `
+        : null}
+      <hr />
+    `;
+  }
 
-    const menuItems = [
-      {
-        key: "notifications",
-        icon: notificationsIconTemplate,
-        label: "Notifications",
-        url: "/settings/notifications",
-      },
-      {
-        key: "muted-words",
-        icon: mutedWordIconTemplate,
-        label: "Muted words",
-        url: "/settings/muted-words",
-      },
-      {
-        key: "muted-accounts",
-        icon: eyeSlashIconTemplate,
-        label: "Muted accounts",
-        url: "/settings/muted-accounts",
-      },
-      {
-        key: "blocked-accounts",
-        icon: restrictedIconTemplate,
-        label: "Blocked accounts",
-        url: "/settings/blocked-accounts",
-      },
-      {
-        key: "appearance",
-        icon: eyeIconTemplate,
-        label: "Appearance",
-        url: "/settings/appearance",
-      },
-      {
-        key: "advanced",
-        icon: codeIconTemplate,
-        label: "Advanced",
-        url: "/settings/advanced",
-      },
-    ];
+  const menuItems = [
+    {
+      key: "notifications",
+      icon: notificationsIconTemplate,
+      label: "Notifications",
+      url: "/settings/notifications",
+    },
+    {
+      key: "muted-words",
+      icon: mutedWordIconTemplate,
+      label: "Muted words",
+      url: "/settings/muted-words",
+    },
+    {
+      key: "muted-accounts",
+      icon: eyeSlashIconTemplate,
+      label: "Muted accounts",
+      url: "/settings/muted-accounts",
+    },
+    {
+      key: "blocked-accounts",
+      icon: restrictedIconTemplate,
+      label: "Blocked accounts",
+      url: "/settings/blocked-accounts",
+    },
+    {
+      key: "appearance",
+      icon: eyeIconTemplate,
+      label: "Appearance",
+      url: "/settings/appearance",
+    },
+    {
+      key: "advanced",
+      icon: codeIconTemplate,
+      label: "Advanced",
+      url: "/settings/advanced",
+    },
+  ];
 
-    bindPageTitle(root, () => "Settings");
+  bindPageTitle(root, () => "Settings");
 
-    pageEffect(root, () => {
-      const otherAccounts = $otherAccounts.get();
-      const otherAccountProfiles = $otherAccountProfiles.get();
-      if (otherAccounts === null) return;
-      render(
-        html`<div id="settings-view">
-          ${headerTemplate({
-            title: "Settings",
-            backButtonFallbackRoute: "/",
-          })}
-          <main>
-            <nav class="vertical-nav">
-              ${supportsMultipleAccounts
-                ? accountsSwitcherTemplate({
-                    expanded: $accountSwitcherExpanded.get(),
-                    accounts: otherAccounts,
-                    accountProfiles: otherAccountProfiles,
-                    pendingAction: $pendingAccountSwitcherAction.get(),
-                    onToggle: () => {
-                      if ($pendingAccountSwitcherAction.get() !== null) return;
-                      $accountSwitcherExpanded.set(
-                        !$accountSwitcherExpanded.get(),
-                      );
-                    },
-                    onSwitch: async (account) => {
-                      if ($pendingAccountSwitcherAction.get() !== null) return;
-                      $pendingAccountSwitcherAction.set({
-                        type: "switch",
-                        did: account.did,
-                      });
-                      if (account.needsReauth) {
-                        try {
-                          await auth.login({
-                            handle: account.handle,
-                            returnTo:
-                              window.location.pathname + window.location.search,
-                          });
-                        } catch (error) {
-                          $pendingAccountSwitcherAction.set(null);
-                          showToast(getLoginErrorMessage(error), {
-                            style: "error",
-                          });
-                        }
-                        return;
-                      }
+  pageEffect(root, () => {
+    const otherAccounts = $otherAccounts.get();
+    const otherAccountProfiles = $otherAccountProfiles.get();
+    if (otherAccounts === null) return;
+    render(
+      html`<div id="settings-view">
+        ${headerTemplate({
+          title: "Settings",
+          backButtonFallbackRoute: "/",
+        })}
+        <main>
+          <nav class="vertical-nav">
+            ${supportsMultipleAccounts
+              ? accountsSwitcherTemplate({
+                  expanded: $accountSwitcherExpanded.get(),
+                  accounts: otherAccounts,
+                  accountProfiles: otherAccountProfiles,
+                  pendingAction: $pendingAccountSwitcherAction.get(),
+                  onToggle: () => {
+                    if ($pendingAccountSwitcherAction.get() !== null) return;
+                    $accountSwitcherExpanded.set(
+                      !$accountSwitcherExpanded.get(),
+                    );
+                  },
+                  onSwitch: async (account) => {
+                    if ($pendingAccountSwitcherAction.get() !== null) return;
+                    $pendingAccountSwitcherAction.set({
+                      type: "switch",
+                      did: account.did,
+                    });
+                    if (account.needsReauth) {
                       try {
-                        await auth.switchAccount(account.did);
-                      } catch {
+                        await auth.login({
+                          handle: account.handle,
+                          returnTo:
+                            window.location.pathname + window.location.search,
+                        });
+                      } catch (error) {
                         $pendingAccountSwitcherAction.set(null);
-                        showToast("Failed to switch account", {
+                        showToast(getLoginErrorMessage(error), {
                           style: "error",
                         });
                       }
-                    },
-                    onAdd: () => {
-                      if ($pendingAccountSwitcherAction.get() !== null) return;
-                      $pendingAccountSwitcherAction.set({ type: "add" });
-                      window.location.href = linkToLogin({
-                        query: { addAccount: 1 },
+                      return;
+                    }
+                    try {
+                      await auth.switchAccount(account.did);
+                    } catch {
+                      $pendingAccountSwitcherAction.set(null);
+                      showToast("Failed to switch account", {
+                        style: "error",
                       });
-                    },
-                    onRemove: async (account) => {
-                      const ok = await confirmModal(
-                        `Remove @${account.handle} from this device?`,
-                        {
-                          title: "Remove account?",
-                          confirmButtonStyle: "danger",
-                          confirmButtonText: "Remove",
-                        },
-                      );
-                      if (!ok) return;
-                      await auth.removeAccount(account.did);
-                      await loadOtherAccounts();
-                      const stillHasOthers = $otherAccounts.get().length > 0;
-                      if (!stillHasOthers) {
-                        $accountSwitcherExpanded.set(false);
-                      }
-                    },
-                  })
-                : null}
-              ${menuItems.map(
-                (item) => html`
-                  <a
-                    href="${item.url}"
-                    class="vertical-nav-item"
-                    data-testid="settings-nav-${item.key}"
+                    }
+                  },
+                  onAdd: () => {
+                    if ($pendingAccountSwitcherAction.get() !== null) return;
+                    $pendingAccountSwitcherAction.set({ type: "add" });
+                    window.location.href = linkToLogin({
+                      query: { addAccount: 1 },
+                    });
+                  },
+                  onRemove: async (account) => {
+                    const ok = await confirmModal(
+                      `Remove @${account.handle} from this device?`,
+                      {
+                        title: "Remove account?",
+                        confirmButtonStyle: "danger",
+                        confirmButtonText: "Remove",
+                      },
+                    );
+                    if (!ok) return;
+                    await auth.removeAccount(account.did);
+                    await loadOtherAccounts();
+                    const stillHasOthers = $otherAccounts.get().length > 0;
+                    if (!stillHasOthers) {
+                      $accountSwitcherExpanded.set(false);
+                    }
+                  },
+                })
+              : null}
+            ${menuItems.map(
+              (item) => html`
+                <a
+                  href="${item.url}"
+                  class="vertical-nav-item"
+                  data-testid="settings-nav-${item.key}"
+                >
+                  <span class="vertical-nav-icon">${item.icon()}</span>
+                  <span class="vertical-nav-label">${item.label}</span>
+                  <span class="vertical-nav-arrow"
+                    >${chevronRightIconTemplate()}</span
                   >
-                    <span class="vertical-nav-icon">${item.icon()}</span>
-                    <span class="vertical-nav-label">${item.label}</span>
-                    <span class="vertical-nav-arrow"
-                      >${chevronRightIconTemplate()}</span
-                    >
-                  </a>
-                `,
-              )}
-              <hr />
-              <button
-                class="vertical-nav-item danger-button"
-                data-testid="settings-sign-out"
-                @click=${async () => {
-                  if (
-                    !(await confirmModal("Are you sure you want to sign out?", {
-                      title: "Sign out?",
-                      confirmButtonStyle: "danger",
-                      confirmButtonText: "Sign out",
-                    }))
-                  ) {
-                    return;
-                  }
-                  await auth.logout();
-                  window.location.reload();
-                }}
-              >
-                Sign out
-              </button>
-            </nav>
-            <div class="version-info" data-testid="version-info">
-              Impro v${window.env.version} - ${window.env.gitCommit}
-            </div>
-            <div class="settings-footer-links">
-              <a
-                href="/tos.html"
-                data-testid="footer-link-terms"
-                data-external="true"
-                >Terms</a
-              >
-              <span class="settings-footer-separator">·</span>
-              <a
-                href="/privacy.html"
-                data-testid="footer-link-privacy"
-                data-external="true"
-                >Privacy Policy</a
-              >
-              <span class="settings-footer-separator">·</span>
-              <a
-                href="https://github.com/improsocial/impro"
-                data-testid="footer-link-github"
-                >GitHub</a
-              >
-            </div>
-          </main>
-        </div>`,
-        root,
-      );
-    });
+                </a>
+              `,
+            )}
+            <hr />
+            <button
+              class="vertical-nav-item danger-button"
+              data-testid="settings-sign-out"
+              @click=${async () => {
+                if (
+                  !(await confirmModal("Are you sure you want to sign out?", {
+                    title: "Sign out?",
+                    confirmButtonStyle: "danger",
+                    confirmButtonText: "Sign out",
+                  }))
+                ) {
+                  return;
+                }
+                await auth.logout();
+                window.location.reload();
+              }}
+            >
+              Sign out
+            </button>
+          </nav>
+          <div class="version-info" data-testid="version-info">
+            Impro v${window.env.version} - ${window.env.gitCommit}
+          </div>
+          <div class="settings-footer-links">
+            <a
+              href="/tos.html"
+              data-testid="footer-link-terms"
+              data-external="true"
+              >Terms</a
+            >
+            <span class="settings-footer-separator">·</span>
+            <a
+              href="/privacy.html"
+              data-testid="footer-link-privacy"
+              data-external="true"
+              >Privacy Policy</a
+            >
+            <span class="settings-footer-separator">·</span>
+            <a
+              href="https://github.com/improsocial/impro"
+              data-testid="footer-link-github"
+              >GitHub</a
+            >
+          </div>
+        </main>
+      </div>`,
+      root,
+    );
+  });
 
-    async function loadOtherAccounts() {
-      const accounts = await auth.listAccounts();
-      const otherAccounts = accounts.filter(
-        (account) => account.did !== currentSession.did,
-      );
-      $otherAccounts.set(otherAccounts);
-    }
-
-    pageEffect(root, () => {
-      // Load account profiles
-      const otherAccounts = $otherAccounts.get();
-      if (otherAccounts === null) return;
-      dataLayer.declarative
-        .ensureDetailedProfiles(otherAccounts.map((account) => account.did))
-        .then((profiles) => {
-          const profilesByDid = {};
-          for (const profile of profiles) {
-            profilesByDid[profile.did] = profile;
-          }
-          $otherAccountProfiles.set(profilesByDid);
-        });
-    });
-
-    root.addEventListener("page-enter", async () => {
-      loadOtherAccounts();
-    });
-
-    // Account actions navigate away with the pending spinner showing; if the
-    // user comes back via the back/forward cache the document is restored
-    // as-is, so reset the stuck pending state.
-    bindToPage(root, window, "pageshow", (event) => {
-      if (event.persisted) {
-        $pendingAccountSwitcherAction.set(null);
-      }
-    });
+  async function loadOtherAccounts() {
+    const accounts = await auth.listAccounts();
+    const otherAccounts = accounts.filter(
+      (account) => account.did !== currentSession.did,
+    );
+    $otherAccounts.set(otherAccounts);
   }
-}
 
-export default new SettingsView();
+  pageEffect(root, () => {
+    // Load account profiles
+    const otherAccounts = $otherAccounts.get();
+    if (otherAccounts === null) return;
+    dataLayer.declarative
+      .ensureDetailedProfiles(otherAccounts.map((account) => account.did))
+      .then((profiles) => {
+        const profilesByDid = {};
+        for (const profile of profiles) {
+          profilesByDid[profile.did] = profile;
+        }
+        $otherAccountProfiles.set(profilesByDid);
+      });
+  });
+
+  function loadPageData() {
+    loadOtherAccounts();
+  }
+
+  root.addEventListener("page-enter", () => loadPageData());
+
+  // Account actions navigate away with the pending spinner showing; if the
+  // user comes back via the back/forward cache the document is restored
+  // as-is, so reset the stuck pending state.
+  bindToPage(root, window, "pageshow", (event) => {
+    if (event.persisted) {
+      $pendingAccountSwitcherAction.set(null);
+    }
+  });
+}

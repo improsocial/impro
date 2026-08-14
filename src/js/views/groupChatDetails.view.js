@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
-import { View } from "/js/views/view.js";
-import { pageEffect, bindPageTitle, bindToPage } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -178,172 +177,154 @@ function notGroupConvoTemplate() {
   </div>`;
 }
 
-class GroupChatDetailsView extends View {
-  async render({
-    root,
-    params,
-    router,
-    layout,
-    context: { dataLayer, isAuthenticated, pluginService },
-  }) {
-    await auth.requireAuth();
+export default async function groupChatDetailsView({
+  root,
+  params,
+  router,
+  layout,
+  context: { dataLayer, isAuthenticated, pluginService },
+}) {
+  await auth.requireAuth();
 
-    const convoId = params.convoId;
-    const $isMuteSaving = new Signal.State(false);
+  const convoId = params.convoId;
+  const $isMuteSaving = new Signal.State(false);
 
-    const $requestError = new Signal.Computed(() => {
-      return (
-        dataLayer.requests.statusStore.$errors.get("loadConvo-" + convoId) ??
-        dataLayer.requests.statusStore.$errors.get(
-          "loadConvoMembers-" + convoId,
-        ) ??
-        null
-      );
-    });
+  const $requestError = new Signal.Computed(() => {
+    return (
+      dataLayer.requests.statusStore.$errors.get("loadConvo-" + convoId) ??
+      dataLayer.requests.statusStore.$errors.get(
+        "loadConvoMembers-" + convoId,
+      ) ??
+      null
+    );
+  });
 
-    async function loadMoreMembers() {
-      await dataLayer.requests.loadConvoMembers(convoId);
-    }
-
-    async function handleToggleMute(convo, muted) {
-      $isMuteSaving.set(true);
-      try {
-        await dataLayer.mutations.setConvoMuted(convo, muted);
-        showToast(muted ? "Group chat muted" : "Group chat unmuted");
-      } catch (err) {
-        console.error(err);
-        showToast("Failed to mute group chat", { style: "error" });
-      } finally {
-        $isMuteSaving.set(false);
-      }
-    }
-
-    async function handleLeave(convo, groupDetails) {
-      const groupName = groupDetails?.name ?? "this group chat";
-      const didLeave = await confirmModal(
-        `Are you sure you want to leave "${groupName}"? You won't be able to rejoin unless you're invited.`,
-        {
-          title: "Leave group chat",
-          confirmButtonText: "Leave group chat",
-          confirmButtonStyle: "danger",
-          pendingText: "Leaving",
-          onConfirm: async () => {
-            try {
-              await dataLayer.mutations.leaveConvo(convo);
-            } catch (err) {
-              if (err instanceof ApiError) {
-                if (err.data?.error === "OwnerCannotLeave") {
-                  showToast("Owner must lock the group before leaving.", {
-                    style: "error",
-                  });
-                  throw err;
-                }
-                if (err.data?.error === "InvalidConvo") {
-                  showToast("Conversation not found.", { style: "error" });
-                  throw err;
-                }
-              }
-              console.error(err);
-              showToast("Could not leave chat", { style: "error" });
-              throw err;
-            }
-          },
-        },
-      );
-      if (didLeave) {
-        router.go("/messages");
-        showToast("Left group chat");
-      }
-    }
-
-    bindToPage(root, layout, "active-nav-click", (event) => {
-      event.preventDefault();
-      router.go("/messages");
-    });
-
-    bindPageTitle(root, () => "Group chat settings");
-
-    pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const convo = dataLayer.derived.$convos.get(convoId);
-      const memberFeed = dataLayer.derived.$groupConvoMemberList.get(convoId);
-      const requestError = $requestError.get();
-      const groupDetails = convo ? getGroupConvoDetails(convo) : null;
-      const ownerDid = convo ? getGroupConvoOwner(convo)?.did : null;
-      const members = memberFeed
-        ? sortMembers({
-            members: memberFeed.members,
-            ownerDid,
-            currentUserDid: currentUser?.did ?? null,
-          })
-        : null;
-      const hasMore = !!memberFeed?.cursor;
-      const isMuteSaving = $isMuteSaving.get();
-
-      render(
-        html`<div id="group-chat-details-view">
-          ${headerTemplate({
-            title: "Group chat settings",
-            backButtonFallbackRoute: `/messages/${encodeURIComponent(convoId)}`,
-          })}
-          <main>
-            ${(() => {
-              if (convo && !groupDetails) {
-                return notGroupConvoTemplate();
-              }
-              if (requestError && (!convo || !memberFeed)) {
-                return detailsErrorTemplate({ error: requestError });
-              }
-              return html`${convo
-                ? groupHeaderCardTemplate({
-                    convo,
-                    groupDetails,
-                    currentUserDid: currentUser?.did ?? null,
-                    isMuteSaving,
-                    onToggleMute: (muted) => handleToggleMute(convo, muted),
-                    onLeave: (details) => handleLeave(convo, details),
-                  })
-                : groupHeaderCardSkeletonTemplate()}
-              ${membersHeadingTemplate({ groupDetails })}
-              ${profileFeedTemplate({
-                profiles: members,
-                hasMore,
-                onLoadMore: loadMoreMembers,
-                isAuthenticated,
-                pluginService,
-                compact: true,
-                rightItemTemplate: (actor) =>
-                  memberTrailingTemplate({ member: actor, ownerDid }),
-              })}`;
-            })()}
-          </main>
-        </div>`,
-        root,
-      );
-    });
-
-    function loadConvoDetails({ reload = false } = {}) {
-      return Promise.all([
-        dataLayer.requests.loadConvo(convoId).catch((error) => {
-          console.error("Failed to load convo", error);
-        }),
-        dataLayer.requests
-          .loadConvoMembers(convoId, { reload })
-          .catch((error) => {
-            console.error("Failed to load convo members", error);
-          }),
-      ]);
-    }
-
-    root.addEventListener("page-enter", () => {
-      loadConvoDetails({ reload: true });
-    });
-
-    root.addEventListener("page-restore", async (e) => {
-      if (e.detail?.isBack) return;
-      await loadConvoDetails({ reload: true });
-    });
+  async function loadMoreMembers() {
+    await dataLayer.requests.loadConvoMembers(convoId);
   }
-}
 
-export default new GroupChatDetailsView();
+  async function handleToggleMute(convo, muted) {
+    $isMuteSaving.set(true);
+    try {
+      await dataLayer.mutations.setConvoMuted(convo, muted);
+      showToast(muted ? "Group chat muted" : "Group chat unmuted");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to mute group chat", { style: "error" });
+    } finally {
+      $isMuteSaving.set(false);
+    }
+  }
+
+  async function handleLeave(convo, groupDetails) {
+    const groupName = groupDetails?.name ?? "this group chat";
+    const didLeave = await confirmModal(
+      `Are you sure you want to leave "${groupName}"? You won't be able to rejoin unless you're invited.`,
+      {
+        title: "Leave group chat",
+        confirmButtonText: "Leave group chat",
+        confirmButtonStyle: "danger",
+        pendingText: "Leaving",
+        onConfirm: async () => {
+          try {
+            await dataLayer.mutations.leaveConvo(convo);
+          } catch (err) {
+            if (err instanceof ApiError) {
+              if (err.data?.error === "OwnerCannotLeave") {
+                showToast("Owner must lock the group before leaving.", {
+                  style: "error",
+                });
+                throw err;
+              }
+              if (err.data?.error === "InvalidConvo") {
+                showToast("Conversation not found.", { style: "error" });
+                throw err;
+              }
+            }
+            console.error(err);
+            showToast("Could not leave chat", { style: "error" });
+            throw err;
+          }
+        },
+      },
+    );
+    if (didLeave) {
+      router.go("/messages");
+      showToast("Left group chat");
+    }
+  }
+
+  bindPageTitle(root, () => "Group chat settings");
+
+  pageEffect(root, () => {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    const convo = dataLayer.derived.$convos.get(convoId);
+    const memberFeed = dataLayer.derived.$groupConvoMemberList.get(convoId);
+    const requestError = $requestError.get();
+    const groupDetails = convo ? getGroupConvoDetails(convo) : null;
+    const ownerDid = convo ? getGroupConvoOwner(convo)?.did : null;
+    const members = memberFeed
+      ? sortMembers({
+          members: memberFeed.members,
+          ownerDid,
+          currentUserDid: currentUser?.did ?? null,
+        })
+      : null;
+    const hasMore = !!memberFeed?.cursor;
+    const isMuteSaving = $isMuteSaving.get();
+
+    render(
+      html`<div id="group-chat-details-view">
+        ${headerTemplate({
+          title: "Group chat settings",
+          backButtonFallbackRoute: `/messages/${encodeURIComponent(convoId)}`,
+        })}
+        <main>
+          ${(() => {
+            if (convo && !groupDetails) {
+              return notGroupConvoTemplate();
+            }
+            if (requestError && (!convo || !memberFeed)) {
+              return detailsErrorTemplate({ error: requestError });
+            }
+            return html`${convo
+              ? groupHeaderCardTemplate({
+                  convo,
+                  groupDetails,
+                  currentUserDid: currentUser?.did ?? null,
+                  isMuteSaving,
+                  onToggleMute: (muted) => handleToggleMute(convo, muted),
+                  onLeave: (details) => handleLeave(convo, details),
+                })
+              : groupHeaderCardSkeletonTemplate()}
+            ${membersHeadingTemplate({ groupDetails })}
+            ${profileFeedTemplate({
+              profiles: members,
+              hasMore,
+              onLoadMore: loadMoreMembers,
+              isAuthenticated,
+              pluginService,
+              compact: true,
+              rightItemTemplate: (actor) =>
+                memberTrailingTemplate({ member: actor, ownerDid }),
+            })}`;
+          })()}
+        </main>
+      </div>`,
+      root,
+    );
+  });
+
+  function loadPageData() {
+    dataLayer.requests.loadConvo(convoId).catch((error) => {
+      console.error("Failed to load convo", error);
+    });
+    dataLayer.requests
+      .loadConvoMembers(convoId, { reload: true })
+      .catch((error) => {
+        console.error("Failed to load convo members", error);
+      });
+  }
+
+  root.addEventListener("page-enter", () => loadPageData());
+}

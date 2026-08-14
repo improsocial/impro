@@ -1,109 +1,100 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { View } from "/js/views/view.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
 
-class PostLikesView extends View {
-  async render({
-    root,
-    params,
-    context: {
-      dataLayer,
-      identityResolver,
-      isAuthenticated,
-      interactionHandlers,
-      pluginService,
-    },
-  }) {
-    const { handleOrDid, rkey } = params;
+export default async function postLikesView({
+  root,
+  params,
+  context: {
+    dataLayer,
+    identityResolver,
+    isAuthenticated,
+    interactionHandlers,
+    pluginService,
+  },
+}) {
+  const { handleOrDid, rkey } = params;
 
-    let authorDid = null;
-    if (handleOrDid.startsWith("did:")) {
-      authorDid = handleOrDid;
-    } else {
-      authorDid = await identityResolver.resolveHandle(handleOrDid);
-    }
-    const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
-
-    function likesErrorTemplate({ error }) {
-      console.error(error);
-      return html`<div class="error-state">
-        <div>Error loading likes</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
-          Try again
-        </button>
-      </div>`;
-    }
-
-    pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const postLikes = dataLayer.derived.$postLikes.get(postUri);
-      const post = dataLayer.derived.$hydratedPosts.get(postUri);
-      const postLikesRequestStatus =
-        dataLayer.requests.statusStore.$statuses.get(
-          "loadPostLikes-" + postUri,
-        );
-      const hasMore = postLikes?.cursor ? true : false;
-
-      const subtitle = post?.likeCount
-        ? `${formatLargeNumber(post.likeCount)} ${
-            post.likeCount === 1 ? "like" : "likes"
-          }`
-        : null;
-
-      render(
-        html`<div id="post-likes-view">
-          ${headerTemplate({
-            title: "Liked by",
-            subtitle,
-          })}
-          <main style="position: relative;">
-            ${(() => {
-              if (postLikesRequestStatus.error) {
-                return likesErrorTemplate({
-                  error: postLikesRequestStatus.error,
-                });
-              }
-              return profileFeedTemplate({
-                profiles: postLikes?.likes?.map((like) => like.actor) ?? null,
-                hasMore,
-                onLoadMore: loadLikes,
-                emptyMessage: "No likes yet.",
-                isAuthenticated,
-                currentUserDid: currentUser?.did ?? null,
-                profileInteractionHandler:
-                  interactionHandlers.profileInteractionHandler,
-                pluginService,
-              });
-            })()}
-          </main>
-        </div>`,
-        root,
-      );
-    });
-
-    bindPageTitle(root, () => "Liked by");
-
-    async function loadLikes() {
-      const postLikes = dataLayer.derived.$postLikes.get(postUri);
-      const cursor = postLikes?.cursor;
-      await dataLayer.requests.loadPostLikes(postUri, { cursor });
-    }
-
-    root.addEventListener("page-enter", async () => {
-      // Load the post thread to get the post like count
-      dataLayer.declarative.ensurePostThread(postUri);
-      await loadLikes();
-    });
-
-    root.addEventListener("page-restore", async (e) => {
-      if (e.detail?.isBack) return;
-      await dataLayer.requests.loadPostLikes(postUri);
-    });
+  let authorDid = null;
+  if (handleOrDid.startsWith("did:")) {
+    authorDid = handleOrDid;
+  } else {
+    authorDid = await identityResolver.resolveHandle(handleOrDid);
   }
-}
+  const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
-export default new PostLikesView();
+  function likesErrorTemplate({ error }) {
+    console.error(error);
+    return html`<div class="error-state">
+      <div>Error loading likes</div>
+      <button class="rounded-button" @click=${() => window.location.reload()}>
+        Try again
+      </button>
+    </div>`;
+  }
+
+  pageEffect(root, () => {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    const postLikes = dataLayer.derived.$postLikes.get(postUri);
+    const post = dataLayer.derived.$hydratedPosts.get(postUri);
+    const postLikesRequestStatus = dataLayer.requests.statusStore.$statuses.get(
+      "loadPostLikes-" + postUri,
+    );
+    const hasMore = postLikes?.cursor ? true : false;
+
+    const subtitle = post?.likeCount
+      ? `${formatLargeNumber(post.likeCount)} ${
+          post.likeCount === 1 ? "like" : "likes"
+        }`
+      : null;
+
+    render(
+      html`<div id="post-likes-view">
+        ${headerTemplate({
+          title: "Liked by",
+          subtitle,
+        })}
+        <main style="position: relative;">
+          ${(() => {
+            if (postLikesRequestStatus.error) {
+              return likesErrorTemplate({
+                error: postLikesRequestStatus.error,
+              });
+            }
+            return profileFeedTemplate({
+              profiles: postLikes?.likes?.map((like) => like.actor) ?? null,
+              hasMore,
+              onLoadMore: loadLikes,
+              emptyMessage: "No likes yet.",
+              isAuthenticated,
+              currentUserDid: currentUser?.did ?? null,
+              profileInteractionHandler:
+                interactionHandlers.profileInteractionHandler,
+              pluginService,
+            });
+          })()}
+        </main>
+      </div>`,
+      root,
+    );
+  });
+
+  bindPageTitle(root, () => "Liked by");
+
+  async function loadLikes({ reload = false } = {}) {
+    const cursor = reload
+      ? undefined
+      : dataLayer.derived.$postLikes.get(postUri)?.cursor;
+    await dataLayer.requests.loadPostLikes(postUri, { cursor });
+  }
+
+  function loadPageData() {
+    dataLayer.requests.loadPostThread(postUri);
+    loadLikes({ reload: true });
+  }
+
+  root.addEventListener("page-enter", () => loadPageData());
+}

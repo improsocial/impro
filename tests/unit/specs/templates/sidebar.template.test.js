@@ -1,7 +1,8 @@
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { render } from "/js/lib/lit-html.js";
+import { raf } from "/js/utils.js";
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -576,5 +577,74 @@ describe("sidebarTemplate - plugin sidebar items", () => {
       container.querySelectorAll(".sidebar-plugin-nav-item").length,
       0,
     );
+  });
+});
+
+describe("sidebarTemplate - active nav item clicks", () => {
+  let originalRouter;
+  let go;
+
+  beforeEach(() => {
+    originalRouter = window.router;
+    go = mock.fn();
+    // the non-active branch navigates in-app rather than following the href
+    window.router = { go };
+  });
+
+  afterEach(() => {
+    window.router = originalRouter;
+  });
+
+  // The non-active branch navigates after two animation frames, so let the
+  // handler settle while the router stub is still installed.
+  async function clickNavItem({
+    isNavItemPage,
+    activeNavItem = "chat",
+    id = "chat",
+  }) {
+    const onClickActiveItem = mock.fn();
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({
+        isAuthenticated: true,
+        currentUser: mockUser,
+        activeNavItem,
+        isNavItemPage,
+        onClickActiveItem,
+      }),
+      container,
+    );
+    const link = container.querySelector(`[data-testid="sidebar-nav-${id}"]`);
+    const event = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    link.dispatchEvent(event);
+    await raf();
+    await raf();
+    return { onClickActiveItem, event };
+  }
+
+  it("claims the click when already on the item's own page", async () => {
+    const { onClickActiveItem, event } = await clickNavItem({
+      isNavItemPage: true,
+    });
+    assert.equal(onClickActiveItem.mock.calls.length, 1);
+    assert(event.defaultPrevented);
+  });
+
+  it("navigates instead of claiming the click from a deeper page in the same section", async () => {
+    const { onClickActiveItem } = await clickNavItem({ isNavItemPage: false });
+    assert.equal(onClickActiveItem.mock.calls.length, 0);
+    assert.equal(go.mock.calls.length, 1);
+  });
+
+  it("claims the click on the user's own profile despite the did/handle url", async () => {
+    const { onClickActiveItem } = await clickNavItem({
+      isNavItemPage: true,
+      activeNavItem: "profile",
+      id: "profile",
+    });
+    assert.equal(onClickActiveItem.mock.calls.length, 1);
   });
 });

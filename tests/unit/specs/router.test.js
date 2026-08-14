@@ -1022,7 +1022,7 @@ describe("layout visibility", () => {
       hiddenAtRestoreTime = isLayoutHidden();
     });
 
-    await router.load("/test");
+    await router.load("/test", { isBack: true });
 
     assert.deepEqual(hiddenAtRestoreTime, false);
   });
@@ -1162,7 +1162,7 @@ describe("scroll position persistence", () => {
 
     await withScrollY(175, async () => {
       await router.load("/b"); // leaving /a saves 175 under /a
-      await router.load("/a"); // returning to cached /a restores it
+      await router.load("/a", { isBack: true }); // back to cached /a restores it
     });
 
     assert.deepEqual(restoredScrollY, 175);
@@ -1257,5 +1257,37 @@ describe("scrollRestore", () => {
     await revisit(router, { isBack: true });
 
     assert.deepEqual(scrolledBeforeDispatch, [[0, 175]]);
+  });
+});
+
+describe("page event dispatch", () => {
+  function createRouter() {
+    const router = new Router();
+    router.renderRoute(() => {});
+    router.addRoute("/a", () => () => {});
+    router.addRoute("/b", () => () => {});
+    mountRouter(router);
+    return router;
+  }
+
+  async function eventsFor(loadOptions) {
+    const router = createRouter();
+    await router.load("/a");
+    const pageA = router.pages.get("/a").el;
+    const seen = [];
+    for (const name of ["page-enter", "page-restore"]) {
+      pageA.addEventListener(name, () => seen.push(name));
+    }
+    await router.load("/b");
+    await router.load("/a", loadOptions);
+    return seen;
+  }
+
+  it("dispatches page-enter when a cached page is revisited forwards", async () => {
+    assert.deepEqual(await eventsFor({}), ["page-enter"]);
+  });
+
+  it("dispatches page-restore only on a back navigation", async () => {
+    assert.deepEqual(await eventsFor({ isBack: true }), ["page-restore"]);
   });
 });

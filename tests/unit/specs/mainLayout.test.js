@@ -183,7 +183,9 @@ describe("MainLayout", () => {
   it("lets a layout listener claim active nav clicks via preventDefault", async (t) => {
     const scrollTo = t.mock.method(window, "scrollTo", () => {});
     const { layout, appRoot } = harness;
-    setRoute({ layoutOptions: { activeNavItem: "home" } });
+    setRoute({
+      layoutOptions: { activeNavItem: "home", isNavItemPage: true },
+    });
     await flushRender();
     const handler = mock.fn((event) => event.preventDefault());
     layout.addEventListener("active-nav-click", handler);
@@ -197,7 +199,9 @@ describe("MainLayout", () => {
 
   it("scrolls to top on active nav clicks nobody claims", async (t) => {
     const scrollTo = t.mock.method(window, "scrollTo", () => {});
-    setRoute({ layoutOptions: { activeNavItem: "home" } });
+    setRoute({
+      layoutOptions: { activeNavItem: "home", isNavItemPage: true },
+    });
     await flushRender();
 
     harness.appRoot.querySelector("[data-testid='footer-nav-home']").click();

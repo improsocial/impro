@@ -23,20 +23,28 @@ function bindMiddleClickRedispatch() {
   });
 }
 
-export function bindToPage(root, source, event, handler) {
-  if (!source) return;
-  const usesEmitterApi = typeof source.on === "function";
-  const attach = () =>
-    usesEmitterApi
-      ? source.on(event, handler)
-      : source.addEventListener(event, handler);
-  const detach = () =>
-    usesEmitterApi
-      ? source.off(event, handler)
-      : source.removeEventListener(event, handler);
+// Runs attach whenever the page becomes active (first entry or a return from
+// the route cache) and detach when it's swapped out.
+function bindActive(root, attach, detach) {
   root.addEventListener("page-enter", attach);
   root.addEventListener("page-restore", attach);
   root.addEventListener("page-exit", detach);
+}
+
+export function bindToPage(root, source, event, handler) {
+  if (!source) return;
+  const usesEmitterApi = typeof source.on === "function";
+  bindActive(
+    root,
+    () =>
+      usesEmitterApi
+        ? source.on(event, handler)
+        : source.addEventListener(event, handler),
+    () =>
+      usesEmitterApi
+        ? source.off(event, handler)
+        : source.removeEventListener(event, handler),
+  );
 }
 
 export class Layout extends EventTarget {
@@ -47,17 +55,17 @@ export class Layout extends EventTarget {
 
 export function pageEffect(root, callback, options) {
   let dispose;
-  const attach = () => {
-    dispose?.();
-    dispose = effect(callback, options);
-  };
-  const detach = () => {
-    dispose?.();
-    dispose = null;
-  };
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
-  root.addEventListener("page-exit", detach);
+  bindActive(
+    root,
+    () => {
+      dispose?.();
+      dispose = effect(callback, options);
+    },
+    () => {
+      dispose?.();
+      dispose = null;
+    },
+  );
 }
 
 const APP_TITLE = document.title;
@@ -77,9 +85,7 @@ export function bindPageTitle(root, callback, options) {
     dispose = null;
     document.title = APP_TITLE;
   };
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
-  root.addEventListener("page-exit", detach);
+  bindActive(root, attach, detach);
 }
 
 export class Router extends EventEmitter {
@@ -287,11 +293,8 @@ export class Router extends EventEmitter {
           console.warn(`unknown scrollRestore type: ${scrollRestore}`);
       }
       this.currentPage.dispatchEvent(
-        new CustomEvent("page-restore", {
-          detail: {
-            scrollY,
-            isBack,
-          },
+        new CustomEvent(isBack ? "page-restore" : "page-enter", {
+          detail: { scrollY },
         }),
       );
       this.emit("page-shown", this.currentPage);

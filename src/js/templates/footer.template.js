@@ -40,6 +40,7 @@ export function footerTemplate({
   isAuthenticated,
   currentUser,
   activeNavItem = null,
+  isNavItemPage = false,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
@@ -109,8 +110,9 @@ export function footerTemplate({
             ?disabled=${item.disabled}
             @long-press=${longPressEnabled ? () => onLongPressProfile() : null}
             @click=${(e) => {
-              // tap active item to scroll to top
-              if (active) {
+              // tap the item for the page you're on to scroll to top; deeper
+              // pages in the section just follow the link
+              if (active && isNavItemPage) {
                 e.preventDefault();
                 e.stopPropagation();
                 onClickActiveItem?.(item.id);
