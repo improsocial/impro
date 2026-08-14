@@ -8714,6 +8714,7 @@ moderation-warning .toggle-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 600px;
 }
 
 #login-view .saved-accounts-heading {
