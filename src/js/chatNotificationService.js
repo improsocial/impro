@@ -1,5 +1,7 @@
+import { wait } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
-import { pollIntervalMs, interruptibleWait } from "/js/pollCadence.js";
+
+const POLLING_INTERVAL_SECONDS = 10;
 
 export class ChatNotificationService {
   constructor(api) {
@@ -10,8 +12,8 @@ export class ChatNotificationService {
     this._lastServerTotal = 0;
   }
 
-  // See NotificationService.startPolling for what `isPushEnabled` is for.
-  startPolling({ isPushEnabled = () => false } = {}) {
+  startPolling() {
+    const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
     let stopped = false;
     const poll = async () => {
       while (!stopped) {
@@ -20,9 +22,7 @@ export class ChatNotificationService {
         } catch (error) {
           console.error(error);
         }
-        await interruptibleWait(
-          pollIntervalMs({ pushEnabled: isPushEnabled() }),
-        );
+        await wait(pollingInterval);
       }
     };
     poll();

@@ -25,10 +25,13 @@ function setupDom({ enabled = true, granted = true } = {}) {
   globalThis.Notification = { permission: granted ? "granted" : "denied" };
   // isSupported checks for these on window/navigator; jsdom has neither.
   globalThis.window.PushManager = function PushManager() {};
-  // Push is touch-only-device territory; the env's default matchMedia stub
-  // reports every query as non-matching, which would read as a desktop.
+  // Push needs an installed app on a touch-only device; the env's default
+  // matchMedia stub reports every query as non-matching, which would read as
+  // an uninstalled desktop browser.
   globalThis.window.matchMedia = (query) => ({
-    matches: query === "(hover: none) and (pointer: coarse)",
+    matches:
+      query === "(hover: none) and (pointer: coarse)" ||
+      query === "(display-mode: standalone)",
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -44,14 +47,17 @@ function setupDom({ enabled = true, granted = true } = {}) {
     visibilityState: "visible",
   };
   // Node 24 defines a read-only global `navigator`; replace it explicitly.
+  const registration = {
+    pushManager: {
+      getSubscription: async () => SUBSCRIPTION,
+    },
+  };
   Object.defineProperty(globalThis, "navigator", {
     value: {
       serviceWorker: {
-        getRegistration: async () => ({
-          pushManager: {
-            getSubscription: async () => SUBSCRIPTION,
-          },
-        }),
+        register: async () => registration,
+        ready: Promise.resolve(registration),
+        getRegistration: async () => registration,
       },
     },
     configurable: true,
@@ -84,17 +90,10 @@ function createService(dataLayer = makeDataLayer()) {
   };
 }
 
-describe("CourierPushService heartbeat", () => {
-  let timers;
+describe("CourierPushService registration", () => {
   let originals;
 
   beforeEach(() => {
-    timers = [];
-    globalThis.setInterval = (fn) => {
-      timers.push(fn);
-      return timers.length;
-    };
-    globalThis.clearInterval = () => {};
     // The parallel runner reuses processes across test files, so every global
     // this suite touches must be restored exactly — a leftover fake document
     // breaks whatever runs next in the same worker.
@@ -121,10 +120,10 @@ describe("CourierPushService heartbeat", () => {
     }
   });
 
-  it("re-registers the existing subscription without prompting", async () => {
+  it("reuses the existing subscription rather than prompting again", async () => {
     setupDom();
     const { service, registerPush } = createService();
-    await service._heartbeat();
+    await service._subscribeAndRegister({ vapidPublicKey: "k" });
     assert.equal(registerPush.mock.calls.length, 1);
     const args = registerPush.mock.calls[0].arguments[0];
     assert.equal(args.appId, "social.impro");
@@ -136,57 +135,72 @@ describe("CourierPushService heartbeat", () => {
     });
   });
 
-  it("is throttled within half the interval", async () => {
+  it("skips the launch re-assert when no service is selected", async () => {
     setupDom();
     const { service, registerPush } = createService();
-    await service._heartbeat();
-    await service._heartbeat(); // immediately after: throttled
-    assert.equal(registerPush.mock.calls.length, 1);
+    await service.reassertIfEnabled();
+    assert.equal(registerPush.mock.calls.length, 0);
   });
 
-  it("stops and skips when push is disabled", async () => {
+  it("skips the launch re-assert when push is disabled", async () => {
     setupDom({ enabled: false });
-    const { service, registerPush } = createService();
-    await service._heartbeat();
+    const { service, registerPush } = createService(
+      makeDataLayer("did:web:notifs.example"),
+    );
+    await service.reassertIfEnabled();
     assert.equal(registerPush.mock.calls.length, 0);
   });
 
-  it("stops when permission was revoked out-of-band", async () => {
+  // Revoking notifications in browser site settings tells us nothing, so the
+  // stored flag is only reconciled the next time we go looking.
+  it("clears the stored flag when permission was revoked out-of-band", async () => {
     setupDom({ granted: false });
-    const { service, registerPush } = createService();
-    await service._heartbeat();
+    const { service, registerPush } = createService(
+      makeDataLayer("did:web:notifs.example"),
+    );
+    await service.reassertIfEnabled();
     assert.equal(registerPush.mock.calls.length, 0);
+    assert.equal(service.$enabled.get(), false);
   });
 
-  it("startHeartbeat registers one interval and one visibility listener", () => {
+  it("disable() unregisters this device and clears the flag", async () => {
     setupDom();
     const { service } = createService();
-    service.startHeartbeat();
-    service.startHeartbeat(); // idempotent
-    assert.equal(timers.length, 1);
-    assert.ok(globalThis.document._listeners.visibilitychange);
-  });
-
-  it("disable() stops the heartbeat", async () => {
-    setupDom();
-    const { service } = createService();
-    service.startHeartbeat();
     const unregisterPush = mock.fn(async () => {});
     service.api.unregisterPush = unregisterPush;
     await service.disable();
-    assert.equal(service._heartbeatTimer, null);
-    assert.equal(globalThis.document._listeners.visibilitychange, undefined);
+    assert.equal(unregisterPush.mock.calls.length, 1);
+    assert.equal(service.$enabled.get(), false);
   });
 
-  it("a failing beat does not throw", async () => {
+  // Only iOS withholds push from a browser tab, so installation is required
+  // there and nowhere else.
+  function simulateUninstalled({ ios }) {
+    globalThis.window.matchMedia = (query) => ({
+      matches: query === "(hover: none) and (pointer: coarse)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    navigator.userAgent = ios ? "iPhone" : "Android";
+  }
+
+  it("is unsupported in an uninstalled iOS browser", () => {
     setupDom();
-    const api = {
-      registerPush: mock.fn(async () => {
-        throw new Error("network");
-      }),
-    };
-    const service = new CourierPushService(api, makeDataLayer());
-    await assert.doesNotReject(() => service._heartbeat());
+    simulateUninstalled({ ios: true });
+    const { service } = createService();
+    assert.equal(service.isSupported, false);
+    assert.equal(service.isEnabled, false);
+    // The one refusal the user can act on, so the settings copy can say how.
+    assert.equal(service.requiresInstall, true);
+  });
+
+  it("is supported in an uninstalled non-iOS mobile browser", () => {
+    setupDom();
+    simulateUninstalled({ ios: false });
+    const { service } = createService(makeDataLayer("did:web:notifs.example"));
+    assert.equal(service.isSupported, true);
+    assert.equal(service.requiresInstall, false);
   });
 
   it("is unsupported on a device that isn't touch-only", () => {
@@ -209,7 +223,7 @@ describe("CourierPushService heartbeat", () => {
     const { service, registerPush } = createService(
       makeDataLayer("did:web:elsewhere.example"),
     );
-    await service._heartbeat();
+    await service._subscribeAndRegister({ vapidPublicKey: "k" });
     assert.equal(
       registerPush.mock.calls[0].arguments[0].serviceDid,
       "did:web:elsewhere.example",
@@ -306,7 +320,7 @@ describe("CourierPushService service selection", () => {
     assert.equal(preview.authUrl, "u");
   });
 
-  it("caches the resolved config instead of refetching every launch", async () => {
+  it("resolves a service once per session", async () => {
     const { service, dataLayer } = createService();
     await service.selectService("did:web:notifs.example");
     await service.fetchServiceConfig();
@@ -318,11 +332,12 @@ describe("CourierPushService service selection", () => {
       "a second lookup should not hit the network",
     );
 
-    // A fresh instance is the app-launch case: it must reuse the persisted
-    // entry rather than re-resolving the DID document and config.
+    // A fresh instance is the app-launch case. It re-resolves rather than
+    // reading a persisted copy: how long the config stays good is the
+    // service's call, made in its own cache headers.
     const { service: relaunched } = createService(dataLayer);
     await relaunched.fetchServiceConfig();
-    assert.equal(fetchCalls.length, afterFirst);
+    assert.ok(fetchCalls.length > afterFirst);
   });
 
   it("does not cache a failed lookup as the answer", async () => {

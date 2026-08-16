@@ -1,27 +1,12 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
-import { isTouchOnlyDevice } from "/js/utils.js";
+import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
 
 const STORAGE_KEY = "courier-push-enabled";
-const CONFIG_CACHE_KEY = "courier-push-service-config";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
 const NOTIF_SERVICE_ID = "#bsky_notif";
-
-// Keeps the account on the service's fast poll cadence while the user is here.
-//
-// Must stay comfortably under the service's own active window (300s on the
-// reference deployment) — that is the coupling this number exists to satisfy,
-// and the only reason it is not larger. Every beat is a PDS round-trip, so
-// beating far more often than the window buys nothing and costs traffic on
-// somebody else's infrastructure.
-const HEARTBEAT_INTERVAL_MS = 240_000;
-
-// How long a fetched service config is reused before being re-fetched. The
-// documents are effectively static; without this the app re-fetches a DID
-// document and a config document on every launch.
-const CONFIG_TTL_MS = 6 * 60 * 60 * 1000;
 
 async function resolveNotifServiceEndpoint(did) {
   // resolveDid handles did:plc and did:web alike, so a service is not
@@ -62,10 +47,15 @@ export class CourierPushService {
   get isSupported() {
     return (
       isTouchOnlyDevice() &&
+      (isStandalonePWA() || !isIOS()) &&
       typeof Notification !== "undefined" &&
       "serviceWorker" in navigator &&
       "PushManager" in window
     );
+  }
+
+  get requiresInstall() {
+    return !this.isSupported && isTouchOnlyDevice() && isIOS();
   }
 
   get isEnabled() {
@@ -132,23 +122,9 @@ export class CourierPushService {
     return this._loadServiceConfig(this.serviceDid);
   }
 
-  // Memoized per instance, then cached in localStorage for CONFIG_TTL_MS.
-  //
-  // Resolving a service costs two network round-trips (a DID document, then
-  // the config document) and both are effectively static. Without this the app
-  // pays for them on every launch, and again whenever a heartbeat has to fall
-  // back to a full re-assert.
   async _loadServiceConfig(did) {
     if (did === this.serviceDid && this._configPromise) {
       return this._configPromise;
-    }
-
-    const cached = this._cachedConfig(did);
-    if (cached) {
-      if (did === this.serviceDid) {
-        this._configPromise = Promise.resolve(cached);
-      }
-      return cached;
     }
 
     const promise = (async () => {
@@ -161,9 +137,7 @@ export class CourierPushService {
           `Failed to fetch notification service config (${res.status})`,
         );
       }
-      const config = { ...(await res.json()), serviceEndpoint };
-      this._cacheConfig(did, config);
-      return config;
+      return { ...(await res.json()), serviceEndpoint };
     })();
 
     if (did === this.serviceDid) {
@@ -176,33 +150,8 @@ export class CourierPushService {
     return promise;
   }
 
-  _cachedConfig(did) {
-    try {
-      const raw = localStorage.getItem(CONFIG_CACHE_KEY);
-      if (!raw) return null;
-      const entry = JSON.parse(raw);
-      if (entry.did !== did) return null;
-      if (Date.now() - entry.at > CONFIG_TTL_MS) return null;
-      return entry.config;
-    } catch {
-      return null;
-    }
-  }
-
-  _cacheConfig(did, config) {
-    try {
-      localStorage.setItem(
-        CONFIG_CACHE_KEY,
-        JSON.stringify({ did, at: Date.now(), config }),
-      );
-    } catch {
-      // A full or unavailable localStorage costs a re-fetch, nothing more.
-    }
-  }
-
   _forgetConfig() {
     this._configPromise = null;
-    localStorage.removeItem(CONFIG_CACHE_KEY);
   }
 
   // Step 1 of the enable flow: navigates the browser away to the service's
@@ -230,7 +179,6 @@ export class CourierPushService {
   async completeEnableFlow() {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
-    this.startHeartbeat();
   }
 
   async _subscribeAndRegister(config) {
@@ -268,96 +216,12 @@ export class CourierPushService {
     } catch (error) {
       console.error("Failed to re-assert push registration", error);
     }
-    this.startHeartbeat();
-  }
-
-  // User-activity signal for the courier's adaptive cadence.
-  //
-  // The service decides poll frequency from "how recently was this account
-  // active", and the only activity signal in the protocol is registerPush
-  // (an idempotent upsert the service already counts as activity — no new
-  // method, no new scope). While the user has this app open, re-asserting
-  // keeps the account on the fast cadence; when the tab goes away the
-  // heartbeats stop and the service lets the account wind down to idle on
-  // its own, which is the correct behavior for a user who's gone.
-  startHeartbeat() {
-    if (this._heartbeatTimer) return;
-    const beat = () => this._heartbeat();
-    this._heartbeatTimer = setInterval(beat, HEARTBEAT_INTERVAL_MS);
-    // Coming back to the tab is activity right now — beat once on the way
-    // in rather than waiting up to a full interval.
-    this._visibilityHandler = () => {
-      if (document.visibilityState === "visible") beat();
-    };
-    document.addEventListener("visibilitychange", this._visibilityHandler);
-  }
-
-  stopHeartbeat() {
-    if (this._heartbeatTimer) {
-      clearInterval(this._heartbeatTimer);
-      this._heartbeatTimer = null;
-    }
-    if (this._visibilityHandler) {
-      document.removeEventListener("visibilitychange", this._visibilityHandler);
-      this._visibilityHandler = null;
-    }
-  }
-
-  async _heartbeat() {
-    // A hidden tab is not the user being here. The interval keeps running so
-    // the beat resumes the moment the tab comes back (the visibilitychange
-    // listener also fires one immediately), but no traffic goes out while the
-    // user is elsewhere — and the service lets the account wind down to idle
-    // on its own, which is right for a user who's gone.
-    if (document.visibilityState !== "visible") return;
-
-    // Throttle: visibility flips can be rapid, and every beat is a PDS
-    // round-trip.
-    const now = Date.now();
-    if (now - (this._lastHeartbeat ?? 0) < HEARTBEAT_INTERVAL_MS / 2) return;
-    this._lastHeartbeat = now;
-
-    if (!this.$enabled.get() || !this.isSupported) {
-      this.stopHeartbeat();
-      return;
-    }
-    if (Notification.permission !== "granted") {
-      this.stopHeartbeat();
-      return;
-    }
-    try {
-      // Direct re-registration with the subscription this device already
-      // holds — no permission prompt, no subscribe dance, one PDS
-      // round-trip. registerPush is an idempotent upsert, and the service
-      // counts it as activity, which is the whole point of the beat.
-      const registration =
-        await navigator.serviceWorker.getRegistration(SW_PATH);
-      const subscription = await registration?.pushManager.getSubscription();
-      if (!subscription) {
-        // No local subscription (rotated or lost) — the full re-assert path
-        // is the self-healing recovery for exactly this case.
-        const config = await this.fetchServiceConfig();
-        await this._subscribeAndRegister(config);
-        return;
-      }
-      await this.api.registerPush({
-        serviceDid: this.serviceDid,
-        token: JSON.stringify(subscription),
-        platform: PLATFORM,
-        appId: APP_ID,
-      });
-    } catch (error) {
-      // A heartbeat that fails is just a heartbeat that didn't happen —
-      // the service's cadence degrades gracefully and the next one retries.
-      console.warn("Courier activity heartbeat failed", error);
-    }
   }
 
   // Unregisters just this device (per spec, callers must always do this on
   // logout — the service polls server-side, so nothing else stops pushes
   // for a logged-out account from reaching this device).
   async disable() {
-    this.stopHeartbeat();
     this._setEnabled(false);
     if (!("serviceWorker" in navigator)) return;
     const registration = await navigator.serviceWorker.getRegistration(SW_PATH);

@@ -183,6 +183,7 @@ export default async function settingsNotificationsView({
     const pushBusy = state.$pushBusy.get();
     const chatPreviews = state.$chatPreviews.get();
     const pushSupported = courierPushService?.isSupported ?? false;
+    const pushRequiresInstall = courierPushService?.requiresInstall ?? false;
     const serviceDid = courierPushService?.serviceDid ?? null;
     const hasService = serviceDid !== null;
 
@@ -229,7 +230,9 @@ export default async function settingsNotificationsView({
               <h2 class="setting-item-name">Push notifications (beta)</h2>
               <p class="setting-item-desc">
                 ${!pushSupported
-                  ? "Only available on mobile devices."
+                  ? pushRequiresInstall
+                    ? "Only available in PWA mode (add to home screen)."
+                    : "Only available on mobile devices."
                   : hasService
                     ? "Get notified even when the page is closed."
                     : html`Get notified even when the page is closed. You must
