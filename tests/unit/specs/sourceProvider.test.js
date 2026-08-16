@@ -946,3 +946,100 @@ describe("SourceProvider.getFont with tangled.sh-hosted plugins", () => {
     }
   });
 });
+
+// The knot binding outlives the session, so a repo that moved to a different
+// knot would keep failing against the old one. These cover which failures the
+// provider reads as "this binding is wrong" — see _fetchRequiredAsset.
+function fakeTangledResolver() {
+  return {
+    invalidated: [],
+    async resolveRepoInfo() {
+      return { knot: "knot.example", repoDid: "did:plc:repo" };
+    },
+    async invalidate(path) {
+      this.invalidated.push(path);
+    },
+  };
+}
+
+function httpError(status) {
+  const error = new Error(`HTTP ${status}`);
+  error.status = status;
+  return error;
+}
+
+describe("SourceProvider tangled knot invalidation", () => {
+  const repo = "tangled:owner.example/alpha";
+  const path = "owner.example/alpha";
+
+  function providerThatFailsWith(error) {
+    const resolver = fakeTangledResolver();
+    const provider = new SourceProvider(
+      fakePluginCache(async () => {
+        throw error;
+      }),
+      resolver,
+    );
+    return { provider, resolver };
+  }
+
+  it("drops the binding when the knot errors on a versioned manifest", async () => {
+    const { provider, resolver } = providerThatFailsWith(httpError(404));
+
+    await assert.rejects(() => provider.getManifest("alpha", "1.0.0", repo));
+
+    assert.deepEqual(resolver.invalidated, [path]);
+  });
+
+  it("drops the binding when the knot errors on main.js", async () => {
+    const { provider, resolver } = providerThatFailsWith(httpError(500));
+
+    await assert.rejects(() => provider.getSource("alpha", "1.0.0", repo));
+
+    assert.deepEqual(resolver.invalidated, [path]);
+  });
+
+  it("drops the binding when the knot errors on a live manifest", async () => {
+    const resolver = fakeTangledResolver();
+    const stub = stubFetch(async () =>
+      jsonResponse({}, { ok: false, status: 404 }),
+    );
+    try {
+      const provider = new SourceProvider(null, resolver);
+      await assert.rejects(() => provider.getLiveManifest("alpha", repo));
+    } finally {
+      stub.restore();
+    }
+    assert.deepEqual(resolver.invalidated, [path]);
+  });
+
+  it("keeps the binding on a network-level failure", async () => {
+    // Indistinguishable from being offline, where the binding is what lets a
+    // warm cache still serve the plugin
+    const { provider, resolver } = providerThatFailsWith(
+      new TypeError("Failed to fetch"),
+    );
+
+    await assert.rejects(() => provider.getSource("alpha", "1.0.0", repo));
+
+    assert.deepEqual(resolver.invalidated, []);
+  });
+
+  it("keeps the binding when an optional styles.css is missing", async () => {
+    const { provider, resolver } = providerThatFailsWith(httpError(404));
+
+    assert.deepEqual(await provider.getStyles("alpha", "1.0.0", repo), null);
+
+    assert.deepEqual(resolver.invalidated, []);
+  });
+
+  it("does not invalidate for GitHub-hosted repos", async () => {
+    const { provider, resolver } = providerThatFailsWith(httpError(404));
+
+    await assert.rejects(() =>
+      provider.getManifest("alpha", "1.0.0", "ow/alpha"),
+    );
+
+    assert.deepEqual(resolver.invalidated, []);
+  });
+});
