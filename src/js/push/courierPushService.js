@@ -202,6 +202,8 @@ export class CourierPushService {
       await this.api.unregisterPush({
         serviceDid: this.serviceDid,
         token: JSON.stringify(subscription),
+        platform: PLATFORM,
+        appId: APP_ID,
       });
     } catch (error) {
       console.error("Failed to unregister push subscription", error);

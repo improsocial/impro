@@ -741,10 +741,10 @@ export class Api {
     });
   }
 
-  async unregisterPush({ serviceDid, token }) {
+  async unregisterPush({ serviceDid, token, platform, appId }) {
     await this.request("app.bsky.notification.unregisterPush", {
       method: "POST",
-      body: { serviceDid, token },
+      body: { serviceDid, token, platform, appId },
       headers: {
         "atproto-proxy": `${serviceDid}#bsky_notif`,
       },

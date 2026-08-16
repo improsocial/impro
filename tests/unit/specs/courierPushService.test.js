@@ -170,6 +170,13 @@ describe("CourierPushService registration", () => {
     service.api.unregisterPush = unregisterPush;
     await service.disable();
     assert.equal(unregisterPush.mock.calls.length, 1);
+    const args = unregisterPush.mock.calls[0].arguments[0];
+    assert.equal(args.appId, "social.impro");
+    assert.equal(args.platform, "web");
+    assert.deepEqual(JSON.parse(args.token), {
+      endpoint: SUBSCRIPTION.endpoint,
+      keys: SUBSCRIPTION.keys,
+    });
     assert.equal(service.$enabled.get(), false);
   });
 
