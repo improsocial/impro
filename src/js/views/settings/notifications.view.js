@@ -205,8 +205,8 @@ export default async function settingsNotificationsView({
                     ? "Only available in PWA mode (add to home screen)."
                     : "Only available on mobile devices."
                   : hasService
-                    ? "Get notified even when the page is closed."
-                    : html`Get notified even when the page is closed. You must
+                    ? "Receive push notifications for new activity."
+                    : html`Receive push notifications for new activity. You must
                         select a notification service in
                         <a
                           href="/settings/advanced"
