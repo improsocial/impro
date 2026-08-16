@@ -726,6 +726,15 @@ export class MockServer {
         });
       },
     );
+    // The service's auth handoff. Real courier would run OAuth and redirect
+    // back; this just stands still so tests can assert what was sent to it.
+    await page.route(`${notificationService.authUrl}*`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><title>Authorize</title>",
+      }),
+    );
     await page.route(
       `${notificationService.endpoint}/.well-known/notif-service.json`,
       (route) =>

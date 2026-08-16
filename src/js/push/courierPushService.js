@@ -232,10 +232,6 @@ export class CourierPushService {
   }
 
   async _subscribeAndRegister(config) {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      throw new Error(permission === "denied" ? "denied" : "dismissed");
-    }
     const registration = await navigator.serviceWorker.register(SW_PATH);
     await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();

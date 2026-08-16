@@ -26,6 +26,14 @@ async function stubNotificationPermission(
         constructor() {}
         close() {}
       }
+      // Records when permission was asked for, so tests can assert it happened
+      // before the handoff navigation rather than after it.
+      window.__permissionRequests = 0;
+      const request = MockNotification.requestPermission.bind(MockNotification);
+      MockNotification.requestPermission = async () => {
+        window.__permissionRequests += 1;
+        return request();
+      };
       window.Notification = MockNotification;
     },
     { initialPermission: initial, promptResult: onPrompt },
@@ -220,6 +228,68 @@ test.describe("Settings > Notifications view", () => {
       await expect(
         page.locator('select[name="notificationService"]'),
       ).toBeVisible();
+    });
+
+    test("asks for permission before leaving for the handoff", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      expect(await page.evaluate(() => window.__permissionRequests)).toBe(0);
+
+      await toggle.click();
+      // iOS Safari only raises the prompt inside a user gesture, and the
+      // handoff return has none — so it must be asked for on this press.
+      await page
+        .locator(
+          '[data-testid="confirm-modal"] [data-testid="modal-confirm-button"]',
+        )
+        .click();
+
+      await expect
+        .poll(() => page.evaluate(() => window.__permissionRequests))
+        .toBeGreaterThan(0);
+      await expect(page).toHaveURL(
+        new RegExp(
+          notificationService.authUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        ),
+      );
+    });
+
+    test("a denied prompt stops before the handoff", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, {
+        initial: "default",
+        onPrompt: "denied",
+      });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      await toggle.click();
+      await page
+        .locator(
+          '[data-testid="confirm-modal"] [data-testid="modal-confirm-button"]',
+        )
+        .click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      // Never sent through the handoff, so the page never left settings.
+      await expect(page).toHaveURL(/\/settings\/notifications$/);
     });
 
     test("with a service named, the toggle is usable", async ({ page }) => {

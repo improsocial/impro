@@ -75,11 +75,26 @@ export default async function settingsNotificationsView({
       }
       return;
     }
+    let permission = null;
     const confirmed = await confirmModal(
       "You'll be sent to the notification service to authorize a separate, read-only grant for delivering push notifications. You can turn this off again at any time.",
-      { title: "Enable push notifications?", confirmButtonText: "Continue" },
+      {
+        title: "Enable push notifications?",
+        confirmButtonText: "Continue",
+        onConfirm: () => {
+          permission = Notification.requestPermission();
+          return permission;
+        },
+      },
     );
     if (!confirmed) return;
+    if ((await permission) !== "granted") {
+      showToast(
+        "Notifications are blocked for this site. Re-enable them in your browser's site settings.",
+        { style: "error" },
+      );
+      return;
+    }
     try {
       await courierPushService.startEnableFlow({
         chatPreviews: state.$chatPreviews.get(),
