@@ -190,7 +190,7 @@ export async function main() {
 
   if (preferencesProvider.$labelerDefsUnavailable.get()) {
     showToast(
-      "Failed to fetch moderation labels - typically-moderated content may be visible",
+      "Failed to fetch moderation labels - unmoderated content may be visible",
       {
         style: "warning",
         timeout: 6000,
