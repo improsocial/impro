@@ -4,8 +4,8 @@ import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
 import { auth } from "/js/auth.js";
 import { Api } from "/js/api.js";
 
-const STORAGE_KEY = "courier-push-enabled";
-const SERVICE_STORAGE_KEY = "courier-push-service";
+const STORAGE_KEY = "push-notifications-enabled";
+const SERVICE_STORAGE_KEY = "push-notification-service";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
@@ -44,8 +44,7 @@ function matchesVapidKey(subscription, vapidPublicKey) {
   );
 }
 
-// Client-side half of the spec's "Enable flow".
-export class CourierPushService {
+export class PushNotificationService {
   constructor(api) {
     this.api = api;
     this._configPromise = null;

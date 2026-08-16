@@ -1,6 +1,6 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { CourierPushService } from "/js/push/courierPushService.js";
+import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { Signal, effect } from "/js/signals.js";
 
 const SUBSCRIPTION = {
@@ -22,7 +22,7 @@ const VAPID_KEY_BYTES = Uint8Array.from([4, 172, 80]);
 
 function setupDom({ enabled = true, granted = true } = {}) {
   globalThis.localStorage = {
-    _data: enabled ? { "courier-push-enabled": "true" } : {},
+    _data: enabled ? { "push-notifications-enabled": "true" } : {},
     getItem(k) {
       return this._data[k] ?? null;
     },
@@ -81,18 +81,18 @@ function setupDom({ enabled = true, granted = true } = {}) {
 // a previous launch would have left it: in localStorage.
 function createService(serviceDid = null) {
   if (serviceDid !== null) {
-    globalThis.localStorage.setItem("courier-push-service", serviceDid);
+    globalThis.localStorage.setItem("push-notification-service", serviceDid);
   }
   const registerPush = mock.fn(async () => {});
   const api = { registerPush, session: { did: "did:plc:current" } };
-  const service = new CourierPushService(api);
+  const service = new PushNotificationService(api);
   // Enumerating accounts reaches for real OAuth storage; tests that care about
   // the other-account fan-out override this.
   service._listAccountDids = async () => [];
   return { service, registerPush };
 }
 
-describe("CourierPushService registration", () => {
+describe("PushNotificationService registration", () => {
   let originals;
 
   beforeEach(() => {
@@ -424,7 +424,7 @@ describe("CourierPushService registration", () => {
   });
 });
 
-describe("CourierPushService service selection", () => {
+describe("PushNotificationService service selection", () => {
   let originals;
   let fetchCalls;
 
@@ -483,7 +483,7 @@ describe("CourierPushService service selection", () => {
 
   it("cannot be enabled while no service is named", () => {
     const { service } = createService();
-    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    globalThis.localStorage.setItem("push-notifications-enabled", "true");
     assert.equal(service.isEnabled, false);
   });
 
@@ -503,7 +503,7 @@ describe("CourierPushService service selection", () => {
     assert.equal(service.serviceDid, "did:web:notifs.example");
     assert.equal(service.hasService, true);
     assert.equal(
-      globalThis.localStorage.getItem("courier-push-service"),
+      globalThis.localStorage.getItem("push-notification-service"),
       "did:web:notifs.example",
     );
 
@@ -519,7 +519,10 @@ describe("CourierPushService service selection", () => {
 
     assert.equal(service.serviceDid, null);
     assert.equal(service.hasService, false);
-    assert.equal(globalThis.localStorage.getItem("courier-push-service"), null);
+    assert.equal(
+      globalThis.localStorage.getItem("push-notification-service"),
+      null,
+    );
   });
 
   it("resolves a service through its DID document", async () => {
@@ -577,7 +580,7 @@ describe("CourierPushService service selection", () => {
   });
 
   it("switching services unregisters the old one first", async () => {
-    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    globalThis.localStorage.setItem("push-notifications-enabled", "true");
     const { service } = createService();
     await service.selectService("did:web:notifs.example");
     const unregisterPush = mock.fn(async () => {});
@@ -593,7 +596,7 @@ describe("CourierPushService service selection", () => {
   });
 
   it("clearing the service unregisters it first", async () => {
-    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    globalThis.localStorage.setItem("push-notifications-enabled", "true");
     const { service } = createService();
     await service.selectService("did:web:notifs.example");
     const unregisterPush = mock.fn(async () => {});

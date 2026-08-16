@@ -8,7 +8,7 @@ import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/toggle-switch.js";
 
-function consumeCourierCallbackParams() {
+function consumePushNotificationServiceCallbackParams() {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("chat_previews") && !params.has("error")) return null;
   const result = {
@@ -23,7 +23,7 @@ export default async function settingsNotificationsView({
   root,
   router,
   layout,
-  context: { systemNotificationService, courierPushService },
+  context: { systemNotificationService, pushNotificationService },
 }) {
   await auth.requireAuth();
 
@@ -55,11 +55,11 @@ export default async function settingsNotificationsView({
   }
 
   async function handlePushToggle(checked) {
-    if (!courierPushService) return;
+    if (!pushNotificationService) return;
     if (!checked) {
       state.$pushBusy.set(true);
       try {
-        await courierPushService.disable();
+        await pushNotificationService.disable();
       } finally {
         state.$pushBusy.set(false);
       }
@@ -99,7 +99,7 @@ export default async function settingsNotificationsView({
       return;
     }
     try {
-      await courierPushService.startEnableFlow({
+      await pushNotificationService.startEnableFlow({
         chatPreviews: choice === "with-previews",
       });
     } catch (error) {
@@ -111,8 +111,8 @@ export default async function settingsNotificationsView({
   }
 
   (async () => {
-    const callback = consumeCourierCallbackParams();
-    if (!callback || !courierPushService) return;
+    const callback = consumePushNotificationServiceCallbackParams();
+    if (!callback || !pushNotificationService) return;
     if (callback.error) {
       showToast(
         callback.errorDescription || "Push notification setup was cancelled.",
@@ -122,7 +122,7 @@ export default async function settingsNotificationsView({
     }
     state.$pushBusy.set(true);
     try {
-      await courierPushService.completeEnableFlow();
+      await pushNotificationService.completeEnableFlow();
       showToast("Push notifications enabled.");
     } catch (error) {
       console.error(error);
@@ -154,11 +154,12 @@ export default async function settingsNotificationsView({
         "Notifications are blocked for this site. Re-enable them in your browser's site settings to turn this on.";
     }
 
-    const pushEnabled = courierPushService?.isEnabled ?? false;
+    const pushEnabled = pushNotificationService?.isEnabled ?? false;
     const pushBusy = state.$pushBusy.get();
-    const pushSupported = courierPushService?.isSupported ?? false;
-    const pushRequiresInstall = courierPushService?.requiresInstall ?? false;
-    const serviceDid = courierPushService?.serviceDid ?? null;
+    const pushSupported = pushNotificationService?.isSupported ?? false;
+    const pushRequiresInstall =
+      pushNotificationService?.requiresInstall ?? false;
+    const serviceDid = pushNotificationService?.serviceDid ?? null;
     const hasService = serviceDid !== null;
 
     const systemRowDisabled = !isSupported || isDenied;

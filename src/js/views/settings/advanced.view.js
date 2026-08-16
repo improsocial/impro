@@ -23,7 +23,7 @@ export default async function settingsAdvancedView({
   root,
   router,
   layout,
-  context: { pluginService, courierPushService },
+  context: { pluginService, pushNotificationService },
 }) {
   await auth.requireAuth();
 
@@ -41,7 +41,7 @@ export default async function settingsAdvancedView({
     isStoredCustom ? storedConfig.chatServiceDid : "",
   );
   state.$pluginInstallLoading = new Signal.State(false);
-  const storedServiceDid = courierPushService?.serviceDid ?? null;
+  const storedServiceDid = pushNotificationService?.serviceDid ?? null;
   const storedServicePreset = NOTIFICATION_SERVICE_PRESETS.find(
     (preset) => preset.serviceDid === storedServiceDid,
   );
@@ -124,7 +124,8 @@ export default async function settingsAdvancedView({
 
   function isNotificationServiceDirty() {
     return (
-      resolveSelectedServiceDid() !== (courierPushService?.serviceDid ?? null)
+      resolveSelectedServiceDid() !==
+      (pushNotificationService?.serviceDid ?? null)
     );
   }
 
@@ -139,14 +140,14 @@ export default async function settingsAdvancedView({
 
   async function handleNotificationServiceSubmit(e) {
     e.preventDefault();
-    if (!courierPushService) return;
+    if (!pushNotificationService) return;
     const did = resolveSelectedServiceDid();
     state.$notificationServiceError.set(null);
 
     if (did === null) {
       state.$notificationServiceLoading.set(true);
       try {
-        await courierPushService.clearService();
+        await pushNotificationService.clearService();
         showToast("Selected notification service: None", { style: "success" });
       } finally {
         state.$notificationServiceLoading.set(false);
@@ -160,8 +161,8 @@ export default async function settingsAdvancedView({
     }
     state.$notificationServiceLoading.set(true);
     try {
-      const { name } = await courierPushService.previewService(did);
-      await courierPushService.selectService(did);
+      const { name } = await pushNotificationService.previewService(did);
+      await pushNotificationService.selectService(did);
       showToast(`Selected notification service: ${name}`, { style: "success" });
     } catch (error) {
       console.error(error);

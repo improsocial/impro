@@ -30,7 +30,7 @@ import { getDisplayName } from "/js/dataHelpers.js";
 export default async function settingsView({
   root,
   layout,
-  context: { dataLayer, courierPushService },
+  context: { dataLayer, pushNotificationService },
 }) {
   const currentSession = await auth.requireAuth();
   const supportsMultipleAccounts = auth.supportsMultipleAccounts();
@@ -297,7 +297,9 @@ export default async function settingsView({
                     );
                     if (!ok) return;
                     try {
-                      await courierPushService?.unregisterAccount(account.did);
+                      await pushNotificationService?.unregisterAccount(
+                        account.did,
+                      );
                     } catch (error) {
                       console.error(
                         "Failed to unregister push for removed account",
@@ -342,8 +344,8 @@ export default async function settingsView({
                 ) {
                   return;
                 }
-                if (courierPushService?.isEnabled) {
-                  await courierPushService.disable();
+                if (pushNotificationService?.isEnabled) {
+                  await pushNotificationService.disable();
                 }
                 await auth.logout();
                 window.location.reload();

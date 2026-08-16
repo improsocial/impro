@@ -7,7 +7,7 @@ import { notificationService } from "../../../testData.js";
 // The chosen service is device state, so it lands in localStorage rather than
 // in the account's preferences.
 const storedService = (page) =>
-  page.evaluate(() => localStorage.getItem("courier-push-service"));
+  page.evaluate(() => localStorage.getItem("push-notification-service"));
 
 test.describe("Settings Advanced view", () => {
   test("should display header and App View section", async ({ page }) => {

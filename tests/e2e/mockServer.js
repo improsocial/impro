@@ -543,7 +543,7 @@ export class MockServer {
 
     if (this.notificationServiceDid) {
       await page.addInitScript((did) => {
-        localStorage.setItem("courier-push-service", did);
+        localStorage.setItem("push-notification-service", did);
       }, this.notificationServiceDid);
     }
 
