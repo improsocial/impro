@@ -7837,6 +7837,10 @@ context-menu-item-group > context-menu-item > button {
   margin-bottom: 16px;
 }
 
+.settings-section p a {
+  color: var(--text-link-color);
+}
+
 .settings-color-picker {
   display: flex;
   flex-direction: column;
@@ -10781,8 +10785,9 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
   border-bottom: var(--hair) solid var(--generic-border-color);
 }
 
-.setting-item-disabled .setting-item-info {
-  opacity: 0.6;
+.setting-item-disabled .setting-item-name,
+.setting-item-disabled .setting-item-desc {
+  color: var(--text-color-muted);
 }
 
 .setting-item:last-child {
@@ -10810,6 +10815,10 @@ h2.setting-item-name {
   font-size: 14px;
   color: var(--text-color-secondary);
   margin-top: 4px;
+}
+
+.setting-item-desc a {
+  color: var(--text-link-color);
 }
 
 .plugin-content .setting-item-name,

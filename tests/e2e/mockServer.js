@@ -1,5 +1,5 @@
 import { createPost } from "../shared/factories.js";
-import { bskyLabeler, userProfile } from "./testData.js";
+import { bskyLabeler, notificationService, userProfile } from "./testData.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_MANIFEST,
@@ -101,12 +101,30 @@ export class MockServer {
     // plugin with no README (404).
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
     this.tokenRefreshShouldFail = false;
+    this.notificationServiceUnreachable = false;
+    // Which notification service the account's preferences name; null means
+    // none has been chosen.
+    this.notificationServiceDid = null;
+    this.registerPushCalls = [];
+    this.unregisterPushCalls = [];
   }
 
   // Make subsequent OAuth token refreshes fail with a non-retryable error,
   // simulating a stale/revoked refresh token.
   failTokenRefresh() {
     this.tokenRefreshShouldFail = true;
+  }
+
+  // Make the dummy notification service fail to resolve, simulating a DID
+  // that points at nothing conforming.
+  failNotificationServiceLookup() {
+    this.notificationServiceUnreachable = true;
+  }
+
+  // Start with a notification service already chosen, as if the account had
+  // picked one on another device.
+  setNotificationServiceDid(did) {
+    this.notificationServiceDid = did;
   }
 
   setSearchHistory({ searches = [], profiles = [] } = {}) {
@@ -682,6 +700,55 @@ export class MockServer {
       route.fulfill({ status: 404, body: "Not Found" }),
     );
 
+    // The dummy notification service (see `notificationService` in
+    // testData.js). Resolving one costs a DID document then a config
+    // document, so both are served here.
+    await page.route(
+      `${notificationService.endpoint}/.well-known/did.json`,
+      (route) => {
+        if (this.notificationServiceUnreachable) {
+          route.fulfill({ status: 500, body: "Server Error" });
+          return;
+        }
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: notificationService.did,
+            service: [
+              {
+                id: "#bsky_notif",
+                type: "BskyNotificationService",
+                serviceEndpoint: notificationService.endpoint,
+              },
+            ],
+          }),
+        });
+      },
+    );
+    // The service's auth handoff. Real courier would run OAuth and redirect
+    // back; this just stands still so tests can assert what was sent to it.
+    await page.route(`${notificationService.authUrl}*`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><title>Authorize</title>",
+      }),
+    );
+    await page.route(
+      `${notificationService.endpoint}/.well-known/notif-service.json`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            name: notificationService.name,
+            authUrl: notificationService.authUrl,
+            vapidPublicKey: notificationService.vapidPublicKey,
+          }),
+        }),
+    );
+
     // OAuth token endpoint used by seeded test sessions. `invalid_request`
     // (not `invalid_grant`) fails immediately without the cross-tab
     // rotated-session recovery delay.
@@ -772,6 +839,15 @@ export class MockServer {
                   {
                     $type: "app.bsky.actor.defs#improSearchHistoryPref",
                     ...this.searchHistory,
+                  },
+                ]
+              : []),
+            ...(this.notificationServiceDid
+              ? [
+                  {
+                    $type:
+                      "app.bsky.actor.defs#improPushNotificationServicePref",
+                    serviceDid: this.notificationServiceDid,
                   },
                 ]
               : []),
@@ -894,6 +970,27 @@ export class MockServer {
         body: "{}",
       });
     });
+
+    await page.route("**/xrpc/app.bsky.notification.registerPush*", (route) => {
+      this.registerPushCalls.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 200,
+        contentType: "text/plain",
+        body: "",
+      });
+    });
+
+    await page.route(
+      "**/xrpc/app.bsky.notification.unregisterPush*",
+      (route) => {
+        this.unregisterPushCalls.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          contentType: "text/plain",
+          body: "",
+        });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.feed.getPosts*", async (route) => {
       const url = new URL(route.request().url());
@@ -2420,6 +2517,13 @@ export class MockServer {
         if (hiddenPostsPref) {
           this.hiddenPostUris = hiddenPostsPref.items || [];
         }
+        // Absent means the user chose None, so this tracks removal too.
+        this.notificationServiceDid =
+          body?.preferences?.find(
+            (p) =>
+              p.$type ===
+              "app.bsky.actor.defs#improPushNotificationServicePref",
+          )?.serviceDid ?? null;
         const searchHistoryPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#improSearchHistoryPref",
         );

@@ -2,7 +2,12 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
+import {
+  AppViewConfig,
+  DEFAULT_APP_VIEW_CONFIGS,
+  NOTIFICATION_SERVICE_PRESETS,
+  CUSTOM_NOTIFICATION_SERVICE_ID,
+} from "/js/config.js";
 import {
   getAppViewConfig,
   setAppViewConfig,
@@ -18,7 +23,7 @@ export default async function settingsAdvancedView({
   root,
   router,
   layout,
-  context: { pluginService },
+  context: { pluginService, courierPushService },
 }) {
   await auth.requireAuth();
 
@@ -36,6 +41,23 @@ export default async function settingsAdvancedView({
     isStoredCustom ? storedConfig.chatServiceDid : "",
   );
   state.$pluginInstallLoading = new Signal.State(false);
+  const storedServiceDid = courierPushService?.serviceDid ?? null;
+  const storedServicePreset = NOTIFICATION_SERVICE_PRESETS.find(
+    (preset) => preset.serviceDid === storedServiceDid,
+  );
+  const storedServiceSelection =
+    storedServicePreset?.id ?? CUSTOM_NOTIFICATION_SERVICE_ID;
+
+  state.$notificationServiceLoading = new Signal.State(false);
+  state.$notificationServiceError = new Signal.State(null);
+  state.$notificationServiceSelection = new Signal.State(
+    storedServiceSelection,
+  );
+  state.$customNotificationServiceDid = new Signal.State(
+    storedServiceSelection === CUSTOM_NOTIFICATION_SERVICE_ID
+      ? storedServiceDid
+      : "",
+  );
 
   function resolveSelectedAppViewConfig() {
     if (state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
@@ -89,6 +111,69 @@ export default async function settingsAdvancedView({
     state.$customChatServiceDid.set(e.target.value);
   }
 
+  function resolveSelectedServiceDid() {
+    const selection = state.$notificationServiceSelection.get();
+    if (selection === CUSTOM_NOTIFICATION_SERVICE_ID) {
+      return state.$customNotificationServiceDid.get().trim();
+    }
+    return (
+      NOTIFICATION_SERVICE_PRESETS.find((preset) => preset.id === selection)
+        ?.serviceDid ?? null
+    );
+  }
+
+  function isNotificationServiceDirty() {
+    return (
+      resolveSelectedServiceDid() !== (courierPushService?.serviceDid ?? null)
+    );
+  }
+
+  function handleNotificationServiceChange(e) {
+    state.$notificationServiceSelection.set(e.target.value);
+    state.$notificationServiceError.set(null);
+  }
+
+  function handleCustomNotificationServiceDidInput(e) {
+    state.$customNotificationServiceDid.set(e.target.value);
+  }
+
+  async function handleNotificationServiceSubmit(e) {
+    e.preventDefault();
+    if (!courierPushService) return;
+    const did = resolveSelectedServiceDid();
+    state.$notificationServiceError.set(null);
+
+    if (did === null) {
+      state.$notificationServiceLoading.set(true);
+      try {
+        await courierPushService.clearService();
+        showToast("Selected notification service: None", { style: "success" });
+      } finally {
+        state.$notificationServiceLoading.set(false);
+      }
+      return;
+    }
+
+    if (!did.startsWith("did:")) {
+      state.$notificationServiceError.set("Please enter a valid DID.");
+      return;
+    }
+    state.$notificationServiceLoading.set(true);
+    try {
+      const { name } = await courierPushService.previewService(did);
+      const wasEnabled = courierPushService.isEnabled;
+      await courierPushService.selectService(did);
+      showToast(`Selected notification service: ${name}`, { style: "success" });
+    } catch (error) {
+      console.error(error);
+      state.$notificationServiceError.set(
+        "Couldn't reach that service, or it isn't a notification service.",
+      );
+    } finally {
+      state.$notificationServiceLoading.set(false);
+    }
+  }
+
   async function handleInstallPlugin(e) {
     e.preventDefault();
     const input = e.target.elements.pluginUrl;
@@ -117,6 +202,10 @@ export default async function settingsAdvancedView({
   pageEffect(root, () => {
     const isCustom =
       state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
+    const notificationServiceSelection =
+      state.$notificationServiceSelection.get();
+    const isCustomNotificationService =
+      notificationServiceSelection === CUSTOM_NOTIFICATION_SERVICE_ID;
     render(
       html`<div id="settings-advanced-view">
         ${headerTemplate({
@@ -220,6 +309,92 @@ export default async function settingsAdvancedView({
                 ${state.$errorMessage.get()
                   ? html`<div class="error-message">
                       ${state.$errorMessage.get()}
+                    </div>`
+                  : ""}
+              </div>
+            </section>
+          </form>
+          <form
+            id="notification-service-form"
+            @submit=${(e) => handleNotificationServiceSubmit(e)}
+          >
+            <section class="settings-section">
+              <h2>Push notification service</h2>
+              <p>
+                Choose an external service to deliver push notifications.
+                <a href="/settings/notifications">Notification Settings</a>
+              </p>
+              <div class="form-group">
+                <div class="select-wrapper">
+                  <select
+                    id="notificationService"
+                    name="notificationService"
+                    @change=${(e) => handleNotificationServiceChange(e)}
+                  >
+                    ${NOTIFICATION_SERVICE_PRESETS.map(
+                      (preset) => html`
+                        <option
+                          value=${preset.id}
+                          ?selected=${state.$notificationServiceSelection.get() ===
+                          preset.id}
+                        >
+                          ${preset.displayName}
+                        </option>
+                      `,
+                    )}
+                    <option
+                      value=${CUSTOM_NOTIFICATION_SERVICE_ID}
+                      ?selected=${state.$notificationServiceSelection.get() ===
+                      CUSTOM_NOTIFICATION_SERVICE_ID}
+                    >
+                      Custom
+                    </option>
+                  </select>
+                </div>
+              </div>
+              ${isCustomNotificationService
+                ? html`
+                    <div class="form-group">
+                      <label for="notificationServiceDid">Service DID</label>
+                      <input
+                        id="notificationServiceDid"
+                        name="notificationServiceDid"
+                        type="text"
+                        inputmode="url"
+                        placeholder="did:web:notifs.example.com"
+                        required
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-testid="notification-service-input"
+                        .value=${state.$customNotificationServiceDid.get()}
+                        @input=${(e) =>
+                          handleCustomNotificationServiceDidInput(e)}
+                      />
+                    </div>
+                  `
+                : ""}
+              <div class="button-group">
+                <button
+                  type="submit"
+                  class="rounded-button rounded-button-primary settings-button"
+                  data-testid="notification-service-save"
+                  ?disabled=${state.$notificationServiceLoading.get() ||
+                  !isNotificationServiceDirty()}
+                >
+                  ${state.$notificationServiceLoading.get()
+                    ? html`Saving
+                        <div class="loading-spinner"></div>`
+                    : "Save"}
+                </button>
+              </div>
+              <div class="error-message-container">
+                ${state.$notificationServiceError.get()
+                  ? html`<div
+                      class="error-message"
+                      data-testid="notification-service-error"
+                    >
+                      ${state.$notificationServiceError.get()}
                     </div>`
                   : ""}
               </div>

@@ -61,3 +61,19 @@ export const DEFAULT_APP_VIEW_CONFIGS = [
   AppViewConfig.BLUESKY,
   AppViewConfig.BLACKSKY,
 ];
+
+export const NONE_NOTIFICATION_SERVICE_ID = "none";
+export const CUSTOM_NOTIFICATION_SERVICE_ID = "custom";
+
+export const NOTIFICATION_SERVICE_PRESETS = [
+  {
+    id: NONE_NOTIFICATION_SERVICE_ID,
+    displayName: "None",
+    serviceDid: null,
+  },
+  {
+    id: "courier-7778777",
+    displayName: "7778777.online/courier",
+    serviceDid: "did:web:courier.7778777.online",
+  },
+];

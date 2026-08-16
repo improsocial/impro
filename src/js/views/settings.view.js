@@ -27,7 +27,10 @@ import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
-export default async function settingsView({ root, context: { dataLayer } }) {
+export default async function settingsView({
+  root,
+  context: { dataLayer, courierPushService },
+}) {
   const currentSession = await auth.requireAuth();
   const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
@@ -329,6 +332,9 @@ export default async function settingsView({ root, context: { dataLayer } }) {
                   }))
                 ) {
                   return;
+                }
+                if (courierPushService?.isEnabled) {
+                  await courierPushService.disable();
                 }
                 await auth.logout();
                 window.location.reload();
