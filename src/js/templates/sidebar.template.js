@@ -70,6 +70,7 @@ function pluginSidebarItemTemplate({ entry }) {
 function sidebarNavTemplate({
   menuItems,
   activeNavItem,
+  isNavItemPage,
   onClickActiveItem,
   pluginSidebarItems = [],
 }) {
@@ -85,7 +86,7 @@ function sidebarNavTemplate({
             data-testid="sidebar-nav-${item.id}"
             @click=${function (e) {
               const isActive = activeNavItem === item.id;
-              if (isActive) {
+              if (isActive && isNavItemPage) {
                 e.preventDefault();
                 e.stopPropagation();
                 onClickActiveItem?.(item.id);
@@ -113,7 +114,11 @@ function sidebarNavTemplate({
   `;
 }
 
-function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
+function loggedOutSidebarTemplate({
+  activeNavItem,
+  isNavItemPage,
+  onClickActiveItem,
+}) {
   const menuItems = [
     {
       id: "home",
@@ -150,6 +155,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       ${sidebarNavTemplate({
         menuItems,
         activeNavItem,
+        isNavItemPage,
         onClickActiveItem,
       })}
       <div class="sidebar-action-items">
@@ -187,6 +193,7 @@ export function sidebarTemplate({
   isAuthenticated,
   currentUser,
   activeNavItem = null,
+  isNavItemPage = false,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
@@ -197,6 +204,7 @@ export function sidebarTemplate({
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
       activeNavItem,
+      isNavItemPage,
       onClickActiveItem,
     });
   }
@@ -348,6 +356,7 @@ export function sidebarTemplate({
       ${sidebarNavTemplate({
         menuItems,
         activeNavItem,
+        isNavItemPage,
         onClickActiveItem,
         pluginSidebarItems,
       })}

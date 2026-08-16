@@ -5,6 +5,9 @@ import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { linkToPost } from "/js/navigation.js";
 import { isEmptyPost, isBlockedPost } from "/js/dataHelpers.js";
 
+// Posts likely to be above the fold on load; lazy load the rest
+const EAGER_IMAGE_ITEM_COUNT = 5;
+
 function feedFeedbackMessageTemplate({ post }) {
   // Attach post URI, we use it to maintain scroll position when feedback is sent
   return html`
@@ -46,6 +49,7 @@ function replyContextTemplate({
   onClickShowMore,
   enableFeedFeedback,
   pluginService,
+  lazyLoadImages,
 }) {
   const root = reply.root;
   const parent = reply.parent;
@@ -81,6 +85,7 @@ function replyContextTemplate({
               onClickShowMore,
               enableFeedFeedback,
               pluginService,
+              lazyLoadImages,
               isParent: true,
             })}
           `
@@ -112,6 +117,7 @@ function replyContextTemplate({
               onClickShowMore,
               enableFeedFeedback,
               pluginService,
+              lazyLoadImages,
               isParent: true,
             })}
           `
@@ -131,6 +137,7 @@ function feedItemTemplate({
   onClickShowMore,
   enableFeedFeedback,
   pluginService,
+  lazyLoadImages,
 }) {
   const post = feedItem.post;
   const reply = feedItem.reply;
@@ -170,6 +177,7 @@ function feedItemTemplate({
             onClickShowMore,
             enableFeedFeedback,
             pluginService,
+            lazyLoadImages,
           })
         : ""}
       ${postTemplate({
@@ -191,6 +199,7 @@ function feedItemTemplate({
         replyToBlocked,
         enableFeedFeedback,
         pluginService,
+        lazyLoadImages,
       })}
     </div>
   `;
@@ -263,6 +272,7 @@ export function postFeedTemplate({
                   onClickShowMore,
                   enableFeedFeedback,
                   pluginService,
+                  lazyLoadImages: i >= EAGER_IMAGE_ITEM_COUNT,
                 }),
               )}
             </div>`;

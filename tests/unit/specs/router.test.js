@@ -28,6 +28,27 @@ function mountRouter(router, { layout = null } = {}) {
   };
 }
 
+// JSDOM's window.scrollY is a read-only getter, so temporarily override it to
+// simulate the page being scrolled before we navigate away.
+function withScrollY(value, callback) {
+  const original = Object.getOwnPropertyDescriptor(window, "scrollY");
+  Object.defineProperty(window, "scrollY", {
+    value,
+    configurable: true,
+  });
+  return (async () => {
+    try {
+      return await callback();
+    } finally {
+      if (original) {
+        Object.defineProperty(window, "scrollY", original);
+      } else {
+        delete window.scrollY;
+      }
+    }
+  })();
+}
+
 describe("constructor and initialization", () => {
   it("should initialize with empty routes", () => {
     const router = new Router();
@@ -282,7 +303,7 @@ describe("popstate", () => {
 
     const order = [];
     router.on("navigate", () => order.push("navigate"));
-    router.on("page-shown", () => order.push("page-shown"));
+    router.renderRoute(() => order.push("render"));
 
     await popstateHandler(new Event("popstate"));
 
@@ -406,7 +427,7 @@ describe("go", () => {
 
     const order = [];
     router.on("navigate", () => order.push("navigate"));
-    router.on("page-shown", () => order.push("page-shown"));
+    router.renderRoute(() => order.push("render"));
 
     try {
       await router.go("/go-test");
@@ -415,7 +436,7 @@ describe("go", () => {
     }
 
     assert.deepEqual(order[0], "navigate");
-    assert.deepEqual(order[1], "page-shown");
+    assert.deepEqual(order[1], "render");
   });
 
   it("should store the previous route in history state", async () => {
@@ -993,15 +1014,15 @@ describe("layout visibility", () => {
     await router.load("/login");
     assert.deepEqual(isLayoutHidden(), true);
 
-    // Views restore scroll synchronously in page-restore handlers, so the
+    // Views restore scroll synchronously in page-show handlers, so the
     // layout must already be visible when the event fires
     let hiddenAtRestoreTime = null;
     const { el: testPage } = router.pages.get("/test");
-    testPage.addEventListener("page-restore", () => {
+    testPage.addEventListener("page-show", () => {
       hiddenAtRestoreTime = isLayoutHidden();
     });
 
-    await router.load("/test");
+    await router.load("/test", { isRestore: true });
 
     assert.deepEqual(hiddenAtRestoreTime, false);
   });
@@ -1088,27 +1109,6 @@ describe("page cache", () => {
 });
 
 describe("scroll position persistence", () => {
-  // JSDOM's window.scrollY is a read-only getter, so temporarily override it to
-  // simulate the page being scrolled before we navigate away.
-  function withScrollY(value, callback) {
-    const original = Object.getOwnPropertyDescriptor(window, "scrollY");
-    Object.defineProperty(window, "scrollY", {
-      value,
-      configurable: true,
-    });
-    return (async () => {
-      try {
-        return await callback();
-      } finally {
-        if (original) {
-          Object.defineProperty(window, "scrollY", original);
-        } else {
-          delete window.scrollY;
-        }
-      }
-    })();
-  }
-
   function createRouter() {
     const router = new Router();
     mountRouter(router);
@@ -1150,21 +1150,193 @@ describe("scroll position persistence", () => {
     });
   });
 
-  it("restores the saved scroll position via the page-restore event", async () => {
+  it("restores the saved scroll position via the page-show event", async () => {
     const router = createRouter();
     await router.load("/a");
 
     const pageA = router.pages.get("/a").el;
     let restoredScrollY = null;
-    pageA.addEventListener("page-restore", (event) => {
+    pageA.addEventListener("page-show", (event) => {
       restoredScrollY = event.detail.scrollY;
     });
 
     await withScrollY(175, async () => {
       await router.load("/b"); // leaving /a saves 175 under /a
-      await router.load("/a"); // returning to cached /a restores it
+      await router.load("/a", { isRestore: true }); // back to cached /a restores it
     });
 
     assert.deepEqual(restoredScrollY, 175);
+  });
+});
+
+describe("scrollRestore", () => {
+  let scrollTo;
+
+  beforeEach(() => {
+    scrollTo = mock.method(window, "scrollTo", () => {});
+  });
+
+  afterEach(() => {
+    scrollTo.mock.restore();
+  });
+
+  function scrollCalls() {
+    return scrollTo.mock.calls.map((call) => call.arguments);
+  }
+
+  function createRouter(scrollRestore) {
+    const router = new Router();
+    mountRouter(router);
+    router.addRoute(
+      "/a",
+      () => Promise.resolve({}),
+      scrollRestore ? { scrollRestore } : {},
+    );
+    router.addRoute("/b", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+    return router;
+  }
+
+  // Returns to /a after leaving it scrolled to 175
+  async function revisit(router, { isRestore }) {
+    await router.load("/a");
+    await withScrollY(175, () => router.load("/b"));
+    scrollTo.mock.resetCalls();
+    await router.load("/a", { isRestore });
+  }
+
+  it("restores the saved position on back navigation by default", async () => {
+    const router = createRouter();
+
+    await revisit(router, { isRestore: true });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("scrolls to the top on forward navigation by default", async () => {
+    const router = createRouter();
+
+    await revisit(router, { isRestore: false });
+
+    assert.deepEqual(scrollCalls(), [[0, 0]]);
+  });
+
+  it("restores the saved position on forward navigation when set to always", async () => {
+    const router = createRouter("always");
+
+    await revisit(router, { isRestore: false });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("still restores the saved position on back navigation when set to always", async () => {
+    const router = createRouter("always");
+
+    await revisit(router, { isRestore: true });
+
+    assert.deepEqual(scrollCalls(), [[0, 175]]);
+  });
+
+  it("does not touch the scroll position when set to manual", async () => {
+    const router = createRouter("manual");
+
+    await revisit(router, { isRestore: false });
+    await revisit(router, { isRestore: true });
+
+    assert.deepEqual(scrollCalls(), []);
+  });
+
+  it("scrolls before dispatching page-show so a view can override it", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    let scrolledBeforeDispatch = null;
+    router.pages.get("/a").el.addEventListener("page-show", () => {
+      scrolledBeforeDispatch = scrollCalls();
+    });
+
+    await revisit(router, { isRestore: true });
+
+    assert.deepEqual(scrolledBeforeDispatch, [[0, 175]]);
+  });
+});
+
+describe("page event dispatch", () => {
+  function createRouter() {
+    const router = new Router();
+    router.renderRoute(() => {});
+    router.addRoute("/a", () => () => {});
+    router.addRoute("/b", () => () => {});
+    mountRouter(router);
+    return router;
+  }
+
+  async function showDetailsFor(loadOptions) {
+    const router = createRouter();
+    await router.load("/a");
+    const pageA = router.pages.get("/a").el;
+    const details = [];
+    pageA.addEventListener("page-show", (event) => details.push(event.detail));
+    await router.load("/b");
+    await router.load("/a", loadOptions);
+    return details;
+  }
+
+  it("reports an advance action when a cached page is revisited forwards", async () => {
+    assert.deepEqual(await showDetailsFor({}), [
+      { scrollY: 0, action: "advance" },
+    ]);
+  });
+
+  it("reports a restore action on a history traversal", async () => {
+    assert.deepEqual(await showDetailsFor({ isRestore: true }), [
+      { scrollY: 0, action: "restore" },
+    ]);
+  });
+
+  it("dispatches a single page-show with an advance action on first load", async () => {
+    const router = new Router();
+    router.addRoute("/a", () => () => {});
+    mountRouter(router);
+    const details = [];
+    router.renderRoute(({ container }) => {
+      container.addEventListener("page-show", (event) =>
+        details.push(event.detail),
+      );
+    });
+
+    await router.load("/a");
+
+    assert.deepEqual(details, [{ scrollY: 0, action: "advance" }]);
+  });
+
+  it("reports the restored scroll position on page-show", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    const details = [];
+    router.pages
+      .get("/a")
+      .el.addEventListener("page-show", (event) => details.push(event.detail));
+
+    await withScrollY(120, async () => {
+      await router.load("/b");
+      await router.load("/a", { isRestore: true });
+    });
+
+    assert.deepEqual(details, [{ scrollY: 120, action: "restore" }]);
+  });
+
+  it("does not re-run a view when its cached page is revisited", async () => {
+    const router = new Router();
+    router.addRoute("/a", () => () => {});
+    router.addRoute("/b", () => () => {});
+    mountRouter(router);
+    const rendered = [];
+    router.renderRoute(({ container }) => rendered.push(container));
+
+    await router.load("/a");
+    await router.load("/b");
+    await router.load("/a");
+
+    assert.deepEqual(rendered.length, 2);
   });
 });

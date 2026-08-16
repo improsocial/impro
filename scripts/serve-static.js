@@ -5,28 +5,11 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { MIME, isAssetPath } from "../build-support/assetPaths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..", process.env.BUILD_DIR || "build");
 const port = parseInt(process.env.PORT || "8081", 10);
-
-export const MIME = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".mjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".ico": "image/x-icon",
-  ".woff": "font/woff",
-  ".woff2": "font/woff2",
-};
 
 let indexHtml = null;
 function getIndexHtml() {
@@ -81,10 +64,10 @@ function createStaticServer() {
       }
     }
 
-    if (!ext || !MIME[ext]) {
-      send(res, 200, getIndexHtml(), MIME[".html"]);
-    } else {
+    if (isAssetPath(req.url.split("?")[0])) {
       send(res, 404, `Not found: ${req.url}`, "text/plain; charset=utf-8");
+    } else {
+      send(res, 200, getIndexHtml(), MIME[".html"]);
     }
   });
 }

@@ -2699,8 +2699,9 @@ One token in a rich-text stream — `text`, `facet`, `inline`, or `block`.
 
 > **fetch**(`url`, `init?`): `Promise`\<[`PluginResponse`](#pluginresponse)\>
 
-Proxied fetch through the host. Requires the `"networkRequest"` permission
-scope and the target URL must be covered by the plugin's manifest allowlist.
+Proxied fetch through the host. The target URL must match one of the
+`permissions.fetch` URL patterns declared in the plugin's manifest, which
+the user grants at install.
 `init` accepts `method`, `headers` (plain object, `Headers`, `Map`, or
 `[name, value]` iterable), and a string `body`. Resolves to a
 [PluginResponse](#pluginresponse).
@@ -2733,3 +2734,46 @@ Convenience wrapper that returns a new [FlattenedTokens](#flattenedtokens) for `
 #### Returns
 
 [`FlattenedTokens`](#flattenedtokens)
+
+***
+
+### getUserGrantedFetchOrigins()
+
+> **getUserGrantedFetchOrigins**(): `Promise`\<`string`[]\>
+
+The origins the user has granted this plugin, as fetch patterns
+(`https://example.com/*`). Manifest-declared permissions are not included.
+
+#### Returns
+
+`Promise`\<`string`[]\>
+
+***
+
+### requestFetchPermission()
+
+> **requestFetchPermission**(`url`): `Promise`\<`boolean`\>
+
+Asks the user to grant this plugin network access to `url`'s origin — for
+endpoints the plugin can't know in advance, such as a user-supplied API
+provider. Requires `permissions.userFetch` in the manifest.
+
+Grants are origin-scoped (scheme, host, and port; the path is ignored) and
+persist until the user revokes them in the app's plugin settings. Resolves
+`true` without prompting if the origin is already permitted, so it is safe
+to call before every request. Resolves `false` if the user declines, if
+`url` can't be an origin, or if a prompt for this plugin is already open.
+
+Any credential for the endpoint is the plugin's to hold — use
+[Plugin.saveLocalData](#savelocaldata) rather than [Plugin.saveData](#savedata), which
+syncs through the user's account preferences.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` |
+
+#### Returns
+
+`Promise`\<`boolean`\>

@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../testPlugins.js";
+import {
+  TEST_PLUGIN_ID,
+  TEST_PLUGIN_MANIFEST,
+  getNoSettingsPluginSource,
+} from "../../testPlugins.js";
 
 function seedInstalled(mockServer) {
   mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
@@ -89,6 +93,31 @@ test.describe("Installed plugins view", () => {
 
     await sampleItem.locator(".plugin-toggle").click();
 
+    await expect(sampleItem.locator(".plugin-settings-link")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("shows the Settings link for a plugin whose only settings are system-owned", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.localPluginSource = getNoSettingsPluginSource();
+    await mockServer.setup(page);
+    await login(page);
+    mockServer.installedPlugins = [
+      {
+        ...TEST_PLUGIN_MANIFEST,
+        enabled: true,
+        permissions: { userFetch: true },
+        userGrantedFetchOrigins: ["https://api.example.com/*"],
+      },
+    ];
+
+    await page.goto("/plugins/installed");
+    const sampleItem = page.locator(".plugin-list-item", {
+      hasText: "Test Plugin",
+    });
     await expect(sampleItem.locator(".plugin-settings-link")).toBeVisible({
       timeout: 10000,
     });

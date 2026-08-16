@@ -12,6 +12,8 @@ import {
   getFailingPluginSource,
   getNoSettingsPluginSource,
   getTestPluginSource,
+  getFetchPermissionPluginSource,
+  REQUESTED_FETCH_ORIGIN,
 } from "../../testPlugins.js";
 
 const PLUGIN_ID = TEST_PLUGIN_ID;
@@ -335,6 +337,121 @@ test.describe("Plugin settings view", () => {
     await expect(
       view.locator('[data-testid="plugin-detail-no-settings"]'),
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test.describe("User-granted fetch origins", () => {
+    function seedPromptingPlugin(mockServer) {
+      mockServer.installedPlugins = [
+        {
+          ...TEST_PLUGIN_MANIFEST,
+          enabled: true,
+          permissions: { userFetch: true },
+        },
+      ];
+    }
+
+    test("grants an origin from the prompt and lists it in settings", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.localPluginSource = getFetchPermissionPluginSource();
+      await mockServer.setup(page);
+      await login(page);
+      seedPromptingPlugin(mockServer);
+
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+      await expect(
+        page.locator('[data-testid="fetch-permission-prompt"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      const networkAccess = page.locator(
+        '[data-testid="plugin-network-access"]',
+      );
+      await expect(networkAccess).toBeVisible({ timeout: 10000 });
+      await expect(networkAccess).toContainText(REQUESTED_FETCH_ORIGIN);
+    });
+
+    test("revoking removes the origin", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.localPluginSource = getFetchPermissionPluginSource();
+      await mockServer.setup(page);
+      await login(page);
+      seedPromptingPlugin(mockServer);
+
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+      await page
+        .locator('[data-testid="modal-confirm-button"]')
+        .click({ timeout: 10000 });
+      const networkAccess = page.locator(
+        '[data-testid="plugin-network-access"]',
+      );
+      await expect(networkAccess).toBeVisible({ timeout: 10000 });
+
+      await networkAccess
+        .locator('[data-testid="revoke-fetch-origin"]')
+        .click();
+      await expect(networkAccess).toBeHidden({ timeout: 10000 });
+    });
+
+    test("renders plugin-owned and system-owned settings as separate sections", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.localPluginSource = getTestPluginSource();
+      await mockServer.setup(page);
+      await login(page);
+      mockServer.installedPlugins = [
+        {
+          ...TEST_PLUGIN_MANIFEST,
+          enabled: true,
+          permissions: { userFetch: true },
+          userGrantedFetchOrigins: [REQUESTED_FETCH_ORIGIN],
+        },
+      ];
+
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+      await expect(
+        page.locator('[data-testid="plugin-owned-settings"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="plugin-system-settings"]'),
+      ).toBeVisible();
+    });
+
+    test("omits the system section when nothing is granted", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.localPluginSource = getTestPluginSource();
+      await mockServer.setup(page);
+      await login(page);
+      seedEnabled(mockServer);
+
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+      await expect(
+        page.locator('[data-testid="plugin-owned-settings"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="plugin-system-settings"]'),
+      ).toBeHidden();
+    });
+
+    test("declining leaves nothing granted", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.localPluginSource = getFetchPermissionPluginSource();
+      await mockServer.setup(page);
+      await login(page);
+      seedPromptingPlugin(mockServer);
+
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+      await page
+        .locator('[data-testid="modal-cancel-button"]')
+        .click({ timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="plugin-network-access"]'),
+      ).toBeHidden();
+    });
   });
 
   test.describe("Logged-out behavior", () => {

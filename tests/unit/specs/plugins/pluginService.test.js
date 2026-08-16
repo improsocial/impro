@@ -9,6 +9,7 @@ import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { respondToConfirm } from "../../testHelpers.js";
+import { isFetchAllowed } from "/js/plugins/pluginPermissions.js";
 
 function emptyDataLayer() {
   const dataLayer = new EventEmitter();
@@ -820,6 +821,44 @@ describe("$pluginsInfo", () => {
     const info = service.$pluginsInfo.get();
     assert.deepEqual(info.length, 1);
     assert.deepEqual(info[0].id, "alpha");
+  });
+
+  it("flags hasSystemSettings from granted fetch origins", () => {
+    const { service, state } = makeService({});
+    state.installedPlugins = [
+      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+      {
+        id: "beta",
+        name: "Beta",
+        version: "1.0.0",
+        enabled: true,
+        userGrantedFetchOrigins: ["https://api.example.com/*"],
+      },
+    ];
+    const info = service.$pluginsInfo.get();
+    assert.equal(
+      info.find((plugin) => plugin.id === "alpha").hasSystemSettings,
+      false,
+    );
+    assert.equal(
+      info.find((plugin) => plugin.id === "beta").hasSystemSettings,
+      true,
+    );
+  });
+
+  it("does not flag hasSystemSettings for stored origins that can't be normalized", () => {
+    const { service, state } = makeService({});
+    state.installedPlugins = [
+      {
+        id: "alpha",
+        name: "Alpha",
+        version: "1.0.0",
+        enabled: true,
+        userGrantedFetchOrigins: ["https://*/*", 42],
+      },
+    ];
+    // Otherwise the settings link would point at an empty system section
+    assert.equal(service.$pluginsInfo.get()[0].hasSystemSettings, false);
   });
 
   it("includes __LOCAL plugins when localPluginsEnabled is true", () => {
@@ -2588,5 +2627,228 @@ describe("getPostComposerInit", () => {
       replyRoot: undefined,
       quotedPost: undefined,
     });
+  });
+});
+
+describe("user-granted fetch origins", () => {
+  async function makeInstalledService({
+    permissions = { userFetch: true },
+  } = {}) {
+    const { state, provider } = makeProvider();
+    const service = makeServiceWithRealBridge({ provider });
+    await service.prefManager.addInstalledPlugin({
+      id: "alpha",
+      name: "Alpha",
+      version: "1.0.0",
+      author: "Someone",
+      repo: "ow/alpha",
+      enabled: true,
+      permissions,
+    });
+    return { service, state };
+  }
+
+  function callRequest(service, url) {
+    return service.pluginBridge._hostCallHandlers.get("requestFetchPermission")(
+      { pluginId: "alpha" },
+      { url },
+    );
+  }
+
+  function storedEntry(state) {
+    return state.installedPlugins.find((plugin) => plugin.id === "alpha");
+  }
+
+  it("throws for a plugin without the userFetch permission", async () => {
+    const { service } = await makeInstalledService({ permissions: {} });
+    await assert.rejects(
+      () => callRequest(service, "https://api.example.com/v1"),
+      /userFetch/,
+    );
+  });
+
+  it("grants the origin when the user confirms", async () => {
+    const { service, state } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1/chat");
+    await respondToConfirm(true);
+    assert.equal(await requesting, true);
+    assert.deepEqual(storedEntry(state).userGrantedFetchOrigins, [
+      "https://api.example.com/*",
+    ]);
+    assert(
+      isFetchAllowed(
+        "https://api.example.com/anything",
+        service._getPermissionsForPlugin("alpha"),
+      ),
+    );
+  });
+
+  it("does not write the grant into the manifest permissions", async () => {
+    const { service, state } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(true);
+    await requesting;
+    // Laundering a user grant into entry.permissions would make a later
+    // manifest claiming the same host diff to nothing.
+    assert.deepEqual(storedEntry(state).permissions, { userFetch: true });
+  });
+
+  it("resolves true without prompting when already granted", async () => {
+    const { service } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(true);
+    await requesting;
+    assert.equal(
+      await callRequest(service, "https://api.example.com/other"),
+      true,
+    );
+    assert.equal(
+      document.querySelector('[data-testid="fetch-permission-prompt"]'),
+      null,
+    );
+  });
+
+  it("resolves false without prompting for a url that can't be an origin", async () => {
+    const { service } = await makeInstalledService();
+    assert.equal(await callRequest(service, "http://example.com/"), false);
+    assert.equal(await callRequest(service, "not a url"), false);
+    assert.equal(
+      document.querySelector('[data-testid="fetch-permission-prompt"]'),
+      null,
+    );
+  });
+
+  it("grants nothing when the user declines", async () => {
+    const { service, state } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(false);
+    assert.equal(await requesting, false);
+    assert.equal(storedEntry(state).userGrantedFetchOrigins, undefined);
+  });
+
+  it("prompts again after a decline", async () => {
+    const { service, state } = await makeInstalledService();
+    const declining = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(false);
+    await declining;
+
+    const retrying = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(true);
+    assert.equal(await retrying, true);
+    assert.deepEqual(storedEntry(state).userGrantedFetchOrigins, [
+      "https://api.example.com/*",
+    ]);
+  });
+
+  it("refuses a second request while a prompt is open", async () => {
+    const { service } = await makeInstalledService();
+    const first = callRequest(service, "https://api.example.com/v1");
+    const second = await callRequest(service, "https://other.example.com/v1");
+    assert.equal(second, false);
+    await respondToConfirm(true);
+    assert.equal(await first, true);
+  });
+
+  it("ignores a stored grant that isn't a normalizable origin", async () => {
+    const { service } = await makeInstalledService();
+    await service.prefManager.updateInstalledPlugin("alpha", (entry) => ({
+      ...entry,
+      userGrantedFetchOrigins: ["https://*/*", "http://evil.example.com/*", 42],
+    }));
+    const permissions = service._getPermissionsForPlugin("alpha");
+    assert.deepEqual(permissions.fetch ?? [], []);
+    assert(!isFetchAllowed("https://evil.example.com/", permissions));
+  });
+
+  it("merges user grants with manifest patterns", async () => {
+    const { service } = await makeInstalledService({
+      permissions: { userFetch: true, fetch: ["https://declared.example/*"] },
+    });
+    const requesting = callRequest(service, "https://granted.example/v1");
+    await respondToConfirm(true);
+    await requesting;
+    const permissions = service._getPermissionsForPlugin("alpha");
+    assert(isFetchAllowed("https://declared.example/x", permissions));
+    assert(isFetchAllowed("https://granted.example/x", permissions));
+  });
+
+  it("revokes a granted origin", async () => {
+    const { service } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(true);
+    await requesting;
+    await service.revokeUserGrantedFetchOrigin(
+      "alpha",
+      "https://api.example.com/*",
+    );
+    assert.deepEqual(service.getUserGrantedFetchOrigins("alpha"), []);
+    assert(
+      !isFetchAllowed(
+        "https://api.example.com/x",
+        service._getPermissionsForPlugin("alpha"),
+      ),
+    );
+  });
+
+  it("exposes granted origins to the plugin", async () => {
+    const { service } = await makeInstalledService();
+    const requesting = callRequest(service, "https://api.example.com/v1");
+    await respondToConfirm(true);
+    await requesting;
+    const origins = await service.pluginBridge._hostCallHandlers.get(
+      "getUserGrantedFetchOrigins",
+    )({ pluginId: "alpha" }, {});
+    assert.deepEqual(origins, ["https://api.example.com/*"]);
+  });
+});
+
+describe("preview installs and userFetch", () => {
+  // Preview's guarantee is "runs with nothing granted"; a plugin that can
+  // prompt for origins at runtime must not slip through it.
+  it("refuses to preview a plugin declaring userFetch", async () => {
+    const { state, provider } = makeProvider();
+    const service = makeServiceWithRealBridge({ provider });
+    service.remoteRegistry = {
+      getListing: async () => ({ id: "alpha", repo: "ow/alpha" }),
+      getListings: async () => [{ id: "alpha", repo: "ow/alpha" }],
+    };
+    service.sourceProvider = {
+      getLiveManifest: async () => ({
+        id: "alpha",
+        name: "Alpha",
+        version: "1.0.0",
+        permissions: { userFetch: true },
+      }),
+    };
+
+    await service._installPreviewPlugin("alpha");
+
+    assert.deepEqual(state.installedPlugins, []);
+  });
+});
+
+describe("updating a plugin that adds userFetch", () => {
+  it("prompts with the new scope and stores it", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
+      },
+    });
+    await service.installPlugin("alpha");
+    service.sourceProvider.getLiveManifest = async () => ({
+      id: "alpha",
+      name: "Alpha",
+      version: "1.1.0",
+      permissions: { userFetch: true },
+    });
+
+    const updating = service.updatePlugin("alpha");
+    await respondToConfirm(true);
+    assert.deepEqual(await updating, { updated: true, version: "1.1.0" });
+    const entry = state.installedPlugins.find(
+      (plugin) => plugin.id === "alpha",
+    );
+    assert.deepEqual(entry.permissions, { userFetch: true });
   });
 });

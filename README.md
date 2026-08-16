@@ -10,7 +10,7 @@ Impro is:
 
 - **Web-first**: Impro was built from scratch for the web, with no heavy cross-platform frameworks or libraries.
 - **Familiar by default:** Out of the box, Impro offers the same feature set as the main Bluesky client.
-- **Extensible by design:** If you want additional functionality, you can use [Community Plugins](/plugins.md) to customize your experience.
+- **Extensible by design:** If you want additional functionality, you can use [Community Plugins](https://impro.social/plugins/community) to customize your experience.
 - **Better about blocking**: Unlike the main client's "nuclear block", thread context is preserved for non-blocked users.
 
 ## Issues and feature requests
@@ -33,6 +33,8 @@ Impro uses the following libraries:
 The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set (MIT license).
 
 ## Development
+
+_Interested in developing a plugin for Impro? See our [plugin development guide](/plugins.md)._
 
 Impro is a single-page app built with [Eleventy](https://www.11ty.dev/). To run the development server, run:
 

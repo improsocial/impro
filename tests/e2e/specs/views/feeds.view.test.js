@@ -450,6 +450,8 @@ test.describe("Feeds view", () => {
         .locator('[data-testid="feeds-list-item-unpin-button"]')
         .click();
 
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2);
+
       const titlesAfterUnpin = await feedsView
         .locator(".feeds-list-item-title")
         .allTextContents();

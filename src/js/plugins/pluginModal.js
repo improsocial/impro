@@ -118,13 +118,15 @@ const ACTION_LABELS = {
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
-function permissionsSectionTemplate({ title, items }) {
+function permissionsSectionTemplate({ title, items = [] }) {
   return html`
     <div class="permission-prompt-section">
       <div class="permission-prompt-section-title">${title}</div>
-      <ul class="permission-prompt-list">
-        ${items.map((item) => html`<li>${item}</li>`)}
-      </ul>
+      ${items.length > 0
+        ? html`<ul class="permission-prompt-list">
+            ${items.map((item) => html`<li>${item}</li>`)}
+          </ul>`
+        : ""}
     </div>
   `;
 }
@@ -137,6 +139,13 @@ function permissionsListTemplate({ permissions }) {
       permissionsSectionTemplate({
         title: "Send network requests to:",
         items: fetchPatterns.map((pattern) => html`<code>${pattern}</code>`),
+      }),
+    );
+  }
+  if (permissions.userFetch) {
+    sections.push(
+      permissionsSectionTemplate({
+        title: "Send network requests to user-specified domains",
       }),
     );
   }
@@ -165,6 +174,25 @@ export async function showPluginInstallPermissionsModal({
     {
       title: "Grant permissions?",
       confirmButtonText: "Allow and install",
+    },
+  );
+}
+
+export async function showPluginFetchPermissionModal({ pluginName, origin }) {
+  const name = pluginName ?? "This plugin";
+  return confirmModal(
+    html`<span class="permission-prompt" data-testid="fetch-permission-prompt">
+      <span class="permission-prompt-intro">${name} wants permission to:</span>
+      <div class="permission-prompt-sections">
+        ${permissionsSectionTemplate({
+          title: "Send network requests to:",
+          items: [html`<code>${origin}</code>`],
+        })}
+      </div></span
+    >`,
+    {
+      title: "Allow network access?",
+      confirmButtonText: "Allow",
     },
   );
 }

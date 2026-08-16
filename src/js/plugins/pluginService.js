@@ -5,6 +5,7 @@ import {
   hidePluginModal,
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
+  showPluginFetchPermissionModal,
 } from "/js/plugins/pluginModal.js";
 import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
@@ -31,6 +32,9 @@ import {
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
+  isUserFetchAllowed,
+  parseUserGrantedFetchOrigins,
+  normalizeFetchOrigin,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
@@ -47,6 +51,17 @@ function requireHostMethodArg(method, name, value) {
 }
 
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
+
+function getGrantedOriginsForPlugin(entry) {
+  return parseUserGrantedFetchOrigins(entry?.userGrantedFetchOrigins);
+}
+
+// Whether the plugin's settings page has a host-owned section to render.
+// Keyed off the same normalization the section uses, so the settings link
+// can't point at an empty section.
+function hasSystemSettings(entry) {
+  return getGrantedOriginsForPlugin(entry).length > 0;
+}
 
 // Page id must also be a valid URL segment
 const PAGE_ID_PATTERN = /^[a-z0-9-]+$/;
@@ -173,6 +188,7 @@ export class PluginService extends ReactiveStore {
         author: entry.author,
         enabled: entry.enabled,
         hasSettings: this.$settingTabs.get(entry.id) !== null,
+        hasSystemSettings: hasSystemSettings(entry),
       }));
     });
     this.$settingTabs = new SignalMap();
@@ -205,6 +221,7 @@ export class PluginService extends ReactiveStore {
       ? new PluginLocalDataStore(session.did)
       : new PluginMemoryDataStore();
     this.isPreviewMode = false;
+    this._pendingFetchPermissionRequests = new Set();
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
     this._setupRegistries();
@@ -521,6 +538,15 @@ export class PluginService extends ReactiveStore {
       return pluginFetch(permissions, url, init);
     });
 
+    this.pluginBridge.addHostMethod(
+      "requestFetchPermission",
+      (plugin, { url }) => this._requestFetchPermission(plugin.pluginId, url),
+    );
+
+    this.pluginBridge.addHostMethod("getUserGrantedFetchOrigins", (plugin) =>
+      this.getUserGrantedFetchOrigins(plugin.pluginId),
+    );
+
     this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
       try {
         return await this._dataLayer.declarative.ensurePost(uri);
@@ -671,7 +697,50 @@ export class PluginService extends ReactiveStore {
 
   _getPermissionsForPlugin(pluginId) {
     const entry = this.prefManager.$installedPlugin.get(pluginId);
-    return parsePermissions(entry?.permissions ?? {});
+    const permissions = parsePermissions(entry?.permissions ?? {});
+    if (!isUserFetchAllowed(permissions)) return permissions;
+    const granted = this.getUserGrantedFetchOrigins(pluginId);
+    if (granted.length === 0) return permissions;
+    return {
+      ...permissions,
+      fetch: [...(permissions.fetch ?? []), ...granted],
+    };
+  }
+
+  async _requestFetchPermission(pluginId, url) {
+    const entry = this.prefManager.$installedPlugin.get(pluginId);
+    if (!isUserFetchAllowed(parsePermissions(entry?.permissions ?? {}))) {
+      throw new Error(`"${pluginId}" does not have the "userFetch" permission`);
+    }
+    const origin = normalizeFetchOrigin(url);
+    if (!origin) return false;
+    if (this._getPermissionsForPlugin(pluginId).fetch?.includes(origin)) {
+      return true;
+    }
+    if (this._pendingFetchPermissionRequests.has(pluginId)) return false;
+    this._pendingFetchPermissionRequests.add(pluginId);
+    let granted = false;
+    try {
+      granted = await showPluginFetchPermissionModal({
+        pluginName: entry?.name ?? null,
+        origin,
+      });
+    } finally {
+      this._pendingFetchPermissionRequests.delete(pluginId);
+    }
+    if (!granted) return false;
+    await this.prefManager.addUserGrantedFetchOrigin(pluginId, origin);
+    return true;
+  }
+
+  async revokeUserGrantedFetchOrigin(pluginId, origin) {
+    await this.prefManager.removeUserGrantedFetchOrigin(pluginId, origin);
+  }
+
+  getUserGrantedFetchOrigins(pluginId) {
+    return getGrantedOriginsForPlugin(
+      this.prefManager.$installedPlugin.get(pluginId),
+    );
   }
 
   _requireActionPermission(plugin, action) {
@@ -1022,14 +1091,23 @@ export class PluginService extends ReactiveStore {
         if (!accepted) throw new PermissionsDeclinedError();
       }
       const { name, version, author, description } = liveManifest;
-      await this.prefManager.updateInstalledPlugin(pluginId, (entry) => ({
-        ...entry,
-        name,
-        version,
-        author,
-        description,
-        permissions,
-      }));
+      const keepUserGrantedFetch = isUserFetchAllowed(permissions);
+      await this.prefManager.updateInstalledPlugin(pluginId, (entry) => {
+        const next = {
+          ...entry,
+          name,
+          version,
+          author,
+          description,
+          permissions,
+        };
+        // Drop stored grants when the new manifest no longer requests
+        // userFetch, so a later manifest that re-adds the scope starts fresh.
+        if (!keepUserGrantedFetch && next.userGrantedFetchOrigins) {
+          delete next.userGrantedFetchOrigins;
+        }
+        return next;
+      });
       await this.pluginBridge.reloadPlugin(
         pluginId,
         version,

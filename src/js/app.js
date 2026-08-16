@@ -55,11 +55,7 @@ import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative, wait } from "/js/utils.js";
 import { effect, untrack } from "/js/signals.js";
-import {
-  enableNativeRefresh,
-  disableNativeRefresh,
-  dispatchNativeRefreshEnded,
-} from "/js/nativeRefresh.js";
+import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE, IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import {
@@ -267,11 +263,13 @@ export async function main() {
   }
 
   router.addRoute(["/", "/intent/compose"], () => homeView, {
-    layoutOptions: { activeNavItem: "home" },
+    layoutOptions: { activeNavItem: "home", isNavItemPage: true },
+    scrollRestore: "always",
   });
   router.addRoute("/login", () => loginView, { layout: false });
   router.addRoute("/notifications", () => notificationsView, {
-    layoutOptions: { activeNavItem: "notifications" },
+    layoutOptions: { activeNavItem: "notifications", isNavItemPage: true },
+    scrollRestore: "always",
   });
   router.addRoute("/messages/inbox", () => chatRequestsView, {
     layoutOptions: { activeNavItem: "chat" },
@@ -281,21 +279,23 @@ export async function main() {
   });
   router.addRoute("/messages/:convoId", () => chatDetailView, {
     layoutOptions: { activeNavItem: "chat" },
+    scrollRestore: "manual",
   });
   router.addRoute("/messages", () => chatView, {
-    layoutOptions: { activeNavItem: "chat" },
+    layoutOptions: { activeNavItem: "chat", isNavItemPage: true },
   });
   router.addRoute("/feeds", () => feedsView, {
-    layoutOptions: { activeNavItem: "feeds" },
+    layoutOptions: { activeNavItem: "feeds", isNavItemPage: true },
   });
   router.addRoute("/lists", () => listsView, {
-    layoutOptions: { activeNavItem: "lists" },
+    layoutOptions: { activeNavItem: "lists", isNavItemPage: true },
   });
   router.addRoute("/bookmarks", () => bookmarksView, {
-    layoutOptions: { activeNavItem: "bookmarks" },
+    layoutOptions: { activeNavItem: "bookmarks", isNavItemPage: true },
   });
   router.addRoute("/search", () => searchView, {
-    layoutOptions: { activeNavItem: "search" },
+    layoutOptions: { activeNavItem: "search", isNavItemPage: true },
+    scrollRestore: "always",
   });
   router.addRoute("/hashtag/:tag", () => hashtagView);
   router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
@@ -312,7 +312,9 @@ export async function main() {
     "/profile/:handleOrDid/post/:rkey/reposts",
     () => postRepostsView,
   );
-  router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView);
+  router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView, {
+    scrollRestore: "manual",
+  });
   router.addRoute(
     "/profile/:handleOrDid/known-followers",
     () => profileKnownFollowersView,
@@ -329,12 +331,15 @@ export async function main() {
   router.addRoute(["/profile/:handleOrDid", "/profile"], () => profileView, {
     layoutOptions: {
       activeNavItem: (params) => (isOwnProfile(params) ? "profile" : null),
+      isNavItemPage: (params) => isOwnProfile(params),
     },
   });
   const settingsRouteOptions = {
     layoutOptions: { activeNavItem: "settings" },
   };
-  router.addRoute("/settings", () => settingsView, settingsRouteOptions);
+  router.addRoute("/settings", () => settingsView, {
+    layoutOptions: { activeNavItem: "settings", isNavItemPage: true },
+  });
   router.addRoute(
     "/settings/appearance",
     () => settingsAppearanceView,
@@ -368,11 +373,9 @@ export async function main() {
   const pluginsRouteOptions = {
     layoutOptions: { activeNavItem: "plugins" },
   };
-  router.addRoute(
-    "/plugins/installed",
-    () => installedPluginsView,
-    pluginsRouteOptions,
-  );
+  router.addRoute("/plugins/installed", () => installedPluginsView, {
+    layoutOptions: { activeNavItem: "plugins", isNavItemPage: !!session },
+  });
   router.addRoute(
     "/plugin/:pluginId/settings",
     () => pluginSettingsView,
@@ -383,11 +386,10 @@ export async function main() {
     () => pluginPageView,
     pluginsRouteOptions,
   );
-  router.addRoute(
-    "/plugins/community",
-    () => communityPluginsView,
-    pluginsRouteOptions,
-  );
+  router.addRoute("/plugins/community", () => communityPluginsView, {
+    // Logged out, the Plugins nav item points here instead
+    layoutOptions: { activeNavItem: "plugins", isNavItemPage: !session },
+  });
   router.addRoute(
     "/plugins/community/:pluginId",
     () => communityPluginListingView,
@@ -406,21 +408,13 @@ export async function main() {
   router.setNotFoundView(() => notFoundView);
 
   router.renderRoute(({ view, params, container, layout }) => {
-    return view.render({
+    return view({
       root: container,
       layout,
       router,
       params,
       context,
     });
-  });
-
-  router.on("page-shown", (page) => {
-    if (page.nativeRefreshDisabled) {
-      disableNativeRefresh();
-    } else {
-      enableNativeRefresh();
-    }
   });
 
   router.on("navigate", () => {

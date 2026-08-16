@@ -181,9 +181,7 @@ class AccountSwitcherDialog extends Component {
                                   author: profile,
                                   clickAction: "none",
                                 })
-                              : html`<div
-                                  class="avatar-image-placeholder"
-                                ></div>`}
+                              : html`<div class="avatar-placeholder"></div>`}
                           </span>
                           <span class="account-switcher-names">
                             <span class="account-switcher-display-name">

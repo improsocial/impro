@@ -51,7 +51,7 @@ export const test = baseTest.extend({
     if (collectCssCoverage) {
       const entries = await page.coverage.stopCSSCoverage();
       const styleEntries = entries.filter((entry) =>
-        entry.url.includes("/css/style."),
+        entry.url.includes("/css/"),
       );
       if (styleEntries.length > 0) {
         const fileName = `${testInfo.testId}-${testInfo.retry}.json`;

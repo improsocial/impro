@@ -2,7 +2,7 @@ import { isFetchAllowed } from "/js/plugins/pluginPermissions.js";
 
 const ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 
-const FORBIDDEN_HEADERS = ["authorization", "cookie"];
+const FORBIDDEN_HEADERS = ["cookie"];
 const MAX_BODY_CHARS = 1_000_000;
 export const MAX_RESPONSE_BYTES = 100_000_000;
 
