@@ -542,6 +542,22 @@ export class MockServer {
       });
     }
 
+    // Stub the external destinations "open in bsky.app" / "translate" links
+    // point at. These open via window.open, and popups are separate pages that
+    // page-level routes don't apply to — so the route has to be on the context
+    // or the popup really loads over the network, and page.waitForEvent("popup")
+    // (which resolves once the popup's initial navigation commits) can outlast
+    // the test timeout.
+    await page
+      .context()
+      .route(/^https:\/\/(bsky\.app|translate\.google\.com)\//, (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: "<!doctype html><html><body></body></html>",
+        }),
+      );
+
     // Stub gif proxy fetches (gif embeds stream from these CDNs).
     await page.route(
       /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,

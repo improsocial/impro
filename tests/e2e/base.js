@@ -26,7 +26,7 @@ export const test = baseTest.extend({
       await page.coverage.startCSSCoverage({ resetOnNavigation: false });
     }
     // Fail on any request not explicitly mocked
-    await page.route("**/*", (route) => {
+    await page.context().route("**/*", (route) => {
       const url = route.request().url();
       if (url.startsWith("http://localhost")) {
         return route.continue();
