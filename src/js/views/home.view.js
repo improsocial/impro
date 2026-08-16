@@ -424,6 +424,5 @@ export default async function homeView({
       cancelIdle(materializeIdleHandle);
       materializeIdleHandle = null;
     }
-    state.$materializedFeedUris.clear();
   });
 }
