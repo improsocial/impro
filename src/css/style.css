@@ -1473,19 +1473,13 @@ button.sidebar-plugin-nav-item {
 
 .logged-out-sidebar .login-button,
 .logged-out-sidebar .sidebar-about-link {
-  width: fit-content;
-  margin-left: 16px;
+  align-self: stretch;
   margin-top: 8px;
+  margin-right: 20px;
+  margin-bottom: 0px;
+  margin-left: 20px;
   padding: 10px 20px;
   white-space: nowrap;
-}
-
-@media (min-width: 800px) {
-  .logged-out-sidebar .login-button,
-  .logged-out-sidebar .sidebar-about-link {
-    margin-left: auto;
-    margin-right: auto;
-  }
 }
 
 .footer-nav {
