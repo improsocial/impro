@@ -102,8 +102,7 @@ export class MockServer {
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
     this.tokenRefreshShouldFail = false;
     this.notificationServiceUnreachable = false;
-    // Which notification service the account's preferences name; null means
-    // none has been chosen.
+    // Which notification service this device has chosen; null means none.
     this.notificationServiceDid = null;
     this.registerPushCalls = [];
     this.unregisterPushCalls = [];
@@ -121,8 +120,8 @@ export class MockServer {
     this.notificationServiceUnreachable = true;
   }
 
-  // Start with a notification service already chosen, as if the account had
-  // picked one on another device.
+  // Start with a notification service already chosen on this device, as if a
+  // previous launch had left it there. Call before setup().
   setNotificationServiceDid(did) {
     this.notificationServiceDid = did;
   }
@@ -542,6 +541,12 @@ export class MockServer {
       });
     }
 
+    if (this.notificationServiceDid) {
+      await page.addInitScript((did) => {
+        localStorage.setItem("courier-push-service", did);
+      }, this.notificationServiceDid);
+    }
+
     // Stub the external destinations "open in bsky.app" / "translate" links
     // point at. These open via window.open, and popups are separate pages that
     // page-level routes don't apply to — so the route has to be on the context
@@ -855,15 +860,6 @@ export class MockServer {
                   {
                     $type: "app.bsky.actor.defs#improSearchHistoryPref",
                     ...this.searchHistory,
-                  },
-                ]
-              : []),
-            ...(this.notificationServiceDid
-              ? [
-                  {
-                    $type:
-                      "app.bsky.actor.defs#improPushNotificationServicePref",
-                    serviceDid: this.notificationServiceDid,
                   },
                 ]
               : []),
@@ -2533,13 +2529,6 @@ export class MockServer {
         if (hiddenPostsPref) {
           this.hiddenPostUris = hiddenPostsPref.items || [];
         }
-        // Absent means the user chose None, so this tracks removal too.
-        this.notificationServiceDid =
-          body?.preferences?.find(
-            (p) =>
-              p.$type ===
-              "app.bsky.actor.defs#improPushNotificationServicePref",
-          )?.serviceDid ?? null;
         const searchHistoryPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#improSearchHistoryPref",
         );

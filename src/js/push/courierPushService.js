@@ -3,9 +3,9 @@ import { Signal } from "/js/signals.js";
 import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
 import { auth } from "/js/auth.js";
 import { Api } from "/js/api.js";
-import { Preferences } from "/js/preferences.js";
 
 const STORAGE_KEY = "courier-push-enabled";
+const SERVICE_STORAGE_KEY = "courier-push-service";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
@@ -33,14 +33,27 @@ function urlBase64ToUint8Array(base64String) {
   return bytes;
 }
 
+function matchesVapidKey(subscription, vapidPublicKey) {
+  const existing = subscription.options?.applicationServerKey;
+  if (!existing) return true;
+  const bytes = new Uint8Array(existing);
+  const expected = urlBase64ToUint8Array(vapidPublicKey);
+  return (
+    bytes.length === expected.length &&
+    bytes.every((byte, index) => byte === expected[index])
+  );
+}
+
 // Client-side half of the spec's "Enable flow".
 export class CourierPushService {
-  constructor(api, dataLayer) {
+  constructor(api) {
     this.api = api;
-    this.dataLayer = dataLayer;
     this._configPromise = null;
     this.$enabled = new Signal.State(
       localStorage.getItem(STORAGE_KEY) === "true",
+    );
+    this.$deviceServiceDid = new Signal.State(
+      localStorage.getItem(SERVICE_STORAGE_KEY),
     );
   }
 
@@ -62,12 +75,23 @@ export class CourierPushService {
     return this.isSupported && this.hasService && this.$enabled.get();
   }
 
+  // A browser holds one push subscription, bound to one service's VAPID key,
+  // shared by every account signed in here — so the choice is per-device.
   get serviceDid() {
-    return this.dataLayer?.derived.$notificationServiceDid.get() ?? null;
+    return this.$deviceServiceDid.get();
   }
 
   get hasService() {
     return this.serviceDid !== null;
+  }
+
+  _setDeviceServiceDid(did) {
+    if (did === null) {
+      localStorage.removeItem(SERVICE_STORAGE_KEY);
+    } else {
+      localStorage.setItem(SERVICE_STORAGE_KEY, did);
+    }
+    this.$deviceServiceDid.set(did);
   }
 
   _setEnabled(enabled) {
@@ -90,7 +114,7 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    await this.dataLayer.mutations.setNotificationServiceDid(did);
+    this._setDeviceServiceDid(did);
   }
 
   async clearService() {
@@ -99,7 +123,7 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    await this.dataLayer.mutations.setNotificationServiceDid(null);
+    this._setDeviceServiceDid(null);
   }
 
   async fetchServiceConfig() {
@@ -165,6 +189,10 @@ export class CourierPushService {
     const registration = await navigator.serviceWorker.register(SW_PATH);
     await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !matchesVapidKey(subscription, config.vapidPublicKey)) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -202,20 +230,48 @@ export class CourierPushService {
 
   async unregisterAccount(did) {
     const subscription = await this._getSubscription();
-    if (!subscription) return;
+    if (!subscription || !this.serviceDid) return;
     const api = await this._apiForAccount(did);
     if (!api) return;
-    const preferences = new Preferences(await api.getPreferences(), null, {
-      persist: false,
-    });
-    const serviceDid = preferences.getNotificationServiceDid();
-    if (!serviceDid) return;
-    await api.unregisterPush({
-      serviceDid,
+    await api.unregisterPush(this._unregisterPayload(subscription));
+  }
+
+  _unregisterPayload(subscription) {
+    return {
+      serviceDid: this.serviceDid,
       token: JSON.stringify(subscription),
       platform: PLATFORM,
       appId: APP_ID,
-    });
+    };
+  }
+
+  async _listAccountDids() {
+    try {
+      return (await auth.listAccounts()).map((account) => account.did);
+    } catch (error) {
+      console.warn("Failed to list accounts for push teardown", error);
+      return [];
+    }
+  }
+
+  async _unregisterDevice(subscription) {
+    if (!this.serviceDid) return;
+    const payload = this._unregisterPayload(subscription);
+    const currentDid = this.api.session?.did ?? null;
+    try {
+      await this.api.unregisterPush(payload);
+    } catch (error) {
+      console.error("Failed to unregister push subscription", error);
+    }
+    for (const did of await this._listAccountDids()) {
+      if (did === currentDid) continue;
+      try {
+        const api = await this._apiForAccount(did);
+        await api?.unregisterPush(payload);
+      } catch (error) {
+        console.error("Failed to unregister push for another account", error);
+      }
+    }
   }
 
   async _getSubscription() {
@@ -228,16 +284,7 @@ export class CourierPushService {
     this._setEnabled(false);
     const subscription = await this._getSubscription();
     if (!subscription) return;
-    try {
-      await this.api.unregisterPush({
-        serviceDid: this.serviceDid,
-        token: JSON.stringify(subscription),
-        platform: PLATFORM,
-        appId: APP_ID,
-      });
-    } catch (error) {
-      console.error("Failed to unregister push subscription", error);
-    }
+    await this._unregisterDevice(subscription);
     await subscription.unsubscribe();
   }
 }

@@ -4,6 +4,11 @@ import { login } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
 import { notificationService } from "../../../testData.js";
 
+// The chosen service is device state, so it lands in localStorage rather than
+// in the account's preferences.
+const storedService = (page) =>
+  page.evaluate(() => localStorage.getItem("courier-push-service"));
+
 test.describe("Settings Advanced view", () => {
   test("should display header and App View section", async ({ page }) => {
     const mockServer = new MockServer();
@@ -382,7 +387,7 @@ test.describe("Settings Advanced view", () => {
       await expect(page.locator('[data-testid="toast"]')).toContainText(
         notificationService.name,
       );
-      expect(mockServer.notificationServiceDid).toBe(notificationService.did);
+      expect(await storedService(page)).toBe(notificationService.did);
     });
 
     test("a stored service that matches no preset selects Custom and prefills it", async ({
@@ -432,7 +437,7 @@ test.describe("Settings Advanced view", () => {
       await select.selectOption("none");
       await page.locator('[data-testid="notification-service-save"]').click();
 
-      await expect.poll(() => mockServer.notificationServiceDid).toBeNull();
+      await expect.poll(() => storedService(page)).toBeNull();
     });
 
     test("rejects input that isn't a DID without hitting the network", async ({
@@ -454,7 +459,7 @@ test.describe("Settings Advanced view", () => {
       await expect(
         page.locator('[data-testid="notification-service-error"]'),
       ).toBeVisible();
-      expect(mockServer.notificationServiceDid).toBeNull();
+      expect(await storedService(page)).toBeNull();
     });
 
     test("a service that won't resolve is rejected and not stored", async ({
@@ -478,7 +483,7 @@ test.describe("Settings Advanced view", () => {
         page.locator('[data-testid="notification-service-error"]'),
       ).toBeVisible({ timeout: 10000 });
       // The previous state must survive a failed switch, so nothing is stored.
-      expect(mockServer.notificationServiceDid).toBeNull();
+      expect(await storedService(page)).toBeNull();
     });
   });
 

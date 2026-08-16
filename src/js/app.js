@@ -133,9 +133,7 @@ export async function main() {
           router,
         )
       : null;
-  const courierPushService = session
-    ? new CourierPushService(api, dataLayer)
-    : null;
+  const courierPushService = session ? new CourierPushService(api) : null;
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
         draftsEnabled: await checkDraftsEnabled(),

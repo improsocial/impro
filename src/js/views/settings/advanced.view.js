@@ -161,7 +161,6 @@ export default async function settingsAdvancedView({
     state.$notificationServiceLoading.set(true);
     try {
       const { name } = await courierPushService.previewService(did);
-      const wasEnabled = courierPushService.isEnabled;
       await courierPushService.selectService(did);
       showToast(`Selected notification service: ${name}`, { style: "success" });
     } catch (error) {

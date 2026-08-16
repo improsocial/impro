@@ -224,9 +224,6 @@ export class Derived extends ReactiveStore {
       const patches = this.patchStore.$preferencePatches.get();
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
-    this.$notificationServiceDid = new Signal.Computed(() => {
-      return this.$preferences.get()?.getNotificationServiceDid() ?? null;
-    });
     this.$notifications = new Signal.Computed(() => {
       const data = this.dataStore.$notifications.get();
       if (!data) return null;

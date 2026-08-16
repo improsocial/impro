@@ -5,7 +5,6 @@ import {
   PLUGIN_SETTINGS_PREF_TYPE,
   INSTALLED_PLUGINS_PREF_TYPE,
   SEARCH_HISTORY_PREF_TYPE,
-  PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
 } from "/js/preferences.js";
 
 describe("Preferences.createLoggedOutPreferences", () => {
@@ -3313,52 +3312,5 @@ describe("Preferences recent search profiles", () => {
       .addRecentSearchProfile("")
       .addRecentSearchProfile(null);
     assert.deepEqual(preferences.getRecentSearchProfiles(), []);
-  });
-});
-
-describe("Preferences push notification service", () => {
-  it("is null when the account has never chosen one", () => {
-    assert.equal(new Preferences([], []).getNotificationServiceDid(), null);
-  });
-
-  it("round-trips the chosen service", () => {
-    const preferences = new Preferences([], []).setNotificationServiceDid(
-      "did:web:notifs.example",
-    );
-    assert.equal(
-      preferences.getNotificationServiceDid(),
-      "did:web:notifs.example",
-    );
-  });
-
-  it("replaces rather than appends when the service changes", () => {
-    const preferences = new Preferences([], [])
-      .setNotificationServiceDid("did:web:notifs.example")
-      .setNotificationServiceDid("did:web:elsewhere.example");
-    const records = preferences.obj.filter(
-      (pref) => pref.$type === PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
-    );
-    assert.equal(records.length, 1);
-    assert.equal(records[0].serviceDid, "did:web:elsewhere.example");
-  });
-
-  it("drops the record entirely when set back to none", () => {
-    const preferences = new Preferences([], [])
-      .setNotificationServiceDid("did:web:notifs.example")
-      .setNotificationServiceDid(null);
-    assert.deepEqual(
-      preferences.obj.filter(
-        (pref) => pref.$type === PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
-      ),
-      [],
-    );
-    assert.equal(preferences.getNotificationServiceDid(), null);
-  });
-
-  it("leaves other preferences untouched", () => {
-    const preferences = new Preferences([], [])
-      .addRecentSearch("cats")
-      .setNotificationServiceDid("did:web:notifs.example");
-    assert.equal(preferences.getRecentSearches().length, 1);
   });
 });

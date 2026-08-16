@@ -9,6 +9,17 @@ const SUBSCRIPTION = {
   unsubscribe: async () => {},
 };
 
+const FRESH_SUBSCRIPTION = {
+  endpoint: "https://push.example/ep/fresh",
+  keys: { p256dh: "p2", auth: "a2" },
+  unsubscribe: async () => {},
+};
+
+// "BKxQ" is the base64url the service config carries; decoded it is the key a
+// subscription reports back through options.applicationServerKey.
+const VAPID_KEY = "BKxQ";
+const VAPID_KEY_BYTES = Uint8Array.from([4, 172, 80]);
+
 function setupDom({ enabled = true, granted = true } = {}) {
   globalThis.localStorage = {
     _data: enabled ? { "courier-push-enabled": "true" } : {},
@@ -50,6 +61,7 @@ function setupDom({ enabled = true, granted = true } = {}) {
   const registration = {
     pushManager: {
       getSubscription: async () => SUBSCRIPTION,
+      subscribe: async () => FRESH_SUBSCRIPTION,
     },
   };
   Object.defineProperty(globalThis, "navigator", {
@@ -65,29 +77,19 @@ function setupDom({ enabled = true, granted = true } = {}) {
   });
 }
 
-// The chosen service lives in account preferences, so the service reads it
-// through the dataLayer. Share one of these between two CourierPushService
-// instances to model the same account on a later launch.
-function makeDataLayer(serviceDid = null) {
-  const $notificationServiceDid = new Signal.State(serviceDid);
-  return {
-    derived: { $notificationServiceDid },
-    mutations: {
-      setNotificationServiceDid: mock.fn(async (did) => {
-        $notificationServiceDid.set(did);
-      }),
-    },
-  };
-}
-
-function createService(dataLayer = makeDataLayer()) {
+// The chosen service is device state, so a service DID is seeded the same way
+// a previous launch would have left it: in localStorage.
+function createService(serviceDid = null) {
+  if (serviceDid !== null) {
+    globalThis.localStorage.setItem("courier-push-service", serviceDid);
+  }
   const registerPush = mock.fn(async () => {});
-  const api = { registerPush };
-  return {
-    service: new CourierPushService(api, dataLayer),
-    registerPush,
-    dataLayer,
-  };
+  const api = { registerPush, session: { did: "did:plc:current" } };
+  const service = new CourierPushService(api);
+  // Enumerating accounts reaches for real OAuth storage; tests that care about
+  // the other-account fan-out override this.
+  service._listAccountDids = async () => [];
+  return { service, registerPush };
 }
 
 describe("CourierPushService registration", () => {
@@ -135,6 +137,53 @@ describe("CourierPushService registration", () => {
     });
   });
 
+  // A PushSubscription is bound to the VAPID key it was created with, so one
+  // left behind by a different service can't receive this service's pushes —
+  // the gateway rejects them, silently, forever.
+  it("replaces a subscription bound to another service's key", async () => {
+    setupDom();
+    const { service, registerPush } = createService("did:web:notifs.example");
+    const unsubscribe = mock.fn(async () => {});
+    SUBSCRIPTION.options = {
+      applicationServerKey: Uint8Array.from([9, 9, 9]).buffer,
+    };
+    SUBSCRIPTION.unsubscribe = unsubscribe;
+
+    try {
+      await service._subscribeAndRegister({ vapidPublicKey: VAPID_KEY });
+    } finally {
+      delete SUBSCRIPTION.options;
+      SUBSCRIPTION.unsubscribe = async () => {};
+    }
+
+    assert.equal(unsubscribe.mock.calls.length, 1);
+    assert.equal(
+      JSON.parse(registerPush.mock.calls[0].arguments[0].token).endpoint,
+      FRESH_SUBSCRIPTION.endpoint,
+    );
+  });
+
+  it("keeps a subscription bound to this service's key", async () => {
+    setupDom();
+    const { service, registerPush } = createService("did:web:notifs.example");
+    const unsubscribe = mock.fn(async () => {});
+    SUBSCRIPTION.options = { applicationServerKey: VAPID_KEY_BYTES.buffer };
+    SUBSCRIPTION.unsubscribe = unsubscribe;
+
+    try {
+      await service._subscribeAndRegister({ vapidPublicKey: VAPID_KEY });
+    } finally {
+      delete SUBSCRIPTION.options;
+      SUBSCRIPTION.unsubscribe = async () => {};
+    }
+
+    assert.equal(unsubscribe.mock.calls.length, 0);
+    assert.equal(
+      JSON.parse(registerPush.mock.calls[0].arguments[0].token).endpoint,
+      SUBSCRIPTION.endpoint,
+    );
+  });
+
   it("skips the launch re-assert when no service is selected", async () => {
     setupDom();
     const { service, registerPush } = createService();
@@ -144,9 +193,7 @@ describe("CourierPushService registration", () => {
 
   it("skips the launch re-assert when push is disabled", async () => {
     setupDom({ enabled: false });
-    const { service, registerPush } = createService(
-      makeDataLayer("did:web:notifs.example"),
-    );
+    const { service, registerPush } = createService("did:web:notifs.example");
     await service.reassertIfEnabled();
     assert.equal(registerPush.mock.calls.length, 0);
   });
@@ -155,9 +202,7 @@ describe("CourierPushService registration", () => {
   // stored flag is only reconciled the next time we go looking.
   it("clears the stored flag when permission was revoked out-of-band", async () => {
     setupDom({ granted: false });
-    const { service, registerPush } = createService(
-      makeDataLayer("did:web:notifs.example"),
-    );
+    const { service, registerPush } = createService("did:web:notifs.example");
     await service.reassertIfEnabled();
     assert.equal(registerPush.mock.calls.length, 0);
     assert.equal(service.$enabled.get(), false);
@@ -165,7 +210,7 @@ describe("CourierPushService registration", () => {
 
   it("disable() unregisters this device and clears the flag", async () => {
     setupDom();
-    const { service } = createService();
+    const { service } = createService("did:web:notifs.example");
     const unregisterPush = mock.fn(async () => {});
     service.api.unregisterPush = unregisterPush;
     await service.disable();
@@ -205,7 +250,7 @@ describe("CourierPushService registration", () => {
   it("is supported in an uninstalled non-iOS mobile browser", () => {
     setupDom();
     simulateUninstalled({ ios: false });
-    const { service } = createService(makeDataLayer("did:web:notifs.example"));
+    const { service } = createService("did:web:notifs.example");
     assert.equal(service.isSupported, true);
     assert.equal(service.requiresInstall, false);
   });
@@ -228,7 +273,7 @@ describe("CourierPushService registration", () => {
   it("registers against the selected service, not the default", async () => {
     setupDom();
     const { service, registerPush } = createService(
-      makeDataLayer("did:web:elsewhere.example"),
+      "did:web:elsewhere.example",
     );
     await service._subscribeAndRegister({ vapidPublicKey: "k" });
     assert.equal(
@@ -238,30 +283,17 @@ describe("CourierPushService registration", () => {
   });
 
   // Removing an account happens from a different account's session, so the
-  // teardown borrows the removed account's own session and preferences.
-  function stubRemovedAccount(service, { preferences }) {
+  // teardown borrows the removed account's own session.
+  function stubRemovedAccount(service) {
     const unregisterPush = mock.fn(async () => {});
-    const getPreferences = mock.fn(async () => preferences);
-    service._apiForAccount = mock.fn(async () => ({
-      unregisterPush,
-      getPreferences,
-    }));
-    return { unregisterPush, getPreferences };
+    service._apiForAccount = mock.fn(async () => ({ unregisterPush }));
+    return { unregisterPush };
   }
 
-  const servicePref = (serviceDid) => [
-    {
-      $type: "app.bsky.actor.defs#improPushNotificationServicePref",
-      serviceDid,
-    },
-  ];
-
-  it("unregisters a removed account at the service it chose", async () => {
+  it("unregisters a removed account at this device's service", async () => {
     setupDom();
-    const { service } = createService(makeDataLayer("did:web:mine.example"));
-    const { unregisterPush } = stubRemovedAccount(service, {
-      preferences: servicePref("did:web:theirs.example"),
-    });
+    const { service } = createService("did:web:notifs.example");
+    const { unregisterPush } = stubRemovedAccount(service);
 
     await service.unregisterAccount("did:plc:removed");
 
@@ -271,8 +303,7 @@ describe("CourierPushService registration", () => {
     );
     assert.equal(unregisterPush.mock.calls.length, 1);
     const args = unregisterPush.mock.calls[0].arguments[0];
-    // The removed account's service, not the current account's.
-    assert.equal(args.serviceDid, "did:web:theirs.example");
+    assert.equal(args.serviceDid, "did:web:notifs.example");
     assert.equal(args.appId, "social.impro");
     assert.equal(args.platform, "web");
     assert.deepEqual(JSON.parse(args.token), {
@@ -281,10 +312,10 @@ describe("CourierPushService registration", () => {
     });
   });
 
-  it("skips a removed account that never chose a service", async () => {
+  it("skips the teardown on a device with no service", async () => {
     setupDom();
     const { service } = createService();
-    const { unregisterPush } = stubRemovedAccount(service, { preferences: [] });
+    const { unregisterPush } = stubRemovedAccount(service);
 
     await service.unregisterAccount("did:plc:removed");
 
@@ -295,13 +326,11 @@ describe("CourierPushService registration", () => {
   // would silently kill push for the accounts that remain.
   it("leaves the shared browser subscription in place", async () => {
     setupDom();
-    const { service } = createService();
+    const { service } = createService("did:web:notifs.example");
     const unsubscribe = mock.fn(async () => {});
     const originalUnsubscribe = SUBSCRIPTION.unsubscribe;
     SUBSCRIPTION.unsubscribe = unsubscribe;
-    stubRemovedAccount(service, {
-      preferences: servicePref("did:web:theirs.example"),
-    });
+    stubRemovedAccount(service);
 
     try {
       await service.unregisterAccount("did:plc:removed");
@@ -317,7 +346,7 @@ describe("CourierPushService registration", () => {
   // best-effort, so the error has to surface rather than be swallowed.
   it("surfaces a failed teardown to the caller", async () => {
     setupDom();
-    const { service } = createService();
+    const { service } = createService("did:web:notifs.example");
     service._apiForAccount = async () => {
       throw new Error("session already gone");
     };
@@ -325,6 +354,73 @@ describe("CourierPushService registration", () => {
       () => service.unregisterAccount("did:plc:removed"),
       /session already gone/,
     );
+  });
+
+  // Tearing down the subscription strands every account still registered
+  // against it, so disable() has to cover all of them.
+  it("unregisters every signed-in account before unsubscribing", async () => {
+    setupDom();
+    const { service } = createService("did:web:notifs.example");
+    const order = [];
+    const unregisterPush = mock.fn(async () => {});
+    service.api.unregisterPush = mock.fn(async () => order.push("current"));
+    service._listAccountDids = async () => [
+      "did:plc:current",
+      "did:plc:other",
+      "did:plc:third",
+    ];
+    service._apiForAccount = mock.fn(async (did) => ({
+      unregisterPush: async (payload) => {
+        order.push(did);
+        return unregisterPush(payload);
+      },
+    }));
+    const originalUnsubscribe = SUBSCRIPTION.unsubscribe;
+    SUBSCRIPTION.unsubscribe = mock.fn(async () => order.push("unsubscribe"));
+
+    try {
+      await service.disable();
+    } finally {
+      SUBSCRIPTION.unsubscribe = originalUnsubscribe;
+    }
+
+    // The current account goes through the app's own api, and is not
+    // unregistered twice.
+    assert.deepEqual(order, [
+      "current",
+      "did:plc:other",
+      "did:plc:third",
+      "unsubscribe",
+    ]);
+    assert.equal(
+      unregisterPush.mock.calls[0].arguments[0].serviceDid,
+      "did:web:notifs.example",
+    );
+  });
+
+  it("still unsubscribes when another account's teardown fails", async () => {
+    setupDom();
+    const { service } = createService("did:web:notifs.example");
+    service.api.unregisterPush = mock.fn(async () => {});
+    service._listAccountDids = async () => ["did:plc:other"];
+    service._apiForAccount = async () => {
+      throw new Error("session already gone");
+    };
+    const unsubscribe = mock.fn(async () => {});
+    const originalUnsubscribe = SUBSCRIPTION.unsubscribe;
+    SUBSCRIPTION.unsubscribe = unsubscribe;
+    const originalError = console.error;
+    console.error = () => {};
+
+    try {
+      await service.disable();
+    } finally {
+      SUBSCRIPTION.unsubscribe = originalUnsubscribe;
+      console.error = originalError;
+    }
+
+    assert.equal(unsubscribe.mock.calls.length, 1);
+    assert.equal(service.$enabled.get(), false);
   });
 });
 
@@ -399,15 +495,31 @@ describe("CourierPushService service selection", () => {
     assert.equal(fetchCalls.length, 0, "it must not hit the network");
   });
 
-  it("naming a service persists it across launches", async () => {
-    const { service, dataLayer } = createService();
+  // The choice is device state: it belongs to the browser, not the account,
+  // because one subscription serves every account signed in here.
+  it("naming a service persists it on the device across launches", async () => {
+    const { service } = createService();
     await service.selectService("did:web:notifs.example");
     assert.equal(service.serviceDid, "did:web:notifs.example");
     assert.equal(service.hasService, true);
+    assert.equal(
+      globalThis.localStorage.getItem("courier-push-service"),
+      "did:web:notifs.example",
+    );
 
-    // Same account, later launch: the choice comes back from preferences.
-    const { service: relaunched } = createService(dataLayer);
+    // Same device, later launch.
+    const { service: relaunched } = createService();
     assert.equal(relaunched.serviceDid, "did:web:notifs.example");
+  });
+
+  it("clearing the service clears the device's choice", async () => {
+    const { service } = createService("did:web:notifs.example");
+
+    await service.clearService();
+
+    assert.equal(service.serviceDid, null);
+    assert.equal(service.hasService, false);
+    assert.equal(globalThis.localStorage.getItem("courier-push-service"), null);
   });
 
   it("resolves a service through its DID document", async () => {
@@ -418,7 +530,7 @@ describe("CourierPushService service selection", () => {
   });
 
   it("resolves a service once per session", async () => {
-    const { service, dataLayer } = createService();
+    const { service } = createService();
     await service.selectService("did:web:notifs.example");
     await service.fetchServiceConfig();
     const afterFirst = fetchCalls.length;
@@ -432,7 +544,7 @@ describe("CourierPushService service selection", () => {
     // A fresh instance is the app-launch case. It re-resolves rather than
     // reading a persisted copy: how long the config stays good is the
     // service's call, made in its own cache headers.
-    const { service: relaunched } = createService(dataLayer);
+    const { service: relaunched } = createService();
     await relaunched.fetchServiceConfig();
     assert.ok(fetchCalls.length > afterFirst);
   });
