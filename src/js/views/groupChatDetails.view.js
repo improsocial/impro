@@ -1,5 +1,4 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { auth } from "/js/auth.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
@@ -182,7 +181,7 @@ export default async function groupChatDetailsView({
   params,
   router,
   layout,
-  context: { dataLayer, isAuthenticated, pluginService },
+  context: { auth, dataLayer, isAuthenticated, pluginService },
 }) {
   await auth.requireAuth();
 

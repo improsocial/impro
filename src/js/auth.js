@@ -1,7 +1,4 @@
-import {
-  getServiceEndpointForHandle,
-  identityResolver as defaultIdentityResolver,
-} from "/js/atproto.js";
+import { getServiceEndpointForHandle } from "/js/atproto.js";
 import {
   OauthClient,
   HandleNotFoundError,
@@ -141,7 +138,7 @@ export class BasicAuthSession {
 }
 
 export class BasicAuthProvider {
-  constructor({ identityResolver = defaultIdentityResolver } = {}) {
+  constructor({ identityResolver } = {}) {
     this.session = null;
     this._loaded = false;
     this.identityResolver = identityResolver;
@@ -208,7 +205,7 @@ export class BasicAuthProvider {
 }
 
 export class OAuthProvider {
-  constructor({ identityResolver = defaultIdentityResolver } = {}) {
+  constructor({ identityResolver } = {}) {
     this._client = null;
     this.identityResolver = identityResolver;
   }
@@ -457,6 +454,11 @@ export class Auth {
   }
 }
 
-export const auth = new Auth(
-  isNative() ? new BasicAuthProvider() : new OAuthProvider(),
-);
+export function createAuth({ identityResolver }) {
+  const providerOptions = { identityResolver };
+  return new Auth(
+    isNative()
+      ? new BasicAuthProvider(providerOptions)
+      : new OAuthProvider(providerOptions),
+  );
+}

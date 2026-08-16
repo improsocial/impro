@@ -238,12 +238,7 @@ export class IdentityResolver {
   }
 }
 
-export const identityResolver = new IdentityResolver();
-
-export async function getServiceEndpointForHandle(
-  handle,
-  resolver = identityResolver,
-) {
+export async function getServiceEndpointForHandle(handle, resolver) {
   const result = await resolver.resolveEndpoint(handle);
   if (!result) {
     throw new HandleNotFoundError("DID not found for handle: " + handle);

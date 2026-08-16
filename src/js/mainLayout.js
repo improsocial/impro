@@ -1,6 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
-import { auth } from "/js/auth.js";
 import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
@@ -139,6 +138,7 @@ export class MainLayout extends Layout {
       pluginService,
       groupChatLinkService,
       profileHoverCardService,
+      auth,
     } = this.context;
     const { router, slot } = this;
 

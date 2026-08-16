@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
-import { auth } from "/js/auth.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
@@ -56,6 +55,7 @@ export default async function notificationsView({
   root,
   layout,
   context: {
+    auth,
     dataLayer,
     notificationService,
     postComposerService,

@@ -6,7 +6,6 @@ import {
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
   getConvoPreviewText,
@@ -29,7 +28,7 @@ export default async function chatView({
   root,
   router,
   layout,
-  context: { dataLayer, chatNotificationService },
+  context: { auth, dataLayer, chatNotificationService },
 }) {
   await auth.requireAuth();
 

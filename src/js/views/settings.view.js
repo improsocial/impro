@@ -12,7 +12,7 @@ import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.templat
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
 import { moreMenuIconTemplate } from "/js/templates/icons/moreMenuIcon.template.js";
-import { auth, getLoginErrorMessage } from "/js/auth.js";
+import { getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
@@ -30,7 +30,7 @@ import { getDisplayName } from "/js/dataHelpers.js";
 export default async function settingsView({
   root,
   layout,
-  context: { dataLayer, pushNotificationService },
+  context: { auth, dataLayer, pushNotificationService },
 }) {
   const currentSession = await auth.requireAuth();
   const supportsMultipleAccounts = auth.supportsMultipleAccounts();

@@ -1,7 +1,4 @@
-import {
-  HandleNotFoundError,
-  identityResolver as defaultIdentityResolver,
-} from "/js/atproto.js";
+import { HandleNotFoundError } from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
 
 export { HandleNotFoundError } from "/js/atproto.js";
@@ -578,12 +575,7 @@ export class InvalidAuthUrlError extends Error {
 }
 
 export class OauthClient {
-  constructor({
-    clientId,
-    redirectUri,
-    dpopKeypair,
-    identityResolver = defaultIdentityResolver,
-  }) {
+  constructor({ clientId, redirectUri, dpopKeypair, identityResolver }) {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     this.dpopRequests = new DPoPRequests(dpopKeypair);

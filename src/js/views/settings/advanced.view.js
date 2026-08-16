@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import {
   AppViewConfig,
   DEFAULT_APP_VIEW_CONFIGS,
@@ -23,7 +22,7 @@ export default async function settingsAdvancedView({
   root,
   router,
   layout,
-  context: { pluginService, pushNotificationService },
+  context: { auth, pluginService, pushNotificationService },
 }) {
   await auth.requireAuth();
 

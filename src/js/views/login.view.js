@@ -1,4 +1,4 @@
-import { auth, BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
+import { BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
@@ -28,7 +28,7 @@ export default async function loginView({
   root,
   router,
   params,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireNoAuth();
 

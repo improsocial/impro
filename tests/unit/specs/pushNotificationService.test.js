@@ -85,9 +85,12 @@ function createService(serviceDid = null) {
   }
   const registerPush = mock.fn(async () => {});
   const api = { registerPush, session: { did: "did:plc:current" } };
-  const service = new PushNotificationService(api);
-  // Enumerating accounts reaches for real OAuth storage; tests that care about
-  // the other-account fan-out override this.
+  const auth = {
+    getSession: async () => null,
+    listAccounts: async () => [],
+  };
+  const service = new PushNotificationService(api, auth);
+  // Tests that care about the other-account fan-out override this.
   service._listAccountDids = async () => [];
   return { service, registerPush };
 }

@@ -1,4 +1,4 @@
-import { identityResolver as defaultIdentityResolver } from "/js/atproto.js";
+import { IdentityResolver } from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
 
 export function decodeTangledBlobContent(data, file) {
@@ -56,7 +56,7 @@ const REPO_INFO_REVALIDATE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 // Resolves an "<ownerHandle>/<repoName>" path to the {knot, repoDid} pair its
 // blobs are served from.
 export class TangledResolver {
-  constructor(identityResolver = defaultIdentityResolver) {
+  constructor(identityResolver = new IdentityResolver()) {
     this._pending = new Map();
     this._store = new KVIndexedDB("tangled-repo-info", "repoInfoByPath");
     this.identityResolver = identityResolver;

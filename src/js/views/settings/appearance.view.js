@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import {
   theme,
   getDefaultHighlightColor,
@@ -9,7 +8,12 @@ import {
   getDefaultColorScheme,
 } from "/js/theme.js";
 
-export default async function settingsAppearanceView({ root, router, layout }) {
+export default async function settingsAppearanceView({
+  root,
+  router,
+  layout,
+  context: { auth },
+}) {
   await auth.requireAuth();
 
   function handleHighlightColorChange(newHighlightColor) {

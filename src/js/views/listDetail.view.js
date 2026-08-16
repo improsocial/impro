@@ -4,7 +4,6 @@ import { classnames } from "/js/utils.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -29,6 +28,7 @@ export default async function listDetailView({
   root,
   params,
   context: {
+    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,

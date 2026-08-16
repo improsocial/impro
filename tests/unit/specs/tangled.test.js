@@ -90,7 +90,9 @@ describe("TangledResolver", () => {
 
     // A fresh resolver stands in for a new session: only the persisted
     // entry can satisfy this call
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     assert.deepEqual(info, { knot, repoDid });
     assert.deepEqual(identityResolutions, 1);
@@ -106,7 +108,9 @@ describe("TangledResolver", () => {
       throw new Error("resolveHandle: timed out");
     });
 
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     assert.deepEqual(info, { knot, repoDid });
     assert.deepEqual(identityResolutions, 0);
@@ -119,7 +123,9 @@ describe("TangledResolver", () => {
     Date.now = originalDateNow;
 
     identityResolutions = 0;
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     // Served without waiting on the revalidation
     assert.deepEqual(info, { knot, repoDid });

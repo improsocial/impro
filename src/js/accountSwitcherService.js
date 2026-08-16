@@ -2,8 +2,9 @@ import { hapticsImpactLight } from "/js/haptics.js";
 import "/js/components/account-switcher-dialog.js";
 
 export class AccountSwitcherService {
-  constructor(dataLayer) {
+  constructor(dataLayer, auth) {
     this.dataLayer = dataLayer;
+    this.auth = auth;
     this.currentDialog = null;
   }
 
@@ -15,6 +16,7 @@ export class AccountSwitcherService {
     hapticsImpactLight();
     this.currentDialog = document.createElement("account-switcher-dialog");
     this.currentDialog.dataLayer = this.dataLayer;
+    this.currentDialog.auth = this.auth;
     this.currentDialog.addEventListener("dialog-closed", () => {
       if (this.currentDialog) {
         this.currentDialog.remove();

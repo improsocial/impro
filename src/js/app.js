@@ -36,12 +36,12 @@ import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
-import { identityResolver } from "/js/atproto.js";
+import { IdentityResolver } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { Api } from "/js/api.js";
-import { auth } from "/js/auth.js";
+import { createAuth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
 import { SystemNotificationService } from "/js/systemNotificationService.js";
@@ -68,7 +68,7 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
 
-async function checkDraftsEnabled() {
+async function checkDraftsEnabled(auth) {
   const results = await Promise.all(
     [
       "rpc:app.bsky.draft.getDrafts",
@@ -88,12 +88,16 @@ export async function main() {
 
   handleAppViewResetQueryParam();
 
+  const identityResolver = new IdentityResolver();
+  const auth = createAuth({ identityResolver });
+
   await auth.handleForceLogoutParam();
   await auth.ensureCurrentScopes();
 
   const session = await auth.getSession();
   const appViewConfig = getAppViewConfig();
   const api = new Api(session ?? null, {
+    onTokenRefreshError: (did) => auth.logout(did),
     bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
     chatAppViewServiceDid: appViewConfig.chatServiceDid,
   });
@@ -117,6 +121,7 @@ export async function main() {
     hiddenFeedItemsStore,
     router,
     constellation,
+    identityResolver,
   );
   // put dataLayer on window for easy access in dev tools
   window.dataLayer = dataLayer;
@@ -133,15 +138,15 @@ export async function main() {
         )
       : null;
   const pushNotificationService = session
-    ? new PushNotificationService(api)
+    ? new PushNotificationService(api, auth)
     : null;
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
-        draftsEnabled: await checkDraftsEnabled(),
+        draftsEnabled: await checkDraftsEnabled(auth),
       })
     : null;
   const accountSwitcherService = session
-    ? new AccountSwitcherService(dataLayer)
+    ? new AccountSwitcherService(dataLayer, auth)
     : null;
   const reportService = session ? new ReportService(dataLayer) : null;
   const groupChatLinkService = new GroupChatLinkService(dataLayer, router);
@@ -222,6 +227,7 @@ export async function main() {
   const context = {
     isAuthenticated: !!session,
     api,
+    auth,
     dataLayer,
     identityResolver,
     notificationService,

@@ -6,7 +6,6 @@ import {
   onPageHide,
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
@@ -24,7 +23,7 @@ import "/js/components/container-link.js";
 export default async function feedsView({
   root,
   layout,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 

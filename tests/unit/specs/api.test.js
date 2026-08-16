@@ -6,7 +6,6 @@ import {
   restoreWindow,
 } from "../testHelpers.js";
 import { Api, ApiError } from "/js/api.js";
-import { auth } from "/js/auth.js";
 import { TokenRefreshError } from "/js/oauth.js";
 
 function createMockSession(mockResponse = {}) {
@@ -249,14 +248,13 @@ describe("request", () => {
 });
 
 describe("token refresh failure", () => {
-  const originalLogout = auth.logout;
+  let onTokenRefreshError = null;
 
   beforeEach(() => {
-    auth.logout = mock.fn(() => Promise.resolve());
+    onTokenRefreshError = mock.fn(() => Promise.resolve());
   });
 
   afterEach(() => {
-    auth.logout = originalLogout;
     restoreWindow();
   });
 
@@ -270,7 +268,7 @@ describe("token refresh failure", () => {
         throw new TokenRefreshError("refresh failed");
       },
     };
-    const api = new Api(session);
+    const api = new Api(session, { onTokenRefreshError });
 
     // The request never settles after the redirect, so don't await it
     api.request("com.example.method").catch(() => {});
@@ -278,9 +276,9 @@ describe("token refresh failure", () => {
       await Promise.resolve();
     }
 
-    assert.deepEqual(auth.logout.mock.callCount(), 1);
+    assert.deepEqual(onTokenRefreshError.mock.callCount(), 1);
     assert.deepEqual(
-      auth.logout.mock.calls[0].arguments[0],
+      onTokenRefreshError.mock.calls[0].arguments[0],
       "did:plc:testuser",
     );
     assert.deepEqual(capturedHrefs.at(-1), "/login");

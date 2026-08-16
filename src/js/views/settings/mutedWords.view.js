@@ -3,7 +3,6 @@ import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
-import { auth } from "/js/auth.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -15,7 +14,7 @@ export default async function settingsMutedWordsView({
   root,
   router,
   layout,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 

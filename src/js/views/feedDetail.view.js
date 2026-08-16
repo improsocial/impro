@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { auth } from "/js/auth.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -16,6 +15,7 @@ export default async function feedDetailView({
   root,
   params,
   context: {
+    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,

@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { classnames } from "/js/utils.js";
 import { choiceModal } from "/js/modals/choice.modal.js";
 import { showToast } from "/js/toasts.js";
@@ -23,7 +22,7 @@ export default async function settingsNotificationsView({
   root,
   router,
   layout,
-  context: { systemNotificationService, pushNotificationService },
+  context: { auth, systemNotificationService, pushNotificationService },
 }) {
   await auth.requireAuth();
 
