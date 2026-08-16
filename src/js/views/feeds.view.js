@@ -1,4 +1,5 @@
 import {
+  bindToPage,
   pageEffect,
   bindPageTitle,
   onPageShow,
@@ -20,7 +21,11 @@ import { showToast } from "/js/toasts.js";
 import { valueForPinnedItem } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
 
-export default async function feedsView({ root, context: { dataLayer } }) {
+export default async function feedsView({
+  root,
+  layout,
+  context: { dataLayer },
+}) {
   await auth.requireAuth();
 
   const state = new ReactiveStore("feedsView");
@@ -305,6 +310,10 @@ export default async function feedsView({ root, context: { dataLayer } }) {
 
   onPageShow(root, ({ action }) => {
     if (action === "restore") return;
+    loadPageData();
+  });
+
+  bindToPage(root, layout, "active-nav-click", () => {
     loadPageData();
   });
 }

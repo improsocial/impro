@@ -29,6 +29,7 @@ import { getDisplayName } from "/js/dataHelpers.js";
 
 export default async function settingsView({
   root,
+  layout,
   context: { dataLayer, courierPushService },
 }) {
   const currentSession = await auth.requireAuth();
@@ -402,6 +403,10 @@ export default async function settingsView({
 
   onPageShow(root, ({ action }) => {
     if (action === "restore") return;
+    loadPageData();
+  });
+
+  bindToPage(root, layout, "active-nav-click", () => {
     loadPageData();
   });
 

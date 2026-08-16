@@ -12,7 +12,7 @@ import {
   linkToProfileByDid,
 } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
@@ -630,6 +630,10 @@ export default async function searchView({
   }
 
   loadPageData();
+
+  bindToPage(root, layout, "active-nav-click", () => {
+    loadPageData();
+  });
 
   bindPageTitle(root, () => "Search");
 
