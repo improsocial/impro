@@ -280,7 +280,7 @@ test.describe("Settings > Notifications view", () => {
       // handoff return has none — so it must be asked for on this press.
       await page
         .locator(
-          '[data-testid="confirm-modal"] [data-testid="modal-confirm-button"]',
+          '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
         )
         .click();
 
@@ -292,6 +292,60 @@ test.describe("Settings > Notifications view", () => {
           notificationService.authUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
         ),
       );
+      expect(new URL(page.url()).searchParams.get("chat_previews")).toBe("0");
+    });
+
+    test("message previews are chosen from the same prompt", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      await toggle.click();
+      await page
+        .locator(
+          '[data-testid="choice-modal"] [data-testid="modal-choice-with-previews"]',
+        )
+        .click();
+
+      await expect(page).toHaveURL(
+        new RegExp(
+          notificationService.authUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        ),
+      );
+      expect(new URL(page.url()).searchParams.get("chat_previews")).toBe("1");
+    });
+
+    test("cancelling the prompt asks for no permission", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      await toggle.click();
+      await page
+        .locator(
+          '[data-testid="choice-modal"] [data-testid="modal-choice-cancel"]',
+        )
+        .click();
+
+      await expect(page.locator('[data-testid="choice-modal"]')).toHaveCount(0);
+      expect(await page.evaluate(() => window.__permissionRequests)).toBe(0);
+      await expect(page).toHaveURL(/\/settings\/notifications$/);
     });
 
     test("a denied prompt stops before the handoff", async ({ page }) => {
@@ -312,7 +366,7 @@ test.describe("Settings > Notifications view", () => {
       await toggle.click();
       await page
         .locator(
-          '[data-testid="confirm-modal"] [data-testid="modal-confirm-button"]',
+          '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
         )
         .click();
 

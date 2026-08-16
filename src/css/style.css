@@ -7440,7 +7440,7 @@ context-menu-item-group > context-menu-item > button {
   flex-direction: column-reverse;
 }
 
-.modal-dialog-button.confirm-button.is-pending {
+.modal-dialog-button.is-pending {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7449,7 +7449,7 @@ context-menu-item-group > context-menu-item > button {
   opacity: 1;
 }
 
-.modal-dialog-button.confirm-button .loading-spinner {
+.modal-dialog-button .loading-spinner {
   width: 14px;
   height: 14px;
   border-width: 2px;
