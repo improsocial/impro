@@ -36,7 +36,7 @@ import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
-import { IdentityResolver } from "/js/atproto.js";
+import { identityResolver } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
@@ -98,7 +98,6 @@ export async function main() {
     chatAppViewServiceDid: appViewConfig.chatServiceDid,
   });
   const preferencesProvider = new PreferencesProvider(api);
-  const identityResolver = new IdentityResolver();
   const draftMediaStore = new DraftMediaStore();
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const constellation = new Constellation();

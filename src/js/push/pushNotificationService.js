@@ -13,6 +13,9 @@ const NOTIF_SERVICE_ID = "#bsky_notif";
 
 async function resolveNotifServiceEndpoint(did) {
   const doc = await resolveDid(did);
+  if (!doc) {
+    throw new Error(`Notification service DID ${did} could not be resolved`);
+  }
   const endpoint = getServiceEndpointFromDidDoc(doc, NOTIF_SERVICE_ID);
   if (!endpoint) {
     throw new Error(

@@ -726,6 +726,37 @@ export class KVIndexedDB {
   }
 }
 
+const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
+const NSID_PATTERN = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*){2,}$/;
+const HANDLE_PATTERN =
+  /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+const RKEY_PATTERN = /^[a-zA-Z0-9._~:-]{1,512}$/;
+
+export function isValidDid(value) {
+  return typeof value === "string" && DID_PATTERN.test(value);
+}
+
+export function isValidHandle(value) {
+  return (
+    typeof value === "string" &&
+    value.length <= 253 &&
+    HANDLE_PATTERN.test(value)
+  );
+}
+
+export function isValidNsid(value) {
+  return typeof value === "string" && NSID_PATTERN.test(value);
+}
+
+export function isValidRkey(value) {
+  return (
+    typeof value === "string" &&
+    value !== "." &&
+    value !== ".." &&
+    RKEY_PATTERN.test(value)
+  );
+}
+
 export class TimeoutError extends Error {
   constructor(message = "Timed out") {
     super(message);
@@ -744,6 +775,30 @@ export async function withTimeout(fn, timeoutMs) {
   });
   try {
     return await Promise.race([fn(controller.signal), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function fetchWithTimeout(
+  url,
+  { timeoutMs, label = "fetch", fetchImpl = null } = {},
+) {
+  const doFetch =
+    fetchImpl ?? ((input, options) => globalThis.fetch(input, options));
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await doFetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (timedOut && error?.name === "AbortError") {
+      throw new TimeoutError(`${label}: timed out after ${timeoutMs}ms`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }

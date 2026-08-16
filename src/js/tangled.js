@@ -1,4 +1,4 @@
-import { resolveIdentity, getServiceEndpointFromDidDoc } from "/js/atproto.js";
+import { identityResolver as defaultIdentityResolver } from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
 
 export function decodeTangledBlobContent(data, file) {
@@ -56,9 +56,10 @@ const REPO_INFO_REVALIDATE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 // Resolves an "<ownerHandle>/<repoName>" path to the {knot, repoDid} pair its
 // blobs are served from.
 export class TangledResolver {
-  constructor() {
+  constructor(identityResolver = defaultIdentityResolver) {
     this._pending = new Map();
     this._store = new KVIndexedDB("tangled-repo-info", "repoInfoByPath");
+    this.identityResolver = identityResolver;
   }
 
   async resolveRepoInfo(path) {
@@ -104,11 +105,11 @@ export class TangledResolver {
     const ownerHandle = path.slice(0, slashIndex);
     const repoName = path.slice(slashIndex + 1);
 
-    const identity = await resolveIdentity(ownerHandle);
+    const identity = await this.identityResolver.resolveEndpoint(ownerHandle);
     if (!identity) {
       throw new Error(`Could not resolve tangled repo owner "${ownerHandle}"`);
     }
-    const pds = getServiceEndpointFromDidDoc(identity.didDoc);
+    const pds = identity.pds;
 
     const record = await findRepoRecord(pds, identity.did, repoName);
     if (!record) {
