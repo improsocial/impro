@@ -46,6 +46,47 @@ describe("PreferencesProvider", () => {
     assert.deepEqual(preferences.obj, mockPreferencesObj);
   });
 
+  it("should fall back to empty labeler defs when the labeler service fails", async () => {
+    const mockPreferencesObj = [
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ];
+    const mockApi = {
+      isAuthenticated: true,
+      getPreferences: async () => mockPreferencesObj,
+      getLabelers: async () => {
+        throw new Error("502");
+      },
+    };
+    const provider = new PreferencesProvider(mockApi);
+
+    await provider.fetchPreferences();
+
+    const preferences = provider.requirePreferences();
+    assert.deepEqual(preferences.obj, mockPreferencesObj);
+    assert.deepEqual(preferences.labelerDefs, []);
+    assert.deepEqual(provider.$labelerDefsUnavailable.get(), true);
+  });
+
+  it("should clear the labeler unavailable flag on a later success", async () => {
+    let shouldFail = true;
+    const mockApi = {
+      isAuthenticated: true,
+      getPreferences: async () => [],
+      getLabelers: async () => {
+        if (shouldFail) throw new Error("502");
+        return [];
+      },
+    };
+    const provider = new PreferencesProvider(mockApi);
+
+    await provider.fetchPreferences();
+    assert.deepEqual(provider.$labelerDefsUnavailable.get(), true);
+
+    shouldFail = false;
+    await provider.fetchPreferences();
+    assert.deepEqual(provider.$labelerDefsUnavailable.get(), false);
+  });
+
   it("should update preferences via API", async () => {
     let updatedObj = null;
     const mockApi = {

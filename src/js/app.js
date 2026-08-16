@@ -58,6 +58,7 @@ import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE, IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
+import { showToast } from "/js/toasts.js";
 import {
   getAppViewConfig,
   handleAppViewResetQueryParam,
@@ -185,6 +186,16 @@ export async function main() {
       console.error("Error initializing preferences:", retryError);
       throw retryError;
     }
+  }
+
+  if (preferencesProvider.$labelerDefsUnavailable.get()) {
+    showToast(
+      "Failed to fetch moderation labels - typically-moderated content may be visible",
+      {
+        style: "warning",
+        timeout: 6000,
+      },
+    );
   }
 
   try {

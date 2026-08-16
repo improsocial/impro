@@ -6,6 +6,7 @@ export class PreferencesProvider {
     this.api = api;
     this._preferences = null;
     this.$preferences = new Signal.State(null);
+    this.$labelerDefsUnavailable = new Signal.State(false);
   }
 
   requirePreferences() {
@@ -23,7 +24,16 @@ export class PreferencesProvider {
     const preferencesObj = await this.api.getPreferences();
     const labelerDids =
       Preferences.getLabelerDidsFromPreferences(preferencesObj);
-    const labelerDefs = await this.api.getLabelers(labelerDids);
+    // A labeler service outage shouldn't prevent the app from starting: without
+    // definitions, labels from those labelers simply don't render.
+    let labelerDefs = [];
+    try {
+      labelerDefs = await this.api.getLabelers(labelerDids);
+      this.$labelerDefsUnavailable.set(false);
+    } catch (error) {
+      console.warn("Could not load labeler definitions:", error);
+      this.$labelerDefsUnavailable.set(true);
+    }
     this._setPreferences(new Preferences(preferencesObj, labelerDefs));
   }
 
