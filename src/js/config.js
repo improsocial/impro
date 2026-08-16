@@ -35,14 +35,6 @@ export const VIDEO_SERVICE_DID = "did:web:video.bsky.app";
 
 export const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 
-// Default push notification service. Per
-// specs/bsky-push-notification-service.md any conforming DID works; this is
-// only what a deployment suggests, and the user can point at a different
-// service in settings. Set at build time with NOTIFICATION_SERVICE_DID so a
-// deployment is never implicitly sending its users to somebody else's box.
-export const DEFAULT_NOTIFICATION_SERVICE_DID =
-  window.env?.notificationServiceDid || "did:web:courier.7778777.online";
-
 export const IN_APP_LINK_DOMAINS = [
   "bsky.app",
   "impro.social",

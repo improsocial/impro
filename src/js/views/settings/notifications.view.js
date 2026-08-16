@@ -45,15 +45,15 @@ export default async function settingsNotificationsView({
   // The service is user-selectable per the spec, so its name is data, not a
   // constant — every mention of it in this view comes from the service's own
   // config document. Falls back to the DID until that resolves.
-  const $serviceDid = new Signal.State(courierPushService?.serviceDid ?? "");
-  const $serviceName = new Signal.State(courierPushService?.serviceDid ?? "");
+  const $serviceDid = new Signal.State(courierPushService?.serviceDid ?? null);
+  const $serviceName = new Signal.State(courierPushService?.serviceDid ?? null);
   const $pickerOpen = new Signal.State(false);
   const $pickerValue = new Signal.State("");
   const $pickerBusy = new Signal.State(false);
   const $pickerError = new Signal.State("");
 
   async function loadServiceName() {
-    if (!courierPushService) return;
+    if (!courierPushService?.hasService) return;
     const did = courierPushService.serviceDid;
     $serviceDid.set(did);
     try {
@@ -243,9 +243,13 @@ export default async function settingsNotificationsView({
     const pickerOpen = $pickerOpen.get();
     const pickerBusy = $pickerBusy.get();
     const pickerError = $pickerError.get();
-    const pushDescription = pushSupported
-      ? `Get notified even when Impro is closed, via ${serviceName}.`
-      : "Your browser doesn't support push notifications.";
+    const hasService = serviceDid !== null;
+    let pushDescription = "Your browser doesn't support push notifications.";
+    if (pushSupported) {
+      pushDescription = hasService
+        ? `Get notified even when Impro is closed, via ${serviceName}.`
+        : "Get notified even when Impro is closed. Choose a notification service below to turn this on.";
+    }
 
     render(
       html`<div id="settings-notifications-view">
@@ -287,7 +291,7 @@ export default async function settingsNotificationsView({
                 data-testid="push-notifications-toggle"
                 label="Enable push notifications"
                 ?checked=${pushEnabled}
-                ?disabled=${!pushSupported || pushBusy}
+                ?disabled=${!pushSupported || !hasService || pushBusy}
                 @change=${(event) => handlePushToggle(event.detail.checked)}
               ></toggle-switch>
             </div>
@@ -324,13 +328,23 @@ export default async function settingsNotificationsView({
               >
                 <div class="setting-item-info">
                   <h2 class="setting-item-name">Notification service</h2>
-                  <p class="setting-item-desc">
-                    Push notifications are delivered by
-                    <strong>${serviceName}</strong>, which holds a read-only
-                    grant to watch this account's notifications on your behalf.
-                    You can point Impro at a different service, or run your own.
-                    <br /><code>${serviceDid}</code>
-                  </p>
+                  ${hasService
+                    ? html`<p class="setting-item-desc">
+                        Push notifications are delivered by
+                        <strong>${serviceName}</strong>, which holds a read-only
+                        grant to watch this account's notifications on your
+                        behalf. You can point Impro at a different service, or
+                        run your own. <br /><code>${serviceDid}</code>
+                      </p>`
+                    : html`<p
+                        class="setting-item-desc"
+                        data-testid="notification-service-unset"
+                      >
+                        Impro doesn't pick a notification service for you. Enter
+                        the DID of one you trust — or run your own — and it will
+                        hold a read-only grant to watch this account's
+                        notifications on your behalf.
+                      </p>`}
                   ${pickerOpen
                     ? html`<div class="notification-service-picker">
                         <input
@@ -384,13 +398,14 @@ export default async function settingsNotificationsView({
                     : html`<button
                         class="button secondary"
                         data-testid="notification-service-change"
+                        data-teststate=${hasService ? "set" : "unset"}
                         @click=${() => {
-                          $pickerValue.set(serviceDid);
+                          $pickerValue.set(serviceDid ?? "");
                           $pickerError.set("");
                           $pickerOpen.set(true);
                         }}
                       >
-                        Change service
+                        ${hasService ? "Change service" : "Choose a service"}
                       </button>`}
                 </div>
               </section>`

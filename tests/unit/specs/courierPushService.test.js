@@ -221,10 +221,36 @@ describe("CourierPushService service selection", () => {
     }
   });
 
-  it("defaults to the deployment's service until one is chosen", () => {
+  // Impro suggests no service of its own, so nothing can happen until the
+  // user names one.
+  it("has no service until the user names one", () => {
     const { service } = createService();
-    assert.ok(service.isUsingDefaultService);
-    assert.ok(service.serviceDid.startsWith("did:"));
+    assert.equal(service.serviceDid, null);
+    assert.equal(service.hasService, false);
+  });
+
+  it("cannot be enabled while no service is named", () => {
+    const { service } = createService();
+    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    assert.equal(service.isEnabled, false);
+  });
+
+  it("refuses to resolve a config while no service is named", async () => {
+    const { service } = createService();
+    await assert.rejects(() => service.fetchServiceConfig(), {
+      message: "No notification service selected",
+    });
+    assert.equal(fetchCalls.length, 0, "it must not hit the network");
+  });
+
+  it("naming a service persists it across launches", async () => {
+    const { service } = createService();
+    await service.selectService("did:web:notifs.example");
+    assert.equal(service.serviceDid, "did:web:notifs.example");
+    assert.equal(service.hasService, true);
+
+    const { service: relaunched } = createService();
+    assert.equal(relaunched.serviceDid, "did:web:notifs.example");
   });
 
   it("resolves a service through its DID document", async () => {
@@ -236,6 +262,7 @@ describe("CourierPushService service selection", () => {
 
   it("caches the resolved config instead of refetching every launch", async () => {
     const { service } = createService();
+    await service.selectService("did:web:notifs.example");
     await service.fetchServiceConfig();
     const afterFirst = fetchCalls.length;
     await service.fetchServiceConfig();
@@ -254,6 +281,7 @@ describe("CourierPushService service selection", () => {
 
   it("does not cache a failed lookup as the answer", async () => {
     const { service } = createService();
+    await service.selectService("did:web:notifs.example");
     globalThis.fetch = async () => {
       throw new Error("offline");
     };
@@ -280,6 +308,7 @@ describe("CourierPushService service selection", () => {
 
   it("switching services unregisters the old one first", async () => {
     const { service } = createService();
+    await service.selectService("did:web:notifs.example");
     globalThis.localStorage.setItem("courier-push-enabled", "true");
     const unregisterPush = mock.fn(async () => {});
     service.api.unregisterPush = unregisterPush;
@@ -293,22 +322,19 @@ describe("CourierPushService service selection", () => {
     assert.equal(service.isEnabled, false);
   });
 
-  it("switching back to the default clears the override", async () => {
+  it("switching services replaces the stored choice", async () => {
     const { service } = createService();
-    const theDefault = service.serviceDid;
+    await service.selectService("did:web:notifs.example");
     await service.selectService("did:web:elsewhere.example");
-    assert.ok(!service.isUsingDefaultService);
-
-    await service.selectService(theDefault);
-    assert.ok(service.isUsingDefaultService);
     assert.equal(
       globalThis.localStorage.getItem("courier-push-service-did"),
-      null,
+      "did:web:elsewhere.example",
     );
   });
 
   it("switching services drops the previous service's cached config", async () => {
     const { service } = createService();
+    await service.selectService("did:web:notifs.example");
     await service.fetchServiceConfig();
     await service.selectService("did:web:elsewhere.example");
     const before = fetchCalls.length;

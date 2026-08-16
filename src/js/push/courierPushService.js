@@ -1,4 +1,3 @@
-import { DEFAULT_NOTIFICATION_SERVICE_DID } from "/js/config.js";
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 
 const STORAGE_KEY = "courier-push-enabled";
@@ -65,19 +64,24 @@ export class CourierPushService {
   }
 
   get isEnabled() {
-    return this.isSupported && localStorage.getItem(STORAGE_KEY) === "true";
-  }
-
-  // The service this device is pointed at. Per the spec any conforming DID
-  // works; the deployment's default is only a suggestion.
-  get serviceDid() {
     return (
-      localStorage.getItem(SERVICE_KEY) || DEFAULT_NOTIFICATION_SERVICE_DID
+      this.isSupported &&
+      this.hasService &&
+      localStorage.getItem(STORAGE_KEY) === "true"
     );
   }
 
-  get isUsingDefaultService() {
-    return this.serviceDid === DEFAULT_NOTIFICATION_SERVICE_DID;
+  // The service this device is pointed at, or null if the user has not named
+  // one. Impro suggests none: a service holds a read-only grant over the
+  // account and polls on the user's behalf, so the choice is always theirs.
+  get serviceDid() {
+    return localStorage.getItem(SERVICE_KEY) || null;
+  }
+
+  // Nothing can be enabled, resolved or registered until the user has named a
+  // service, so every entry point gates on this.
+  get hasService() {
+    return this.serviceDid !== null;
   }
 
   // The tier the service last confirmed, per the spec's callback echo — not
@@ -107,14 +111,13 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    if (did === DEFAULT_NOTIFICATION_SERVICE_DID) {
-      localStorage.removeItem(SERVICE_KEY);
-    } else {
-      localStorage.setItem(SERVICE_KEY, did);
-    }
+    localStorage.setItem(SERVICE_KEY, did);
   }
 
   async fetchServiceConfig() {
+    if (!this.hasService) {
+      throw new Error("No notification service selected");
+    }
     return this._loadServiceConfig(this.serviceDid);
   }
 
@@ -248,7 +251,11 @@ export class CourierPushService {
   // idempotent upsert and there is no API to query registration state, so
   // this is the self-healing path for a rotated or lost subscription.
   async reassertIfEnabled() {
-    if (localStorage.getItem(STORAGE_KEY) !== "true" || !this.isSupported)
+    if (
+      localStorage.getItem(STORAGE_KEY) !== "true" ||
+      !this.isSupported ||
+      !this.hasService
+    )
       return;
     if (Notification.permission !== "granted") {
       // Permission was revoked out-of-band (browser site settings).
