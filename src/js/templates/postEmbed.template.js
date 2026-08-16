@@ -6,6 +6,7 @@ import {
   getLabelNameAndDescription,
   parseYouTubeVideoFromUrl,
 } from "/js/dataHelpers.js";
+import { parseAltFromGifDescription } from "/js/embedHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
@@ -514,7 +515,7 @@ function externalTemplate({ external, lazyLoadImages }) {
   if (isTenorGifUrl(external.uri)) {
     return gifPlayerTemplate({
       uri: getTenorGifPlayerUri(external.uri),
-      alt: external.description,
+      alt: parseAltFromGifDescription(external.description).alt,
     });
   }
   const klipyGif = parseKlipyGif(external.uri);
@@ -522,7 +523,7 @@ function externalTemplate({ external, lazyLoadImages }) {
     return gifPlayerTemplate({
       type: klipyGif.videoUri ? "video" : "image",
       uri: klipyGif.videoUri ?? klipyGif.imageUri,
-      alt: external.description,
+      alt: parseAltFromGifDescription(external.description).alt,
       aspectRatio: klipyGif.aspectRatio,
     });
   }

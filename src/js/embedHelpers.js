@@ -48,6 +48,27 @@ export function parseRecordLink(url) {
   }
 }
 
+// Bluesky uses these to distinguish between user-provided and default alt text
+const USER_ALT_PREFIX = "Alt: ";
+const DEFAULT_ALT_PREFIX = "ALT: ";
+
+export function parseAltFromGifDescription(description) {
+  if (!description) return { isPreferred: false, alt: "" };
+  if (description.startsWith(USER_ALT_PREFIX)) {
+    return {
+      isPreferred: true,
+      alt: description.slice(USER_ALT_PREFIX.length),
+    };
+  }
+  if (description.startsWith(DEFAULT_ALT_PREFIX)) {
+    return {
+      isPreferred: false,
+      alt: description.slice(DEFAULT_ALT_PREFIX.length),
+    };
+  }
+  return { isPreferred: false, alt: description };
+}
+
 export async function resolveRecordFromLink(
   url,
   { identityResolver, dataLayer },
