@@ -236,6 +236,96 @@ describe("CourierPushService registration", () => {
       "did:web:elsewhere.example",
     );
   });
+
+  // Removing an account happens from a different account's session, so the
+  // teardown borrows the removed account's own session and preferences.
+  function stubRemovedAccount(service, { preferences }) {
+    const unregisterPush = mock.fn(async () => {});
+    const getPreferences = mock.fn(async () => preferences);
+    service._apiForAccount = mock.fn(async () => ({
+      unregisterPush,
+      getPreferences,
+    }));
+    return { unregisterPush, getPreferences };
+  }
+
+  const servicePref = (serviceDid) => [
+    {
+      $type: "app.bsky.actor.defs#improPushNotificationServicePref",
+      serviceDid,
+    },
+  ];
+
+  it("unregisters a removed account at the service it chose", async () => {
+    setupDom();
+    const { service } = createService(makeDataLayer("did:web:mine.example"));
+    const { unregisterPush } = stubRemovedAccount(service, {
+      preferences: servicePref("did:web:theirs.example"),
+    });
+
+    await service.unregisterAccount("did:plc:removed");
+
+    assert.equal(
+      service._apiForAccount.mock.calls[0].arguments[0],
+      "did:plc:removed",
+    );
+    assert.equal(unregisterPush.mock.calls.length, 1);
+    const args = unregisterPush.mock.calls[0].arguments[0];
+    // The removed account's service, not the current account's.
+    assert.equal(args.serviceDid, "did:web:theirs.example");
+    assert.equal(args.appId, "social.impro");
+    assert.equal(args.platform, "web");
+    assert.deepEqual(JSON.parse(args.token), {
+      endpoint: SUBSCRIPTION.endpoint,
+      keys: SUBSCRIPTION.keys,
+    });
+  });
+
+  it("skips a removed account that never chose a service", async () => {
+    setupDom();
+    const { service } = createService();
+    const { unregisterPush } = stubRemovedAccount(service, { preferences: [] });
+
+    await service.unregisterAccount("did:plc:removed");
+
+    assert.equal(unregisterPush.mock.calls.length, 0);
+  });
+
+  // One browser subscription serves every signed-in account, so dropping it
+  // would silently kill push for the accounts that remain.
+  it("leaves the shared browser subscription in place", async () => {
+    setupDom();
+    const { service } = createService();
+    const unsubscribe = mock.fn(async () => {});
+    const originalUnsubscribe = SUBSCRIPTION.unsubscribe;
+    SUBSCRIPTION.unsubscribe = unsubscribe;
+    stubRemovedAccount(service, {
+      preferences: servicePref("did:web:theirs.example"),
+    });
+
+    try {
+      await service.unregisterAccount("did:plc:removed");
+    } finally {
+      SUBSCRIPTION.unsubscribe = originalUnsubscribe;
+    }
+
+    assert.equal(unsubscribe.mock.calls.length, 0);
+    assert.equal(service.$enabled.get(), true);
+  });
+
+  // The caller decides what a failed teardown means; here it stays
+  // best-effort, so the error has to surface rather than be swallowed.
+  it("surfaces a failed teardown to the caller", async () => {
+    setupDom();
+    const { service } = createService();
+    service._apiForAccount = async () => {
+      throw new Error("session already gone");
+    };
+    await assert.rejects(
+      () => service.unregisterAccount("did:plc:removed"),
+      /session already gone/,
+    );
+  });
 });
 
 describe("CourierPushService service selection", () => {

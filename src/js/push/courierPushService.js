@@ -1,6 +1,9 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
 import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
+import { auth } from "/js/auth.js";
+import { Api } from "/js/api.js";
+import { Preferences } from "/js/preferences.js";
 
 const STORAGE_KEY = "courier-push-enabled";
 const APP_ID = "social.impro";
@@ -192,11 +195,38 @@ export class CourierPushService {
     }
   }
 
+  async _apiForAccount(did) {
+    const session = await auth.getSession(did);
+    return session ? new Api(session) : null;
+  }
+
+  async unregisterAccount(did) {
+    const subscription = await this._getSubscription();
+    if (!subscription) return;
+    const api = await this._apiForAccount(did);
+    if (!api) return;
+    const preferences = new Preferences(await api.getPreferences(), null, {
+      persist: false,
+    });
+    const serviceDid = preferences.getNotificationServiceDid();
+    if (!serviceDid) return;
+    await api.unregisterPush({
+      serviceDid,
+      token: JSON.stringify(subscription),
+      platform: PLATFORM,
+      appId: APP_ID,
+    });
+  }
+
+  async _getSubscription() {
+    if (!("serviceWorker" in navigator)) return null;
+    const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
+    return (await registration?.pushManager.getSubscription()) ?? null;
+  }
+
   async disable() {
     this._setEnabled(false);
-    if (!("serviceWorker" in navigator)) return;
-    const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
-    const subscription = await registration?.pushManager.getSubscription();
+    const subscription = await this._getSubscription();
     if (!subscription) return;
     try {
       await this.api.unregisterPush({

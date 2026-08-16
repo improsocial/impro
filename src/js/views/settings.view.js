@@ -296,6 +296,14 @@ export default async function settingsView({
                       },
                     );
                     if (!ok) return;
+                    try {
+                      await courierPushService?.unregisterAccount(account.did);
+                    } catch (error) {
+                      console.error(
+                        "Failed to unregister push for removed account",
+                        error,
+                      );
+                    }
                     await auth.removeAccount(account.did);
                     await loadOtherAccounts();
                     const stillHasOthers = $otherAccounts.get().length > 0;
