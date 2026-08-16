@@ -160,8 +160,6 @@ export default async function settingsAdvancedView({
     }
     state.$notificationServiceLoading.set(true);
     try {
-      // Resolve before switching: an unreachable or non-conforming service
-      // should fail here, not after the current one has been torn down.
       const { name } = await courierPushService.previewService(did);
       const wasEnabled = courierPushService.isEnabled;
       await courierPushService.selectService(did);

@@ -333,9 +333,6 @@ export default async function settingsView({
                 ) {
                   return;
                 }
-                // Must always run on logout: courier polls server-side, so
-                // nothing else stops pushes reaching this device once
-                // signed out (see CourierPushService.disable).
                 if (courierPushService?.isEnabled) {
                   await courierPushService.disable();
                 }

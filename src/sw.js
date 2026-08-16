@@ -1,8 +1,3 @@
-// Push notification service worker. Deliberately has no fetch handler —
-// per spec/IMPRO_PUSH_NOTIFICATIONS.md this worker exists only to receive
-// push events and route notification clicks, never to intercept navigation
-// or asset requests.
-
 self.addEventListener("push", (event) => {
   let payload = {};
   try {

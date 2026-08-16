@@ -730,14 +730,7 @@ export class Api {
     return res.data.count;
   }
 
-  // PDS-forwarded to the notification service named by serviceDid (per
-  // BSKY_PUSH_NOTIFICATION_SERVICE_SPEC.md's "Device registration" section)
-  // rather than the appview, so atproto-proxy targets serviceDid's own
-  // #bsky_notif endpoint instead of bskyAppViewServiceDid.
   async registerPush({ serviceDid, token, platform, appId }) {
-    // registerPush has no defined lexicon output, so the PDS proxies back an
-    // empty body on success — parseJson: false, since res.json() on an empty
-    // body throws (nothing here reads the response anyway).
     await this.request("app.bsky.notification.registerPush", {
       method: "POST",
       body: { serviceDid, token, platform, appId },

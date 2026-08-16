@@ -9,9 +9,6 @@ const SW_PATH = "/sw.js";
 const NOTIF_SERVICE_ID = "#bsky_notif";
 
 async function resolveNotifServiceEndpoint(did) {
-  // resolveDid handles did:plc and did:web alike, so a service is not
-  // restricted to one DID method the way a hand-rolled did:web resolver
-  // would make it.
   const doc = await resolveDid(did);
   const endpoint = getServiceEndpointFromDidDoc(doc, NOTIF_SERVICE_ID);
   if (!endpoint) {
@@ -62,15 +59,10 @@ export class CourierPushService {
     return this.isSupported && this.hasService && this.$enabled.get();
   }
 
-  // The service this account is pointed at, or null if the user has not named
-  // one. Impro suggests none: a service holds a read-only grant over the
-  // account and polls on the user's behalf, so the choice is always theirs.
   get serviceDid() {
     return this.dataLayer?.derived.$notificationServiceDid.get() ?? null;
   }
 
-  // Nothing can be enabled, resolved or registered until the user has named a
-  // service, so every entry point gates on this.
   get hasService() {
     return this.serviceDid !== null;
   }
@@ -84,19 +76,11 @@ export class CourierPushService {
     this.$enabled.set(enabled);
   }
 
-  // Resolves a service DID far enough to show the user what they are about to
-  // trust, without registering anything. Used by the picker to validate an
-  // entered DID before it can be selected.
   async previewService(did) {
     const config = await this._loadServiceConfig(did);
     return { did, name: config.name ?? did, authUrl: config.authUrl ?? null };
   }
 
-  // Switches to a different service, tearing down the current one first.
-  //
-  // Order matters: the old service polls server-side on the user's behalf, so
-  // leaving it registered would keep it delivering after the user thinks they
-  // have moved away from it.
   async selectService(did) {
     if (did === this.serviceDid) return;
     if (this.isEnabled) {
@@ -154,10 +138,6 @@ export class CourierPushService {
     this._configPromise = null;
   }
 
-  // Step 1 of the enable flow: navigates the browser away to the service's
-  // auth handoff. Call this only after the user has confirmed the consent
-  // interstitial — per the spec, consent must precede burning the one-shot
-  // permission prompt in step 2.
   async startEnableFlow({ chatPreviews = false } = {}) {
     const config = await this.fetchServiceConfig();
     const returnUrl = `${window.location.origin}/settings/notifications`;
@@ -173,9 +153,6 @@ export class CourierPushService {
     await new Promise(() => {}); // unreachable: navigating away
   }
 
-  // Step 2: called by the settings view when it detects a return from the
-  // auth handoff. The grant tier the service echoed back is the caller's to
-  // hold — it is not something this class can know on any other page load.
   async completeEnableFlow() {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
@@ -200,9 +177,6 @@ export class CourierPushService {
     this._setEnabled(true);
   }
 
-  // Re-assert registration on every app launch: registerPush is an
-  // idempotent upsert and there is no API to query registration state, so
-  // this is the self-healing path for a rotated or lost subscription.
   async reassertIfEnabled() {
     if (!this.$enabled.get() || !this.isSupported || !this.hasService) return;
     if (Notification.permission !== "granted") {
@@ -218,9 +192,6 @@ export class CourierPushService {
     }
   }
 
-  // Unregisters just this device (per spec, callers must always do this on
-  // logout — the service polls server-side, so nothing else stops pushes
-  // for a logged-out account from reaching this device).
   async disable() {
     this._setEnabled(false);
     if (!("serviceWorker" in navigator)) return;

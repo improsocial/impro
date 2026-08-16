@@ -8,17 +8,12 @@ import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/toggle-switch.js";
 
-// Reads and clears the courier auth-handoff callback params
-// (chat_previews/error/error_description) so a refresh or back-navigation
-// doesn't re-trigger handling.
 function consumeCourierCallbackParams() {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("chat_previews") && !params.has("error")) return null;
   const result = {
     error: params.get("error"),
     errorDescription: params.get("error_description"),
-    // The tier the service actually granted, which can differ from what was
-    // asked for — the grant is account-level.
     chatPreviews: params.get("chat_previews") === "1",
   };
   history.replaceState(null, "", window.location.pathname);
@@ -38,9 +33,6 @@ export default async function settingsNotificationsView({
     systemNotificationService?.isEnabled ?? false,
   );
   state.$pushBusy = new Signal.State(false);
-  // The grant tier courier echoed back on the way in. Only ever known on the
-  // page load that handled the callback — there is no way to read it back —
-  // so it starts false on every other load.
   state.$chatPreviews = new Signal.State(false);
 
   async function handleToggle(checked) {
@@ -107,9 +99,6 @@ export default async function settingsNotificationsView({
     }
   }
 
-  // Changing tier is a re-authorization, not a local setting: it re-walks
-  // the handoff for the other scope set. Enabling previews additionally
-  // needs consent, since it lets the service read message content.
   async function handlePreviewsToggle(checked) {
     if (!courierPushService) return;
     if (checked) {
@@ -132,8 +121,6 @@ export default async function settingsNotificationsView({
     }
   }
 
-  // Handle a return from courier's auth handoff (see
-  // CourierPushService.startEnableFlow/completeEnableFlow).
   (async () => {
     const callback = consumeCourierCallbackParams();
     if (!callback || !courierPushService) return;
@@ -187,8 +174,6 @@ export default async function settingsNotificationsView({
     const serviceDid = courierPushService?.serviceDid ?? null;
     const hasService = serviceDid !== null;
 
-    // One source of truth per row, so the dimmed style and the toggle's own
-    // disabled state can't drift apart.
     const systemRowDisabled = !isSupported || isDenied;
     const pushRowDisabled = !pushSupported || !hasService || pushBusy;
     const previewsRowDisabled = pushBusy;
