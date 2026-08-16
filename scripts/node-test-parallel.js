@@ -63,7 +63,7 @@ for (const { file, size } of filesBySize) {
   smallest.totalSize += size;
 }
 
-const runWorker = (files) =>
+const runWorker = (files, workerNumber) =>
   new Promise((resolve) => {
     const child = spawn(
       process.execPath,
@@ -74,14 +74,19 @@ const runWorker = (files) =>
     child.stdout.on("data", (chunk) => chunks.push(chunk));
     child.stderr.on("data", (chunk) => chunks.push(chunk));
     child.on("close", (code) => {
-      resolve({ code, output: Buffer.concat(chunks).toString() });
+      resolve({
+        code,
+        files,
+        workerNumber,
+        output: Buffer.concat(chunks).toString(),
+      });
     });
   });
 
 const results = await Promise.all(
   buckets
     .filter((bucket) => bucket.files.length > 0)
-    .map((bucket) => runWorker(bucket.files)),
+    .map((bucket, index) => runWorker(bucket.files, index + 1)),
 );
 
 const SUMMED_STATS = [
@@ -106,6 +111,7 @@ for (const result of results) {
     const match = line.match(statLinePattern);
     if (match && SUMMED_STATS.includes(match[1])) {
       combinedStats[match[1]] += Number(match[2]);
+      if (match[1] === "fail") result.failCount = Number(match[2]);
       foundStats = true;
     } else if (match && match[1] === "duration_ms") {
       slowestWorkerMs = Math.max(slowestWorkerMs, Number(match[2]));
@@ -113,6 +119,7 @@ for (const result of results) {
       keptLines.push(line);
     }
   }
+  result.keptLines = keptLines;
   process.stdout.write(keptLines.join("\n"));
 }
 
@@ -127,5 +134,28 @@ if (foundStats) {
 const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(2);
 process.stdout.write(`ℹ total duration ${elapsedSeconds}s\n`);
 
-const failed = results.some((result) => result.code !== 0);
-process.exitCode = failed ? 1 : 0;
+const TAIL_LINES = 20;
+const failures = results.filter((result) => result.code !== 0);
+
+for (const failure of failures) {
+  process.stdout.write(
+    `\n✖ worker ${failure.workerNumber} exited with code ${failure.code}\n`,
+  );
+  if (failure.failCount === 0) {
+    // Node exits non-zero on an unhandled rejection even when every test passed
+    process.stdout.write(
+      "  (0 test failures — likely an unhandled rejection or async activity outliving a test)\n",
+    );
+  }
+  process.stdout.write(`  files: ${failure.files.join(" ")}\n`);
+  const tail = failure.keptLines
+    .filter((line) => line.trim() !== "")
+    .slice(-TAIL_LINES);
+  process.stdout.write(
+    `  last ${tail.length} lines of its output:\n${tail
+      .map((line) => `  ${line}`)
+      .join("\n")}\n`,
+  );
+}
+
+process.exitCode = failures.length > 0 ? 1 : 0;

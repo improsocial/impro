@@ -1,81 +1,66 @@
-import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
-class BookmarksView extends View {
-  async render({
-    root,
-    layout,
-    context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
-  }) {
-    await auth.requireAuth();
+export default async function bookmarksView({
+  root,
+  layout,
+  context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
+}) {
+  await auth.requireAuth();
 
-    const { postInteractionHandler } = interactionHandlers;
+  const { postInteractionHandler } = interactionHandlers;
 
-    async function scrollAndReloadBookmarks() {
-      if (window.scrollY > 0) {
-        window.scrollTo({ top: -1, behavior: "smooth" });
-      }
-      await loadBookmarks({ reload: true });
-    }
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 
-    bindToPage(root, layout, "active-nav-click", (event) => {
-      event.preventDefault();
-      scrollAndReloadBookmarks();
-    });
+  bindToPage(root, layout, "active-nav-click", () => {
+    loadPageData();
+  });
 
-    bindPageTitle(root, () => "Saved Posts");
+  bindPageTitle(root, () => "Saved Posts");
 
-    pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const bookmarks = dataLayer.derived.$hydratedBookmarks.get();
+  pageEffect(root, () => {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    const bookmarks = dataLayer.derived.$hydratedBookmarks.get();
 
-      render(
-        html`<div id="bookmarks-view">
-          ${headerTemplate({ title: "Saved Posts" })}
-          <main>
-            ${postFeedTemplate({
-              feed: bookmarks,
-              currentUser,
-              isAuthenticated,
-              onLoadMore: () => loadBookmarks(),
-              postInteractionHandler,
-              emptyMessage: "No saved posts yet!",
-              pluginService,
-            })}
-          </main>
-        </div>`,
-        root,
-      );
-    });
+    render(
+      html`<div id="bookmarks-view">
+        ${headerTemplate({ title: "Saved Posts" })}
+        <main>
+          ${postFeedTemplate({
+            feed: bookmarks,
+            currentUser,
+            isAuthenticated,
+            onLoadMore: () => loadBookmarks(),
+            postInteractionHandler,
+            emptyMessage: "No saved posts yet!",
+            pluginService,
+          })}
+        </main>
+      </div>`,
+      root,
+    );
+  });
 
-    async function loadBookmarks({ reload = false } = {}) {
-      await dataLayer.requests.loadBookmarks({
-        reload,
-        limit: BOOKMARKS_PAGE_SIZE + 1,
-      });
-    }
-
-    root.addEventListener("page-enter", async () => {
-      window.scrollTo(0, 0);
-      await loadBookmarks();
-    });
-
-    root.addEventListener("page-restore", async (e) => {
-      const scrollY = e.detail?.scrollY ?? 0;
-      const isBack = e.detail?.isBack ?? false;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
-        window.scrollTo(0, 0);
-        await loadBookmarks({ reload: true });
-      }
+  async function loadBookmarks({ reload = false } = {}) {
+    await dataLayer.requests.loadBookmarks({
+      reload,
+      limit: BOOKMARKS_PAGE_SIZE + 1,
     });
   }
-}
 
-export default new BookmarksView();
+  function loadPageData() {
+    loadBookmarks({ reload: true });
+  }
+}
