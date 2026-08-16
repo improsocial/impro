@@ -4,8 +4,11 @@ import {
   showPluginModal as _showPluginModal,
   updatePluginModal as _updatePluginModal,
   hidePluginModal,
+  showPluginInstallPermissionsModal,
+  showPluginFetchPermissionModal,
 } from "/js/plugins/pluginModal.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
+import { respondToConfirm, waitFor } from "../../testHelpers.js";
 
 function showPluginModal(opts) {
   const pluginRenderer = new PluginRenderer(null, opts.pluginId);
@@ -440,5 +443,41 @@ describe("hidePluginModal", () => {
     hidePluginModal({ pluginId, modalId });
     hidePluginModal({ pluginId, modalId });
     assert.deepEqual(onDismiss.mock.callCount(), 0);
+  });
+});
+
+describe("permission prompts", () => {
+  it("describes a userFetch scope in the install prompt", async () => {
+    const prompting = showPluginInstallPermissionsModal({
+      pluginName: "Alpha",
+      permissions: { userFetch: true },
+    });
+    await waitFor(() =>
+      document.querySelector('[data-testid="permission-prompt"]'),
+    );
+    const prompt = document.querySelector('[data-testid="permission-prompt"]');
+    // A userFetch-only manifest must not render an empty permission list
+    assert(prompt.querySelector(".permission-prompt-section"));
+    await respondToConfirm(false);
+    await prompting;
+  });
+
+  it("renders the requested origin in the fetch prompt", async () => {
+    const prompting = showPluginFetchPermissionModal({
+      pluginName: "Alpha",
+      origin: "https://api.example.com/*",
+    });
+    await waitFor(() =>
+      document.querySelector('[data-testid="fetch-permission-prompt"]'),
+    );
+    const prompt = document.querySelector(
+      '[data-testid="fetch-permission-prompt"]',
+    );
+    assert.equal(
+      prompt.querySelector("code").textContent,
+      "https://api.example.com/*",
+    );
+    await respondToConfirm(false);
+    assert.equal(await prompting, false);
   });
 });

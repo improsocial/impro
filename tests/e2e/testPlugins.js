@@ -256,6 +256,20 @@ class TestPlugin extends Plugin {
 TestPlugin.register();
 `;
 
+// Asks for a user-granted fetch origin as soon as it loads, so the host's
+// permission prompt appears without needing plugin-rendered UI to trigger it.
+export const REQUESTED_FETCH_ORIGIN = "https://api.example.com/*";
+
+const FETCH_PERMISSION_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    await requestFetchPermission("https://api.example.com/v1/chat");
+  }
+}
+
+TestPlugin.register();
+`;
+
 // A plugin that seeds the composer with a signature string on every open
 // (post and reply). Used by composer-init e2e tests.
 const POST_COMPOSER_INIT_PLUGIN_BODY = /* js */ `
@@ -346,6 +360,10 @@ export function getFailingPluginSource() {
 
 export function getNoSettingsPluginSource() {
   return getWorkerSource() + "\n" + NO_SETTINGS_PLUGIN_BODY;
+}
+
+export function getFetchPermissionPluginSource() {
+  return getWorkerSource() + "\n" + FETCH_PERMISSION_PLUGIN_BODY;
 }
 
 export function getPostComposerInitPluginSource() {

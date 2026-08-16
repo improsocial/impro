@@ -4,6 +4,55 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/plugin-custom-content.js";
+import { showToast } from "/js/toasts.js";
+
+function pluginOwnedSettingsTemplate({ pluginService, settingTab }) {
+  return html`<section
+    class="plugin-owned-settings"
+    data-testid="plugin-owned-settings"
+  >
+    <div class="plugin-content plugin-content-page">
+      <plugin-custom-content
+        .pluginService=${pluginService}
+        .customContent=${settingTab.customContent}
+      ></plugin-custom-content>
+    </div>
+  </section>`;
+}
+
+function systemSettingsTemplate({ origins, onRevoke }) {
+  return html`<section
+    class="plugin-system-settings"
+    data-testid="plugin-system-settings"
+  >
+    <div class="plugin-system-settings-bar">System settings</div>
+    <div
+      class="plugin-system-settings-body"
+      data-testid="plugin-network-access"
+    >
+      <h2 class="plugin-network-access-title">Network access</h2>
+      <p class="plugin-network-access-description">
+        You granted this plugin permission to send requests to these addresses.
+      </p>
+      <ul class="plugin-network-access-list">
+        ${origins.map(
+          (origin) =>
+            html`<li class="plugin-network-access-item">
+              <code>${origin}</code>
+              <button
+                class="rounded-button"
+                data-testid="revoke-fetch-origin"
+                aria-label="Revoke access to ${origin}"
+                @click=${() => onRevoke(origin)}
+              >
+                Revoke
+              </button>
+            </li>`,
+        )}
+      </ul>
+    </div>
+  </section>`;
+}
 
 export default async function pluginSettingsView({
   root,
@@ -73,25 +122,40 @@ export default async function pluginSettingsView({
                 ${pluginLoadError.message ?? "This plugin failed to load."}
               </p>`;
             }
+            const grantedOrigins =
+              pluginService.getUserGrantedFetchOrigins(pluginId);
             if (!settingTab) {
               if (pluginLoading) {
                 return html`<div class="plugins-loading-state">
                   <div class="loading-spinner"></div>
                 </div>`;
               }
-              return html`<p
-                class="error-message"
-                data-testid="plugin-detail-no-settings"
-              >
-                This plugin has no settings.
-              </p>`;
+              if (grantedOrigins.length === 0) {
+                return html`<p
+                  class="error-message"
+                  data-testid="plugin-detail-no-settings"
+                >
+                  This plugin has no settings.
+                </p>`;
+              }
             }
-            return html`<div class="plugin-content plugin-content-page">
-              <plugin-custom-content
-                .pluginService=${pluginService}
-                .customContent=${settingTab.customContent}
-              ></plugin-custom-content>
-            </div>`;
+            return html`${settingTab
+              ? pluginOwnedSettingsTemplate({ pluginService, settingTab })
+              : ""}
+            ${grantedOrigins.length > 0
+              ? systemSettingsTemplate({
+                  origins: grantedOrigins,
+                  onRevoke: (origin) =>
+                    pluginService
+                      .revokeUserGrantedFetchOrigin(pluginId, origin)
+                      .catch((e) => {
+                        console.error(e);
+                        showToast("Failed to revoke access", {
+                          style: "error",
+                        });
+                      }),
+                })
+              : ""}`;
           })()}
         </main>
       </div>`,
