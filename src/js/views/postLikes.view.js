@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
@@ -96,5 +96,8 @@ export default async function postLikesView({
     loadLikes({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

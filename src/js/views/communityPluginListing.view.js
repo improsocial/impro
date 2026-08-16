@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { linkToLogin, getPermalinkForCommunityPlugin } from "/js/navigation.js";
 import { showToast } from "/js/toasts.js";
@@ -268,7 +268,8 @@ export default async function communityPluginListingView({
     );
   });
 
-  root.addEventListener("page-enter", async () => {
+  onPageShow(root, async ({ action }) => {
+    if (action === "restore") return;
     await loadListings();
     await loadDetails();
   });

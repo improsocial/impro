@@ -1270,60 +1270,43 @@ describe("page event dispatch", () => {
     return router;
   }
 
-  async function eventsFor(loadOptions) {
+  async function showDetailsFor(loadOptions) {
     const router = createRouter();
     await router.load("/a");
     const pageA = router.pages.get("/a").el;
-    const seen = [];
-    for (const name of ["page-enter", "page-restore", "page-show"]) {
-      pageA.addEventListener(name, () => seen.push(name));
-    }
+    const details = [];
+    pageA.addEventListener("page-show", (event) => details.push(event.detail));
     await router.load("/b");
     await router.load("/a", loadOptions);
-    return seen;
+    return details;
   }
 
-  it("dispatches page-enter then page-show when a cached page is revisited forwards", async () => {
-    assert.deepEqual(await eventsFor({}), ["page-enter", "page-show"]);
-  });
-
-  it("dispatches page-restore then page-show on a history traversal", async () => {
-    assert.deepEqual(await eventsFor({ isRestore: true }), [
-      "page-restore",
-      "page-show",
+  it("reports an advance action when a cached page is revisited forwards", async () => {
+    assert.deepEqual(await showDetailsFor({}), [
+      { scrollY: 0, action: "advance" },
     ]);
   });
 
-  it("dispatches page-create, page-enter then page-show on first load", async () => {
-    const router = new Router();
-    router.addRoute("/a", () => () => {});
-    mountRouter(router);
-    const seen = [];
-    router.renderRoute(({ container }) => {
-      for (const name of ["page-create", "page-enter", "page-show"]) {
-        container.addEventListener(name, () => seen.push(name));
-      }
-    });
-
-    await router.load("/a");
-
-    assert.deepEqual(seen, ["page-create", "page-enter", "page-show"]);
+  it("reports a restore action on a history traversal", async () => {
+    assert.deepEqual(await showDetailsFor({ isRestore: true }), [
+      { scrollY: 0, action: "restore" },
+    ]);
   });
 
-  it("reports a zero scroll position on a first load", async () => {
+  it("dispatches a single page-show with an advance action on first load", async () => {
     const router = new Router();
     router.addRoute("/a", () => () => {});
     mountRouter(router);
     const details = [];
     router.renderRoute(({ container }) => {
-      for (const name of ["page-enter", "page-show"]) {
-        container.addEventListener(name, (event) => details.push(event.detail));
-      }
+      container.addEventListener("page-show", (event) =>
+        details.push(event.detail),
+      );
     });
 
     await router.load("/a");
 
-    assert.deepEqual(details, [{ scrollY: 0 }, { scrollY: 0 }]);
+    assert.deepEqual(details, [{ scrollY: 0, action: "advance" }]);
   });
 
   it("reports the restored scroll position on page-show", async () => {
@@ -1339,19 +1322,21 @@ describe("page event dispatch", () => {
       await router.load("/a", { isRestore: true });
     });
 
-    assert.deepEqual(details, [{ scrollY: 120 }]);
+    assert.deepEqual(details, [{ scrollY: 120, action: "restore" }]);
   });
 
-  it("does not dispatch page-create when a cached page is revisited", async () => {
-    const router = createRouter();
-    await router.load("/a");
-    const pageA = router.pages.get("/a").el;
-    const seen = [];
-    pageA.addEventListener("page-create", () => seen.push("page-create"));
+  it("does not re-run a view when its cached page is revisited", async () => {
+    const router = new Router();
+    router.addRoute("/a", () => () => {});
+    router.addRoute("/b", () => () => {});
+    mountRouter(router);
+    const rendered = [];
+    router.renderRoute(({ container }) => rendered.push(container));
 
+    await router.load("/a");
     await router.load("/b");
     await router.load("/a");
 
-    assert.deepEqual(seen, []);
+    assert.deepEqual(rendered.length, 2);
   });
 });

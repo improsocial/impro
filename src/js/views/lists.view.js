@@ -2,7 +2,12 @@ import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { parseUri } from "/js/dataHelpers.js";
 import "/js/components/create-list-dialog.js";
@@ -14,7 +19,10 @@ export default async function listsView({
 }) {
   await auth.requireAuth();
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 
   bindToPage(root, layout, "active-nav-click", () => {
     loadPageData();

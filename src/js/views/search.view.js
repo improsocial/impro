@@ -199,6 +199,24 @@ export default async function searchView({
     }
   }
 
+  function loadPageData() {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("tab")) {
+      const tab = query.get("tab");
+      state.$activeTab.set(tab === "posts" ? "top" : tab);
+    }
+    const q = getUrlQuery();
+    if (q) {
+      state.$inputValue.set(q);
+      state.$showTypeahead.set(false);
+      state.$committedQuery.set(q);
+      loadedTabs.clear();
+      tabScrollState.clear();
+      loadTabIfNeeded(state.$activeTab.get());
+    }
+    hydrateAndPruneRecentProfiles();
+  }
+
   function handleTabChange(tab) {
     if (tab === state.$activeTab.get()) {
       if (window.scrollY > 0) {
@@ -611,6 +629,8 @@ export default async function searchView({
     }
   }
 
+  loadPageData();
+
   bindPageTitle(root, () => "Search");
 
   pageEffect(root, () => {
@@ -747,23 +767,5 @@ export default async function searchView({
       </div>`,
       root,
     );
-  });
-
-  root.addEventListener("page-create", () => {
-    const query = new URLSearchParams(window.location.search);
-    if (query.get("tab")) {
-      const tab = query.get("tab");
-      state.$activeTab.set(tab === "posts" ? "top" : tab);
-    }
-    const q = getUrlQuery();
-    if (q) {
-      state.$inputValue.set(q);
-      state.$showTypeahead.set(false);
-      state.$committedQuery.set(q);
-      loadedTabs.clear();
-      tabScrollState.clear();
-      loadTabIfNeeded(state.$activeTab.get());
-    }
-    hydrateAndPruneRecentProfiles();
   });
 }

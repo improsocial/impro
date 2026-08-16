@@ -10,7 +10,12 @@ import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
@@ -415,7 +420,10 @@ export default async function listDetailView({
   const resetUserScrolled = () => {
     userHasScrolled = false;
   };
-  root.addEventListener("page-show", resetUserScrolled);
+  onPageShow(root, resetUserScrolled);
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

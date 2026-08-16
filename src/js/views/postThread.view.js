@@ -1,7 +1,12 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy, maxBy, pinScrollPosition } from "/js/utils.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -624,20 +629,18 @@ export default async function postThreadView({
     });
   }
 
-  root.addEventListener("page-enter", async () => {
+  onPageShow(root, async ({ action, scrollY }) => {
     userHasScrolled = false;
-    // On a revisit the thread is already rendered, so pin it under the header
-    const largePost = root.querySelector(".large-post");
-    const header = root.querySelector("header");
-    if (largePost && header) {
-      scrollToLargePost(largePost, header);
+    if (action === "restore") {
+      window.scrollTo(0, scrollY);
+    } else {
+      // On a revisit the thread is already rendered, so pin it under the header
+      const largePost = root.querySelector(".large-post");
+      const header = root.querySelector("header");
+      if (largePost && header) {
+        scrollToLargePost(largePost, header);
+      }
     }
-    await dataLayer.requests.loadPostThread(postUri);
-  });
-
-  root.addEventListener("page-restore", async (e) => {
-    userHasScrolled = false;
-    window.scrollTo(0, e.detail?.scrollY ?? 0);
     // Revalidate
     await dataLayer.requests.loadPostThread(postUri);
   });

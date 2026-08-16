@@ -4,7 +4,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 export default async function hashtagView({
@@ -118,5 +118,8 @@ export default async function hashtagView({
     loadCurrentFeed({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

@@ -1,4 +1,9 @@
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -201,7 +206,10 @@ export default async function chatView({
     await loadConvoList({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 
   bindToPage(root, layout, "active-nav-click", () => {
     loadPageData();

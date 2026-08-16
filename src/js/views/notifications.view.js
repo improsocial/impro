@@ -7,7 +7,12 @@ import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
@@ -820,12 +825,7 @@ export default async function notificationsView({
     });
   }
 
-  root.addEventListener("page-enter", async () => {
-    await loadNotifications({ reload: true });
-  });
-
-  root.addEventListener("page-restore", async (e) => {
-    const scrollY = e.detail?.scrollY ?? 0;
+  onPageShow(root, async ({ scrollY }) => {
     if (scrollY <= 200) {
       window.scrollTo(0, 0);
       await loadNotifications({ reload: true });

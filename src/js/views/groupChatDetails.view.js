@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -326,5 +326,8 @@ export default async function groupChatDetailsView({
       });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

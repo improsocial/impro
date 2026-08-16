@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 
 export default async function postQuotesView({
   root,
@@ -98,5 +98,8 @@ export default async function postQuotesView({
     loadQuotes({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

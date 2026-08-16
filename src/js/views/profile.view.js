@@ -542,7 +542,7 @@ export default async function profileView({
     return dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
   }
 
-  root.addEventListener("page-create", async () => {
+  async function loadPageData() {
     const profile = await loadProfile();
     if (!profile) {
       return;
@@ -565,5 +565,7 @@ export default async function profileView({
     ) {
       dataLayer.requests.loadProfileChatStatus(profile.did);
     }
-  });
+  }
+
+  loadPageData().catch((error) => console.error(error));
 }

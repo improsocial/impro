@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
@@ -139,5 +139,8 @@ export default async function communityPluginsView({
     loadListings();
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

@@ -27,7 +27,17 @@ function bindMiddleClickRedispatch() {
 // the route cache) and detach when it's swapped out.
 function bindActive(root, attach, detach) {
   root.addEventListener("page-show", attach);
-  root.addEventListener("page-exit", detach);
+  root.addEventListener("page-hide", detach);
+}
+
+// Lifecycle helpers
+
+export function onPageShow(root, handler) {
+  root.addEventListener("page-show", (event) => handler(event.detail));
+}
+
+export function onPageHide(root, handler) {
+  root.addEventListener("page-hide", (event) => handler(event.detail));
 }
 
 export function bindToPage(root, source, event, handler) {
@@ -265,7 +275,7 @@ export class Router extends EventEmitter {
       if (activeElement && outgoingPage.contains(activeElement)) {
         activeElement.blur();
       }
-      outgoingPage.dispatchEvent(new CustomEvent("page-exit"));
+      outgoingPage.dispatchEvent(new CustomEvent("page-hide"));
     }
     if (this.pages.has(path)) {
       // Return to existing page
@@ -299,12 +309,9 @@ export class Router extends EventEmitter {
       await raf();
       if (this.currentPage !== page || this.currentPath !== path) return;
       this.currentPage.dispatchEvent(
-        new CustomEvent(isRestore ? "page-restore" : "page-enter", {
-          detail: { scrollY },
+        new CustomEvent("page-show", {
+          detail: { scrollY, action: isRestore ? "restore" : "advance" },
         }),
-      );
-      this.currentPage.dispatchEvent(
-        new CustomEvent("page-show", { detail: { scrollY } }),
       );
       return;
     }
@@ -334,12 +341,10 @@ export class Router extends EventEmitter {
     this.currentPage.classList.add("page-visible");
     outgoingPage?.classList.remove("page-visible");
     outgoingPage?.classList.add("page-hidden");
-    this.currentPage.dispatchEvent(new CustomEvent("page-create"));
     this.currentPage.dispatchEvent(
-      new CustomEvent("page-enter", { detail: { scrollY: 0 } }),
-    );
-    this.currentPage.dispatchEvent(
-      new CustomEvent("page-show", { detail: { scrollY: 0 } }),
+      new CustomEvent("page-show", {
+        detail: { scrollY: 0, action: "advance" },
+      }),
     );
   }
 

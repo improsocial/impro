@@ -11,7 +11,13 @@ import {
   FOLLOWING_FEED_URI,
   LOGGED_OUT_FEED_URI,
 } from "/js/config.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+  onPageHide,
+} from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
@@ -391,7 +397,7 @@ export default async function homeView({
     });
   }
 
-  root.addEventListener("page-create", async () => {
+  async function loadPageData() {
     const currentFeedUri = state.$currentFeedUri.get();
     const pinnedItems = await dataLayer.declarative.ensurePinnedItems();
     if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
@@ -400,15 +406,17 @@ export default async function homeView({
     preloadHiddenFeeds(pinnedItems);
     initializePostSeenObservers(pinnedItems);
     await loadCurrentFeed({ reload: true });
-  });
+  }
 
-  root.addEventListener("page-show", () => {
+  loadPageData().catch((error) => console.error(error));
+
+  onPageShow(root, () => {
     for (const observer of postSeenObservers.values()) {
       observer.connect();
     }
   });
 
-  root.addEventListener("page-exit", () => {
+  onPageHide(root, () => {
     for (const observer of postSeenObservers.values()) {
       observer.disconnect();
     }

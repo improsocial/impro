@@ -1,4 +1,9 @@
-import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
+import {
+  pageEffect,
+  bindToPage,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
@@ -389,7 +394,10 @@ export default async function settingsView({ root, context: { dataLayer } }) {
     loadOtherAccounts();
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 
   // Account actions navigate away with the pending spinner showing; if the
   // user comes back via the back/forward cache the document is restored

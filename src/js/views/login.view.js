@@ -16,7 +16,12 @@ import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.templ
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
-import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
+import {
+  pageEffect,
+  bindToPage,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 export default async function loginView({
@@ -487,7 +492,8 @@ export default async function loginView({
     );
   });
 
-  root.addEventListener("page-enter", async () => {
+  onPageShow(root, async ({ action }) => {
+    if (action === "restore") return;
     // this can happen when the oauth callback fails - see callback.html
     const params = new URLSearchParams(window.location.search);
     const errorMessage = params.get("error_message");

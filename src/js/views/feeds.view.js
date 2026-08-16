@@ -1,4 +1,9 @@
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+  onPageHide,
+} from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -291,12 +296,15 @@ export default async function feedsView({ root, context: { dataLayer } }) {
   }
 
   // Reset whenever the page changes visibility, unlike the data load below
-  root.addEventListener("page-show", resetEditingState);
-  root.addEventListener("page-exit", resetEditingState);
+  onPageShow(root, resetEditingState);
+  onPageHide(root, resetEditingState);
 
   function loadPageData() {
     dataLayer.requests.loadPinnedItems();
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

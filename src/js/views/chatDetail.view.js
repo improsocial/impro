@@ -1,4 +1,9 @@
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+  onPageHide,
+} from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -1691,22 +1696,23 @@ export default async function chatDetailView({
 
   root.addEventListener("click", handleRootClick);
 
-  // The fetcher runs whenever the page is visible, in both restore directions
-  root.addEventListener("page-show", () => {
-    messageFetcher.start();
-  });
-
-  root.addEventListener("page-exit", () => {
-    messageFetcher.stop();
-  });
-
   async function loadPageData() {
     await dataLayer.declarative.ensureConvo(convoId);
     await loadMessages({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => {
-    scrollToBottom();
-    loadPageData();
+  onPageShow(root, ({ action, scrollY }) => {
+    if (action === "restore") {
+      window.scrollTo(0, scrollY);
+    } else {
+      scrollToBottom();
+      loadPageData();
+    }
+    // The fetcher runs whenever the page is visible, in both restore directions
+    messageFetcher.start();
+  });
+
+  onPageHide(root, () => {
+    messageFetcher.stop();
   });
 }

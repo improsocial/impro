@@ -5,7 +5,7 @@ import { auth } from "/js/auth.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
@@ -140,5 +140,8 @@ export default async function feedDetailView({
     await loadFeed({ reload: true });
   }
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 }

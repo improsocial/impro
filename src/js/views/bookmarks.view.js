@@ -2,7 +2,12 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 export default async function bookmarksView({
@@ -14,7 +19,10 @@ export default async function bookmarksView({
 
   const { postInteractionHandler } = interactionHandlers;
 
-  root.addEventListener("page-enter", () => loadPageData());
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
 
   bindToPage(root, layout, "active-nav-click", () => {
     loadPageData();
