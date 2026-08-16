@@ -322,6 +322,17 @@ export default async function loginView({
             </span>
           </button>
         </div>
+        <div class="button-group">
+          <button
+            class="rounded-button rounded-button-secondary"
+            type="button"
+            data-testid="saved-accounts-back"
+            ?disabled=${pendingDid !== null}
+            @click=${() => handleBack()}
+          >
+            Back
+          </button>
+        </div>
       </div>
     `;
   }
