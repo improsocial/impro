@@ -45,9 +45,33 @@ export default async function homeView({
   const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
   const WELCOME_MODAL_SEEN_STORAGE_KEY = "welcome-modal-seen";
 
-  const storedFeedUri = isAuthenticated
-    ? localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY)
+  // Keyed per account
+  const currentFeedUriStorageKey = isAuthenticated
+    ? `${CURRENT_FEED_URI_STORAGE_KEY}:${api.session.did}`
     : null;
+
+  function readStoredFeedUri() {
+    if (!currentFeedUriStorageKey) {
+      return null;
+    }
+    const stored = localStorage.getItem(currentFeedUriStorageKey);
+    if (stored !== null) {
+      return stored;
+    }
+    // Carry over the selection saved before the key was per-account
+    const legacyStored = localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY);
+    localStorage.removeItem(CURRENT_FEED_URI_STORAGE_KEY);
+    return legacyStored;
+  }
+
+  function saveFeedUri(feedUri) {
+    if (!currentFeedUriStorageKey) {
+      return;
+    }
+    localStorage.setItem(currentFeedUriStorageKey, JSON.stringify(feedUri));
+  }
+
+  const storedFeedUri = readStoredFeedUri();
 
   const state = new ReactiveStore("homeView");
   state.$currentFeedUri = new Signal.State(
@@ -75,36 +99,31 @@ export default async function homeView({
     WelcomeModal.open();
   }
 
-  if (isAuthenticated) {
-    pageEffect(root, () => {
-      const currentFeedUri = state.$currentFeedUri.get();
-      if (currentFeedUri) {
-        localStorage.setItem(
-          CURRENT_FEED_URI_STORAGE_KEY,
-          JSON.stringify(currentFeedUri),
-        );
-      }
-    });
-  }
-
   const postSeenObservers = new Map();
 
-  // Initialize post seen observers for feeds with proxy URLs
-  function initializePostSeenObservers(pinnedItems) {
+  function syncPostSeenObservers(pinnedItems) {
     if (!isAuthenticated) {
       return;
     }
-    const interactableItems = pinnedItems.filter(
-      (item) => item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI,
-    );
-    for (const observer of postSeenObservers.values()) {
-      observer.disconnect();
-    }
-    postSeenObservers.clear();
-    for (const item of interactableItems) {
+    const proxyUrls = new Map();
+    for (const item of pinnedItems) {
+      if (!item.acceptsInteractions && item.uri !== LOGGED_OUT_FEED_URI) {
+        continue;
+      }
       const proxyUrl = getFeedGeneratorProxyUrl(item);
       if (proxyUrl) {
-        postSeenObservers.set(item.uri, new PostSeenObserver(api, proxyUrl));
+        proxyUrls.set(item.uri, proxyUrl);
+      }
+    }
+    for (const [feedUri, observer] of postSeenObservers) {
+      if (proxyUrls.get(feedUri) !== observer.feedProxyUrl) {
+        observer.disconnect();
+        postSeenObservers.delete(feedUri);
+      }
+    }
+    for (const [feedUri, proxyUrl] of proxyUrls) {
+      if (!postSeenObservers.has(feedUri)) {
+        postSeenObservers.set(feedUri, new PostSeenObserver(api, proxyUrl));
       }
     }
   }
@@ -176,6 +195,7 @@ export default async function homeView({
     state.$materializedFeedUris.add(currentFeedUri);
     // Switch feed
     state.$currentFeedUri.set(feedUri);
+    saveFeedUri(feedUri);
     // Scroll to saved position for new feed
     const savedScrollY = feedScrollState.get(feedUri) ?? 0;
     requestAnimationFrame(() => {
@@ -345,6 +365,7 @@ export default async function homeView({
       </div>`,
       root,
     );
+    syncPostSeenObservers(pinnedItems);
     if (postSeenObservers.size > 0) {
       const feedContextsByFeedUri = $feedContextsByFeedUri.get();
       root.querySelectorAll(".feed-item").forEach((feedItem) => {
@@ -404,7 +425,11 @@ export default async function homeView({
       resetToDefaultFeed();
     }
     preloadHiddenFeeds(pinnedItems);
-    initializePostSeenObservers(pinnedItems);
+    // Ensure current user before loading the feed to prevent a flash of
+    // unfiltered posts
+    if (isAuthenticated) {
+      await dataLayer.declarative.ensureCurrentUser();
+    }
     await loadCurrentFeed({ reload: true });
   }
 

@@ -2,7 +2,10 @@ import { test, expect } from "../../base.js";
 import { loginWithAccounts, longPress } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { userProfile } from "../../testData.js";
-import { createProfile } from "../../../shared/factories.js";
+import {
+  createFeedGenerator,
+  createProfile,
+} from "../../../shared/factories.js";
 
 // The footer (the long-press trigger) only renders on small viewports.
 test.use({ viewport: { width: 375, height: 667 } });
@@ -12,6 +15,19 @@ async function openSwitcherDialog(page) {
   const dialog = page.locator('[data-testid="account-switcher-dialog"]');
   await expect(dialog).toBeVisible();
   return dialog;
+}
+
+async function switchToAccount(page, did) {
+  const dialog = await openSwitcherDialog(page);
+  await dialog
+    .locator(`[data-testid="account-switcher-item"][data-did="${did}"]`)
+    .click();
+  await expect
+    .poll(
+      () => page.evaluate(() => localStorage.getItem("oauth_current_did")),
+      { timeout: 10000 },
+    )
+    .toBe(did);
 }
 
 test.describe("Account switch flow", () => {
@@ -246,6 +262,40 @@ test.describe("Account switch flow", () => {
     // The dialog is dismissable again.
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
+  });
+
+  test("each account keeps its own home feed selection across switches", async ({
+    page,
+  }) => {
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    await page.reload();
+
+    const view = page.locator("#home-view");
+    const tabs = view.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await tabs.nth(1).click();
+    await expect(tabs.nth(1)).toHaveClass(/active/);
+
+    // The other account doesn't have that feed pinned
+    mockServer.setPinnedFeeds([]);
+    await switchToAccount(page, otherProfile.did);
+
+    await expect(tabs).toHaveCount(1, { timeout: 10000 });
+    await expect(tabs.nth(0)).toHaveClass(/active/);
+
+    // Falling back to Following for the other account must not have discarded
+    // the first account's selection
+    mockServer.setPinnedFeeds([feed.uri]);
+    await switchToAccount(page, userProfile.did);
+
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await expect(tabs.nth(1)).toHaveClass(/active/);
   });
 });
 
