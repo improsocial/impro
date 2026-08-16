@@ -2263,14 +2263,16 @@ container-link {
 
 .post-actions .text-button-text {
   position: relative;
-  top: -2px;
+  top: -6px;
+  font-size: 22px;
 }
 
 .post-action {
   flex: 1;
 }
 
-.post-action-bookmark {
+.post-action-bookmark,
+.post-action-share {
   flex: 0;
 }
 
