@@ -1,7 +1,6 @@
 // Send 404s for missing assets in Cloudflare pages
 
-const ASSET_EXTENSIONS =
-  /\.(m?js|css|json|md|svg|png|jpe?g|gif|webp|ico|woff2?)$/;
+import { isAssetPath } from "../build-support/assetPaths.js";
 
 export async function onRequest(context) {
   const response = await context.next();
@@ -9,7 +8,7 @@ export async function onRequest(context) {
   const isHtml = (response.headers.get("Content-Type") || "").includes(
     "text/html",
   );
-  if (ASSET_EXTENSIONS.test(pathname) && isHtml) {
+  if (isAssetPath(pathname) && isHtml) {
     return new Response(`Not found: ${pathname}`, {
       status: 404,
       headers: {

@@ -218,6 +218,49 @@ test.describe("Home view", () => {
     await expect(visibleFeed).toContainText("Trending feed post");
   });
 
+  test("should report seen posts for a feed that accepts interactions", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+      acceptsInteractions: true,
+    });
+    const feedPost = createPost({
+      uri: "at://did:plc:author2/app.bsky.feed.post/post2",
+      text: "Trending feed post",
+      authorHandle: "author2.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.addFeedItems(feed.uri, [feedPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(
+      view.locator(".tab-bar-button", { hasText: "Trending" }),
+    ).toBeVisible({ timeout: 10000 });
+
+    const sendInteractionsRequest = page.waitForRequest(
+      (req) => req.url().includes("app.bsky.feed.sendInteractions"),
+      { timeout: 15000 },
+    );
+    await view.locator(".tab-bar-button", { hasText: "Trending" }).click();
+    const request = await sendInteractionsRequest;
+
+    expect(request.postDataJSON().interactions).toContainEqual(
+      expect.objectContaining({
+        item: feedPost.uri,
+        event: "app.bsky.feed.defs#interactionSeen",
+      }),
+    );
+  });
+
   test("should build inactive feed tabs in the background after the active feed renders", async ({
     page,
   }) => {

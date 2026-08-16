@@ -15,6 +15,7 @@ import {
   getJoinLinkCodesFromMessages,
   getPostsFromPostThread,
   getPostsFromFeed,
+  buildProfileFromRecord,
 } from "/js/dataHelpers.js";
 import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
@@ -266,8 +267,36 @@ export class Requests {
 
   async loadCurrentUser() {
     const session = await this.api.getSession();
-    const profile = await this.api.getProfile(session.did);
+    let profile;
+    try {
+      profile = await this.api.getProfile(session.did);
+    } catch (error) {
+      console.warn(
+        "getProfile failed, falling back to the profile record",
+        error,
+      );
+      profile = await this.loadCurrentUserFromRecord(session);
+    }
     this.dataStore.$currentUser.set(profile);
+  }
+
+  async loadCurrentUserFromRecord(session) {
+    let record = null;
+    try {
+      record = await this.api.getProfileRecord();
+    } catch (error) {
+      if (
+        !(error instanceof ApiError) ||
+        error.data?.error !== "RecordNotFound"
+      ) {
+        throw error;
+      }
+    }
+    return buildProfileFromRecord({
+      did: session.did,
+      handle: session.handle,
+      record,
+    });
   }
 
   async loadPostThread(postURI, { depth = 6 } = {}) {

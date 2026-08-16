@@ -3322,6 +3322,72 @@ describe("loadCurrentUser", () => {
     assert.deepEqual(requestedDid, "did:plc:me");
     assert.deepEqual(dataStore.$currentUser.get(), profile);
   });
+
+  it("should fall back to the profile record when getProfile fails", async () => {
+    const mockApi = {
+      getSession: async () => ({ did: "did:plc:me", handle: "me.test" }),
+      getProfile: async () => {
+        throw new ApiError({ status: 502, statusText: "Bad Gateway" });
+      },
+      getProfileRecord: async () => ({
+        uri: "at://did:plc:me/app.bsky.actor.profile/self",
+        value: { displayName: "Me" },
+      }),
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadCurrentUser();
+
+    const currentUser = dataStore.$currentUser.get();
+    assert.deepEqual(currentUser.did, "did:plc:me");
+    assert.deepEqual(currentUser.handle, "me.test");
+    assert.deepEqual(currentUser.displayName, "Me");
+    assert.deepEqual(currentUser.isPartial, true);
+  });
+
+  it("should fall back to a record-less profile when the user has no profile record", async () => {
+    const mockApi = {
+      getSession: async () => ({ did: "did:plc:me", handle: "me.test" }),
+      getProfile: async () => {
+        throw new ApiError({ status: 502, statusText: "Bad Gateway" });
+      },
+      getProfileRecord: async () => {
+        throw new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: { error: "RecordNotFound" },
+        });
+      },
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadCurrentUser();
+
+    const currentUser = dataStore.$currentUser.get();
+    assert.deepEqual(currentUser.handle, "me.test");
+    assert.deepEqual(currentUser.displayName, null);
+    assert.deepEqual(currentUser.isPartial, true);
+  });
+
+  it("should rethrow when the profile record request fails for another reason", async () => {
+    const recordError = new ApiError({ status: 500, statusText: "Oops" });
+    const mockApi = {
+      getSession: async () => ({ did: "did:plc:me", handle: "me.test" }),
+      getProfile: async () => {
+        throw new ApiError({ status: 502, statusText: "Bad Gateway" });
+      },
+      getProfileRecord: async () => {
+        throw recordError;
+      },
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await assert.rejects(() => requests.loadCurrentUser(), recordError);
+    assert.deepEqual(dataStore.$currentUser.get(), null);
+  });
 });
 
 describe("loadPost", () => {

@@ -26,7 +26,7 @@ export const test = baseTest.extend({
       await page.coverage.startCSSCoverage({ resetOnNavigation: false });
     }
     // Fail on any request not explicitly mocked
-    await page.route("**/*", (route) => {
+    await page.context().route("**/*", (route) => {
       const url = route.request().url();
       if (url.startsWith("http://localhost")) {
         return route.continue();
@@ -51,7 +51,7 @@ export const test = baseTest.extend({
     if (collectCssCoverage) {
       const entries = await page.coverage.stopCSSCoverage();
       const styleEntries = entries.filter((entry) =>
-        entry.url.includes("/css/style."),
+        entry.url.includes("/css/"),
       );
       if (styleEntries.length > 0) {
         const fileName = `${testInfo.testId}-${testInfo.retry}.json`;

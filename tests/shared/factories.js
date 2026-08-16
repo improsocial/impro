@@ -196,6 +196,7 @@ export function createFeedGenerator({
   displayName,
   creatorHandle,
   description,
+  acceptsInteractions = false,
 }) {
   const creatorDid = uri.split("/")[2];
   return {
@@ -214,6 +215,7 @@ export function createFeedGenerator({
     displayName,
     description: description || "",
     avatar: "",
+    acceptsInteractions,
     likeCount: 10,
     indexedAt: "2025-01-01T00:00:00.000Z",
     labels: [],

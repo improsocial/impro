@@ -2,11 +2,14 @@ import { HANDLE_RESOLVER_SERVICE_URL, PLC_DIRECTORY_URL } from "/js/config.js";
 
 const PDS_SERVICE_ID = "#atproto_pds";
 
-export function getServiceEndpointFromDidDoc(didDoc) {
-  const service = didDoc.service.find((s) => s.id === PDS_SERVICE_ID);
+export function getServiceEndpointFromDidDoc(
+  didDoc,
+  serviceId = PDS_SERVICE_ID,
+) {
+  const service = didDoc.service?.find((s) => s.id === serviceId);
   if (!service) {
     throw new Error(
-      `No PDS service found in DID doc ${JSON.stringify(didDoc)}`,
+      `No ${serviceId} service found in DID doc ${JSON.stringify(didDoc)}`,
     );
   }
   return service.serviceEndpoint;
@@ -18,14 +21,34 @@ export function didDocReferencesHandle(didDoc, handle) {
   return aliases.includes(atHandle);
 }
 
+const RESOLVE_HANDLE_TIMEOUT_MS = 5000;
+
 export async function resolveHandle(handle) {
   const params = new URLSearchParams({
     handle,
   });
-  const res = await fetch(
-    `${HANDLE_RESOLVER_SERVICE_URL}/xrpc/com.atproto.identity.resolveHandle?` +
-      params.toString(),
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    RESOLVE_HANDLE_TIMEOUT_MS,
   );
+  let res;
+  try {
+    res = await fetch(
+      `${HANDLE_RESOLVER_SERVICE_URL}/xrpc/com.atproto.identity.resolveHandle?` +
+        params.toString(),
+      { signal: controller.signal },
+    );
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        `resolveHandle: timed out after ${RESOLVE_HANDLE_TIMEOUT_MS}ms resolving "${handle}"`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const data = await res.json();
   return data.did ?? null;
 }

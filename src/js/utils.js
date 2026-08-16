@@ -48,11 +48,17 @@ export const hasKeyboardInput = () =>
   window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 export const isTouchOnlyDevice = () =>
   window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+export const isStandalonePWA = () =>
+  window.matchMedia("(display-mode: standalone)").matches ||
+  navigator.standalone === true;
 export const prefersReducedMotion = () =>
   !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 export const isAndroid = () => /android/i.test(navigator.userAgent);
+export const isIOS = () =>
+  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 export const isFirefox = () => /firefox/i.test(navigator.userAgent);
 
 export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {

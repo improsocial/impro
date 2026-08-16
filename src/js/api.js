@@ -730,6 +730,28 @@ export class Api {
     return res.data.count;
   }
 
+  async registerPush({ serviceDid, token, platform, appId }) {
+    await this.request("app.bsky.notification.registerPush", {
+      method: "POST",
+      body: { serviceDid, token, platform, appId },
+      headers: {
+        "atproto-proxy": `${serviceDid}#bsky_notif`,
+      },
+      parseJson: false,
+    });
+  }
+
+  async unregisterPush({ serviceDid, token, platform, appId }) {
+    await this.request("app.bsky.notification.unregisterPush", {
+      method: "POST",
+      body: { serviceDid, token, platform, appId },
+      headers: {
+        "atproto-proxy": `${serviceDid}#bsky_notif`,
+      },
+      parseJson: false,
+    });
+  }
+
   async getNotifications({ cursor, limit = 31, reasons, labelers = [] } = {}) {
     const query = { cursor: cursor ?? "", limit };
     if (reasons?.length) {

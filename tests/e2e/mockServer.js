@@ -1,5 +1,5 @@
 import { createPost } from "../shared/factories.js";
-import { bskyLabeler, userProfile } from "./testData.js";
+import { bskyLabeler, notificationService, userProfile } from "./testData.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_MANIFEST,
@@ -101,12 +101,29 @@ export class MockServer {
     // plugin with no README (404).
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
     this.tokenRefreshShouldFail = false;
+    this.notificationServiceUnreachable = false;
+    // Which notification service this device has chosen; null means none.
+    this.notificationServiceDid = null;
+    this.registerPushCalls = [];
+    this.unregisterPushCalls = [];
   }
 
   // Make subsequent OAuth token refreshes fail with a non-retryable error,
   // simulating a stale/revoked refresh token.
   failTokenRefresh() {
     this.tokenRefreshShouldFail = true;
+  }
+
+  // Make the dummy notification service fail to resolve, simulating a DID
+  // that points at nothing conforming.
+  failNotificationServiceLookup() {
+    this.notificationServiceUnreachable = true;
+  }
+
+  // Start with a notification service already chosen on this device, as if a
+  // previous launch had left it there. Call before setup().
+  setNotificationServiceDid(did) {
+    this.notificationServiceDid = did;
   }
 
   setSearchHistory({ searches = [], profiles = [] } = {}) {
@@ -524,6 +541,28 @@ export class MockServer {
       });
     }
 
+    if (this.notificationServiceDid) {
+      await page.addInitScript((did) => {
+        localStorage.setItem("push-notification-service", did);
+      }, this.notificationServiceDid);
+    }
+
+    // Stub the external destinations "open in bsky.app" / "translate" links
+    // point at. These open via window.open, and popups are separate pages that
+    // page-level routes don't apply to — so the route has to be on the context
+    // or the popup really loads over the network, and page.waitForEvent("popup")
+    // (which resolves once the popup's initial navigation commits) can outlast
+    // the test timeout.
+    await page
+      .context()
+      .route(/^https:\/\/(bsky\.app|translate\.google\.com)\//, (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: "<!doctype html><html><body></body></html>",
+        }),
+      );
+
     // Stub gif proxy fetches (gif embeds stream from these CDNs).
     await page.route(
       /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,
@@ -680,6 +719,55 @@ export class MockServer {
 
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
+    );
+
+    // The dummy notification service (see `notificationService` in
+    // testData.js). Resolving one costs a DID document then a config
+    // document, so both are served here.
+    await page.route(
+      `${notificationService.endpoint}/.well-known/did.json`,
+      (route) => {
+        if (this.notificationServiceUnreachable) {
+          route.fulfill({ status: 500, body: "Server Error" });
+          return;
+        }
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: notificationService.did,
+            service: [
+              {
+                id: "#bsky_notif",
+                type: "BskyNotificationService",
+                serviceEndpoint: notificationService.endpoint,
+              },
+            ],
+          }),
+        });
+      },
+    );
+    // The service's auth handoff. Real courier would run OAuth and redirect
+    // back; this just stands still so tests can assert what was sent to it.
+    await page.route(`${notificationService.authUrl}*`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><title>Authorize</title>",
+      }),
+    );
+    await page.route(
+      `${notificationService.endpoint}/.well-known/notif-service.json`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            name: notificationService.name,
+            authUrl: notificationService.authUrl,
+            vapidPublicKey: notificationService.vapidPublicKey,
+          }),
+        }),
     );
 
     // OAuth token endpoint used by seeded test sessions. `invalid_request`
@@ -894,6 +982,27 @@ export class MockServer {
         body: "{}",
       });
     });
+
+    await page.route("**/xrpc/app.bsky.notification.registerPush*", (route) => {
+      this.registerPushCalls.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 200,
+        contentType: "text/plain",
+        body: "",
+      });
+    });
+
+    await page.route(
+      "**/xrpc/app.bsky.notification.unregisterPush*",
+      (route) => {
+        this.unregisterPushCalls.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          contentType: "text/plain",
+          body: "",
+        });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.feed.getPosts*", async (route) => {
       const url = new URL(route.request().url());

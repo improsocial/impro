@@ -143,11 +143,12 @@ export class BasicAuthProvider {
     this._loaded = false;
   }
 
-  async getSession() {
+  async getSession(did = null) {
     if (!this._loaded) {
       this.session = BasicAuthSession.fromLocalStorage();
       this._loaded = true;
     }
+    if (did !== null && this.session?.did !== did) return null;
     return this.session;
   }
 
@@ -214,9 +215,9 @@ export class OAuthProvider {
     return this._client;
   }
 
-  async getSession() {
+  async getSession(did = null) {
     const client = await this.getClient();
-    return client.getSession();
+    return client.getSession(did);
   }
 
   async login({ handle, returnTo }) {
@@ -299,8 +300,8 @@ export class Auth {
     this.provider = provider;
   }
 
-  getSession() {
-    return this.provider.getSession();
+  getSession(did = null) {
+    return this.provider.getSession(did);
   }
 
   logout(did = null) {

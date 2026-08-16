@@ -1,12 +1,24 @@
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import "/js/lib/emoji-picker-element.js";
+
+let loadPickerPromise = null;
+
+function loadPickerComponent() {
+  loadPickerPromise ??= import("/js/lib/emoji-picker-element.js").catch(
+    (error) => {
+      loadPickerPromise = null;
+      console.error("Failed to load emoji-picker-element", error);
+    },
+  );
+  return loadPickerPromise;
+}
 
 class EmojiPickerDialog extends Component {
   connectedCallback() {
     if (this._initialized) {
       return;
     }
+    loadPickerComponent();
     this.scrollLock = null;
     this.isOpen = false;
     this._initialized = true;
@@ -46,7 +58,11 @@ class EmojiPickerDialog extends Component {
     this.isOpen = true;
     this._dialog = dialog;
     this._picker = picker;
-    this._positionPicker();
+    loadPickerComponent().then(() => {
+      if (this._picker === picker) {
+        this._positionPicker();
+      }
+    });
     this._reposition = () => this._positionPicker();
     window.addEventListener("resize", this._reposition);
   }

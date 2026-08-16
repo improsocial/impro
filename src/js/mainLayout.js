@@ -57,6 +57,7 @@ export function mainLayoutTemplate({
   isAuthenticated = true,
   currentUser,
   activeNavItem,
+  isNavItemPage = false,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveNavItem,
@@ -82,6 +83,7 @@ export function mainLayoutTemplate({
             isAuthenticated,
             currentUser,
             activeNavItem,
+            isNavItemPage,
             numNotifications,
             numChatNotifications,
             onClickActiveItem: onClickActiveNavItem,
@@ -100,6 +102,7 @@ export function mainLayoutTemplate({
         isAuthenticated,
         currentUser,
         activeNavItem,
+        isNavItemPage,
         numNotifications,
         numChatNotifications,
         onClickActiveItem: onClickActiveNavItem,
@@ -166,12 +169,19 @@ export class MainLayout extends Layout {
         typeof layoutOptions.activeNavItem === "function"
           ? layoutOptions.activeNavItem(currentRoute.params)
           : (layoutOptions.activeNavItem ?? null);
+      // True when this route is the nav item's own page, rather than somewhere
+      // deeper in its section
+      const isNavItemPage =
+        typeof layoutOptions.isNavItemPage === "function"
+          ? layoutOptions.isNavItemPage(currentRoute.params)
+          : (layoutOptions.isNavItemPage ?? false);
       const previewingPlugins = pluginService.getPreviewPlugins();
       render(
         mainLayoutTemplate({
           isAuthenticated,
           currentUser,
           activeNavItem,
+          isNavItemPage,
           numNotifications:
             notificationService?.$numNotifications.get() ?? null,
           numChatNotifications:

@@ -1682,6 +1682,16 @@ describe("Preferences.getBadgeLabelsForPost", () => {
     assert.deepEqual(result[0].labeler.creator.did, "did:labeler1");
   });
 
+  it("should skip labels whose labeler definitions are missing", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "verified" }],
+    };
+    const result = preferences.getBadgeLabelsForPost(post);
+
+    assert.deepEqual(result, []);
+  });
+
   it("should not return content labels as badges", () => {
     const labelerDefs = [
       {

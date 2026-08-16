@@ -43,6 +43,42 @@ test.describe("Feeds view", () => {
     await expect(feedsView).toContainText("by @creator2.bsky.social");
   });
 
+  test("should reload the pinned feeds when clicking the active Feeds nav item", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    await mockServer.setup(page);
+
+    let feedGeneratorRequests = 0;
+    page.on("request", (request) => {
+      if (request.url().includes("app.bsky.feed.getFeedGenerators")) {
+        feedGeneratorRequests++;
+      }
+    });
+
+    await login(page);
+    await page.goto("/feeds");
+
+    const feedsView = page.locator("#feeds-view");
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    const requestsAfterLoad = feedGeneratorRequests;
+
+    await page.locator('[data-testid="sidebar-nav-feeds"]').click();
+
+    await expect
+      .poll(() => feedGeneratorRequests, { timeout: 10000 })
+      .toBeGreaterThan(requestsAfterLoad);
+  });
+
   test("should navigate to feed detail when clicking a feed", async ({
     page,
   }) => {
@@ -449,6 +485,8 @@ test.describe("Feeds view", () => {
       await feedARow
         .locator('[data-testid="feeds-list-item-unpin-button"]')
         .click();
+
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2);
 
       const titlesAfterUnpin = await feedsView
         .locator(".feeds-list-item-title")

@@ -1,6 +1,6 @@
 import { EventEmitter, EventTarget } from "/js/eventEmitter.js";
 import { effect, Signal } from "/js/signals.js";
-import { BoundedMap } from "/js/utils.js";
+import { BoundedMap, raf } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
@@ -23,20 +23,37 @@ function bindMiddleClickRedispatch() {
   });
 }
 
+// Runs attach whenever the page becomes active (first entry or a return from
+// the route cache) and detach when it's swapped out.
+function bindActive(root, attach, detach) {
+  root.addEventListener("page-show", attach);
+  root.addEventListener("page-hide", detach);
+}
+
+// Lifecycle helpers
+
+export function onPageShow(root, handler) {
+  root.addEventListener("page-show", (event) => handler(event.detail));
+}
+
+export function onPageHide(root, handler) {
+  root.addEventListener("page-hide", (event) => handler(event.detail));
+}
+
 export function bindToPage(root, source, event, handler) {
   if (!source) return;
   const usesEmitterApi = typeof source.on === "function";
-  const attach = () =>
-    usesEmitterApi
-      ? source.on(event, handler)
-      : source.addEventListener(event, handler);
-  const detach = () =>
-    usesEmitterApi
-      ? source.off(event, handler)
-      : source.removeEventListener(event, handler);
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
-  root.addEventListener("page-exit", detach);
+  bindActive(
+    root,
+    () =>
+      usesEmitterApi
+        ? source.on(event, handler)
+        : source.addEventListener(event, handler),
+    () =>
+      usesEmitterApi
+        ? source.off(event, handler)
+        : source.removeEventListener(event, handler),
+  );
 }
 
 export class Layout extends EventTarget {
@@ -47,17 +64,17 @@ export class Layout extends EventTarget {
 
 export function pageEffect(root, callback, options) {
   let dispose;
-  const attach = () => {
-    dispose?.();
-    dispose = effect(callback, options);
-  };
-  const detach = () => {
-    dispose?.();
-    dispose = null;
-  };
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
-  root.addEventListener("page-exit", detach);
+  bindActive(
+    root,
+    () => {
+      dispose?.();
+      dispose = effect(callback, options);
+    },
+    () => {
+      dispose?.();
+      dispose = null;
+    },
+  );
 }
 
 const APP_TITLE = document.title;
@@ -77,9 +94,7 @@ export function bindPageTitle(root, callback, options) {
     dispose = null;
     document.title = APP_TITLE;
   };
-  root.addEventListener("page-enter", attach);
-  root.addEventListener("page-restore", attach);
-  root.addEventListener("page-exit", detach);
+  bindActive(root, attach, detach);
 }
 
 export class Router extends EventEmitter {
@@ -116,11 +131,11 @@ export class Router extends EventEmitter {
         window.scrollTo(0, scrollY);
       }
     });
-    // on back button, go back to the previous page
+    // Any history traversal (back or forward button, swipe gesture, history.go)
     window.addEventListener("popstate", async (e) => {
       this.emit("navigate");
       await this.load(window.location.pathname + window.location.search, {
-        isBack: true,
+        isRestore: true,
       });
     });
   }
@@ -233,7 +248,7 @@ export class Router extends EventEmitter {
     return this.match(path).route !== null;
   }
 
-  async load(path, { isBack = false } = {}) {
+  async load(path, { isRestore = false } = {}) {
     const [pathnameForRedirect, query] = path.split("?");
     const redirectTarget = this.matchRedirect(pathnameForRedirect);
     if (redirectTarget !== null) {
@@ -241,7 +256,7 @@ export class Router extends EventEmitter {
         ? `${redirectTarget}?${query}`
         : redirectTarget;
       window.history.replaceState(window.history.state, "", redirectPath);
-      return this.load(redirectPath, { isBack });
+      return this.load(redirectPath, { isRestore });
     }
     // Save the scroll position of the page we're leaving before swapping it out
     if (this.currentPath != null) {
@@ -252,16 +267,15 @@ export class Router extends EventEmitter {
     window.dispatchEvent(new CustomEvent("page-transition"));
     // Strip query parameters for route matching (but keep full path for caching)
     const pathname = path.split("?")[0];
-    if (this.currentPage) {
+    const outgoingPage = this.currentPage;
+    if (outgoingPage) {
       // Safari can keep processing a focused search control after its page is
       // hidden. Release focus before moving the page into the route cache.
       const activeElement = document.activeElement;
-      if (activeElement && this.currentPage.contains(activeElement)) {
+      if (activeElement && outgoingPage.contains(activeElement)) {
         activeElement.blur();
       }
-      this.currentPage.dispatchEvent(new CustomEvent("page-exit"));
-      this.currentPage.classList.remove("page-visible");
-      this.currentPage.classList.add("page-hidden");
+      outgoingPage.dispatchEvent(new CustomEvent("page-hide"));
     }
     if (this.pages.has(path)) {
       // Return to existing page
@@ -272,15 +286,33 @@ export class Router extends EventEmitter {
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
+      outgoingPage.classList.remove("page-visible");
+      outgoingPage.classList.add("page-hidden");
+      // Scroll before dispatching so a "manual" view's own scroll wins
+      const scrollRestore = routeInfo.options.scrollRestore ?? "back";
+      switch (scrollRestore) {
+        case "always":
+          window.scrollTo(0, scrollY);
+          break;
+        case "back":
+          window.scrollTo(0, isRestore ? scrollY : 0);
+          break;
+        case "manual":
+          break;
+        default:
+          console.warn(`unknown scrollRestore type: ${scrollRestore}`);
+      }
+      // Let the swapped-in page paint before route effects and restore
+      // handlers run, so iOS Safari has a live page to replace its
+      // interactive back-swipe snapshot with.
+      await raf();
+      await raf();
+      if (this.currentPage !== page || this.currentPath !== path) return;
       this.currentPage.dispatchEvent(
-        new CustomEvent("page-restore", {
-          detail: {
-            scrollY,
-            isBack,
-          },
+        new CustomEvent("page-show", {
+          detail: { scrollY, action: isRestore ? "restore" : "advance" },
         }),
       );
-      this.emit("page-shown", this.currentPage);
       return;
     }
     // First load of new page
@@ -292,7 +324,7 @@ export class Router extends EventEmitter {
     const view = await viewGetter();
 
     const newPage = document.createElement("div");
-    newPage.classList.add("page", "page-visible");
+    newPage.classList.add("page", "page-hidden");
     const container =
       options.layout === false ? this.containers.bare : this.containers.default;
     container.appendChild(newPage);
@@ -305,8 +337,15 @@ export class Router extends EventEmitter {
       layout: options.layout === false ? null : this.layout,
       container: this.currentPage,
     });
-    this.currentPage.dispatchEvent(new CustomEvent("page-enter"));
-    this.emit("page-shown", this.currentPage);
+    this.currentPage.classList.remove("page-hidden");
+    this.currentPage.classList.add("page-visible");
+    outgoingPage?.classList.remove("page-visible");
+    outgoingPage?.classList.add("page-hidden");
+    this.currentPage.dispatchEvent(
+      new CustomEvent("page-show", {
+        detail: { scrollY: 0, action: "advance" },
+      }),
+    );
   }
 
   _shouldOpenInNewTab() {

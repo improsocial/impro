@@ -70,6 +70,7 @@ function pluginSidebarItemTemplate({ entry }) {
 function sidebarNavTemplate({
   menuItems,
   activeNavItem,
+  isNavItemPage,
   onClickActiveItem,
   pluginSidebarItems = [],
 }) {
@@ -85,7 +86,7 @@ function sidebarNavTemplate({
             data-testid="sidebar-nav-${item.id}"
             @click=${function (e) {
               const isActive = activeNavItem === item.id;
-              if (isActive) {
+              if (isActive && isNavItemPage) {
                 e.preventDefault();
                 e.stopPropagation();
                 onClickActiveItem?.(item.id);
@@ -113,7 +114,11 @@ function sidebarNavTemplate({
   `;
 }
 
-function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
+function loggedOutSidebarTemplate({
+  activeNavItem,
+  isNavItemPage,
+  onClickActiveItem,
+}) {
   const menuItems = [
     {
       id: "home",
@@ -150,6 +155,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       ${sidebarNavTemplate({
         menuItems,
         activeNavItem,
+        isNavItemPage,
         onClickActiveItem,
       })}
       <div class="sidebar-action-items">
@@ -187,6 +193,7 @@ export function sidebarTemplate({
   isAuthenticated,
   currentUser,
   activeNavItem = null,
+  isNavItemPage = false,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
@@ -197,6 +204,7 @@ export function sidebarTemplate({
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
       activeNavItem,
+      isNavItemPage,
       onClickActiveItem,
     });
   }
@@ -275,6 +283,8 @@ export function sidebarTemplate({
   const handle = currentUser?.handle ? "@" + currentUser.handle : null;
   const followersCount = currentUser?.followersCount ?? null;
   const followsCount = currentUser?.followsCount ?? null;
+  // A partial profile has no counts to show
+  const showStats = !currentUser?.isPartial;
   const longPressEnabled = !!onLongPressProfile;
   return html`
     <animated-sidebar>
@@ -306,48 +316,58 @@ export function sidebarTemplate({
             ${handle || html`<span>&nbsp;</span>`}
           </div>
         </div>
-        <div class="sidebar-profile-stats" data-testid="sidebar-profile-stats">
-          <a
-            href="${currentUser ? linkToProfileFollowers(currentUser) : "#"}"
-            @click=${(event) =>
-              currentUser
-                ? navigateFromSidebar(
-                    event,
-                    linkToProfileFollowers(currentUser),
-                  )
-                : null}
-          >
-            <strong
-              >${followersCount !== null
-                ? formatLargeNumber(followersCount)
-                : ""}</strong
+        ${showStats
+          ? html`<div
+              class="sidebar-profile-stats"
+              data-testid="sidebar-profile-stats"
             >
-            followers
-          </a>
-          <span class="sidebar-profile-separator">·</span>
-          <a
-            href="${currentUser ? linkToProfileFollowing(currentUser) : "#"}"
-            @click=${(event) =>
-              currentUser
-                ? navigateFromSidebar(
-                    event,
-                    linkToProfileFollowing(currentUser),
-                  )
-                : null}
-          >
-            <strong
-              >${followsCount !== null
-                ? formatLargeNumber(followsCount)
-                : ""}</strong
-            >
-            following
-          </a>
-        </div>
+              <a
+                href="${currentUser
+                  ? linkToProfileFollowers(currentUser)
+                  : "#"}"
+                @click=${(event) =>
+                  currentUser
+                    ? navigateFromSidebar(
+                        event,
+                        linkToProfileFollowers(currentUser),
+                      )
+                    : null}
+              >
+                <strong
+                  >${followersCount !== null
+                    ? formatLargeNumber(followersCount)
+                    : ""}</strong
+                >
+                followers
+              </a>
+              <span class="sidebar-profile-separator">·</span>
+              <a
+                href="${currentUser
+                  ? linkToProfileFollowing(currentUser)
+                  : "#"}"
+                @click=${(event) =>
+                  currentUser
+                    ? navigateFromSidebar(
+                        event,
+                        linkToProfileFollowing(currentUser),
+                      )
+                    : null}
+              >
+                <strong
+                  >${followsCount !== null
+                    ? formatLargeNumber(followsCount)
+                    : ""}</strong
+                >
+                following
+              </a>
+            </div>`
+          : null}
       </div>
       <div class="sidebar-divider"></div>
       ${sidebarNavTemplate({
         menuItems,
         activeNavItem,
+        isNavItemPage,
         onClickActiveItem,
         pluginSidebarItems,
       })}

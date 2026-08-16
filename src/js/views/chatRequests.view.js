@@ -1,5 +1,4 @@
-import { View } from "/js/views/view.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -18,259 +17,243 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/container-link.js";
 import "/js/components/infinite-scroll-container.js";
 
-class ChatRequestsView extends View {
-  async render({ root, router, layout, context: { dataLayer } }) {
-    await auth.requireAuth();
+export default async function chatRequestsView({
+  root,
+  router,
+  layout,
+  context: { dataLayer },
+}) {
+  await auth.requireAuth();
 
-    async function handleAccept(convo) {
-      try {
-        await dataLayer.mutations.acceptConvo(convo);
-        // on accept, navigate to the chat detail page
-        window.router.go(`/messages/${convo.id}`);
-      } catch (error) {
-        console.error(error);
-        showToast("Failed to accept chat request", { style: "error" });
-      }
-    }
-
-    async function handleReject(convo) {
-      try {
-        await dataLayer.mutations.rejectConvo(convo);
-      } catch (error) {
-        console.error(error);
-        showToast("Failed to reject chat request", { style: "error" });
-      }
-    }
-
-    function requestItemTemplate({ convo }) {
-      const groupDetails = getGroupConvoDetails(convo);
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const lastMessage = convo.lastMessage;
-      const otherMembers = convo.members.filter(
-        (member) => member.did !== currentUser?.did,
-      );
-      const otherMember = groupDetails ? null : otherMembers[0];
-      const timeAgo = lastMessage
-        ? displayRelativeTime(lastMessage.sentAt)
-        : "";
-      const messagePreview = lastMessage
-        ? getConvoPreviewText(lastMessage, {
-            currentUser,
-            convo,
-            profiles: dataLayer.derived.$convoProfiles.get(convo.id),
-          })
-        : "No messages yet";
-      const canAccept = !groupDetails || groupDetails.lockStatus === "unlocked";
-
-      return html`
-        <div
-          class="chat-request-item"
-          data-testid=${groupDetails
-            ? "request-item-group"
-            : "request-item-direct"}
-        >
-          <container-link
-            class="chat-request-header"
-            href=${`/messages/${convo.id}`}
-          >
-            <div class="convo-avatar">
-              ${(() => {
-                if (groupDetails) {
-                  return avatarGroupTemplate({ authors: otherMembers });
-                }
-                return otherMember
-                  ? avatarTemplate({ author: otherMember })
-                  : html`<div class="avatar-placeholder"></div>`;
-              })()}
-            </div>
-            <div class="convo-content">
-              <div class="convo-header">
-                <div class="convo-name">
-                  ${groupDetails
-                    ? groupDetails.name
-                    : getDisplayName(otherMember)}
-                </div>
-                ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
-              </div>
-              <div class="convo-handle">
-                ${!groupDetails &&
-                otherMember?.handle &&
-                otherMember?.handle !== MISSING_HANDLE
-                  ? `@${otherMember.handle}`
-                  : ""}
-              </div>
-              <div class="convo-preview">${messagePreview}</div>
-              ${(() => {
-                if (!groupDetails) {
-                  return html`<div class="chat-request-follow-status">
-                    ${knownFollowersSummaryTemplate({
-                      profile: otherMember,
-                      showPlaceholder: true,
-                    })}
-                  </div>`;
-                }
-                const groupOwner = getGroupConvoOwner(convo);
-                return groupOwner
-                  ? html`<div
-                      class="chat-request-follow-status"
-                      data-testid="request-invited-by"
-                    >
-                      ${getDisplayName(groupOwner)} added you
-                    </div>`
-                  : "";
-              })()}
-            </div>
-          </container-link>
-          <div class="chat-request-actions">
-            ${canAccept
-              ? html`<button
-                  class="chat-request-button accept"
-                  @click=${(e) => {
-                    e.stopPropagation();
-                    handleAccept(convo);
-                  }}
-                >
-                  Accept
-                </button>`
-              : ""}
-            <button
-              class="chat-request-button reject"
-              @click=${(e) => {
-                e.stopPropagation();
-                handleReject(convo);
-              }}
-            >
-              Reject
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    function requestSkeletonTemplate() {
-      return html`
-        ${Array.from({ length: 3 }).map(
-          () => html`
-            <div class="chat-request-item skeleton">
-              <div class="chat-request-header">
-                <div class="convo-avatar">
-                  <div class="convo-skeleton-avatar skeleton-animate"></div>
-                </div>
-                <div class="convo-content">
-                  <div class="convo-header">
-                    <div class="convo-skeleton-name skeleton-animate"></div>
-                    <div class="convo-skeleton-time skeleton-animate"></div>
-                  </div>
-                  <div class="convo-skeleton-handle skeleton-animate"></div>
-                  <div class="convo-skeleton-preview skeleton-animate"></div>
-                </div>
-              </div>
-              <div class="chat-request-actions">
-                <div
-                  class="chat-request-skeleton-button skeleton-animate"
-                ></div>
-                <div
-                  class="chat-request-skeleton-button skeleton-animate"
-                ></div>
-              </div>
-            </div>
-          `,
-        )}
-      `;
-    }
-
-    function requestsTemplate({ requests, hasMore }) {
-      if (requests.length === 0) {
-        return html`<div class="feed-end-message">
-          <div>No chat requests</div>
-        </div>`;
-      }
-
-      return html`
-        <infinite-scroll-container
-          @load-more=${async (e) => {
-            if (hasMore) {
-              await dataLayer.requests.loadConvoRequestList();
-              e.detail.resume();
-            }
-          }}
-        >
-          <div class="chat-requests-list">
-            ${requests.map((convo) => requestItemTemplate({ convo }))}
-            ${hasMore ? requestSkeletonTemplate() : ""}
-          </div>
-        </infinite-scroll-container>
-      `;
-    }
-
-    function requestsErrorTemplate({ error }) {
+  async function handleAccept(convo) {
+    try {
+      await dataLayer.mutations.acceptConvo(convo);
+      // on accept, navigate to the chat detail page
+      window.router.go(`/messages/${convo.id}`);
+    } catch (error) {
       console.error(error);
-      return html`<div class="error-state">
-        <div>There was an error loading chat requests.</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
-          Try again
-        </button>
+      showToast("Failed to accept chat request", { style: "error" });
+    }
+  }
+
+  async function handleReject(convo) {
+    try {
+      await dataLayer.mutations.rejectConvo(convo);
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to reject chat request", { style: "error" });
+    }
+  }
+
+  function requestItemTemplate({ convo }) {
+    const groupDetails = getGroupConvoDetails(convo);
+    const currentUser = dataLayer.derived.$currentUser.get();
+    const lastMessage = convo.lastMessage;
+    const otherMembers = convo.members.filter(
+      (member) => member.did !== currentUser?.did,
+    );
+    const otherMember = groupDetails ? null : otherMembers[0];
+    const timeAgo = lastMessage ? displayRelativeTime(lastMessage.sentAt) : "";
+    const messagePreview = lastMessage
+      ? getConvoPreviewText(lastMessage, {
+          currentUser,
+          convo,
+          profiles: dataLayer.derived.$convoProfiles.get(convo.id),
+        })
+      : "No messages yet";
+    const canAccept = !groupDetails || groupDetails.lockStatus === "unlocked";
+
+    return html`
+      <div
+        class="chat-request-item"
+        data-testid=${groupDetails
+          ? "request-item-group"
+          : "request-item-direct"}
+      >
+        <container-link
+          class="chat-request-header"
+          href=${`/messages/${convo.id}`}
+        >
+          <div class="convo-avatar">
+            ${(() => {
+              if (groupDetails) {
+                return avatarGroupTemplate({ authors: otherMembers });
+              }
+              return otherMember
+                ? avatarTemplate({ author: otherMember })
+                : html`<div class="avatar-placeholder"></div>`;
+            })()}
+          </div>
+          <div class="convo-content">
+            <div class="convo-header">
+              <div class="convo-name">
+                ${groupDetails
+                  ? groupDetails.name
+                  : getDisplayName(otherMember)}
+              </div>
+              ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
+            </div>
+            <div class="convo-handle">
+              ${!groupDetails &&
+              otherMember?.handle &&
+              otherMember?.handle !== MISSING_HANDLE
+                ? `@${otherMember.handle}`
+                : ""}
+            </div>
+            <div class="convo-preview">${messagePreview}</div>
+            ${(() => {
+              if (!groupDetails) {
+                return html`<div class="chat-request-follow-status">
+                  ${knownFollowersSummaryTemplate({
+                    profile: otherMember,
+                    showPlaceholder: true,
+                  })}
+                </div>`;
+              }
+              const groupOwner = getGroupConvoOwner(convo);
+              return groupOwner
+                ? html`<div
+                    class="chat-request-follow-status"
+                    data-testid="request-invited-by"
+                  >
+                    ${getDisplayName(groupOwner)} added you
+                  </div>`
+                : "";
+            })()}
+          </div>
+        </container-link>
+        <div class="chat-request-actions">
+          ${canAccept
+            ? html`<button
+                class="chat-request-button accept"
+                @click=${(e) => {
+                  e.stopPropagation();
+                  handleAccept(convo);
+                }}
+              >
+                Accept
+              </button>`
+            : ""}
+          <button
+            class="chat-request-button reject"
+            @click=${(e) => {
+              e.stopPropagation();
+              handleReject(convo);
+            }}
+          >
+            Reject
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function requestSkeletonTemplate() {
+    return html`
+      ${Array.from({ length: 3 }).map(
+        () => html`
+          <div class="chat-request-item skeleton">
+            <div class="chat-request-header">
+              <div class="convo-avatar">
+                <div class="convo-skeleton-avatar skeleton-animate"></div>
+              </div>
+              <div class="convo-content">
+                <div class="convo-header">
+                  <div class="convo-skeleton-name skeleton-animate"></div>
+                  <div class="convo-skeleton-time skeleton-animate"></div>
+                </div>
+                <div class="convo-skeleton-handle skeleton-animate"></div>
+                <div class="convo-skeleton-preview skeleton-animate"></div>
+              </div>
+            </div>
+            <div class="chat-request-actions">
+              <div class="chat-request-skeleton-button skeleton-animate"></div>
+              <div class="chat-request-skeleton-button skeleton-animate"></div>
+            </div>
+          </div>
+        `,
+      )}
+    `;
+  }
+
+  function requestsTemplate({ requests, hasMore }) {
+    if (requests.length === 0) {
+      return html`<div class="feed-end-message">
+        <div>No chat requests</div>
       </div>`;
     }
 
-    bindToPage(root, layout, "active-nav-click", (event) => {
-      event.preventDefault();
-      router.go("/messages");
-    });
-
-    bindPageTitle(root, () => "Chat request inbox");
-
-    pageEffect(root, () => {
-      const chatRequests = dataLayer.derived.$convoRequestList.get();
-      const requestsStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadConvoRequestList",
-      );
-      const cursor = dataLayer.derived.$convoRequestListCursor.get();
-      const hasMore = !!cursor;
-
-      render(
-        html`<div id="chat-requests-view">
-          ${headerTemplate({
-            title: "Chat requests",
-            showLoadingSpinner: requestsStatus.loading && !!chatRequests,
-            backButtonFallbackRoute: "/messages",
-          })}
-          <main class="chat-requests-main">
-            ${(() => {
-              if (requestsStatus.error) {
-                return requestsErrorTemplate({
-                  error: requestsStatus.error,
-                });
-              } else if (chatRequests) {
-                return requestsTemplate({
-                  requests: chatRequests,
-                  hasMore,
-                });
-              } else {
-                return requestSkeletonTemplate();
-              }
-            })()}
-          </main>
-        </div>`,
-        root,
-      );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      await dataLayer.declarative.ensureConvoRequestList();
-    });
-
-    root.addEventListener("page-restore", async (e) => {
-      const scrollY = e.detail?.scrollY ?? 0;
-      const isBack = e.detail?.isBack ?? false;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
-        window.scrollTo(0, 0);
-        await dataLayer.requests.loadConvoRequestList({ reload: true });
-      }
-    });
+    return html`
+      <infinite-scroll-container
+        @load-more=${async (e) => {
+          if (hasMore) {
+            await dataLayer.requests.loadConvoRequestList();
+            e.detail.resume();
+          }
+        }}
+      >
+        <div class="chat-requests-list">
+          ${requests.map((convo) => requestItemTemplate({ convo }))}
+          ${hasMore ? requestSkeletonTemplate() : ""}
+        </div>
+      </infinite-scroll-container>
+    `;
   }
-}
 
-export default new ChatRequestsView();
+  function requestsErrorTemplate({ error }) {
+    console.error(error);
+    return html`<div class="error-state">
+      <div>There was an error loading chat requests.</div>
+      <button class="rounded-button" @click=${() => window.location.reload()}>
+        Try again
+      </button>
+    </div>`;
+  }
+
+  bindPageTitle(root, () => "Chat request inbox");
+
+  pageEffect(root, () => {
+    const chatRequests = dataLayer.derived.$convoRequestList.get();
+    const requestsStatus = dataLayer.requests.statusStore.$statuses.get(
+      "loadConvoRequestList",
+    );
+    const cursor = dataLayer.derived.$convoRequestListCursor.get();
+    const hasMore = !!cursor;
+
+    render(
+      html`<div id="chat-requests-view">
+        ${headerTemplate({
+          title: "Chat requests",
+          showLoadingSpinner: requestsStatus.loading && !!chatRequests,
+          backButtonFallbackRoute: "/messages",
+        })}
+        <main class="chat-requests-main">
+          ${(() => {
+            if (requestsStatus.error) {
+              return requestsErrorTemplate({
+                error: requestsStatus.error,
+              });
+            } else if (chatRequests) {
+              return requestsTemplate({
+                requests: chatRequests,
+                hasMore,
+              });
+            } else {
+              return requestSkeletonTemplate();
+            }
+          })()}
+        </main>
+      </div>`,
+      root,
+    );
+  });
+
+  function loadPageData() {
+    dataLayer.requests.loadConvoRequestList({ reload: true });
+  }
+
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
+}

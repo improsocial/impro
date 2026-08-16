@@ -35,6 +35,31 @@ export function buildCdnUrl(prefix, did, cid) {
   return `${BSKY_CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
 }
 
+function blobCdnUrl(prefix, did, blob) {
+  const cid = blob?.ref?.$link ?? null;
+  if (!cid) return null;
+  return buildCdnUrl(prefix, did, cid);
+}
+
+// A profileViewDetailed-shaped object assembled from the raw
+// app.bsky.actor.profile record, for when the appview is unreachable.
+// Appview-computed fields (counts, viewer, labels, associated) are absent.
+export function buildProfileFromRecord({ did, handle, record }) {
+  const value = record?.value ?? {};
+  return {
+    did,
+    handle,
+    displayName: value.displayName ?? null,
+    description: value.description ?? null,
+    avatar: blobCdnUrl("avatar", did, value.avatar),
+    banner: blobCdnUrl("banner", did, value.banner),
+    pinnedPost: value.pinnedPost ?? null,
+    createdAt: value.createdAt ?? null,
+    labels: [],
+    isPartial: true,
+  };
+}
+
 export function avatarThumbnailUrl(avatarUrl) {
   if (!avatarUrl) {
     console.warn("avatarUrl is null");
