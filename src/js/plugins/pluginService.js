@@ -37,12 +37,20 @@ import {
   normalizeFetchOrigin,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
-import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
+import {
+  Signal,
+  SignalMap,
+  SignalSet,
+  ReactiveStore,
+  untrack,
+} from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
 const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
+
+const INITIAL_PLUGIN_LOAD_TIMEOUT_MS = 3000;
 
 function requireHostMethodArg(method, name, value) {
   if (!value) {
@@ -195,6 +203,9 @@ export class PluginService extends ReactiveStore {
     // Keyed by `${pluginId}:${pageId}` — each plugin can register multiple pages
     this.$pages = new SignalMap();
     this.$initialLoadComplete = new Signal.State(false);
+    this._initialLoadPromise = new Promise((resolve) => {
+      this._resolveInitialLoad = resolve;
+    });
     this.slotDispatcher = new PluginSlotDispatcher();
     this.richTextDispatcher = new PluginRichTextDispatcher({
       getRenderer: (pluginId) => this.getRenderer(pluginId),
@@ -229,8 +240,21 @@ export class PluginService extends ReactiveStore {
     this._setupFeedFilterIntegration();
   }
 
+  async _waitForInitialPluginLoad() {
+    if (untrack(() => this.$initialLoadComplete.get())) return;
+    let timeoutId = null;
+    await Promise.race([
+      this._initialLoadPromise,
+      new Promise((resolve) => {
+        timeoutId = setTimeout(resolve, INITIAL_PLUGIN_LOAD_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timeoutId);
+  }
+
   _setupFeedFilterIntegration() {
     this._dataLayer.on("feedLoaded", async ({ feedURI, feed, reload }) => {
+      await this._waitForInitialPluginLoad();
       const overrides = await this.getFilteredFeedItems(feedURI, feed);
       if (reload) {
         this._hiddenFeedItemsStore.replace(feedURI, overrides);
@@ -756,8 +780,13 @@ export class PluginService extends ReactiveStore {
     try {
       await this._loadEnabledPlugins();
     } finally {
-      this.$initialLoadComplete.set(true);
+      this._completeInitialLoad();
     }
+  }
+
+  _completeInitialLoad() {
+    this.$initialLoadComplete.set(true);
+    this._resolveInitialLoad();
   }
 
   async _loadEnabledPlugins() {

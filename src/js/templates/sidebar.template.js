@@ -283,6 +283,8 @@ export function sidebarTemplate({
   const handle = currentUser?.handle ? "@" + currentUser.handle : null;
   const followersCount = currentUser?.followersCount ?? null;
   const followsCount = currentUser?.followsCount ?? null;
+  // A partial profile has no counts to show
+  const showStats = !currentUser?.isPartial;
   const longPressEnabled = !!onLongPressProfile;
   return html`
     <animated-sidebar>
@@ -314,43 +316,52 @@ export function sidebarTemplate({
             ${handle || html`<span>&nbsp;</span>`}
           </div>
         </div>
-        <div class="sidebar-profile-stats" data-testid="sidebar-profile-stats">
-          <a
-            href="${currentUser ? linkToProfileFollowers(currentUser) : "#"}"
-            @click=${(event) =>
-              currentUser
-                ? navigateFromSidebar(
-                    event,
-                    linkToProfileFollowers(currentUser),
-                  )
-                : null}
-          >
-            <strong
-              >${followersCount !== null
-                ? formatLargeNumber(followersCount)
-                : ""}</strong
+        ${showStats
+          ? html`<div
+              class="sidebar-profile-stats"
+              data-testid="sidebar-profile-stats"
             >
-            followers
-          </a>
-          <span class="sidebar-profile-separator">·</span>
-          <a
-            href="${currentUser ? linkToProfileFollowing(currentUser) : "#"}"
-            @click=${(event) =>
-              currentUser
-                ? navigateFromSidebar(
-                    event,
-                    linkToProfileFollowing(currentUser),
-                  )
-                : null}
-          >
-            <strong
-              >${followsCount !== null
-                ? formatLargeNumber(followsCount)
-                : ""}</strong
-            >
-            following
-          </a>
-        </div>
+              <a
+                href="${currentUser
+                  ? linkToProfileFollowers(currentUser)
+                  : "#"}"
+                @click=${(event) =>
+                  currentUser
+                    ? navigateFromSidebar(
+                        event,
+                        linkToProfileFollowers(currentUser),
+                      )
+                    : null}
+              >
+                <strong
+                  >${followersCount !== null
+                    ? formatLargeNumber(followersCount)
+                    : ""}</strong
+                >
+                followers
+              </a>
+              <span class="sidebar-profile-separator">·</span>
+              <a
+                href="${currentUser
+                  ? linkToProfileFollowing(currentUser)
+                  : "#"}"
+                @click=${(event) =>
+                  currentUser
+                    ? navigateFromSidebar(
+                        event,
+                        linkToProfileFollowing(currentUser),
+                      )
+                    : null}
+              >
+                <strong
+                  >${followsCount !== null
+                    ? formatLargeNumber(followsCount)
+                    : ""}</strong
+                >
+                following
+              </a>
+            </div>`
+          : null}
       </div>
       <div class="sidebar-divider"></div>
       ${sidebarNavTemplate({

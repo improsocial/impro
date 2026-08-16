@@ -198,11 +198,9 @@ export async function main() {
     );
   }
 
-  try {
-    await pluginService.loadEnabledPlugins();
-  } catch (error) {
+  pluginService.loadEnabledPlugins().catch((error) => {
     console.error("Error loading plugins", error);
-  }
+  });
 
   if (notificationService) {
     notificationService.startPolling();

@@ -201,6 +201,23 @@ describe("sidebarTemplate - logged in state", () => {
     assert(stats.textContent.includes("50"));
     assert(stats.textContent.includes("following"));
   });
+
+  it("should omit the stats row for a partial profile", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: { ...mockUser, isPartial: true },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-profile-stats']"),
+      null,
+    );
+    const handle = container.querySelector(
+      "[data-testid='sidebar-profile-handle']",
+    );
+    assert(handle !== null);
+  });
 });
 
 describe("sidebarTemplate - nav items", () => {

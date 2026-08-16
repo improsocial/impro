@@ -5,7 +5,7 @@ export class Declarative {
   }
   async ensureCurrentUser() {
     let currentUser = this.derived.$currentUser.get();
-    if (!currentUser) {
+    if (!currentUser || currentUser.isPartial) {
       await this.requests.loadCurrentUser();
       currentUser = this.derived.$currentUser.get();
     }

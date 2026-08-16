@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   resolveHandle,
@@ -18,6 +18,7 @@ describe("atproto handle resolution", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    mock.timers.reset();
   });
 
   function stubDid(did) {
@@ -88,6 +89,24 @@ describe("atproto handle resolution", () => {
     it("returns null when the handle does not resolve", async () => {
       stubDid(null);
       assert.deepEqual(await resolveHandle("nope.example"), null);
+    });
+
+    it("throws when the resolver does not respond in time", async () => {
+      mock.timers.enable({ apis: ["setTimeout"] });
+      globalThis.fetch.__intercept(
+        /resolveHandle/,
+        (url, options) =>
+          new Promise((resolve, reject) => {
+            options.signal.addEventListener("abort", () =>
+              reject(new Error("aborted")),
+            );
+          }),
+      );
+
+      const resolving = resolveHandle("slow.example");
+      mock.timers.tick(5000);
+
+      await assert.rejects(resolving, /timed out/);
     });
   });
 

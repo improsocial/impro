@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   avatarThumbnailUrl,
+  buildProfileFromRecord,
   getRKey,
   getIsLiked,
   isListFeed,
@@ -50,6 +51,63 @@ import {
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
+
+describe("buildProfileFromRecord", () => {
+  const did = "did:plc:me";
+  const blob = (cid) => ({
+    $type: "blob",
+    ref: { $link: cid },
+    mimeType: "image/jpeg",
+    size: 1000,
+  });
+
+  it("should map record fields and build CDN urls for blobs", () => {
+    const profile = buildProfileFromRecord({
+      did,
+      handle: "me.test",
+      record: {
+        uri: `at://${did}/app.bsky.actor.profile/self`,
+        value: {
+          displayName: "Me",
+          description: "hello",
+          avatar: blob("avatarcid"),
+          banner: blob("bannercid"),
+          pinnedPost: { uri: `at://${did}/app.bsky.feed.post/1`, cid: "abc" },
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      },
+    });
+
+    assert.deepEqual(profile, {
+      did,
+      handle: "me.test",
+      displayName: "Me",
+      description: "hello",
+      avatar: `https://cdn.bsky.app/img/avatar/plain/${did}/avatarcid@jpeg`,
+      banner: `https://cdn.bsky.app/img/banner/plain/${did}/bannercid@jpeg`,
+      pinnedPost: { uri: `at://${did}/app.bsky.feed.post/1`, cid: "abc" },
+      createdAt: "2024-01-01T00:00:00.000Z",
+      labels: [],
+      isPartial: true,
+    });
+  });
+
+  it("should null out missing fields when there is no record", () => {
+    const profile = buildProfileFromRecord({
+      did,
+      handle: "me.test",
+      record: null,
+    });
+
+    assert.deepEqual(profile.did, did);
+    assert.deepEqual(profile.handle, "me.test");
+    assert.deepEqual(profile.displayName, null);
+    assert.deepEqual(profile.avatar, null);
+    assert.deepEqual(profile.banner, null);
+    assert.deepEqual(profile.pinnedPost, null);
+    assert.deepEqual(profile.isPartial, true);
+  });
+});
 
 describe("avatarThumbnailUrl", () => {
   it("should convert plain avatar URL to thumbnail URL", () => {

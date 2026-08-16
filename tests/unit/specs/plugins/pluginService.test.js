@@ -1321,7 +1321,10 @@ describe("getFilteredFeedItems", () => {
 });
 
 describe("feed filter integration", () => {
-  function makeHarness(getFilteredFeedItems) {
+  function makeHarness(
+    getFilteredFeedItems,
+    { initialLoadComplete = true } = {},
+  ) {
     const dataLayer = emptyDataLayer();
     const hiddenFeedItemsStore = new HiddenFeedItemsStore();
     const service = makeServiceWithRealBridge({
@@ -1329,6 +1332,7 @@ describe("feed filter integration", () => {
       hiddenFeedItemsStore,
     });
     service.getFilteredFeedItems = getFilteredFeedItems;
+    if (initialLoadComplete) service._completeInitialLoad();
     return { service, dataLayer, hiddenFeedItemsStore };
   }
 
@@ -1347,6 +1351,21 @@ describe("feed filter integration", () => {
     dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
     await flush();
     assert.deepEqual(hiddenFeedItemsStore.get("f"), { p1: false, p2: false });
+  });
+
+  it("defers filtering a page until the initial plugin load completes", async () => {
+    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+      async () => ({ p1: false }),
+      { initialLoadComplete: false },
+    );
+
+    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.get("f"), {});
+
+    service._completeInitialLoad();
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p1: false });
   });
 
   it("replaces on reload", async () => {
