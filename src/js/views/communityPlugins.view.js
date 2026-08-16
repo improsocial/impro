@@ -44,11 +44,11 @@ export default async function communityPluginsView({
                 <div class="plugins-intro-header">
                   <span class="plugins-intro-icon">${globeIconTemplate()}</span>
                   <div class="plugins-intro-title">
-                    Extend IMPRO with plugins
+                    Extend Impro with plugins
                   </div>
                 </div>
                 <p class="plugins-intro-message">
-                  Community plugins are built by other people using IMPRO. They
+                  Community plugins are built by other people using Impro. They
                   can add new themes, display options, and functionality to the
                   app.
                 </p>
