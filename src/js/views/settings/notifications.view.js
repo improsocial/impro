@@ -38,11 +38,13 @@ export default async function settingsNotificationsView({
     if (!checked) {
       systemNotificationService.disable();
       state.$enabled.set(false);
+      showToast("Desktop notifications disabled.");
       return;
     }
     const result = await systemNotificationService.requestPermission();
     if (result === "granted") {
       state.$enabled.set(true);
+      showToast("Desktop notifications enabled.", { style: "success" });
     } else {
       state.$enabled.set(false);
       if (result === "denied") {
@@ -60,6 +62,12 @@ export default async function settingsNotificationsView({
       state.$pushBusy.set(true);
       try {
         await pushNotificationService.disable();
+        showToast("Push notifications disabled.");
+      } catch (error) {
+        console.error(error);
+        showToast("Couldn't fully disable push notifications.", {
+          style: "error",
+        });
       } finally {
         state.$pushBusy.set(false);
       }
@@ -123,7 +131,7 @@ export default async function settingsNotificationsView({
     state.$pushBusy.set(true);
     try {
       await pushNotificationService.completeEnableFlow();
-      showToast("Push notifications enabled.");
+      showToast("Push notifications enabled.", { style: "success" });
     } catch (error) {
       console.error(error);
       const message =

@@ -60,6 +60,7 @@ test.describe("Settings > Notifications view", () => {
     await toggle.click();
 
     await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(() =>
@@ -144,6 +145,7 @@ test.describe("Settings > Notifications view", () => {
 
     await expect(page.locator('[data-testid="confirm-modal"]')).toHaveCount(0);
     await expect(toggle).not.toHaveAttribute("checked", "");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(() =>
@@ -373,6 +375,33 @@ test.describe("Settings > Notifications view", () => {
       await expect(page.locator('[data-testid="toast"]')).toBeVisible();
       // Never sent through the handoff, so the page never left settings.
       await expect(page).toHaveURL(/\/settings\/notifications$/);
+    });
+
+    test("turning push off clears the stored preference", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("push-notifications-enabled", "true");
+      });
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
+
+      await toggle.click();
+
+      await expect(toggle).not.toHaveAttribute("checked", "");
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            localStorage.getItem("push-notifications-enabled"),
+          ),
+        )
+        .toBeNull();
     });
 
     test("with a service named, the toggle is usable", async ({ page }) => {
