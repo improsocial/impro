@@ -1,6 +1,8 @@
+import assert from "node:assert/strict";
 import { test, expect } from "../../../base.js";
-import { login } from "../../../helpers.js";
+import { login, selectNotificationService } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
+import { notificationService } from "../../../testData.js";
 
 test.describe("Settings Advanced view", () => {
   test("should display header and App View section", async ({ page }) => {
@@ -281,6 +283,220 @@ test.describe("Settings Advanced view", () => {
       await expect(page.locator('[data-testid="toast"]')).toContainText(
         "in the registry",
       );
+    });
+  });
+
+  test.describe("Notification service section", () => {
+    test("defaults to None and sits between App View and Install plugin", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await expect(select).toHaveValue("none");
+      await expect(select.locator("option")).toHaveText([
+        "None",
+        "7778777.online/courier",
+        "Custom",
+      ]);
+      // None is inert, so neither the DID input nor the warning shows.
+      await expect(
+        page.locator('[data-testid="notification-service-input"]'),
+      ).toHaveCount(0);
+      await expect(
+        page.locator("#notification-service-form .warning-area"),
+      ).toHaveCount(0);
+
+      const formIds = await page.evaluate(() =>
+        [...document.querySelectorAll("#settings-advanced-view main form")].map(
+          (form) => form.id,
+        ),
+      );
+      assert.deepEqual(formIds, [
+        "settings-advanced-form",
+        "notification-service-form",
+        "install-unregistered-plugin-form",
+      ]);
+    });
+
+    test("save is disabled until the selection changes", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      const save = page.locator('[data-testid="notification-service-save"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await expect(save).toBeDisabled();
+
+      await select.selectOption("courier-7778777");
+      await expect(save).toBeEnabled();
+
+      await select.selectOption("none");
+      await expect(save).toBeDisabled();
+    });
+
+    test("selecting a listed service needs no custom DID input", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await select.selectOption("courier-7778777");
+
+      // The preset already names a DID, so nothing is asked of the user.
+      await expect(
+        page.locator('[data-testid="notification-service-input"]'),
+      ).toHaveCount(0);
+      await expect(
+        page.locator('[data-testid="notification-service-save"]'),
+      ).toBeEnabled();
+    });
+
+    test("Custom reveals the DID input and stores what is entered", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await select.selectOption("custom");
+
+      const input = page.locator('[data-testid="notification-service-input"]');
+      await expect(input).toBeVisible();
+      await input.fill(notificationService.did);
+      await page.locator('[data-testid="notification-service-save"]').click();
+
+      await expect(page.locator('[data-testid="toast"]')).toContainText(
+        notificationService.name,
+      );
+      expect(
+        await page.evaluate(() =>
+          localStorage.getItem("courier-push-service-did"),
+        ),
+      ).toBe(notificationService.did);
+    });
+
+    test("a stored service that matches no preset selects Custom and prefills it", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await selectNotificationService(page);
+      await page.goto("/settings/advanced");
+
+      await expect(
+        page.locator('select[name="notificationService"]'),
+      ).toHaveValue("custom", { timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="notification-service-input"]'),
+      ).toHaveValue(notificationService.did);
+    });
+
+    test("a stored preset DID selects that preset, not Custom", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await selectNotificationService(page, {
+        did: "did:web:courier.7778777.online",
+      });
+      await page.goto("/settings/advanced");
+
+      await expect(
+        page.locator('select[name="notificationService"]'),
+      ).toHaveValue("courier-7778777", { timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="notification-service-input"]'),
+      ).toHaveCount(0);
+    });
+
+    test("selecting None clears the stored service", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await selectNotificationService(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toHaveValue("custom", { timeout: 10000 });
+
+      await select.selectOption("none");
+      await page.locator('[data-testid="notification-service-save"]').click();
+
+      await expect
+        .poll(() =>
+          page.evaluate(() => localStorage.getItem("courier-push-service-did")),
+        )
+        .toBeNull();
+    });
+
+    test("rejects input that isn't a DID without hitting the network", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await select.selectOption("custom");
+      await page
+        .locator('[data-testid="notification-service-input"]')
+        .fill("notifs.example.com");
+      await page.locator('[data-testid="notification-service-save"]').click();
+
+      await expect(
+        page.locator('[data-testid="notification-service-error"]'),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(() =>
+          localStorage.getItem("courier-push-service-did"),
+        ),
+      ).toBeNull();
+    });
+
+    test("a service that won't resolve is rejected and not stored", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.failNotificationServiceLookup();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const select = page.locator('select[name="notificationService"]');
+      await expect(select).toBeVisible({ timeout: 10000 });
+      await select.selectOption("custom");
+      await page
+        .locator('[data-testid="notification-service-input"]')
+        .fill(notificationService.did);
+      await page.locator('[data-testid="notification-service-save"]').click();
+
+      await expect(
+        page.locator('[data-testid="notification-service-error"]'),
+      ).toBeVisible({ timeout: 10000 });
+      // The previous state must survive a failed switch, so nothing is stored.
+      expect(
+        await page.evaluate(() =>
+          localStorage.getItem("courier-push-service-did"),
+        ),
+      ).toBeNull();
     });
   });
 

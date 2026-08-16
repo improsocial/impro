@@ -1,4 +1,5 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
+import { Signal } from "/js/signals.js";
 
 const STORAGE_KEY = "courier-push-enabled";
 const PREVIEWS_KEY = "courier-push-chat-previews";
@@ -53,6 +54,15 @@ export class CourierPushService {
   constructor(api) {
     this.api = api;
     this._configPromise = null;
+    this.$serviceDid = new Signal.State(
+      localStorage.getItem(SERVICE_KEY) || null,
+    );
+    this.$enabled = new Signal.State(
+      localStorage.getItem(STORAGE_KEY) === "true",
+    );
+    this.$chatPreviews = new Signal.State(
+      localStorage.getItem(PREVIEWS_KEY) === "true",
+    );
   }
 
   get isSupported() {
@@ -64,18 +74,14 @@ export class CourierPushService {
   }
 
   get isEnabled() {
-    return (
-      this.isSupported &&
-      this.hasService &&
-      localStorage.getItem(STORAGE_KEY) === "true"
-    );
+    return this.isSupported && this.hasService && this.$enabled.get();
   }
 
   // The service this device is pointed at, or null if the user has not named
   // one. Impro suggests none: a service holds a read-only grant over the
   // account and polls on the user's behalf, so the choice is always theirs.
   get serviceDid() {
-    return localStorage.getItem(SERVICE_KEY) || null;
+    return this.$serviceDid.get();
   }
 
   // Nothing can be enabled, resolved or registered until the user has named a
@@ -89,7 +95,34 @@ export class CourierPushService {
   // have changed it; only the echo is truthful, and it self-corrects every
   // time the flow runs.
   get chatPreviewsEnabled() {
-    return localStorage.getItem(PREVIEWS_KEY) === "true";
+    return this.$chatPreviews.get();
+  }
+
+  _setServiceDid(did) {
+    if (did === null) {
+      localStorage.removeItem(SERVICE_KEY);
+    } else {
+      localStorage.setItem(SERVICE_KEY, did);
+    }
+    this.$serviceDid.set(did);
+  }
+
+  _setEnabled(enabled) {
+    if (enabled) {
+      localStorage.setItem(STORAGE_KEY, "true");
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    this.$enabled.set(enabled);
+  }
+
+  _setChatPreviews(chatPreviews) {
+    if (chatPreviews) {
+      localStorage.setItem(PREVIEWS_KEY, "true");
+    } else {
+      localStorage.removeItem(PREVIEWS_KEY);
+    }
+    this.$chatPreviews.set(chatPreviews);
   }
 
   // Resolves a service DID far enough to show the user what they are about to
@@ -111,7 +144,16 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    localStorage.setItem(SERVICE_KEY, did);
+    this._setServiceDid(did);
+  }
+
+  async clearService() {
+    if (!this.hasService) return;
+    if (this.isEnabled) {
+      await this.disable();
+    }
+    this._forgetConfig();
+    this._setServiceDid(null);
   }
 
   async fetchServiceConfig() {
@@ -220,7 +262,7 @@ export class CourierPushService {
   async completeEnableFlow({ chatPreviews = false } = {}) {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
-    localStorage.setItem(PREVIEWS_KEY, chatPreviews ? "true" : "false");
+    this._setChatPreviews(chatPreviews);
     this.startHeartbeat();
   }
 
@@ -244,22 +286,17 @@ export class CourierPushService {
       platform: PLATFORM,
       appId: APP_ID,
     });
-    localStorage.setItem(STORAGE_KEY, "true");
+    this._setEnabled(true);
   }
 
   // Re-assert registration on every app launch: registerPush is an
   // idempotent upsert and there is no API to query registration state, so
   // this is the self-healing path for a rotated or lost subscription.
   async reassertIfEnabled() {
-    if (
-      localStorage.getItem(STORAGE_KEY) !== "true" ||
-      !this.isSupported ||
-      !this.hasService
-    )
-      return;
+    if (!this.$enabled.get() || !this.isSupported || !this.hasService) return;
     if (Notification.permission !== "granted") {
       // Permission was revoked out-of-band (browser site settings).
-      localStorage.removeItem(STORAGE_KEY);
+      this._setEnabled(false);
       return;
     }
     try {
@@ -317,7 +354,7 @@ export class CourierPushService {
     if (now - (this._lastHeartbeat ?? 0) < HEARTBEAT_INTERVAL_MS / 2) return;
     this._lastHeartbeat = now;
 
-    if (localStorage.getItem(STORAGE_KEY) !== "true" || !this.isSupported) {
+    if (!this.$enabled.get() || !this.isSupported) {
       this.stopHeartbeat();
       return;
     }
@@ -358,8 +395,8 @@ export class CourierPushService {
   // for a logged-out account from reaching this device).
   async disable() {
     this.stopHeartbeat();
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(PREVIEWS_KEY);
+    this._setEnabled(false);
+    this._setChatPreviews(false);
     if (!("serviceWorker" in navigator)) return;
     const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
     const subscription = await registration?.pushManager.getSubscription();

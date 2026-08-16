@@ -1,6 +1,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { CourierPushService } from "/js/push/courierPushService.js";
+import { effect } from "/js/signals.js";
 
 const SUBSCRIPTION = {
   endpoint: "https://push.example/ep/abc",
@@ -161,11 +162,11 @@ describe("CourierPushService heartbeat", () => {
 
   it("registers against the selected service, not the default", async () => {
     setupDom();
-    const { service, registerPush } = createService();
     globalThis.localStorage.setItem(
       "courier-push-service-did",
       "did:web:elsewhere.example",
     );
+    const { service, registerPush } = createService();
     await service._heartbeat();
     assert.equal(
       registerPush.mock.calls[0].arguments[0].serviceDid,
@@ -307,9 +308,9 @@ describe("CourierPushService service selection", () => {
   });
 
   it("switching services unregisters the old one first", async () => {
+    globalThis.localStorage.setItem("courier-push-enabled", "true");
     const { service } = createService();
     await service.selectService("did:web:notifs.example");
-    globalThis.localStorage.setItem("courier-push-enabled", "true");
     const unregisterPush = mock.fn(async () => {});
     service.api.unregisterPush = unregisterPush;
 
@@ -320,6 +321,44 @@ describe("CourierPushService service selection", () => {
     assert.equal(unregisterPush.mock.calls.length, 1);
     assert.equal(service.serviceDid, "did:web:elsewhere.example");
     assert.equal(service.isEnabled, false);
+  });
+
+  it("clearing the service unregisters it first", async () => {
+    globalThis.localStorage.setItem("courier-push-enabled", "true");
+    const { service } = createService();
+    await service.selectService("did:web:notifs.example");
+    const unregisterPush = mock.fn(async () => {});
+    service.api.unregisterPush = unregisterPush;
+
+    await service.clearService();
+
+    // Same reason as switching: the old service polls server-side, so it
+    // must be unregistered before nothing points at it any more.
+    assert.equal(unregisterPush.mock.calls.length, 1);
+    assert.equal(service.serviceDid, null);
+    assert.equal(service.hasService, false);
+    assert.equal(service.isEnabled, false);
+  });
+
+  // Views read the service directly rather than re-reading storage when they
+  // are navigated back to, so its state has to notify on change.
+  it("notifies reactive readers when the service changes", async () => {
+    const { service } = createService();
+    const seen = [];
+    // Effects flush on an animation frame, so each change needs one to land.
+    const flush = () =>
+      new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    const dispose = effect(() => {
+      seen.push(service.serviceDid);
+    });
+
+    await service.selectService("did:web:notifs.example");
+    await flush();
+    await service.clearService();
+    await flush();
+
+    assert.deepEqual(seen, [null, "did:web:notifs.example", null]);
+    dispose();
   });
 
   it("switching services replaces the stored choice", async () => {

@@ -51,10 +51,6 @@ test.describe("Settings > Notifications view", () => {
 
     await toggle.click();
 
-    const confirmModal = page.locator('[data-testid="confirm-modal"]');
-    await expect(confirmModal).toBeVisible();
-    await confirmModal.locator('[data-testid="modal-confirm-button"]').click();
-
     await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
     await expect
       .poll(() =>
@@ -63,32 +59,6 @@ test.describe("Settings > Notifications view", () => {
         ),
       )
       .toBe("true");
-  });
-
-  test("declining the confirm dialog leaves notifications disabled", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    await mockServer.setup(page);
-    await stubNotificationPermission(page, { initial: "default" });
-    await login(page);
-    await page.goto("/settings/notifications");
-
-    const toggle = page.locator('[data-testid="system-notifications-toggle"]');
-    await expect(toggle).toBeVisible({ timeout: 10000 });
-
-    await toggle.click();
-
-    const confirmModal = page.locator('[data-testid="confirm-modal"]');
-    await expect(confirmModal).toBeVisible();
-    await confirmModal.locator('[data-testid="modal-cancel-button"]').click();
-
-    await expect(toggle).not.toHaveAttribute("checked", "");
-    expect(
-      await page.evaluate(() =>
-        localStorage.getItem("system-notifications-enabled"),
-      ),
-    ).toBeNull();
   });
 
   test("shows an error toast when the browser denies permission", async ({
@@ -107,11 +77,6 @@ test.describe("Settings > Notifications view", () => {
     await expect(toggle).toBeVisible({ timeout: 10000 });
 
     await toggle.click();
-    await page
-      .locator(
-        '[data-testid="confirm-modal"] [data-testid="modal-confirm-button"]',
-      )
-      .click();
 
     await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 10000,
@@ -180,8 +145,8 @@ test.describe("Settings > Notifications view", () => {
       .toBeNull();
   });
 
-  test.describe("notification service selection", () => {
-    test("with no service chosen, push cannot be turned on", async ({
+  test.describe("push notifications", () => {
+    test("with no service named, push cannot be turned on", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -190,18 +155,18 @@ test.describe("Settings > Notifications view", () => {
       await login(page);
       await page.goto("/settings/notifications");
 
-      await expect(
-        page.locator('[data-testid="notification-service-unset"]'),
-      ).toBeVisible({ timeout: 10000 });
+      // The service is named under Advanced, so the row's subtitle links there.
+      const unset = page.locator(
+        '[data-testid="settings-section-push-notifications"] [data-testid="notification-service-unset"]',
+      );
+      await expect(unset).toBeVisible({ timeout: 10000 });
+      await expect(unset).toHaveAttribute("href", "/settings/advanced");
       await expect(
         page.locator('[data-testid="push-notifications-toggle"]'),
       ).toHaveAttribute("disabled", "");
-      await expect(
-        page.locator('[data-testid="notification-service-change"]'),
-      ).toHaveAttribute("data-teststate", "unset");
     });
 
-    test("entering a service DID resolves it and enables the push toggle", async ({
+    test("picking a service on Advanced updates this page on the way back", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -210,33 +175,54 @@ test.describe("Settings > Notifications view", () => {
       await login(page);
       await page.goto("/settings/notifications");
 
+      const pushRow = page.locator(
+        '[data-testid="settings-section-push-notifications"]',
+      );
+      await expect(
+        pushRow.locator('[data-testid="notification-service-unset"]'),
+      ).toBeVisible({ timeout: 10000 });
+
       await page
-        .locator('[data-testid="notification-service-change"]')
+        .locator('[data-testid="notification-service-unset"]')
         .click({ timeout: 10000 });
+      await page
+        .locator('select[name="notificationService"]')
+        .selectOption("custom");
       await page
         .locator('[data-testid="notification-service-input"]')
         .fill(notificationService.did);
       await page.locator('[data-testid="notification-service-save"]').click();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
 
-      await expect(page.locator('[data-testid="toast"]')).toContainText(
-        notificationService.name,
-      );
+      // The page stays cached in the DOM, so it only updates because it reads
+      // the service's signals rather than a snapshot taken when it was built.
+      await page.goBack();
       await expect(
-        page.locator('[data-testid="notification-service-unset"]'),
-      ).toHaveCount(0);
+        pushRow.locator('[data-testid="notification-service-unset"]'),
+      ).toHaveCount(0, { timeout: 10000 });
       await expect(
         page.locator('[data-testid="push-notifications-toggle"]'),
       ).not.toHaveAttribute("disabled", "");
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBe(notificationService.did);
     });
 
-    test("a previously chosen service is shown by name on load", async ({
-      page,
-    }) => {
+    test("the subtitle link navigates to Advanced", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      await page
+        .locator('[data-testid="notification-service-unset"]')
+        .click({ timeout: 10000 });
+
+      await expect(page).toHaveURL(/\/settings\/advanced$/);
+      await expect(
+        page.locator('select[name="notificationService"]'),
+      ).toBeVisible();
+    });
+
+    test("with a service named, the toggle is usable", async ({ page }) => {
       const mockServer = new MockServer();
       await mockServer.setup(page);
       await stubNotificationPermission(page, { initial: "default" });
@@ -244,72 +230,12 @@ test.describe("Settings > Notifications view", () => {
       await selectNotificationService(page);
       await page.goto("/settings/notifications");
 
-      const section = page.locator(
-        '[data-testid="settings-section-notification-service"]',
-      );
-      await expect(section).toContainText(notificationService.name, {
-        timeout: 10000,
-      });
-      await expect(section).toContainText(notificationService.did);
       await expect(
-        page.locator('[data-testid="notification-service-change"]'),
-      ).toHaveAttribute("data-teststate", "set");
-    });
-
-    test("rejects input that isn't a DID without hitting the network", async ({
-      page,
-    }) => {
-      const mockServer = new MockServer();
-      await mockServer.setup(page);
-      await stubNotificationPermission(page, { initial: "default" });
-      await login(page);
-      await page.goto("/settings/notifications");
-
-      await page
-        .locator('[data-testid="notification-service-change"]')
-        .click({ timeout: 10000 });
-      await page
-        .locator('[data-testid="notification-service-input"]')
-        .fill("notifs.example.com");
-      await page.locator('[data-testid="notification-service-save"]').click();
-
+        page.locator('[data-testid="push-notifications-toggle"]'),
+      ).not.toHaveAttribute("disabled", "", { timeout: 10000 });
       await expect(
-        page.locator('[data-testid="notification-service-error"]'),
-      ).toBeVisible();
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBeNull();
-    });
-
-    test("a service that won't resolve is rejected and not stored", async ({
-      page,
-    }) => {
-      const mockServer = new MockServer();
-      mockServer.failNotificationServiceLookup();
-      await mockServer.setup(page);
-      await stubNotificationPermission(page, { initial: "default" });
-      await login(page);
-      await page.goto("/settings/notifications");
-
-      await page
-        .locator('[data-testid="notification-service-change"]')
-        .click({ timeout: 10000 });
-      await page
-        .locator('[data-testid="notification-service-input"]')
-        .fill(notificationService.did);
-      await page.locator('[data-testid="notification-service-save"]').click();
-
-      await expect(
-        page.locator('[data-testid="notification-service-error"]'),
-      ).toBeVisible({ timeout: 10000 });
-      // The old state must survive a failed switch, so nothing is stored.
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBeNull();
+        page.locator('[data-testid="notification-service-unset"]'),
+      ).toHaveCount(0);
     });
   });
 });

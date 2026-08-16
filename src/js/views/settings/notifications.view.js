@@ -36,26 +36,20 @@ export default async function settingsNotificationsView({
   const $enabled = new Signal.State(
     systemNotificationService?.isEnabled ?? false,
   );
-  const $pushEnabled = new Signal.State(courierPushService?.isEnabled ?? false);
-  const $chatPreviews = new Signal.State(
-    courierPushService?.chatPreviewsEnabled ?? false,
-  );
   const $pushBusy = new Signal.State(false);
 
   // The service is user-selectable per the spec, so its name is data, not a
   // constant — every mention of it in this view comes from the service's own
   // config document. Falls back to the DID until that resolves.
-  const $serviceDid = new Signal.State(courierPushService?.serviceDid ?? null);
   const $serviceName = new Signal.State(courierPushService?.serviceDid ?? null);
-  const $pickerOpen = new Signal.State(false);
-  const $pickerValue = new Signal.State("");
-  const $pickerBusy = new Signal.State(false);
-  const $pickerError = new Signal.State("");
 
-  async function loadServiceName() {
-    if (!courierPushService?.hasService) return;
-    const did = courierPushService.serviceDid;
-    $serviceDid.set(did);
+  async function loadServiceName(did) {
+    if (did === null) {
+      $serviceName.set(null);
+      return;
+    }
+    // Show the DID until the lookup resolves.
+    $serviceName.set(did);
     try {
       const { name } = await courierPushService.previewService(did);
       // Guard against a slow lookup landing after the user switched again.
@@ -66,43 +60,13 @@ export default async function settingsNotificationsView({
       if (courierPushService.serviceDid === did) $serviceName.set(did);
     }
   }
-  loadServiceName();
 
-  async function handleServiceSelect() {
-    const did = $pickerValue.get().trim();
-    if (!did || !courierPushService) return;
-    if (!did.startsWith("did:")) {
-      $pickerError.set("That doesn't look like a DID.");
-      return;
-    }
-    $pickerBusy.set(true);
-    $pickerError.set("");
-    try {
-      // Resolve before switching: an unreachable or non-conforming service
-      // should fail here, not after the current one has been torn down.
-      const { name } = await courierPushService.previewService(did);
-      const wasEnabled = courierPushService.isEnabled;
-      await courierPushService.selectService(did);
-      $pushEnabled.set(courierPushService.isEnabled);
-      $chatPreviews.set(courierPushService.chatPreviewsEnabled);
-      $serviceDid.set(did);
-      $serviceName.set(name);
-      $pickerOpen.set(false);
-      $pickerValue.set("");
-      showToast(
-        wasEnabled
-          ? `Switched to ${name}. Turn push notifications back on to finish.`
-          : `Switched to ${name}.`,
-      );
-    } catch (error) {
-      console.error(error);
-      $pickerError.set(
-        "Couldn't reach that service, or it isn't a notification service.",
-      );
-    } finally {
-      $pickerBusy.set(false);
-    }
-  }
+  // Tracks the service's own DID signal, so choosing one on Advanced reaches
+  // this page without it having to re-read anything on navigation. Kept out of
+  // the render effect so the lookup isn't refired by unrelated re-renders.
+  pageEffect(root, () => {
+    loadServiceName(courierPushService?.$serviceDid.get() ?? null);
+  });
 
   async function handleToggle(checked) {
     if (!systemNotificationService) return;
@@ -111,11 +75,6 @@ export default async function settingsNotificationsView({
       $enabled.set(false);
       return;
     }
-    const confirmed = await confirmModal(
-      "Impro will ask your browser for permission to show notifications. You can turn this off again at any time.",
-      { title: "Enable notifications?", confirmButtonText: "Continue" },
-    );
-    if (!confirmed) return;
     const result = await systemNotificationService.requestPermission();
     if (result === "granted") {
       $enabled.set(true);
@@ -139,7 +98,6 @@ export default async function settingsNotificationsView({
       } finally {
         $pushBusy.set(false);
       }
-      $pushEnabled.set(false);
       return;
     }
     const confirmed = await confirmModal(
@@ -149,7 +107,7 @@ export default async function settingsNotificationsView({
     if (!confirmed) return;
     try {
       await courierPushService.startEnableFlow({
-        chatPreviews: $chatPreviews.get(),
+        chatPreviews: courierPushService.chatPreviewsEnabled,
       });
     } catch (error) {
       console.error(error);
@@ -201,8 +159,6 @@ export default async function settingsNotificationsView({
       await courierPushService.completeEnableFlow({
         chatPreviews: callback.chatPreviews,
       });
-      $pushEnabled.set(true);
-      $chatPreviews.set(callback.chatPreviews);
       showToast("Push notifications enabled.");
     } catch (error) {
       console.error(error);
@@ -234,22 +190,19 @@ export default async function settingsNotificationsView({
         "Notifications are blocked for this site. Re-enable them in your browser's site settings to turn this on.";
     }
 
-    const pushEnabled = $pushEnabled.get();
+    const pushEnabled = courierPushService?.isEnabled ?? false;
     const pushBusy = $pushBusy.get();
-    const chatPreviews = $chatPreviews.get();
+    const chatPreviews = courierPushService?.chatPreviewsEnabled ?? false;
     const pushSupported = courierPushService?.isSupported ?? false;
     const serviceName = $serviceName.get();
-    const serviceDid = $serviceDid.get();
-    const pickerOpen = $pickerOpen.get();
-    const pickerBusy = $pickerBusy.get();
-    const pickerError = $pickerError.get();
+    const serviceDid = courierPushService?.$serviceDid.get() ?? null;
     const hasService = serviceDid !== null;
-    let pushDescription = "Your browser doesn't support push notifications.";
-    if (pushSupported) {
-      pushDescription = hasService
-        ? `Get notified even when Impro is closed, via ${serviceName}.`
-        : "Get notified even when Impro is closed. Choose a notification service below to turn this on.";
-    }
+
+    // One source of truth per row, so the dimmed style and the toggle's own
+    // disabled state can't drift apart.
+    const systemRowDisabled = !isSupported || isDenied;
+    const pushRowDisabled = !pushSupported || !hasService || pushBusy;
+    const previewsRowDisabled = pushBusy;
 
     render(
       html`<div id="settings-notifications-view">
@@ -260,12 +213,12 @@ export default async function settingsNotificationsView({
         <main>
           <section
             class=${classnames("setting-item", {
-              "setting-item-disabled": !isSupported,
+              "setting-item-disabled": systemRowDisabled,
             })}
             data-testid="settings-section-system-notifications"
           >
             <div class="setting-item-info">
-              <h2 class="setting-item-name">Enable desktop notifications</h2>
+              <h2 class="setting-item-name">Desktop notifications</h2>
               <p class="setting-item-desc">${description}</p>
             </div>
             <div class="setting-item-control">
@@ -273,32 +226,49 @@ export default async function settingsNotificationsView({
                 data-testid="system-notifications-toggle"
                 label="Enable notifications"
                 ?checked=${enabled}
-                ?disabled=${!isSupported || isDenied}
+                ?disabled=${systemRowDisabled}
                 @change=${(event) => handleToggle(event.detail.checked)}
               ></toggle-switch>
             </div>
           </section>
           <section
-            class="setting-item"
+            class=${classnames("setting-item", {
+              "setting-item-disabled": pushRowDisabled,
+            })}
             data-testid="settings-section-push-notifications"
           >
             <div class="setting-item-info">
-              <h2 class="setting-item-name">Push notifications</h2>
-              <p class="setting-item-desc">${pushDescription}</p>
+              <h2 class="setting-item-name">Push notifications (beta)</h2>
+              <p class="setting-item-desc">
+                ${!pushSupported
+                  ? "Your browser doesn't support push notifications."
+                  : hasService
+                    ? "Get notified even when Impro is closed."
+                    : html`Get notified even when Impro is closed. Choose a
+                        notification service under
+                        <a
+                          href="/settings/advanced"
+                          data-testid="notification-service-unset"
+                          >Advanced</a
+                        >
+                        to enable this feature.`}
+              </p>
             </div>
             <div class="setting-item-control">
               <toggle-switch
                 data-testid="push-notifications-toggle"
                 label="Enable push notifications"
                 ?checked=${pushEnabled}
-                ?disabled=${!pushSupported || !hasService || pushBusy}
+                ?disabled=${pushRowDisabled}
                 @change=${(event) => handlePushToggle(event.detail.checked)}
               ></toggle-switch>
             </div>
           </section>
           ${pushEnabled
             ? html`<section
-                class="setting-item"
+                class=${classnames("setting-item", {
+                  "setting-item-disabled": previewsRowDisabled,
+                })}
                 data-testid="settings-section-chat-previews"
               >
                 <div class="setting-item-info">
@@ -314,99 +284,10 @@ export default async function settingsNotificationsView({
                     data-testid="chat-previews-toggle"
                     label="Show message previews"
                     ?checked=${chatPreviews}
-                    ?disabled=${pushBusy}
+                    ?disabled=${previewsRowDisabled}
                     @change=${(event) =>
                       handlePreviewsToggle(event.detail.checked)}
                   ></toggle-switch>
-                </div>
-              </section>`
-            : null}
-          ${pushSupported
-            ? html`<section
-                class="setting-item"
-                data-testid="settings-section-notification-service"
-              >
-                <div class="setting-item-info">
-                  <h2 class="setting-item-name">Notification service</h2>
-                  ${hasService
-                    ? html`<p class="setting-item-desc">
-                        Push notifications are delivered by
-                        <strong>${serviceName}</strong>, which holds a read-only
-                        grant to watch this account's notifications on your
-                        behalf. You can point Impro at a different service, or
-                        run your own. <br /><code>${serviceDid}</code>
-                      </p>`
-                    : html`<p
-                        class="setting-item-desc"
-                        data-testid="notification-service-unset"
-                      >
-                        Impro doesn't pick a notification service for you. Enter
-                        the DID of one you trust — or run your own — and it will
-                        hold a read-only grant to watch this account's
-                        notifications on your behalf.
-                      </p>`}
-                  ${pickerOpen
-                    ? html`<div class="notification-service-picker">
-                        <input
-                          type="text"
-                          inputmode="url"
-                          autocapitalize="off"
-                          autocomplete="off"
-                          spellcheck="false"
-                          data-testid="notification-service-input"
-                          placeholder="did:web:notifs.example.com"
-                          .value=${$pickerValue.get()}
-                          ?disabled=${pickerBusy}
-                          @input=${(event) =>
-                            $pickerValue.set(event.target.value)}
-                          @keydown=${(event) => {
-                            if (event.key === "Enter") handleServiceSelect();
-                          }}
-                        />
-                        <p class="setting-item-desc">
-                          A notification service can read this account's
-                          notifications, and its message content if you turn
-                          previews on. Only use one you trust.
-                        </p>
-                        ${pickerError
-                          ? html`<p
-                              class="setting-item-desc error"
-                              data-testid="notification-service-error"
-                            >
-                              ${pickerError}
-                            </p>`
-                          : null}
-                        <button
-                          class="button"
-                          data-testid="notification-service-save"
-                          ?disabled=${pickerBusy}
-                          @click=${handleServiceSelect}
-                        >
-                          ${pickerBusy ? "Checking…" : "Use this service"}
-                        </button>
-                        <button
-                          class="button secondary"
-                          ?disabled=${pickerBusy}
-                          @click=${() => {
-                            $pickerOpen.set(false);
-                            $pickerError.set("");
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>`
-                    : html`<button
-                        class="button secondary"
-                        data-testid="notification-service-change"
-                        data-teststate=${hasService ? "set" : "unset"}
-                        @click=${() => {
-                          $pickerValue.set(serviceDid ?? "");
-                          $pickerError.set("");
-                          $pickerOpen.set(true);
-                        }}
-                      >
-                        ${hasService ? "Change service" : "Choose a service"}
-                      </button>`}
                 </div>
               </section>`
             : null}
