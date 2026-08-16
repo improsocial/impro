@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { avatarThumbnailUrl } from "/js/dataHelpers.js";
+import { avatarThumbnailUrl, cdnImageUrl } from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/image-cropper.js";
@@ -47,9 +47,9 @@ class EditProfileDialog extends Component {
     this._displayName = profile.displayName || "";
     this._description = profile.description || "";
     this._currentAvatar = profile.avatar
-      ? avatarThumbnailUrl(profile.avatar)
+      ? cdnImageUrl(avatarThumbnailUrl(profile.avatar))
       : null;
-    this._currentBanner = profile.banner || null;
+    this._currentBanner = cdnImageUrl(profile.banner) || null;
     this._newAvatarDataUrl = null;
     this._newBannerDataUrl = null;
     this._removeAvatar = false;

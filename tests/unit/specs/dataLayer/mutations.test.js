@@ -8,6 +8,11 @@ import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { CDN_URL } from "/js/config.js";
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 const mockIdentityResolver = {
   resolveHandle: async () => null,
@@ -1007,11 +1012,15 @@ describe("updateProfile", () => {
     const updatedProfile = dataStore.$profiles.get(testProfile.did);
     assert.match(
       updatedProfile.avatar,
-      /^https:\/\/cdn\.bsky\.app\/img\/avatar\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+      new RegExp(
+        `^${escapeRegExp(CDN_URL)}/img/avatar/plain/did:plc:test123/bafkreiblob\\d+@jpeg$`,
+      ),
     );
     assert.match(
       updatedProfile.banner,
-      /^https:\/\/cdn\.bsky\.app\/img\/banner\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+      new RegExp(
+        `^${escapeRegExp(CDN_URL)}/img/banner/plain/did:plc:test123/bafkreiblob\\d+@jpeg$`,
+      ),
     );
   });
 
@@ -4301,7 +4310,7 @@ describe("updateList", () => {
 
     assert.equal(
       dataStore.$lists.get(listUri).avatar,
-      "https://cdn.bsky.app/img/avatar/plain/did:plc:test123/bafkreiavatarcid@jpeg",
+      `${CDN_URL}/img/avatar/plain/did:plc:test123/bafkreiavatarcid@jpeg`,
     );
   });
 

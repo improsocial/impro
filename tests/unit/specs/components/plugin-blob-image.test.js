@@ -1,6 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/plugin-blob-image.js";
+import { CDN_URL } from "/js/config.js";
 
 describe("plugin-blob-image", () => {
   const VALID_CID =
@@ -106,7 +107,7 @@ describe("plugin-blob-image", () => {
       assert(img !== null);
       assert.deepEqual(
         img.getAttribute("src"),
-        `https://cdn.bsky.app/img/avatar_thumbnail/plain/${did}/${VALID_CID}@jpeg`,
+        `${CDN_URL}/img/avatar_thumbnail/plain/${did}/${VALID_CID}@jpeg`,
       );
       assert.deepEqual(img.getAttribute("alt"), "avatar");
     });

@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { linkToFeed } from "/js/navigation.js";
+import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
 
 export function feedGeneratorListItemTemplate({
@@ -14,7 +15,7 @@ export function feedGeneratorListItemTemplate({
       <div class="feeds-list-item-avatar">
         ${feedGenerator.avatar
           ? html`<img
-              src=${feedGenerator.avatar}
+              src=${cdnImageUrl(feedGenerator.avatar)}
               alt=${feedGenerator.displayName}
               class="feed-avatar"
             />`

@@ -18,7 +18,7 @@ import { linkToList, linkToFeed } from "/js/navigation.js";
 import { Signal, ReactiveStore, SignalSet, SignalArray } from "/js/signals.js";
 import { enableReorder } from "/js/utils.js";
 import { showToast } from "/js/toasts.js";
-import { valueForPinnedItem } from "/js/dataHelpers.js";
+import { cdnImageUrl, valueForPinnedItem } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
 
 export default async function feedsView({
@@ -133,7 +133,8 @@ export default async function feedsView({
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${item.data.avatar ?? "/img/list-avatar-fallback.svg"}
+            src=${cdnImageUrl(item.data.avatar) ??
+            "/img/list-avatar-fallback.svg"}
             alt=${item.data.name}
             class="feed-avatar"
           />
@@ -161,7 +162,8 @@ export default async function feedsView({
     >
       <div class="feeds-list-item-avatar">
         <img
-          src=${feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg"}
+          src=${cdnImageUrl(feedGenerator.avatar) ??
+          "/img/feed-avatar-fallback.svg"}
           alt=${feedGenerator.displayName}
           class="feed-avatar"
         />

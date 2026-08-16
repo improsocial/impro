@@ -1,3 +1,4 @@
+import { CDN_URL } from "../../src/js/config.js";
 import { createPost } from "../shared/factories.js";
 import { bskyLabeler, notificationService, userProfile } from "./testData.js";
 import {
@@ -1888,16 +1889,18 @@ export class MockServer {
       });
     });
 
-    await page.route("https://cdn.bsky.app/img/**", (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: "image/png",
-        body: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-          "base64",
-        ),
+    for (const cdnUrl of new Set(["https://cdn.bsky.app", CDN_URL])) {
+      await page.route(`${cdnUrl}/img/**`, (route) => {
+        return route.fulfill({
+          status: 200,
+          contentType: "image/png",
+          body: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            "base64",
+          ),
+        });
       });
-    });
+    }
 
     await page.route("https://ogcard.cdn.bsky.app/**", (route) => {
       return route.fulfill({

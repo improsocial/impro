@@ -19,6 +19,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
+  cdnImageUrl,
   getDisplayName,
   getImagesFromPost,
   getVideoFromPost,
@@ -98,7 +99,7 @@ export default async function notificationsView({
                   .map(
                     (image) => html`
                       <img
-                        src="${image.thumb}"
+                        src="${cdnImageUrl(image.thumb)}"
                         alt="${image.alt || ""}"
                         class="notification-preview-image"
                       />
@@ -110,7 +111,10 @@ export default async function notificationsView({
         ${video
           ? html`
               <div class="notification-preview-video">
-                <img src="${video.thumbnail}" alt="${video.alt || ""}" />
+                <img
+                  src="${cdnImageUrl(video.thumbnail)}"
+                  alt="${video.alt || ""}"
+                />
                 <div class="video-preview-play-button"></div>
               </div>
             `

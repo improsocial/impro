@@ -1,8 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { CDN_URL } from "/js/config.js";
 import {
   avatarThumbnailUrl,
   buildProfileFromRecord,
+  cdnImageUrl,
   getRKey,
   getIsLiked,
   isListFeed,
@@ -83,8 +85,8 @@ describe("buildProfileFromRecord", () => {
       handle: "me.test",
       displayName: "Me",
       description: "hello",
-      avatar: `https://cdn.bsky.app/img/avatar/plain/${did}/avatarcid@jpeg`,
-      banner: `https://cdn.bsky.app/img/banner/plain/${did}/bannercid@jpeg`,
+      avatar: `${CDN_URL}/img/avatar/plain/${did}/avatarcid@jpeg`,
+      banner: `${CDN_URL}/img/banner/plain/${did}/bannercid@jpeg`,
       pinnedPost: { uri: `at://${did}/app.bsky.feed.post/1`, cid: "abc" },
       createdAt: "2024-01-01T00:00:00.000Z",
       labels: [],
@@ -125,6 +127,42 @@ describe("avatarThumbnailUrl", () => {
 
   it("should handle empty string", () => {
     assert.deepEqual(avatarThumbnailUrl(""), "");
+  });
+});
+
+describe("cdnImageUrl", () => {
+  it("should rewrite the bsky CDN origin to the configured CDN", () => {
+    assert.deepEqual(
+      cdnImageUrl(
+        "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:123/imagecid@jpeg",
+      ),
+      `${CDN_URL}/img/feed_thumbnail/plain/did:plc:123/imagecid@jpeg`,
+    );
+  });
+
+  it("should leave other hosts alone", () => {
+    const videoThumb =
+      "https://video.bsky.app/watch/did:plc:123/videocid/thumbnail.jpg";
+    assert.deepEqual(cdnImageUrl(videoThumb), videoThumb);
+    const ogCard = "https://ogcard.cdn.bsky.app/start/did:plc:123/rkey";
+    assert.deepEqual(cdnImageUrl(ogCard), ogCard);
+  });
+
+  it("should leave non-absolute and non-URL values alone", () => {
+    assert.deepEqual(
+      cdnImageUrl("/img/avatar-fallback.svg"),
+      "/img/avatar-fallback.svg",
+    );
+    assert.deepEqual(
+      cdnImageUrl("data:image/png;base64,abc"),
+      "data:image/png;base64,abc",
+    );
+  });
+
+  it("should pass through empty values", () => {
+    assert.deepEqual(cdnImageUrl(""), "");
+    assert.deepEqual(cdnImageUrl(null), null);
+    assert.deepEqual(cdnImageUrl(undefined), undefined);
   });
 });
 

@@ -4,7 +4,11 @@ import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { classnames } from "/js/utils.js";
-import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
+import {
+  cdnImageUrl,
+  getDisplayName,
+  MISSING_HANDLE,
+} from "/js/dataHelpers.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   linkToFeed,
@@ -523,7 +527,7 @@ export default async function searchView({
               <div class="feeds-list-item-avatar">
                 ${feedGenerator.avatar
                   ? html`<img
-                      src=${feedGenerator.avatar}
+                      src=${cdnImageUrl(feedGenerator.avatar)}
                       alt=${feedGenerator.displayName}
                       class="feed-avatar"
                     />`

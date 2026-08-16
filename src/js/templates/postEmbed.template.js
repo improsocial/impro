@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import {
+  cdnImageUrl,
   getRKey,
   doHideAuthorOnUnauthenticated,
   getLabelNameAndDescription,
@@ -124,7 +125,7 @@ function condensedMediaTemplate({ embed, lazyLoadImages }) {
           (image) =>
             html`<img
               class="quoted-post-media-thumb"
-              src="${image.thumb}"
+              src="${cdnImageUrl(image.thumb)}"
               alt="${image.alt || ""}"
               loading=${lazyLoadImages ? "lazy" : "eager"}
             />`,
@@ -136,7 +137,7 @@ function condensedMediaTemplate({ embed, lazyLoadImages }) {
       <div class="quoted-post-media-video">
         <img
           class="quoted-post-media-thumb"
-          src="${embed.thumbnail}"
+          src="${cdnImageUrl(embed.thumbnail)}"
           alt="${embed.alt || ""}"
           loading=${lazyLoadImages ? "lazy" : "eager"}
         />
@@ -278,8 +279,8 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
   return html`<div class="post-image-container">
     <img
       class="post-image"
-      src="${image.thumb}"
-      data-lightbox-src="${image.fullsize ?? image.thumb}"
+      src="${cdnImageUrl(image.thumb)}"
+      data-lightbox-src="${cdnImageUrl(image.fullsize ?? image.thumb)}"
       alt=${image.alt}
       style=${doCalculateAspectRatio
         ? `aspect-ratio: ${getPostMediaAspectRatio(image) ?? 1};`
@@ -573,7 +574,8 @@ function starterPackTemplate({ starterPack }) {
 }
 
 function feedGeneratorTemplate({ feedGenerator }) {
-  const avatarUrl = feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg";
+  const avatarUrl =
+    cdnImageUrl(feedGenerator.avatar) ?? "/img/feed-avatar-fallback.svg";
   return html`<div class="feed-generator-embed embed-card">
     <a href="${linkToFeed(feedGenerator)}">
       <div class="feed-generator-embed-content">
@@ -596,7 +598,7 @@ function feedGeneratorTemplate({ feedGenerator }) {
 }
 
 function listTemplate({ list }) {
-  const avatarUrl = list.avatar ?? "/img/list-avatar-fallback.svg";
+  const avatarUrl = cdnImageUrl(list.avatar) ?? "/img/list-avatar-fallback.svg";
   return html`<div class="list-embed embed-card">
     <a
       href="https://bsky.app/profile/${list.creator.handle}/lists/${getRKey(

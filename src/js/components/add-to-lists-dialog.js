@@ -4,7 +4,7 @@ import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
-import { isModerationList } from "/js/dataHelpers.js";
+import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -204,7 +204,7 @@ class AddToListsDialog extends Component {
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${list.avatar || "/img/list-avatar-fallback.svg"}
+            src=${cdnImageUrl(list.avatar) || "/img/list-avatar-fallback.svg"}
             alt=${list.name}
             class="feed-avatar"
           />

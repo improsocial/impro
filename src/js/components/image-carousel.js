@@ -1,6 +1,7 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { isSafari } from "/js/utils.js";
+import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/lightbox-image-group.js";
 import { cropIndicatorIconTemplate } from "/js/templates/icons/cropIndicatorIcon.template.js";
 
@@ -99,8 +100,10 @@ export class ImageCarousel extends Component {
                 >
                   <img
                     class="carousel-image"
-                    src=${image.thumb}
-                    data-lightbox-src=${image.fullsize ?? image.thumb}
+                    src=${cdnImageUrl(image.thumb)}
+                    data-lightbox-src=${cdnImageUrl(
+                      image.fullsize ?? image.thumb,
+                    )}
                     alt=${image.alt ?? ""}
                     loading="lazy"
                     draggable="false"
