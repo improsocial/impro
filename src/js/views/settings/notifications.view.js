@@ -229,7 +229,7 @@ export default async function settingsNotificationsView({
               <h2 class="setting-item-name">Push notifications (beta)</h2>
               <p class="setting-item-desc">
                 ${!pushSupported
-                  ? "Your browser doesn't support push notifications."
+                  ? "Only available on mobile devices."
                   : hasService
                     ? "Get notified even when the page is closed."
                     : html`Get notified even when the page is closed. You must

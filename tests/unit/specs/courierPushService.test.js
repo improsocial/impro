@@ -25,6 +25,14 @@ function setupDom({ enabled = true, granted = true } = {}) {
   globalThis.Notification = { permission: granted ? "granted" : "denied" };
   // isSupported checks for these on window/navigator; jsdom has neither.
   globalThis.window.PushManager = function PushManager() {};
+  // Push is touch-only-device territory; the env's default matchMedia stub
+  // reports every query as non-matching, which would read as a desktop.
+  globalThis.window.matchMedia = (query) => ({
+    matches: query === "(hover: none) and (pointer: coarse)",
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
   globalThis.document = {
     _listeners: {},
     addEventListener(type, fn) {
@@ -96,6 +104,7 @@ describe("CourierPushService heartbeat", () => {
       document: globalThis.document,
       navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
       pushManager: globalThis.window.PushManager,
+      matchMedia: globalThis.window.matchMedia,
     };
   });
 
@@ -103,6 +112,7 @@ describe("CourierPushService heartbeat", () => {
     globalThis.localStorage = originals.localStorage;
     globalThis.Notification = originals.notification;
     globalThis.document = originals.document;
+    globalThis.window.matchMedia = originals.matchMedia;
     Object.defineProperty(globalThis, "navigator", originals.navigator);
     if (originals.pushManager === undefined) {
       delete globalThis.window.PushManager;
@@ -179,6 +189,21 @@ describe("CourierPushService heartbeat", () => {
     await assert.doesNotReject(() => service._heartbeat());
   });
 
+  it("is unsupported on a device that isn't touch-only", () => {
+    setupDom();
+    // Desktop gets SystemNotificationService's in-tab notifications instead,
+    // which is gated on the same check the other way round.
+    globalThis.window.matchMedia = (query) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    const { service } = createService();
+    assert.equal(service.isSupported, false);
+    assert.equal(service.isEnabled, false);
+  });
+
   it("registers against the selected service, not the default", async () => {
     setupDom();
     const { service, registerPush } = createService(
@@ -205,6 +230,7 @@ describe("CourierPushService service selection", () => {
       document: globalThis.document,
       navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
       pushManager: globalThis.window.PushManager,
+      matchMedia: globalThis.window.matchMedia,
       fetch: globalThis.fetch,
     };
     setupDom({ enabled: false });
@@ -230,6 +256,7 @@ describe("CourierPushService service selection", () => {
     globalThis.localStorage = originals.localStorage;
     globalThis.Notification = originals.notification;
     globalThis.document = originals.document;
+    globalThis.window.matchMedia = originals.matchMedia;
     Object.defineProperty(globalThis, "navigator", originals.navigator);
     globalThis.fetch = originals.fetch;
     if (originals.pushManager === undefined) {

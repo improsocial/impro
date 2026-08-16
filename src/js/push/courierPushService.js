@@ -1,5 +1,6 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
+import { isTouchOnlyDevice } from "/js/utils.js";
 
 const STORAGE_KEY = "courier-push-enabled";
 const CONFIG_CACHE_KEY = "courier-push-service-config";
@@ -60,6 +61,7 @@ export class CourierPushService {
 
   get isSupported() {
     return (
+      isTouchOnlyDevice() &&
       typeof Notification !== "undefined" &&
       "serviceWorker" in navigator &&
       "PushManager" in window

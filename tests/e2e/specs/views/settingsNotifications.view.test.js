@@ -154,6 +154,35 @@ test.describe("Settings > Notifications view", () => {
   });
 
   test.describe("push notifications", () => {
+    // Push is for devices where a tab isn't reliably open, so every case below
+    // needs a touch-only device — on desktop the setting is disabled outright.
+    test.use({
+      viewport: { width: 375, height: 667 },
+      hasTouch: true,
+      isMobile: true,
+    });
+
+    test("is disabled on a desktop device", async ({ browser }) => {
+      const context = await browser.newContext({
+        viewport: { width: 1280, height: 800 },
+        hasTouch: false,
+        isMobile: false,
+      });
+      const page = await context.newPage();
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      // Even with a service chosen, desktop gets in-tab notifications instead.
+      await expect(
+        page.locator('[data-testid="push-notifications-toggle"]'),
+      ).toHaveAttribute("disabled", "", { timeout: 10000 });
+      await context.close();
+    });
+
     test("with no service named, push cannot be turned on", async ({
       page,
     }) => {
