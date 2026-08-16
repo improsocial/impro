@@ -102,6 +102,9 @@ export class MockServer {
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
     this.tokenRefreshShouldFail = false;
     this.notificationServiceUnreachable = false;
+    // Which notification service the account's preferences name; null means
+    // none has been chosen.
+    this.notificationServiceDid = null;
     this.registerPushCalls = [];
     this.unregisterPushCalls = [];
   }
@@ -116,6 +119,12 @@ export class MockServer {
   // that points at nothing conforming.
   failNotificationServiceLookup() {
     this.notificationServiceUnreachable = true;
+  }
+
+  // Start with a notification service already chosen, as if the account had
+  // picked one on another device.
+  setNotificationServiceDid(did) {
+    this.notificationServiceDid = did;
   }
 
   setSearchHistory({ searches = [], profiles = [] } = {}) {
@@ -821,6 +830,15 @@ export class MockServer {
                   {
                     $type: "app.bsky.actor.defs#improSearchHistoryPref",
                     ...this.searchHistory,
+                  },
+                ]
+              : []),
+            ...(this.notificationServiceDid
+              ? [
+                  {
+                    $type:
+                      "app.bsky.actor.defs#improPushNotificationServicePref",
+                    serviceDid: this.notificationServiceDid,
                   },
                 ]
               : []),
@@ -2490,6 +2508,13 @@ export class MockServer {
         if (hiddenPostsPref) {
           this.hiddenPostUris = hiddenPostsPref.items || [];
         }
+        // Absent means the user chose None, so this tracks removal too.
+        this.notificationServiceDid =
+          body?.preferences?.find(
+            (p) =>
+              p.$type ===
+              "app.bsky.actor.defs#improPushNotificationServicePref",
+          )?.serviceDid ?? null;
         const searchHistoryPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#improSearchHistoryPref",
         );

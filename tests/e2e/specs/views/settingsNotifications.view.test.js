@@ -1,5 +1,5 @@
 import { test, expect } from "../../base.js";
-import { login, selectNotificationService } from "../../helpers.js";
+import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { notificationService } from "../../testData.js";
 
@@ -224,10 +224,10 @@ test.describe("Settings > Notifications view", () => {
 
     test("with a service named, the toggle is usable", async ({ page }) => {
       const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
       await mockServer.setup(page);
       await stubNotificationPermission(page, { initial: "default" });
       await login(page);
-      await selectNotificationService(page);
       await page.goto("/settings/notifications");
 
       await expect(

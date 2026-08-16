@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test, expect } from "../../../base.js";
-import { login, selectNotificationService } from "../../../helpers.js";
+import { login } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
 import { notificationService } from "../../../testData.js";
 
@@ -382,20 +382,16 @@ test.describe("Settings Advanced view", () => {
       await expect(page.locator('[data-testid="toast"]')).toContainText(
         notificationService.name,
       );
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBe(notificationService.did);
+      expect(mockServer.notificationServiceDid).toBe(notificationService.did);
     });
 
     test("a stored service that matches no preset selects Custom and prefills it", async ({
       page,
     }) => {
       const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
       await mockServer.setup(page);
       await login(page);
-      await selectNotificationService(page);
       await page.goto("/settings/advanced");
 
       await expect(
@@ -410,11 +406,9 @@ test.describe("Settings Advanced view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid("did:web:courier.7778777.online");
       await mockServer.setup(page);
       await login(page);
-      await selectNotificationService(page, {
-        did: "did:web:courier.7778777.online",
-      });
       await page.goto("/settings/advanced");
 
       await expect(
@@ -427,9 +421,9 @@ test.describe("Settings Advanced view", () => {
 
     test("selecting None clears the stored service", async ({ page }) => {
       const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
       await mockServer.setup(page);
       await login(page);
-      await selectNotificationService(page);
       await page.goto("/settings/advanced");
 
       const select = page.locator('select[name="notificationService"]');
@@ -438,11 +432,7 @@ test.describe("Settings Advanced view", () => {
       await select.selectOption("none");
       await page.locator('[data-testid="notification-service-save"]').click();
 
-      await expect
-        .poll(() =>
-          page.evaluate(() => localStorage.getItem("courier-push-service-did")),
-        )
-        .toBeNull();
+      await expect.poll(() => mockServer.notificationServiceDid).toBeNull();
     });
 
     test("rejects input that isn't a DID without hitting the network", async ({
@@ -464,11 +454,7 @@ test.describe("Settings Advanced view", () => {
       await expect(
         page.locator('[data-testid="notification-service-error"]'),
       ).toBeVisible();
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBeNull();
+      expect(mockServer.notificationServiceDid).toBeNull();
     });
 
     test("a service that won't resolve is rejected and not stored", async ({
@@ -492,11 +478,7 @@ test.describe("Settings Advanced view", () => {
         page.locator('[data-testid="notification-service-error"]'),
       ).toBeVisible({ timeout: 10000 });
       // The previous state must survive a failed switch, so nothing is stored.
-      expect(
-        await page.evaluate(() =>
-          localStorage.getItem("courier-push-service-did"),
-        ),
-      ).toBeNull();
+      expect(mockServer.notificationServiceDid).toBeNull();
     });
   });
 

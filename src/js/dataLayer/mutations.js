@@ -593,6 +593,12 @@ export class Mutations {
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
 
+  async setNotificationServiceDid(did) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setNotificationServiceDid(did);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
   async subscribeLabeler(profile, labelerInfo) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "subscribeLabeler",

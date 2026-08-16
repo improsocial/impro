@@ -1,5 +1,5 @@
 import { OAUTH_SCOPES } from "../../src/oauthScopes.js";
-import { notificationService, userProfile } from "./testData.js";
+import { userProfile } from "./testData.js";
 
 // Hold the pointer down on an element long enough to trigger a long-press
 // (the app uses a 500ms threshold).
@@ -9,15 +9,6 @@ export async function longPress(page, locator) {
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();
-}
-
-// Points the app at MockServer's dummy notification service, as if the user
-// had entered its DID in settings. No service is configured by default, so any
-// test exercising push beyond the unset state needs this.
-export async function selectNotificationService(page, { did } = {}) {
-  await page.addInitScript((serviceDid) => {
-    localStorage.setItem("courier-push-service-did", serviceDid);
-  }, did ?? notificationService.did);
 }
 
 export async function login(page, { scope = OAUTH_SCOPES } = {}) {

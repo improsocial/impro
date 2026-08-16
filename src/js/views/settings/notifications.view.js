@@ -5,7 +5,7 @@ import { auth } from "/js/auth.js";
 import { classnames } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/toggle-switch.js";
 
 // Reads and clears the courier auth-handoff callback params
@@ -33,53 +33,28 @@ export default async function settingsNotificationsView({
 }) {
   await auth.requireAuth();
 
-  const $enabled = new Signal.State(
+  const state = new ReactiveStore("settingsNotificationsView");
+  state.$enabled = new Signal.State(
     systemNotificationService?.isEnabled ?? false,
   );
-  const $pushBusy = new Signal.State(false);
-
-  // The service is user-selectable per the spec, so its name is data, not a
-  // constant — every mention of it in this view comes from the service's own
-  // config document. Falls back to the DID until that resolves.
-  const $serviceName = new Signal.State(courierPushService?.serviceDid ?? null);
-
-  async function loadServiceName(did) {
-    if (did === null) {
-      $serviceName.set(null);
-      return;
-    }
-    // Show the DID until the lookup resolves.
-    $serviceName.set(did);
-    try {
-      const { name } = await courierPushService.previewService(did);
-      // Guard against a slow lookup landing after the user switched again.
-      if (courierPushService.serviceDid === did) $serviceName.set(name);
-    } catch {
-      // Unreachable service: show the DID rather than an empty heading. The
-      // failure surfaces properly when the user tries to enable.
-      if (courierPushService.serviceDid === did) $serviceName.set(did);
-    }
-  }
-
-  // Tracks the service's own DID signal, so choosing one on Advanced reaches
-  // this page without it having to re-read anything on navigation. Kept out of
-  // the render effect so the lookup isn't refired by unrelated re-renders.
-  pageEffect(root, () => {
-    loadServiceName(courierPushService?.$serviceDid.get() ?? null);
-  });
+  state.$pushBusy = new Signal.State(false);
+  // The grant tier courier echoed back on the way in. Only ever known on the
+  // page load that handled the callback — there is no way to read it back —
+  // so it starts false on every other load.
+  state.$chatPreviews = new Signal.State(false);
 
   async function handleToggle(checked) {
     if (!systemNotificationService) return;
     if (!checked) {
       systemNotificationService.disable();
-      $enabled.set(false);
+      state.$enabled.set(false);
       return;
     }
     const result = await systemNotificationService.requestPermission();
     if (result === "granted") {
-      $enabled.set(true);
+      state.$enabled.set(true);
     } else {
-      $enabled.set(false);
+      state.$enabled.set(false);
       if (result === "denied") {
         showToast(
           "Notifications are blocked for this site. Re-enable them in your browser's site settings.",
@@ -92,22 +67,22 @@ export default async function settingsNotificationsView({
   async function handlePushToggle(checked) {
     if (!courierPushService) return;
     if (!checked) {
-      $pushBusy.set(true);
+      state.$pushBusy.set(true);
       try {
         await courierPushService.disable();
       } finally {
-        $pushBusy.set(false);
+        state.$pushBusy.set(false);
       }
       return;
     }
     const confirmed = await confirmModal(
-      "You'll be sent to Impro Courier to authorize a separate, read-only grant for delivering push notifications. You can turn this off again at any time.",
+      "You'll be sent to the notification service to authorize a separate, read-only grant for delivering push notifications. You can turn this off again at any time.",
       { title: "Enable push notifications?", confirmButtonText: "Continue" },
     );
     if (!confirmed) return;
     try {
       await courierPushService.startEnableFlow({
-        chatPreviews: courierPushService.chatPreviewsEnabled,
+        chatPreviews: state.$chatPreviews.get(),
       });
     } catch (error) {
       console.error(error);
@@ -124,7 +99,7 @@ export default async function settingsNotificationsView({
     if (!courierPushService) return;
     if (checked) {
       const confirmed = await confirmModal(
-        "Message previews let Impro Courier read the content of your messages, so it can show who sent a message and what it says. Without this, chat notifications only tell you that you have unread messages.",
+        "Message previews let the notification service read the content of your messages, so it can show who sent a message and what it says. Without this, chat notifications only tell you that you have unread messages.",
         {
           title: "Show message previews?",
           confirmButtonText: "Continue",
@@ -154,11 +129,10 @@ export default async function settingsNotificationsView({
       );
       return;
     }
-    $pushBusy.set(true);
+    state.$pushBusy.set(true);
     try {
-      await courierPushService.completeEnableFlow({
-        chatPreviews: callback.chatPreviews,
-      });
+      await courierPushService.completeEnableFlow();
+      state.$chatPreviews.set(callback.chatPreviews);
       showToast("Push notifications enabled.");
     } catch (error) {
       console.error(error);
@@ -168,21 +142,21 @@ export default async function settingsNotificationsView({
           : "Couldn't finish enabling push notifications.";
       showToast(message, { style: "error" });
     } finally {
-      $pushBusy.set(false);
+      state.$pushBusy.set(false);
     }
   })();
 
   bindPageTitle(root, () => "Notifications");
 
   pageEffect(root, () => {
-    const enabled = $enabled.get();
+    const enabled = state.$enabled.get();
     const isSupported = systemNotificationService?.isSupported ?? false;
     const permissionState =
       systemNotificationService?.permissionState ?? "unsupported";
     const isDenied = permissionState === "denied";
 
     let description =
-      "Get notified of new activity while Impro is open in a tab or window.";
+      "Get notified of new activity while the page is open in a tab or window.";
     if (!isSupported) {
       description = "Not supported on this device.";
     } else if (isDenied) {
@@ -191,11 +165,10 @@ export default async function settingsNotificationsView({
     }
 
     const pushEnabled = courierPushService?.isEnabled ?? false;
-    const pushBusy = $pushBusy.get();
-    const chatPreviews = courierPushService?.chatPreviewsEnabled ?? false;
+    const pushBusy = state.$pushBusy.get();
+    const chatPreviews = state.$chatPreviews.get();
     const pushSupported = courierPushService?.isSupported ?? false;
-    const serviceName = $serviceName.get();
-    const serviceDid = courierPushService?.$serviceDid.get() ?? null;
+    const serviceDid = courierPushService?.serviceDid ?? null;
     const hasService = serviceDid !== null;
 
     // One source of truth per row, so the dimmed style and the toggle's own
@@ -243,9 +216,9 @@ export default async function settingsNotificationsView({
                 ${!pushSupported
                   ? "Your browser doesn't support push notifications."
                   : hasService
-                    ? "Get notified even when Impro is closed."
-                    : html`Get notified even when Impro is closed. Choose a
-                        notification service under
+                    ? "Get notified even when the page is closed."
+                    : html`Get notified even when the page is closed. You must
+                        select a notification service in
                         <a
                           href="/settings/advanced"
                           data-testid="notification-service-unset"
@@ -275,8 +248,9 @@ export default async function settingsNotificationsView({
                   <h2 class="setting-item-name">Show message previews</h2>
                   <p class="setting-item-desc">
                     Include the sender and message text in chat notifications.
-                    This lets ${serviceName} read your messages. With this off,
-                    chat notifications only say that you have unread messages.
+                    This lets your notification service read your messages. With
+                    this off, chat notifications only say that you have unread
+                    messages.
                   </p>
                 </div>
                 <div class="setting-item-control">

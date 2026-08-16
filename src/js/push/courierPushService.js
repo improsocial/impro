@@ -2,8 +2,6 @@ import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
 
 const STORAGE_KEY = "courier-push-enabled";
-const PREVIEWS_KEY = "courier-push-chat-previews";
-const SERVICE_KEY = "courier-push-service-did";
 const CONFIG_CACHE_KEY = "courier-push-service-config";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
@@ -51,17 +49,12 @@ function urlBase64ToUint8Array(base64String) {
 
 // Client-side half of the spec's "Enable flow".
 export class CourierPushService {
-  constructor(api) {
+  constructor(api, dataLayer) {
     this.api = api;
+    this.dataLayer = dataLayer;
     this._configPromise = null;
-    this.$serviceDid = new Signal.State(
-      localStorage.getItem(SERVICE_KEY) || null,
-    );
     this.$enabled = new Signal.State(
       localStorage.getItem(STORAGE_KEY) === "true",
-    );
-    this.$chatPreviews = new Signal.State(
-      localStorage.getItem(PREVIEWS_KEY) === "true",
     );
   }
 
@@ -77,34 +70,17 @@ export class CourierPushService {
     return this.isSupported && this.hasService && this.$enabled.get();
   }
 
-  // The service this device is pointed at, or null if the user has not named
+  // The service this account is pointed at, or null if the user has not named
   // one. Impro suggests none: a service holds a read-only grant over the
   // account and polls on the user's behalf, so the choice is always theirs.
   get serviceDid() {
-    return this.$serviceDid.get();
+    return this.dataLayer?.derived.$notificationServiceDid.get() ?? null;
   }
 
   // Nothing can be enabled, resolved or registered until the user has named a
   // service, so every entry point gates on this.
   get hasService() {
     return this.serviceDid !== null;
-  }
-
-  // The tier the service last confirmed, per the spec's callback echo — not
-  // what was asked for. The grant is account-level, so another device may
-  // have changed it; only the echo is truthful, and it self-corrects every
-  // time the flow runs.
-  get chatPreviewsEnabled() {
-    return this.$chatPreviews.get();
-  }
-
-  _setServiceDid(did) {
-    if (did === null) {
-      localStorage.removeItem(SERVICE_KEY);
-    } else {
-      localStorage.setItem(SERVICE_KEY, did);
-    }
-    this.$serviceDid.set(did);
   }
 
   _setEnabled(enabled) {
@@ -114,15 +90,6 @@ export class CourierPushService {
       localStorage.removeItem(STORAGE_KEY);
     }
     this.$enabled.set(enabled);
-  }
-
-  _setChatPreviews(chatPreviews) {
-    if (chatPreviews) {
-      localStorage.setItem(PREVIEWS_KEY, "true");
-    } else {
-      localStorage.removeItem(PREVIEWS_KEY);
-    }
-    this.$chatPreviews.set(chatPreviews);
   }
 
   // Resolves a service DID far enough to show the user what they are about to
@@ -144,7 +111,7 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    this._setServiceDid(did);
+    await this.dataLayer.mutations.setNotificationServiceDid(did);
   }
 
   async clearService() {
@@ -153,7 +120,7 @@ export class CourierPushService {
       await this.disable();
     }
     this._forgetConfig();
-    this._setServiceDid(null);
+    await this.dataLayer.mutations.setNotificationServiceDid(null);
   }
 
   async fetchServiceConfig() {
@@ -256,13 +223,11 @@ export class CourierPushService {
   }
 
   // Step 2: called by the settings view when it detects a return from the
-  // auth handoff. `chatPreviews` is the service's echo of the tier it
-  // actually granted, which is what gets persisted — never what was
-  // requested.
-  async completeEnableFlow({ chatPreviews = false } = {}) {
+  // auth handoff. The grant tier the service echoed back is the caller's to
+  // hold — it is not something this class can know on any other page load.
+  async completeEnableFlow() {
     const config = await this.fetchServiceConfig();
     await this._subscribeAndRegister(config);
-    this._setChatPreviews(chatPreviews);
     this.startHeartbeat();
   }
 
@@ -396,7 +361,6 @@ export class CourierPushService {
   async disable() {
     this.stopHeartbeat();
     this._setEnabled(false);
-    this._setChatPreviews(false);
     if (!("serviceWorker" in navigator)) return;
     const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
     const subscription = await registration?.pushManager.getSubscription();

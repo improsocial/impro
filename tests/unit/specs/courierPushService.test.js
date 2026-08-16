@@ -1,7 +1,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { CourierPushService } from "/js/push/courierPushService.js";
-import { effect } from "/js/signals.js";
+import { Signal, effect } from "/js/signals.js";
 
 const SUBSCRIPTION = {
   endpoint: "https://push.example/ep/abc",
@@ -51,10 +51,29 @@ function setupDom({ enabled = true, granted = true } = {}) {
   });
 }
 
-function createService() {
+// The chosen service lives in account preferences, so the service reads it
+// through the dataLayer. Share one of these between two CourierPushService
+// instances to model the same account on a later launch.
+function makeDataLayer(serviceDid = null) {
+  const $notificationServiceDid = new Signal.State(serviceDid);
+  return {
+    derived: { $notificationServiceDid },
+    mutations: {
+      setNotificationServiceDid: mock.fn(async (did) => {
+        $notificationServiceDid.set(did);
+      }),
+    },
+  };
+}
+
+function createService(dataLayer = makeDataLayer()) {
   const registerPush = mock.fn(async () => {});
   const api = { registerPush };
-  return { service: new CourierPushService(api), registerPush };
+  return {
+    service: new CourierPushService(api, dataLayer),
+    registerPush,
+    dataLayer,
+  };
 }
 
 describe("CourierPushService heartbeat", () => {
@@ -156,17 +175,15 @@ describe("CourierPushService heartbeat", () => {
         throw new Error("network");
       }),
     };
-    const service = new CourierPushService(api);
+    const service = new CourierPushService(api, makeDataLayer());
     await assert.doesNotReject(() => service._heartbeat());
   });
 
   it("registers against the selected service, not the default", async () => {
     setupDom();
-    globalThis.localStorage.setItem(
-      "courier-push-service-did",
-      "did:web:elsewhere.example",
+    const { service, registerPush } = createService(
+      makeDataLayer("did:web:elsewhere.example"),
     );
-    const { service, registerPush } = createService();
     await service._heartbeat();
     assert.equal(
       registerPush.mock.calls[0].arguments[0].serviceDid,
@@ -245,12 +262,13 @@ describe("CourierPushService service selection", () => {
   });
 
   it("naming a service persists it across launches", async () => {
-    const { service } = createService();
+    const { service, dataLayer } = createService();
     await service.selectService("did:web:notifs.example");
     assert.equal(service.serviceDid, "did:web:notifs.example");
     assert.equal(service.hasService, true);
 
-    const { service: relaunched } = createService();
+    // Same account, later launch: the choice comes back from preferences.
+    const { service: relaunched } = createService(dataLayer);
     assert.equal(relaunched.serviceDid, "did:web:notifs.example");
   });
 
@@ -262,7 +280,7 @@ describe("CourierPushService service selection", () => {
   });
 
   it("caches the resolved config instead of refetching every launch", async () => {
-    const { service } = createService();
+    const { service, dataLayer } = createService();
     await service.selectService("did:web:notifs.example");
     await service.fetchServiceConfig();
     const afterFirst = fetchCalls.length;
@@ -275,7 +293,7 @@ describe("CourierPushService service selection", () => {
 
     // A fresh instance is the app-launch case: it must reuse the persisted
     // entry rather than re-resolving the DID document and config.
-    const { service: relaunched } = createService();
+    const { service: relaunched } = createService(dataLayer);
     await relaunched.fetchServiceConfig();
     assert.equal(fetchCalls.length, afterFirst);
   });
@@ -365,10 +383,7 @@ describe("CourierPushService service selection", () => {
     const { service } = createService();
     await service.selectService("did:web:notifs.example");
     await service.selectService("did:web:elsewhere.example");
-    assert.equal(
-      globalThis.localStorage.getItem("courier-push-service-did"),
-      "did:web:elsewhere.example",
-    );
+    assert.equal(service.serviceDid, "did:web:elsewhere.example");
   });
 
   it("switching services drops the previous service's cached config", async () => {

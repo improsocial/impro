@@ -22,6 +22,8 @@ export const INSTALLED_PLUGINS_PREF_TYPE =
   "app.bsky.actor.defs#improInstalledPluginsPref";
 export const SEARCH_HISTORY_PREF_TYPE =
   "app.bsky.actor.defs#improSearchHistoryPref";
+export const PUSH_NOTIFICATION_SERVICE_PREF_TYPE =
+  "app.bsky.actor.defs#improPushNotificationServicePref";
 
 function getContentTextFromEmbed(embed) {
   const texts = [];
@@ -667,6 +669,37 @@ export class Preferences {
       clone.obj.push({
         $type: INSTALLED_PLUGINS_PREF_TYPE,
         plugins,
+      });
+    }
+    return clone;
+  }
+
+  getNotificationServiceDid() {
+    const pref = Preferences.getPreferenceByType(
+      this.obj,
+      PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
+    );
+    return pref?.serviceDid ?? null;
+  }
+
+  setNotificationServiceDid(did) {
+    const clone = this.clone();
+    if (did === null) {
+      clone.obj = clone.obj.filter(
+        (pref) => pref.$type !== PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
+      );
+      return clone;
+    }
+    const existing = Preferences.getPreferenceByType(
+      clone.obj,
+      PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
+    );
+    if (existing) {
+      existing.serviceDid = did;
+    } else {
+      clone.obj.push({
+        $type: PUSH_NOTIFICATION_SERVICE_PREF_TYPE,
+        serviceDid: did,
       });
     }
     return clone;
