@@ -52,6 +52,7 @@ function pluginPreviewBannerTemplate({ plugins }) {
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/trending-pane.js";
+import "/js/components/sidebar-search.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -97,6 +98,12 @@ export function mainLayoutTemplate({
           ${children}
         </div>
         <div class="view-column-right">
+          ${activeNavItem === "search"
+            ? ""
+            : html`<sidebar-search
+                .dataLayer=${dataLayer}
+                .isAuthenticated=${isAuthenticated}
+              ></sidebar-search>`}
           <trending-pane .dataLayer=${dataLayer}></trending-pane>
         </div>
       </div>

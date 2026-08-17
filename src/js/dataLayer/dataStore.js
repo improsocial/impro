@@ -10,6 +10,7 @@ export class DataStore extends ReactiveStore {
     this.$profileSearchResults = new Signal.State(null);
     this.$chatRecipientSearchResults = new Signal.State(null);
     this.$searchTypeaheadResults = new Signal.State(null);
+    this.$sidebarSearchTypeaheadResults = new Signal.State(null);
     this.$feedSearchResults = new Signal.State(null);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
@@ -24,6 +25,7 @@ export class DataStore extends ReactiveStore {
     this.$latestProfileSearchRequestTime = new Signal.State(null);
     this.$latestChatRecipientSearchRequestTime = new Signal.State(null);
     this.$latestSearchTypeaheadRequestTime = new Signal.State(null);
+    this.$latestSidebarSearchTypeaheadRequestTime = new Signal.State(null);
     this.$latestFeedSearchRequestTime = new Signal.State(null);
     this.$trends = new Signal.State(null);
     this.$postSearchResultsTop = new Signal.State(null);

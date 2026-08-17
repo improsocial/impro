@@ -125,6 +125,27 @@ describe("MainLayout", () => {
     );
   });
 
+  it("mounts the sidebar search above trending, except on the search page", async () => {
+    setRoute({ layoutOptions: { activeNavItem: "home" } });
+    await flushRender();
+
+    const rightColumn = harness.appRoot.querySelector(".view-column-right");
+    const elements = [...rightColumn.children].map((child) =>
+      child.tagName.toLowerCase(),
+    );
+    assert.deepEqual(elements, ["sidebar-search", "trending-pane"]);
+
+    setRoute({ layoutOptions: { activeNavItem: "search" } });
+    await flushRender();
+
+    assert.deepEqual(
+      harness.appRoot
+        .querySelector(".view-column-right")
+        .querySelector("sidebar-search"),
+      null,
+    );
+  });
+
   it("derives the active nav item from the current route options", async () => {
     setRoute({ layoutOptions: { activeNavItem: "home" } });
     await flushRender();

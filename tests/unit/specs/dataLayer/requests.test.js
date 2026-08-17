@@ -1266,6 +1266,82 @@ describe("loadSearchTypeahead", () => {
   });
 });
 
+describe("loadSidebarSearchTypeahead", () => {
+  it("should store the search results and hydrate profiles", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSidebarSearchTypeahead("alice");
+
+    const stored = dataStore.$sidebarSearchTypeaheadResults.get();
+    assert.deepEqual(stored.actors.length, 1);
+    assert.deepEqual(stored.actors[0].did, "did:plc:a");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
+      did: "did:plc:a",
+    });
+  });
+
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore();
+    dataStore.$sidebarSearchTypeaheadResults.set({ actors: [{ did: "x" }] });
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({ actors: [] }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSidebarSearchTypeahead("");
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+  });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfilesTypeahead: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadSidebarSearchTypeahead("query");
+    await requests.loadSidebarSearchTypeahead("");
+    resolveSearch();
+    await inFlight;
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+  });
+
+  it("should not disturb the search view's typeahead results", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:sidebar" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+    await requests.loadSearchTypeahead("alice");
+
+    await requests.loadSidebarSearchTypeahead("bob");
+    await requests.loadSidebarSearchTypeahead("");
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+    assert.deepEqual(
+      dataStore.$searchTypeaheadResults.get().actors[0].did,
+      "did:plc:sidebar",
+    );
+  });
+});
+
 describe("loadFeedSearch", () => {
   it("should clear results when query is empty", async () => {
     const dataStore = new DataStore();

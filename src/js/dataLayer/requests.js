@@ -204,6 +204,10 @@ export class Requests {
     this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
     this.enableStatus(this.loadSearchTypeahead, "loadSearchTypeahead");
     this.enableStatus(
+      this.loadSidebarSearchTypeahead,
+      "loadSidebarSearchTypeahead",
+    );
+    this.enableStatus(
       this.loadPostSearchTop,
       (query) => "loadPostSearchTop-" + query,
     );
@@ -648,50 +652,50 @@ export class Requests {
     }
   }
 
-  async loadChatRecipientSearch(query, { limit = 12 } = {}) {
+  async _loadProfileTypeahead(query, { limit, $results, $latestRequestTime }) {
     if (!query) {
       // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestChatRecipientSearchRequestTime.set(null);
-      this.dataStore.$chatRecipientSearchResults.set(null);
+      $latestRequestTime.set(null);
+      $results.set(null);
       return;
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
-    this.dataStore.$latestChatRecipientSearchRequestTime.set(requestTime);
+    $latestRequestTime.set(requestTime);
     const searchData = await this.api.searchProfilesTypeahead(query, {
       limit,
       labelers,
     });
-    if (
-      requestTime !== this.dataStore.$latestChatRecipientSearchRequestTime.get()
-    ) {
+    if (requestTime !== $latestRequestTime.get()) {
       return;
     }
     this.dataStore.setProfiles(searchData.actors);
-    this.dataStore.$chatRecipientSearchResults.set(searchData);
+    $results.set(searchData);
+  }
+
+  async loadChatRecipientSearch(query, { limit = 12 } = {}) {
+    await this._loadProfileTypeahead(query, {
+      limit,
+      $results: this.dataStore.$chatRecipientSearchResults,
+      $latestRequestTime: this.dataStore.$latestChatRecipientSearchRequestTime,
+    });
   }
 
   async loadSearchTypeahead(query, { limit = 8 } = {}) {
-    if (!query) {
-      // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestSearchTypeaheadRequestTime.set(null);
-      this.dataStore.$searchTypeaheadResults.set(null);
-      return;
-    }
-    const labelers = this.requireLabelers();
-    const requestTime = Date.now();
-    this.dataStore.$latestSearchTypeaheadRequestTime.set(requestTime);
-    const searchData = await this.api.searchProfilesTypeahead(query, {
+    await this._loadProfileTypeahead(query, {
       limit,
-      labelers,
+      $results: this.dataStore.$searchTypeaheadResults,
+      $latestRequestTime: this.dataStore.$latestSearchTypeaheadRequestTime,
     });
-    if (
-      requestTime !== this.dataStore.$latestSearchTypeaheadRequestTime.get()
-    ) {
-      return;
-    }
-    this.dataStore.setProfiles(searchData.actors);
-    this.dataStore.$searchTypeaheadResults.set(searchData);
+  }
+
+  async loadSidebarSearchTypeahead(query, { limit = 8 } = {}) {
+    await this._loadProfileTypeahead(query, {
+      limit,
+      $results: this.dataStore.$sidebarSearchTypeaheadResults,
+      $latestRequestTime:
+        this.dataStore.$latestSidebarSearchTypeaheadRequestTime,
+    });
   }
 
   async loadPostSearchTop(query, { limit = 25, cursor = "" } = {}) {

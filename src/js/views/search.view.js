@@ -286,7 +286,7 @@ export default async function searchView({
         @click=${() => onCommit()}
       >
         <div class="search-typeahead-icon">${searchIconTemplate()}</div>
-        <div class="search-typeahead-text">Search for "${query}"</div>
+        <div class="search-typeahead-text">${query}</div>
       </button>
       ${profiles === null
         ? html`<div class="search-typeahead-loading">

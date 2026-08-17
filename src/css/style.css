@@ -193,6 +193,7 @@ html {
   --floating-back-button-z-index: 3;
   --reply-prompt-z-index: 4;
   --message-input-z-index: 4;
+  --sidebar-search-z-index: 4;
   --reaction-palette-z-index: 5;
   --toast-z-index: 5;
   --fab-z-index: 6;
@@ -391,6 +392,7 @@ video {
     position: sticky;
     top: 0;
     align-self: flex-start;
+    min-height: 100dvh;
     max-height: 100dvh;
     overflow-y: auto;
   }
@@ -5987,6 +5989,92 @@ button.profile-list-item-button.is-disabled {
 }
 
 .search-post-results .feed-item:last-of-type {
+  border-bottom: none;
+}
+
+sidebar-search {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  sidebar-search {
+    display: block;
+  }
+}
+
+.sidebar-search {
+  position: relative;
+  z-index: var(--sidebar-search-z-index);
+  margin: 16px 16px 0 16px;
+}
+
+.sidebar-search-input-container {
+  position: relative;
+  display: flex;
+}
+
+.sidebar-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 36px 10px 42px;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--text-input-border-radius);
+  background: var(--text-input-background-color);
+  color: var(--text-color);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.sidebar-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+@media (hover: hover) {
+  .sidebar-search-input:hover {
+    background: var(--post-hover-color);
+  }
+}
+
+.sidebar-search-input-container .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: var(--text-color-muted);
+  pointer-events: none;
+}
+
+.sidebar-search-clear-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  background: none;
+}
+
+.sidebar-search-typeahead {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  overflow: hidden;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: 12px;
+  background: var(--background-color);
+  box-shadow: var(--shadow-color-light);
+}
+
+.sidebar-search-typeahead-row {
+  padding-top: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
   border-bottom: none;
 }
 
