@@ -53,7 +53,7 @@ test.describe("Settings > Notifications view", () => {
     await login(page);
     await page.goto("/settings/notifications");
 
-    const toggle = page.locator('[data-testid="system-notifications-toggle"]');
+    const toggle = page.locator('[data-testid="desktop-notifications-toggle"]');
     await expect(toggle).toBeVisible({ timeout: 10000 });
     await expect(toggle).not.toHaveAttribute("checked", "");
 
@@ -82,7 +82,7 @@ test.describe("Settings > Notifications view", () => {
     await login(page);
     await page.goto("/settings/notifications");
 
-    const toggle = page.locator('[data-testid="system-notifications-toggle"]');
+    const toggle = page.locator('[data-testid="desktop-notifications-toggle"]');
     await expect(toggle).toBeVisible({ timeout: 10000 });
 
     await toggle.click();
@@ -108,7 +108,7 @@ test.describe("Settings > Notifications view", () => {
       await page.goto("/settings/notifications");
 
       const toggle = page.locator(
-        '[data-testid="system-notifications-toggle"]',
+        '[data-testid="desktop-notifications-toggle"]',
       );
       await expect(toggle).toBeVisible({ timeout: 10000 });
       await expect(toggle).toHaveAttribute("disabled", "");
@@ -138,7 +138,7 @@ test.describe("Settings > Notifications view", () => {
     });
     await page.goto("/settings/notifications");
 
-    const toggle = page.locator('[data-testid="system-notifications-toggle"]');
+    const toggle = page.locator('[data-testid="desktop-notifications-toggle"]');
     await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
 
     await toggle.click();

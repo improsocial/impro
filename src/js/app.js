@@ -44,7 +44,8 @@ import { Api } from "/js/api.js";
 import { createAuth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
-import { SystemNotificationService } from "/js/systemNotificationService.js";
+import { DesktopNotificationService } from "/js/desktopNotificationService.js";
+import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { PostComposerService } from "/js/postComposerService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
@@ -129,12 +130,14 @@ export async function main() {
   const chatNotificationService = session
     ? new ChatNotificationService(api)
     : null;
-  const systemNotificationService =
+  const activeTabMonitor = startActiveTabMonitor();
+  const desktopNotificationService =
     notificationService && chatNotificationService
-      ? new SystemNotificationService(
+      ? new DesktopNotificationService(
           notificationService,
           chatNotificationService,
           router,
+          activeTabMonitor,
         )
       : null;
   const pushNotificationService = session
@@ -226,8 +229,8 @@ export async function main() {
     chatNotificationService.startPolling();
   }
 
-  if (systemNotificationService) {
-    systemNotificationService.start();
+  if (desktopNotificationService) {
+    desktopNotificationService.start();
   }
 
   if (pushNotificationService) {
@@ -244,7 +247,7 @@ export async function main() {
     identityResolver,
     notificationService,
     chatNotificationService,
-    systemNotificationService,
+    desktopNotificationService,
     pushNotificationService,
     postComposerService,
     accountSwitcherService,

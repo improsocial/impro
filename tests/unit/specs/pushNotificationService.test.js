@@ -260,7 +260,7 @@ describe("PushNotificationService registration", () => {
 
   it("is unsupported on a device that isn't touch-only", () => {
     setupDom();
-    // Desktop gets SystemNotificationService's in-tab notifications instead,
+    // Desktop gets DesktopNotificationService's in-tab notifications instead,
     // which is gated on the same check the other way round.
     globalThis.window.matchMedia = (query) => ({
       matches: false,
