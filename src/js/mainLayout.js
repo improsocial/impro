@@ -53,6 +53,7 @@ import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/trending-pane.js";
 import "/js/components/sidebar-search.js";
+import "/js/components/pinned-feeds-pane.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -104,6 +105,13 @@ export function mainLayoutTemplate({
                 .dataLayer=${dataLayer}
                 .isAuthenticated=${isAuthenticated}
               ></sidebar-search>`}
+          ${isAuthenticated
+            ? html`<pinned-feeds-pane
+                .dataLayer=${dataLayer}
+                ?show-selected=${activeNavItem === "home"}
+                ?more-feeds-active=${activeNavItem === "feeds"}
+              ></pinned-feeds-pane>`
+            : ""}
           <trending-pane .dataLayer=${dataLayer}></trending-pane>
         </div>
       </div>

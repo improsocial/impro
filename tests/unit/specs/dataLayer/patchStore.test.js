@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 
 // applyPostPatches now requires the patches array explicitly. This helper
 // fetches the current patches for a post URI and applies them.
@@ -1055,7 +1056,7 @@ describe("Message Patches", () => {
   });
 
   it("should expose the overlay via $patchedMessages", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     dataStore.$messages.set(messageId, baseMessage);
 
@@ -1073,7 +1074,7 @@ describe("Message Patches", () => {
   });
 
   it("should return null from $patchedMessages when the underlying message is absent", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     assert.deepEqual(patchStore.$patchedMessages.get("missing"), null);
   });
@@ -1130,7 +1131,7 @@ describe("Author Feed Patches - pinPost apply", () => {
 
 describe("Post Patches - $patchedPosts overlay", () => {
   it("should overlay post + author profile patches", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const postURI = "at://did:plc:author/app.bsky.feed.post/1";
     const post = {
@@ -1159,7 +1160,7 @@ describe("Post Patches - $patchedPosts overlay", () => {
   });
 
   it("should return null when the underlying post is absent", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     assert.deepEqual(patchStore.$patchedPosts.get("missing"), null);
   });
@@ -1169,7 +1170,7 @@ describe("Profile Patches - $patchedProfiles / $patchedDetailedProfiles overlays
   const did = "did:plc:x";
 
   it("should overlay profile patches on $profiles reads", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     dataStore.$profiles.set(did, {
       did,
@@ -1185,7 +1186,7 @@ describe("Profile Patches - $patchedProfiles / $patchedDetailedProfiles overlays
   });
 
   it("should overlay profile patches on $detailedProfiles reads", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     dataStore.$detailedProfiles.set(did, {
       did,
@@ -1200,7 +1201,7 @@ describe("Profile Patches - $patchedProfiles / $patchedDetailedProfiles overlays
   });
 
   it("should return null when the underlying profile is absent", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     assert.deepEqual(patchStore.$patchedProfiles.get("missing"), null);
     assert.deepEqual(patchStore.$patchedDetailedProfiles.get("missing"), null);
@@ -1276,7 +1277,7 @@ describe("Post Patches - convergence", () => {
   });
 
   it("should not double-apply when a canonical refresh lands while the patch is installed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     dataStore.$posts.set(postURI, {
       uri: postURI,
@@ -1387,7 +1388,7 @@ describe("Message Patches - convergence", () => {
 
 describe("Convo Patches - $patchedConvos", () => {
   it("should overlay the patch on top of the dataStore convo", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const convo = { id: "convo-1", muted: false, rev: "rev-1" };
     dataStore.$convos.set("convo-1", convo);
@@ -1406,13 +1407,13 @@ describe("Convo Patches - $patchedConvos", () => {
   });
 
   it("should return null when the underlying convo is absent", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     assert.deepEqual(patchStore.$patchedConvos.get("nope"), null);
   });
 
   it("should isolate patches between different convos", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     dataStore.$convos.set("convo-1", { id: "convo-1", muted: false });
     dataStore.$convos.set("convo-2", { id: "convo-2", muted: false });

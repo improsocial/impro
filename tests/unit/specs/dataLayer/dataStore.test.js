@@ -1,10 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 
 describe("setPosts", () => {
   it("should insert multiple posts", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const posts = [
       { uri: "at://did:test/app.bsky.feed.post/1", record: { text: "one" } },
       { uri: "at://did:test/app.bsky.feed.post/2", record: { text: "two" } },
@@ -17,8 +18,8 @@ describe("setPosts", () => {
   });
 
   it("should match $posts.set behavior when given a single post", () => {
-    const dataStoreA = new DataStore();
-    const dataStoreB = new DataStore();
+    const dataStoreA = new DataStore(createSessionState(null));
+    const dataStoreB = new DataStore(createSessionState(null));
     const post = {
       uri: "at://did:test/app.bsky.feed.post/solo",
       record: { text: "solo" },
@@ -32,7 +33,7 @@ describe("setPosts", () => {
   });
 
   it("should store nested quoted posts as embedded previews", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const nestedQuotedPost = {
       $type: "app.bsky.embed.record#viewRecord",
       uri: "at://did:test/app.bsky.feed.post/nested",
@@ -97,7 +98,7 @@ describe("setPosts", () => {
   });
 
   it("should replace an embedded preview with a full post", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const quotedUri = "at://did:test/app.bsky.feed.post/quoted";
     const quotedPost = {
       $type: "app.bsky.embed.record#viewRecord",
@@ -135,7 +136,7 @@ describe("setPosts", () => {
 
 describe("setConvo", () => {
   it("should save the convo and prepend it to the loaded convo list", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
     const convo = { id: "c2", status: "accepted" };
 
@@ -150,7 +151,7 @@ describe("setConvo", () => {
   });
 
   it("should replace an existing list entry instead of duplicating it", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({
       convos: [{ id: "c1", unreadCount: 0 }],
       cursor: null,
@@ -168,7 +169,7 @@ describe("setConvo", () => {
   });
 
   it("should leave unloaded lists null", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
 
     dataStore.setConvo({ id: "c1", status: "accepted" });
 
@@ -178,7 +179,7 @@ describe("setConvo", () => {
   });
 
   it("should route request convos to the request list", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [], cursor: null });
     dataStore.$convoRequestList.set({ convos: [], cursor: null });
 
@@ -192,7 +193,7 @@ describe("setConvo", () => {
   });
 
   it("should move an accepted convo out of the request list", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [], cursor: null });
     dataStore.$convoRequestList.set({
       convos: [{ id: "c1", status: "request" }],
@@ -206,5 +207,49 @@ describe("setConvo", () => {
       ["c1"],
     );
     assert.deepEqual(dataStore.$convoRequestList.get().convos, []);
+  });
+});
+
+describe("setPinnedItems", () => {
+  const followingItem = {
+    type: "timeline",
+    data: { uri: "following", displayName: "Following" },
+  };
+  const feedItem = {
+    type: "feed",
+    data: { uri: "at://did:test/app.bsky.feed.generator/cats" },
+  };
+
+  it("should save the pinned items", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.setPinnedItems([followingItem, feedItem]);
+    assert.deepEqual(dataStore.$pinnedItems.get(), [followingItem, feedItem]);
+  });
+
+  it("should keep a selected feed that is still pinned", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.setPinnedItems([followingItem, feedItem]);
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), feedItem.data.uri);
+  });
+
+  it("should reset a no-longer-pinned selected feed to the first pinned item", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.setPinnedItems([followingItem]);
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
+  });
+
+  it("should leave a null selected feed alone", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.setPinnedItems([followingItem]);
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+  });
+
+  it("should clear the selected feed when nothing is pinned", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.setPinnedItems([]);
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
   });
 });

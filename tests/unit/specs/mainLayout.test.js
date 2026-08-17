@@ -32,11 +32,20 @@ describe("MainLayout", () => {
     const composePost = mock.fn();
     const $trends = new Signal.State(null);
     const loadTrends = mock.fn(async () => {});
+    const $hydratedPinnedItems = new Signal.State(null);
+    const $selectedFeedUri = new Signal.State(null);
+    const ensurePinnedItems = mock.fn(async () => []);
     const context = {
       isAuthenticated: true,
       dataLayer: {
-        derived: { $currentUser, $trends },
+        derived: {
+          $currentUser,
+          $trends,
+          $hydratedPinnedItems,
+          $selectedFeedUri,
+        },
         requests: { loadTrends },
+        declarative: { ensurePinnedItems },
       },
       notificationService: { $numNotifications },
       chatNotificationService: { $numNotifications: $numChatNotifications },
@@ -133,7 +142,16 @@ describe("MainLayout", () => {
     const elements = [...rightColumn.children].map((child) =>
       child.tagName.toLowerCase(),
     );
-    assert.deepEqual(elements, ["sidebar-search", "trending-pane"]);
+    assert.deepEqual(elements, [
+      "sidebar-search",
+      "pinned-feeds-pane",
+      "trending-pane",
+    ]);
+    assert(
+      rightColumn
+        .querySelector("pinned-feeds-pane")
+        .hasAttribute("show-selected"),
+    );
 
     setRoute({ layoutOptions: { activeNavItem: "search" } });
     await flushRender();
@@ -286,6 +304,37 @@ describe("mainLayoutTemplate", () => {
       "[data-testid='view-column-center']",
     );
     assert(centerColumn.querySelector(".test-content") !== null);
+  });
+});
+
+describe("mainLayoutTemplate - pinned feeds pane", () => {
+  it("renders the pinned feeds pane only when authenticated", () => {
+    const container = document.createElement("div");
+    render(
+      mainLayoutTemplate({
+        pluginService: mockPluginService,
+        isAuthenticated: true,
+        currentUser: mockUser,
+        children: html`<div>Content</div>`,
+      }),
+      container,
+    );
+    assert(container.querySelector("pinned-feeds-pane") !== null);
+
+    const loggedOutContainer = document.createElement("div");
+    render(
+      mainLayoutTemplate({
+        pluginService: mockPluginService,
+        isAuthenticated: false,
+        currentUser: null,
+        children: html`<div>Content</div>`,
+      }),
+      loggedOutContainer,
+    );
+    assert.deepEqual(
+      loggedOutContainer.querySelector("pinned-feeds-pane"),
+      null,
+    );
   });
 });
 

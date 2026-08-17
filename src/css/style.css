@@ -469,6 +469,112 @@ trending-pane {
   display: block;
 }
 
+pinned-feeds-pane {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  pinned-feeds-pane {
+    display: block;
+  }
+}
+
+.pinned-feeds-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 16px;
+}
+
+.pinned-feeds-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-color-muted);
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pinned-feeds-item .home-icon {
+  width: 15px;
+}
+
+.pinned-feeds-item .plus-icon {
+  width: 15px;
+}
+
+@media (hover: hover) {
+  .pinned-feeds-item:hover {
+    color: var(--text-color);
+  }
+}
+
+.pinned-feeds-item.active {
+  background: var(--highlight-color-tint);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.pinned-feeds-item-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pinned-feeds-item-avatar {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--feed-avatar-border-radius);
+  object-fit: cover;
+}
+
+.pinned-feeds-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--feed-avatar-border-radius);
+}
+
+.pinned-feeds-item-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.pinned-feeds-timeline-icon {
+  background: var(--highlight-color);
+  color: var(--white);
+}
+
+.pinned-feeds-more-icon {
+  background: var(--post-hover-color);
+}
+
+.pinned-feeds-item-skeleton {
+  align-self: stretch;
+  max-width: none;
+}
+
+.pinned-feeds-skeleton-bar {
+  display: inline-block;
+  height: 14px;
+  border-radius: 4px;
+}
+
 .trending-list {
   display: flex;
   flex-direction: column;

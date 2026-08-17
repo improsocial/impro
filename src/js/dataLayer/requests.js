@@ -1285,7 +1285,7 @@ export class Requests {
       }
     }
 
-    this.dataStore.$pinnedItems.set(orderedItems);
+    this.dataStore.setPinnedItems(orderedItems);
   }
 
   async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {

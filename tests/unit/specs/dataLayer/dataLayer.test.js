@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
@@ -7,9 +7,11 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 
 function createMockApi(options = {}) {
+  const isAuthenticated = options.isAuthenticated ?? false;
   return {
     getProfile: async (did) => options.profiles?.[did] ?? null,
-    isAuthenticated: options.isAuthenticated ?? false,
+    isAuthenticated,
+    session: isAuthenticated ? { did: "did:plc:testuser" } : null,
     getPreferences: async () => options.preferences ?? [],
     getLabelers: async () => options.labelers ?? [],
     updatePreferences: async () => {},
@@ -204,5 +206,89 @@ describe("component integration", () => {
     const profile =
       await dataLayer.declarative.ensureDetailedProfile("did:test:user");
     assert(profile !== null);
+  });
+});
+
+describe("selected feed persistence", () => {
+  // createMockApi's authenticated session did
+  const sessionStateKey = "session-state:did:plc:testuser";
+  const legacyKey = "home-view-currentFeedUri";
+
+  // PersistedReactiveStore saves via an effect, which flushes on a double
+  // requestAnimationFrame
+  function flushEffects() {
+    return new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+  }
+
+  function cleanup() {
+    localStorage.removeItem(sessionStateKey);
+    localStorage.removeItem(legacyKey);
+  }
+
+  function createAuthedDataLayer() {
+    return createDataLayer(createMockApi({ isAuthenticated: true }));
+  }
+
+  beforeEach(cleanup);
+  afterEach(cleanup);
+
+  it("restores the stored selection for the account", () => {
+    localStorage.setItem(
+      sessionStateKey,
+      JSON.stringify({ selectedFeedUri: "following" }),
+    );
+    const dataLayer = createAuthedDataLayer();
+    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
+  });
+
+  it("migrates a selection stored under the legacy key", () => {
+    localStorage.setItem(legacyKey, JSON.stringify("following"));
+    const dataLayer = createAuthedDataLayer();
+    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
+    assert.deepEqual(localStorage.getItem(legacyKey), null);
+  });
+
+  it("prefers the session-state key over the legacy key", () => {
+    localStorage.setItem(
+      sessionStateKey,
+      JSON.stringify({ selectedFeedUri: "following" }),
+    );
+    localStorage.setItem(legacyKey, JSON.stringify("stale"));
+    const dataLayer = createAuthedDataLayer();
+    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
+  });
+
+  it("persists selection changes", async () => {
+    const dataLayer = createAuthedDataLayer();
+    dataLayer.mutations.setSelectedFeedUri("following");
+    await flushEffects();
+    assert.deepEqual(JSON.parse(localStorage.getItem(sessionStateKey)), {
+      selectedFeedUri: "following",
+    });
+  });
+
+  it("persists a fallback applied by setPinnedItems", async () => {
+    const dataLayer = createAuthedDataLayer();
+    dataLayer.mutations.setSelectedFeedUri(
+      "at://did:test/app.bsky.feed.generator/gone",
+    );
+    dataLayer.dataStore.setPinnedItems([
+      { type: "timeline", data: { uri: "following" } },
+    ]);
+    await flushEffects();
+    assert.deepEqual(JSON.parse(localStorage.getItem(sessionStateKey)), {
+      selectedFeedUri: "following",
+    });
+  });
+
+  it("neither restores nor persists without a session", async () => {
+    localStorage.setItem(legacyKey, JSON.stringify("following"));
+    const dataLayer = createDataLayer(createMockApi());
+    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), null);
+    dataLayer.mutations.setSelectedFeedUri("following");
+    await flushEffects();
+    assert.deepEqual(localStorage.getItem(sessionStateKey), null);
   });
 });
