@@ -137,6 +137,9 @@ export class MockServer {
     this.lists.forEach((list) => add(list.creator));
     this.starterPacks.forEach((starterPack) => add(starterPack.creator));
     this.profiles.forEach((profile) => add(profile));
+    // The logged-in user always resolves, even when no mock data mentions
+    // them, mirroring the getProfile fallback.
+    add(userProfile);
     return identities;
   }
 
