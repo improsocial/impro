@@ -396,7 +396,7 @@ video {
     border-right: var(--hair) solid var(--post-border-color);
     border-left: var(--hair) solid var(--post-border-color);
     min-width: 600px;
-    max-width: 700px;
+    max-width: 600px;
   }
 
   .view-column-right {
