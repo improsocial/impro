@@ -72,6 +72,10 @@ export class SystemNotificationService {
     return this.isSupported ? Notification.permission : "unsupported";
   }
 
+  get isTabActive() {
+    return document.visibilityState === "visible" && document.hasFocus();
+  }
+
   async requestPermission() {
     if (!this.isSupported) return "unsupported";
     const result = await Notification.requestPermission();
@@ -90,7 +94,7 @@ export class SystemNotificationService {
       !this.isSupported ||
       !this.isEnabled ||
       Notification.permission !== "granted" ||
-      this.notificationService.isSnoozed
+      this.isTabActive
     ) {
       return;
     }

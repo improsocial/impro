@@ -3,13 +3,9 @@ import assert from "node:assert/strict";
 import { Signal } from "/js/signals.js";
 import { SystemNotificationService } from "/js/systemNotificationService.js";
 
-function createMockNotificationService({
-  numNotifications = 0,
-  isSnoozed = false,
-} = {}) {
+function createMockNotificationService({ numNotifications = 0 } = {}) {
   return {
     $numNotifications: new Signal.State(numNotifications),
-    isSnoozed,
   };
 }
 
@@ -36,6 +32,15 @@ describe("SystemNotificationService", () => {
   let disposers;
   let navigations;
   let router;
+  let originalHasFocus;
+
+  function simulateTabState({ visible, focused }) {
+    Object.defineProperty(document, "visibilityState", {
+      value: visible ? "visible" : "hidden",
+      configurable: true,
+    });
+    document.hasFocus = () => focused;
+  }
 
   function simulateTouchOnlyDevice() {
     window.matchMedia = (query) => ({
@@ -63,6 +68,8 @@ describe("SystemNotificationService", () => {
     router = { go: (path) => navigations.push(path) };
     originalNotification = globalThis.Notification;
     originalMatchMedia = window.matchMedia;
+    originalHasFocus = document.hasFocus;
+    simulateTabState({ visible: true, focused: false });
     globalThis.Notification = class {
       static permission = "granted";
       static async requestPermission() {
@@ -84,6 +91,8 @@ describe("SystemNotificationService", () => {
     }
     globalThis.Notification = originalNotification;
     window.matchMedia = originalMatchMedia;
+    document.hasFocus = originalHasFocus;
+    delete document.visibilityState;
     localStorage.clear();
   });
 
@@ -237,18 +246,43 @@ describe("SystemNotificationService", () => {
       assert.deepEqual(instances.length, 0);
     });
 
-    it("does not notify when snoozed", async () => {
-      const notificationService = createMockNotificationService({
-        isSnoozed: true,
-      });
+    it("does not notify while the tab is visible and focused", async () => {
+      const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
       enable();
+      simulateTabState({ visible: true, focused: true });
       startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
       await flushEffects();
 
       assert.deepEqual(instances.length, 0);
+    });
+
+    it("notifies when the window is focused but not visible", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      simulateTabState({ visible: false, focused: true });
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 1);
+    });
+
+    it("notifies when the tab is visible but unfocused", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      simulateTabState({ visible: true, focused: false });
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 1);
     });
   });
 

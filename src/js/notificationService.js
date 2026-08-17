@@ -13,28 +13,13 @@ export class NotificationService {
     this._lastVerifiedTopUri = null;
   }
 
-  snooze(timeoutMinutes = 120) {
-    const snoozedUntil = new Date(Date.now() + timeoutMinutes * 60 * 1000);
-    localStorage.setItem(
-      "notifications-snoozed-until",
-      snoozedUntil.toISOString(),
-    );
-  }
-
-  get isSnoozed() {
-    const snoozedUntil = localStorage.getItem("notifications-snoozed-until");
-    return snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
-  }
-
   startPolling() {
     const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
     let stopped = false;
     const poll = async () => {
       while (!stopped) {
         try {
-          if (!this.isSnoozed) {
-            await this.fetchNumNotifications();
-          }
+          await this.fetchNumNotifications();
         } catch (error) {
           console.error(error);
         }

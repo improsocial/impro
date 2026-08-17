@@ -10,12 +10,24 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
-      await self.registration.showNotification(title || "Impro", {
-        body,
-        tag,
-        icon: "/img/impro-logo-192.png",
-        data: { url: url || "/" },
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
       });
+      const focused = clients.filter((client) => client.focused);
+      // If a client is focused, skip showing the notification
+      if (focused.length > 0) {
+        for (const client of focused) {
+          client.postMessage({ type: "push-received" });
+        }
+      } else {
+        await self.registration.showNotification(title || "Impro", {
+          body,
+          tag,
+          icon: "/img/impro-logo-192.png",
+          data: { url: url || "/" },
+        });
+      }
       if (typeof badge === "number" && "setAppBadge" in self.navigator) {
         try {
           await self.navigator.setAppBadge(badge);

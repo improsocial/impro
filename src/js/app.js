@@ -140,6 +140,18 @@ export async function main() {
   const pushNotificationService = session
     ? new PushNotificationService(api, auth)
     : null;
+
+  // The service worker skips the notification when a focused window exists and
+  // sends a message instead, so refresh the counts immediately.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "push-received") {
+        notificationService?.fetchNumNotifications().catch(console.error);
+        chatNotificationService?.fetchNumNotifications().catch(console.error);
+      }
+    });
+  }
+
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
         draftsEnabled: await checkDraftsEnabled(auth),
