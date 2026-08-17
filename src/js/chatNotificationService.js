@@ -1,4 +1,4 @@
-import { wait } from "/js/utils.js";
+import { Poller } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
@@ -10,24 +10,22 @@ export class ChatNotificationService {
     this.$numUnreadRequestConvos = new Signal.State(0);
     this._optimisticallyReadIds = new Set();
     this._lastServerTotal = 0;
+    this.poller = new Poller(
+      () => this.fetchNumNotifications(),
+      POLLING_INTERVAL_SECONDS * 1000,
+    );
   }
 
   startPolling() {
-    const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    let stopped = false;
-    const poll = async () => {
-      while (!stopped) {
-        try {
-          await this.fetchNumNotifications();
-        } catch (error) {
-          console.error(error);
-        }
-        await wait(pollingInterval);
-      }
+    this.poller.start();
+    // Restart the poller on page visible to fetch notifications immediately
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") this.poller.restart();
     };
-    poll();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      stopped = true;
+      this.poller.stop();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }
 

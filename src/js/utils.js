@@ -490,8 +490,72 @@ export function formatNumNotifications(numNotifications) {
   return numNotifications;
 }
 
-export function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Abortable wait
+export function wait(ms, { signal } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const handleAbort = () => {
+      clearTimeout(timeout);
+      reject(signal.reason);
+    };
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+export class Poller {
+  constructor(fn, intervalMs) {
+    this.fn = fn;
+    this.intervalMs = intervalMs;
+    this._controller = null;
+    this._pendingCall = null;
+  }
+
+  get isRunning() {
+    return this._controller !== null;
+  }
+
+  start() {
+    if (this._controller) return;
+    this._controller = new AbortController();
+    this._loop(this._controller.signal);
+  }
+
+  stop() {
+    this._controller?.abort();
+    this._controller = null;
+  }
+
+  restart() {
+    this.stop();
+    this.start();
+  }
+
+  async _loop(signal) {
+    while (true) {
+      // Restarting starts a second loop; reuse the pending call if possible
+      this._pendingCall ??= this._call().finally(() => {
+        this._pendingCall = null;
+      });
+      await this._pendingCall;
+      try {
+        await wait(this.intervalMs, { signal });
+      } catch {
+        return; // stopped via signal
+      }
+    }
+  }
+
+  async _call() {
+    try {
+      await this.fn();
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
 
 export function raf() {

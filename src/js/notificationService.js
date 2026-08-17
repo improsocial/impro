@@ -1,4 +1,4 @@
-import { wait } from "/js/utils.js";
+import { Poller, wait } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
@@ -11,26 +11,25 @@ export class NotificationService {
     this.$numNotifications = new Signal.State(0);
     this.$numNotifications.__debugName = "$numNotifications";
     this._lastVerifiedTopUri = null;
+    this.poller = new Poller(
+      () => this.fetchNumNotifications(),
+      POLLING_INTERVAL_SECONDS * 1000,
+    );
   }
 
   startPolling() {
-    const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    let stopped = false;
-    const poll = async () => {
-      while (!stopped) {
-        try {
-          await this.fetchNumNotifications();
-        } catch (error) {
-          console.error(error);
-        }
-        await wait(pollingInterval);
-      }
+    this.poller.start();
+    // Restart the poller on page visible to fetch notifications immediately
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") this.poller.restart();
     };
-    poll();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      stopped = true;
+      this.poller.stop();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }
+
   async fetchNumNotifications() {
     const numNotifications = await this.api.getNumNotifications();
     const currentCount = this.$numNotifications.get();

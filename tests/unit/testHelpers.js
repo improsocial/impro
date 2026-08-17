@@ -153,6 +153,25 @@ export function restoreWindow() {
   globalThis.window = originalWindow;
 }
 
+// Lets pending promise chains settle without advancing fake timers.
+export async function flushMicrotasks(turns = 5) {
+  for (let turn = 0; turn < turns; turn++) {
+    await Promise.resolve();
+  }
+}
+
+export function setDocumentVisibility(state) {
+  Object.defineProperty(document, "visibilityState", {
+    value: state,
+    configurable: true,
+  });
+  document.dispatchEvent(new window.Event("visibilitychange"));
+}
+
+export function restoreDocumentVisibility() {
+  delete document.visibilityState;
+}
+
 export async function waitFor(predicate, { timeout = 2000 } = {}) {
   const deadline = Number(process.hrtime.bigint() / 1_000_000n) + timeout;
   while (!predicate()) {

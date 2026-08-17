@@ -33,8 +33,9 @@ import {
   isPromise,
   throttleByKey,
   WindowedCounter,
+  Poller,
 } from "/js/utils.js";
-import { installFakeIndexedDB } from "../testHelpers.js";
+import { flushMicrotasks, installFakeIndexedDB } from "../testHelpers.js";
 
 describe("sortBy", () => {
   it("sorts by a key string ascending", () => {
@@ -1853,5 +1854,219 @@ describe("WindowedCounter", () => {
     counter.record("a", "x");
     counter.clear();
     assert.deepEqual(counter.record("a", "x"), null);
+  });
+});
+
+describe("wait", () => {
+  // Fake timers so an unresolved wait is distinguishable from a slow one.
+  beforeEach(() => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+  });
+  afterEach(() => {
+    mock.timers.reset();
+  });
+
+  // Records how a promise settles without awaiting it, so a wait that is still
+  // pending can be told apart from one that has finished.
+  function track(promise) {
+    const state = { settled: null };
+    promise.then(
+      () => (state.settled = "resolved"),
+      () => (state.settled = "rejected"),
+    );
+    return state;
+  }
+
+  it("resolves once the delay elapses", async () => {
+    const state = track(wait(1000));
+    await flushMicrotasks();
+    assert.deepEqual(state.settled, null);
+
+    mock.timers.tick(1000);
+    await flushMicrotasks();
+    assert.deepEqual(state.settled, "resolved");
+  });
+
+  it("rejects when the signal aborts", async () => {
+    const controller = new AbortController();
+    const state = track(wait(1000, { signal: controller.signal }));
+    await flushMicrotasks();
+    assert.deepEqual(state.settled, null);
+
+    controller.abort();
+    await flushMicrotasks();
+    assert.deepEqual(state.settled, "rejected");
+  });
+
+  it("rejects immediately for an already aborted signal", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const state = track(wait(1000, { signal: controller.signal }));
+    await flushMicrotasks();
+    assert.deepEqual(state.settled, "rejected");
+  });
+
+  it("rejects with the abort reason", async () => {
+    const controller = new AbortController();
+    const promise = wait(1000, { signal: controller.signal });
+    controller.abort(new Error("poller stopped"));
+
+    await assert.rejects(promise, { message: "poller stopped" });
+  });
+
+  it("drops its abort listener once the delay elapses", async () => {
+    const controller = new AbortController();
+    let listeners = 0;
+    controller.signal.addEventListener = () => listeners++;
+    controller.signal.removeEventListener = () => listeners--;
+
+    const promise = wait(1000, { signal: controller.signal });
+    assert.deepEqual(listeners, 1);
+
+    mock.timers.tick(1000);
+    await promise;
+
+    assert.deepEqual(listeners, 0);
+  });
+});
+
+describe("Poller", () => {
+  const INTERVAL_MS = 10_000;
+
+  // Fake timers so the interval only elapses when ticked.
+  beforeEach(() => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+  });
+  afterEach(() => {
+    mock.timers.reset();
+  });
+
+  function makeCountingFn() {
+    const counter = { calls: 0 };
+    counter.fn = async () => {
+      counter.calls++;
+    };
+    return counter;
+  }
+
+  async function elapseInterval() {
+    await flushMicrotasks();
+    mock.timers.tick(INTERVAL_MS);
+    await flushMicrotasks();
+  }
+
+  it("calls fn immediately and once per interval", async (t) => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    assert.deepEqual(counter.calls, 1);
+
+    await elapseInterval();
+    assert.deepEqual(counter.calls, 2);
+
+    await elapseInterval();
+    assert.deepEqual(counter.calls, 3);
+  });
+
+  it("does not call fn until started", () => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+
+    assert.deepEqual(loop.isRunning, false);
+    assert.deepEqual(counter.calls, 0);
+  });
+
+  it("ignores start while already running", (t) => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    loop.start();
+    assert.deepEqual(counter.calls, 1);
+  });
+
+  it("calls fn immediately on restart", async (t) => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    await flushMicrotasks();
+    loop.restart();
+    assert.deepEqual(counter.calls, 2);
+  });
+
+  it("joins the pending call when restarted mid-call", async (t) => {
+    let calls = 0;
+    let finishCall;
+    const loop = new Poller(() => {
+      calls++;
+      return new Promise((resolve) => {
+        finishCall = resolve;
+      });
+    }, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    assert.deepEqual(calls, 1);
+
+    loop.restart();
+    assert.deepEqual(calls, 1);
+
+    finishCall();
+    await flushMicrotasks();
+    assert.deepEqual(calls, 1);
+
+    await elapseInterval();
+    assert.deepEqual(calls, 2);
+  });
+
+  it("does not leave the replaced loop running after a restart", async (t) => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    await flushMicrotasks();
+    loop.restart();
+    assert.deepEqual(counter.calls, 2);
+
+    // One interval should produce one call, not one per replaced loop.
+    await elapseInterval();
+    assert.deepEqual(counter.calls, 3);
+  });
+
+  it("stops polling on stop", async () => {
+    const counter = makeCountingFn();
+    const loop = new Poller(counter.fn, INTERVAL_MS);
+
+    loop.start();
+    assert.deepEqual(loop.isRunning, true);
+
+    loop.stop();
+    assert.deepEqual(loop.isRunning, false);
+
+    await elapseInterval();
+    assert.deepEqual(counter.calls, 1);
+  });
+
+  it("keeps polling after fn throws", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const counter = makeCountingFn();
+    const loop = new Poller(async () => {
+      await counter.fn();
+      throw new Error("network blip");
+    }, INTERVAL_MS);
+    t.after(() => loop.stop());
+
+    loop.start();
+    assert.deepEqual(counter.calls, 1);
+
+    await elapseInterval();
+    assert.deepEqual(counter.calls, 2);
   });
 });
