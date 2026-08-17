@@ -40,6 +40,21 @@ body,
   }
 }
 
+:is(
+  textarea,
+  input:not([type]),
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"]
+):focus {
+  outline: 1px solid var(--highlight-color);
+  outline-offset: -1px;
+}
+
 html {
   /* colors */
   --white: #ffffff;
@@ -7799,10 +7814,6 @@ context-menu-item-group > context-menu-item > button {
   transition: border-color 0.2s;
 }
 
-.image-alt-text-dialog-textarea:focus {
-  border-color: var(--highlight-color);
-}
-
 .image-alt-text-dialog-footer .word-count-text {
   min-width: 32px;
   text-align: right;
@@ -9543,10 +9554,6 @@ moderation-warning .toggle-content {
   transition: border-color 0.2s;
 }
 
-.report-details-input:focus {
-  border-color: var(--highlight-color);
-}
-
 .report-details-counter {
   font-size: 12px;
   color: var(--text-color-secondary);
@@ -10357,12 +10364,6 @@ tab-bar[full-width] .tab-bar-button {
   resize: vertical;
 }
 
-.form-dialog-input:focus,
-.form-dialog-textarea:focus {
-  outline: 2px solid var(--highlight-color);
-  outline-offset: -1px;
-}
-
 .form-dialog-char-count {
   font-size: 12px;
   color: var(--text-color-muted);
@@ -11076,24 +11077,6 @@ h2.setting-item-name {
   border: var(--hair) solid var(--post-border-color);
   background: var(--text-input-background-color);
   color: var(--text-color);
-}
-
-.setting-item-text-input:focus,
-.setting-item-textarea:focus,
-.plugin-content textarea:focus,
-.plugin-content
-  :is(
-    input:not([type]),
-    input[type="text"],
-    input[type="search"],
-    input[type="email"],
-    input[type="url"],
-    input[type="tel"],
-    input[type="password"],
-    input[type="number"]
-  ):focus {
-  outline: 2px solid var(--highlight-color);
-  outline-offset: -1px;
 }
 
 .setting-item-textarea,
