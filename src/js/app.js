@@ -39,6 +39,7 @@ import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { IdentityResolver } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import { installIOSFixedLayerResync } from "/js/iosFixedLayerResync.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { Api } from "/js/api.js";
 import { createAuth } from "/js/auth.js";
@@ -269,6 +270,7 @@ export async function main() {
   };
 
   scrollLocks.setContainerProvider(() => router.currentPage);
+  installIOSFixedLayerResync();
 
   if (notificationService) {
     effect(() => {
