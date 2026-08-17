@@ -352,6 +352,10 @@ video {
   margin: 0 auto;
 }
 
+.view-column-right {
+  display: none;
+}
+
 @media (min-width: 800px) {
   .view-columns {
     display: flex;
@@ -380,9 +384,138 @@ video {
   }
 
   .view-column-right {
+    display: block;
     flex: 1 1 var(--sidebar-max-width);
     min-width: 0;
     max-width: var(--sidebar-max-width);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    max-height: 100dvh;
+    overflow-y: auto;
+  }
+}
+
+trending-pane {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  trending-pane {
+    display: block;
+  }
+}
+
+.trending-pane {
+  display: block;
+  margin: 16px;
+  padding: 16px;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: 12px;
+}
+
+.trending-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+
+.trending-pane-header .icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.trending-pane-title {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.trending-hide-button {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  color: var(--text-color-muted);
+}
+
+.trending-hide-button svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.trending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error-state.trending-error {
+  padding-top: 0.5em;
+  font-size: 14px;
+}
+
+.trending-error button {
+  margin-top: 12px;
+}
+
+.trending-row {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.trending-row-skeleton {
+  cursor: default;
+}
+
+.trending-rank {
+  min-width: 16px;
+  color: var(--text-color-muted);
+}
+
+.trending-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-color-muted);
+  overflow-wrap: anywhere;
+}
+
+.trending-skeleton-bar {
+  display: inline-block;
+  width: 70%;
+  height: 12px;
+  vertical-align: middle;
+  border-radius: var(--skeleton-border-radius);
+}
+
+.trending-row-skeleton:nth-child(even) .trending-skeleton-bar {
+  width: 55%;
+}
+
+@media (hover: hover) {
+  .trending-row:not(.trending-row-skeleton):hover .trending-label {
+    color: var(--text-color);
+    text-decoration: underline;
+  }
+
+  .trending-hide-button:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--text-color-muted) 15%,
+      transparent
+    );
   }
 }
 

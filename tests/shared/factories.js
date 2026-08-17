@@ -223,6 +223,26 @@ export function createFeedGenerator({
   };
 }
 
+export function createTrend({
+  topic,
+  displayName,
+  link,
+  postCount = 100,
+  status,
+  category,
+}) {
+  return {
+    topic,
+    displayName: displayName ?? topic,
+    link: link ?? `/search?q=${encodeURIComponent(topic)}`,
+    startedAt: "2025-01-01T00:00:00.000Z",
+    postCount,
+    status,
+    category,
+    actors: [],
+  };
+}
+
 export function createList({
   uri,
   name,

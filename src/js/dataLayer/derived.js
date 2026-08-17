@@ -336,6 +336,7 @@ export class Derived extends ReactiveStore {
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
     );
+    this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
     this.$postSearchResultsTop = new Signal.Computed(() =>
       this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
     );

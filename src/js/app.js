@@ -294,7 +294,10 @@ export async function main() {
     scrollRestore: "manual",
   });
   router.addRoute("/messages", () => chatView, {
-    layoutOptions: { activeNavItem: "chat", isNavItemPage: true },
+    layoutOptions: {
+      activeNavItem: "chat",
+      isNavItemPage: true,
+    },
   });
   router.addRoute("/feeds", () => feedsView, {
     layoutOptions: { activeNavItem: "feeds", isNavItemPage: true },

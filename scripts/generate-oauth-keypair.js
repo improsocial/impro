@@ -15,8 +15,8 @@ const privateJwk = {
   ...commonFields,
 };
 
-console.log("OAUTH_PUBLIC_JWK (build variable):");
-console.log(JSON.stringify(publicJwk));
-console.log("");
-console.log("OAUTH_PRIVATE_JWK (secret — do not commit):");
-console.log(JSON.stringify(privateJwk));
+console.info("OAUTH_PUBLIC_JWK (build variable):");
+console.info(JSON.stringify(publicJwk));
+console.info("");
+console.info("OAUTH_PRIVATE_JWK (secret — do not commit):");
+console.info(JSON.stringify(privateJwk));

@@ -286,6 +286,9 @@ test.describe("Profile known followers view", () => {
     test("should redirect to /login when not authenticated", async ({
       page,
     }) => {
+      const loggedOutMockServer = new MockServer();
+      await loggedOutMockServer.setup(page);
+
       await page.goto("/profile/someone.bsky.social/known-followers");
 
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });

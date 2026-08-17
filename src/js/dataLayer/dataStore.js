@@ -25,6 +25,7 @@ export class DataStore extends ReactiveStore {
     this.$latestChatRecipientSearchRequestTime = new Signal.State(null);
     this.$latestSearchTypeaheadRequestTime = new Signal.State(null);
     this.$latestFeedSearchRequestTime = new Signal.State(null);
+    this.$trends = new Signal.State(null);
     this.$postSearchResultsTop = new Signal.State(null);
     this.$postSearchResultsLatest = new Signal.State(null);
     this.$latestPostSearchRequestTimeTop = new Signal.State(null);

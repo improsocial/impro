@@ -51,6 +51,7 @@ function pluginPreviewBannerTemplate({ plugins }) {
 }
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
+import "/js/components/trending-pane.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -66,6 +67,7 @@ export function mainLayoutTemplate({
   previewingPlugins = [],
   onLongPressProfile = null,
   groupChatLinkService,
+  dataLayer,
 }) {
   return html`
     <div
@@ -94,7 +96,9 @@ export function mainLayoutTemplate({
         <div class="view-column-center" data-testid="view-column-center">
           ${children}
         </div>
-        <div class="view-column-right"></div>
+        <div class="view-column-right">
+          <trending-pane .dataLayer=${dataLayer}></trending-pane>
+        </div>
       </div>
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
       ${footerTemplate({
@@ -194,6 +198,7 @@ export class MainLayout extends Layout {
           previewingPlugins,
           onLongPressProfile,
           groupChatLinkService,
+          dataLayer,
         }),
         container,
       );

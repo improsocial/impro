@@ -7,6 +7,8 @@ import {
   getDefaultLikeColor,
   getDefaultColorScheme,
 } from "/js/theme.js";
+import { displayPreferences } from "/js/displayPreferences.js";
+import "/js/components/toggle-switch.js";
 
 export default async function settingsAppearanceView({
   root,
@@ -28,6 +30,10 @@ export default async function settingsAppearanceView({
     theme.updateColorScheme(newColorScheme);
   }
 
+  function handleTrendingChange(shown) {
+    displayPreferences.$trendingHidden.set(!shown);
+  }
+
   bindPageTitle(root, () => "Appearance");
 
   pageEffect(root, () => {
@@ -36,6 +42,7 @@ export default async function settingsAppearanceView({
     const currentLikeColor = theme.$likeColor.get();
     const defaultLikeColor = getDefaultLikeColor();
     const currentColorScheme = theme.$colorScheme.get();
+    const trendingHidden = displayPreferences.$trendingHidden.get();
     render(
       html`<div id="settings-appearance-view">
         ${headerTemplate({
@@ -132,6 +139,22 @@ export default async function settingsAppearanceView({
               >
                 Reset
               </button>
+            </div>
+          </section>
+          <section class="setting-item" data-testid="settings-section-trending">
+            <div class="setting-item-info">
+              <h2 class="setting-item-name">Show trending topics</h2>
+              <p class="setting-item-desc">
+                Show trending topics in the sidebar.
+              </p>
+            </div>
+            <div class="setting-item-control">
+              <toggle-switch
+                data-testid="trending-toggle"
+                label="Show trending topics"
+                ?checked=${!trendingHidden}
+                @change=${(event) => handleTrendingChange(event.detail.checked)}
+              ></toggle-switch>
             </div>
           </section>
         </main>

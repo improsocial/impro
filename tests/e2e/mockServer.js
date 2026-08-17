@@ -74,6 +74,7 @@ export class MockServer {
     this.actorFeeds = new Map();
     this.actorLists = new Map();
     this.searchFeedGenerators = [];
+    this.trends = [];
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
@@ -281,6 +282,10 @@ export class MockServer {
 
   addSearchFeedGenerators(feedGenerators) {
     this.searchFeedGenerators.push(...feedGenerators);
+  }
+
+  addTrends(trends) {
+    this.trends.push(...trends);
   }
 
   addTypeaheadProfiles(profiles) {
@@ -1775,6 +1780,19 @@ export class MockServer {
         });
       },
     );
+
+    // The trending pane renders on nearly every desktop page, so this must be
+    // registered unconditionally or unrelated specs fail on an unmocked request.
+    await page.route("**/xrpc/app.bsky.unspecced.getTrends*", (route) => {
+      const url = new URL(route.request().url());
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const trends = limit ? this.trends.slice(0, limit) : this.trends;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ trends }),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.feed.getActorFeeds*", (route) => {
       const url = new URL(route.request().url());

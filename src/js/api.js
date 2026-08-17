@@ -487,6 +487,16 @@ export class Api {
     return res.data;
   }
 
+  async getTrends({ limit = 5 } = {}) {
+    const res = await this.request(`app.bsky.unspecced.getTrends`, {
+      query: { limit },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getFollowingFeed({ limit = 31, cursor = "", labelers = [] } = {}) {
     const res = await this.request(`app.bsky.feed.getTimeline`, {
       query: { limit, cursor },

@@ -30,9 +30,14 @@ describe("MainLayout", () => {
     const $numChatNotifications = new Signal.State(0);
     const sidebarItems = new SignalSet();
     const composePost = mock.fn();
+    const $trends = new Signal.State(null);
+    const loadTrends = mock.fn(async () => {});
     const context = {
       isAuthenticated: true,
-      dataLayer: { derived: { $currentUser } },
+      dataLayer: {
+        derived: { $currentUser, $trends },
+        requests: { loadTrends },
+      },
       notificationService: { $numNotifications },
       chatNotificationService: { $numNotifications: $numChatNotifications },
       postComposerService: { composePost },
@@ -57,6 +62,8 @@ describe("MainLayout", () => {
       $numNotifications,
       sidebarItems,
       composePost,
+      $trends,
+      loadTrends,
     };
   }
 
@@ -99,6 +106,23 @@ describe("MainLayout", () => {
 
     assert(appRoot.querySelectorAll("[data-testid='status-badge']").length > 0);
     assert(layout.slot.children[0] === cachedPage);
+  });
+
+  it("mounts the trending pane in the right column on every route", async () => {
+    setRoute({ layoutOptions: { activeNavItem: "home" } });
+    await flushRender();
+
+    const rightColumn = harness.appRoot.querySelector(".view-column-right");
+    assert(rightColumn.querySelector("trending-pane") !== null);
+
+    setRoute({ layoutOptions: { activeNavItem: "chat" } });
+    await flushRender();
+
+    assert(
+      harness.appRoot
+        .querySelector(".view-column-right")
+        .querySelector("trending-pane") !== null,
+    );
   });
 
   it("derives the active nav item from the current route options", async () => {

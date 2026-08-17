@@ -215,6 +215,7 @@ export class Requests {
       this.loadFeedSearch,
       (query) => "loadFeedSearch-" + query,
     );
+    this.enableStatus(this.loadTrends, "loadTrends");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
       this.loadMentionNotifications,
@@ -1227,6 +1228,11 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadTrends({ limit = 5 } = {}) {
+    const data = await this.api.getTrends({ limit });
+    this.dataStore.$trends.set(unique(data.trends ?? [], { by: "link" }));
   }
 
   async loadPinnedItems() {

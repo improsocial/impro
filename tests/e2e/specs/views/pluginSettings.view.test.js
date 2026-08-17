@@ -456,6 +456,9 @@ test.describe("Plugin settings view", () => {
 
   test.describe("Logged-out behavior", () => {
     test("redirects to /login when not authenticated", async ({ page }) => {
+      const loggedOutMockServer = new MockServer();
+      await loggedOutMockServer.setup(page);
+
       await page.goto(`/plugin/${PLUGIN_ID}/settings`);
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
