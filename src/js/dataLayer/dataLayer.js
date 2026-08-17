@@ -21,7 +21,9 @@ export class DataLayer extends EventEmitter {
     this.identityResolver = identityResolver;
     this.draftMediaStore = draftMediaStore;
     this.isAuthenticated = api.isAuthenticated;
-    this.sessionState = createSessionState(api.session ?? null);
+    this.sessionState = createSessionState(
+      api.isAuthenticated ? api.session : null,
+    );
     this.dataStore = new DataStore(this.sessionState);
     this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
