@@ -1,6 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
-import { auth } from "/js/auth.js";
 import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
@@ -52,6 +51,9 @@ function pluginPreviewBannerTemplate({ plugins }) {
 }
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
+import "/js/components/trending-pane.js";
+import "/js/components/sidebar-search.js";
+import "/js/components/pinned-feeds-pane.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -63,10 +65,12 @@ export function mainLayoutTemplate({
   onClickActiveNavItem,
   children,
   onClickComposeButton,
+  onClickNewChatButton,
   pluginService,
   previewingPlugins = [],
   onLongPressProfile = null,
   groupChatLinkService,
+  dataLayer,
 }) {
   return html`
     <div
@@ -88,6 +92,7 @@ export function mainLayoutTemplate({
             numChatNotifications,
             onClickActiveItem: onClickActiveNavItem,
             onClickComposeButton,
+            onClickNewChatButton,
             pluginSidebarItems: pluginService.getSidebarItems(),
             onLongPressProfile,
           })}
@@ -95,7 +100,22 @@ export function mainLayoutTemplate({
         <div class="view-column-center" data-testid="view-column-center">
           ${children}
         </div>
-        <div class="view-column-right"></div>
+        <div class="view-column-right">
+          ${activeNavItem === "search"
+            ? ""
+            : html`<sidebar-search
+                .dataLayer=${dataLayer}
+                .isAuthenticated=${isAuthenticated}
+              ></sidebar-search>`}
+          ${isAuthenticated
+            ? html`<pinned-feeds-pane
+                .dataLayer=${dataLayer}
+                ?show-selected=${activeNavItem === "home"}
+                ?more-feeds-active=${activeNavItem === "feeds"}
+              ></pinned-feeds-pane>`
+            : ""}
+          <trending-pane .dataLayer=${dataLayer}></trending-pane>
+        </div>
       </div>
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
       ${footerTemplate({
@@ -135,10 +155,12 @@ export class MainLayout extends Layout {
       notificationService,
       chatNotificationService,
       postComposerService,
+      newChatService,
       accountSwitcherService,
       pluginService,
       groupChatLinkService,
       profileHoverCardService,
+      auth,
     } = this.context;
     const { router, slot } = this;
 
@@ -190,10 +212,12 @@ export class MainLayout extends Layout {
           children: slot,
           onClickComposeButton: () =>
             postComposerService.composePost({ currentUser }),
+          onClickNewChatButton: () => newChatService.openNewChatDialog(),
           pluginService,
           previewingPlugins,
           onLongPressProfile,
           groupChatLinkService,
+          dataLayer,
         }),
         container,
       );

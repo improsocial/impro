@@ -1,7 +1,6 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
 import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
-import { auth } from "/js/auth.js";
 import { Api } from "/js/api.js";
 
 const STORAGE_KEY = "push-notifications-enabled";
@@ -13,6 +12,9 @@ const NOTIF_SERVICE_ID = "#bsky_notif";
 
 async function resolveNotifServiceEndpoint(did) {
   const doc = await resolveDid(did);
+  if (!doc) {
+    throw new Error(`Notification service DID ${did} could not be resolved`);
+  }
   const endpoint = getServiceEndpointFromDidDoc(doc, NOTIF_SERVICE_ID);
   if (!endpoint) {
     throw new Error(
@@ -45,8 +47,9 @@ function matchesVapidKey(subscription, vapidPublicKey) {
 }
 
 export class PushNotificationService {
-  constructor(api) {
+  constructor(api, auth) {
     this.api = api;
+    this.auth = auth;
     this._configPromise = null;
     this.$enabled = new Signal.State(
       localStorage.getItem(STORAGE_KEY) === "true",
@@ -223,8 +226,10 @@ export class PushNotificationService {
   }
 
   async _apiForAccount(did) {
-    const session = await auth.getSession(did);
-    return session ? new Api(session) : null;
+    const session = await this.auth.getSession(did);
+    return session
+      ? new Api(session, { onLogout: (did) => this.auth.logout(did) })
+      : null;
   }
 
   async unregisterAccount(did) {
@@ -246,7 +251,7 @@ export class PushNotificationService {
 
   async _listAccountDids() {
     try {
-      return (await auth.listAccounts()).map((account) => account.did);
+      return (await this.auth.listAccounts()).map((account) => account.did);
     } catch (error) {
       console.warn("Failed to list accounts for push teardown", error);
       return [];

@@ -153,6 +153,25 @@ export function restoreWindow() {
   globalThis.window = originalWindow;
 }
 
+// Lets pending promise chains settle without advancing fake timers.
+export async function flushMicrotasks(turns = 5) {
+  for (let turn = 0; turn < turns; turn++) {
+    await Promise.resolve();
+  }
+}
+
+export function setDocumentVisibility(state) {
+  Object.defineProperty(document, "visibilityState", {
+    value: state,
+    configurable: true,
+  });
+  document.dispatchEvent(new window.Event("visibilitychange"));
+}
+
+export function restoreDocumentVisibility() {
+  delete document.visibilityState;
+}
+
 export async function waitFor(predicate, { timeout = 2000 } = {}) {
   const deadline = Number(process.hrtime.bigint() / 1_000_000n) + timeout;
   while (!predicate()) {
@@ -292,4 +311,45 @@ export function installFakeIndexedDB({ failWrites = false } = {}) {
     },
   };
   return { records, openCalls, createdStores };
+}
+
+// JSDOM has no BroadcastChannel, and node's rejects its own MessageEvent once
+// JSDOM has replaced the global Event. This double keeps the parts callers rely
+// on: async delivery to every same-named channel except the sender.
+export function installFakeBroadcastChannel() {
+  const channelsByName = new Map();
+
+  // window.EventTarget, not node's — node's rejects JSDOM MessageEvents.
+  class FakeBroadcastChannel extends window.EventTarget {
+    constructor(name) {
+      super();
+      this.name = name;
+      this.closed = false;
+      const peers = channelsByName.get(name) ?? new Set();
+      peers.add(this);
+      channelsByName.set(name, peers);
+    }
+
+    postMessage(data) {
+      if (this.closed) return;
+      for (const peer of channelsByName.get(this.name) ?? []) {
+        if (peer === this || peer.closed) continue;
+        setTimeout(() => {
+          if (peer.closed) return;
+          peer.dispatchEvent(new window.MessageEvent("message", { data }));
+        }, 0);
+      }
+    }
+
+    close() {
+      this.closed = true;
+      channelsByName.get(this.name)?.delete(this);
+    }
+  }
+
+  const original = globalThis.BroadcastChannel;
+  globalThis.BroadcastChannel = FakeBroadcastChannel;
+  return () => {
+    globalThis.BroadcastChannel = original;
+  };
 }

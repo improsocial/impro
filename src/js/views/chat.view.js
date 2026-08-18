@@ -6,7 +6,6 @@ import {
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
   getConvoPreviewText,
@@ -22,14 +21,13 @@ import { inboxIconTemplate } from "/js/templates/icons/inboxIcon.template.js";
 import { messagePlusIconTemplate } from "/js/templates/icons/messagePlusIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
-import "/js/components/new-chat-dialog.js";
 import "/js/components/app-icon.js";
 
 export default async function chatView({
   root,
   router,
   layout,
-  context: { dataLayer, chatNotificationService },
+  context: { auth, dataLayer, chatNotificationService, newChatService },
 }) {
   await auth.requireAuth();
 
@@ -38,13 +36,7 @@ export default async function chatView({
   }
 
   function handleNewChatClick() {
-    const dialog = document.createElement("new-chat-dialog");
-    dialog.dataLayer = dataLayer;
-    dialog.addEventListener("dialog-closed", () => {
-      dialog.remove();
-    });
-    document.body.appendChild(dialog);
-    dialog.open();
+    newChatService.openNewChatDialog();
   }
 
   function newChatButtonTemplate() {

@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { classnames } from "/js/utils.js";
 import { choiceModal } from "/js/modals/choice.modal.js";
 import { showToast } from "/js/toasts.js";
@@ -23,25 +22,25 @@ export default async function settingsNotificationsView({
   root,
   router,
   layout,
-  context: { systemNotificationService, pushNotificationService },
+  context: { auth, desktopNotificationService, pushNotificationService },
 }) {
   await auth.requireAuth();
 
   const state = new ReactiveStore("settingsNotificationsView");
   state.$enabled = new Signal.State(
-    systemNotificationService?.isEnabled ?? false,
+    desktopNotificationService?.isEnabled ?? false,
   );
   state.$pushBusy = new Signal.State(false);
 
   async function handleToggle(checked) {
-    if (!systemNotificationService) return;
+    if (!desktopNotificationService) return;
     if (!checked) {
-      systemNotificationService.disable();
+      desktopNotificationService.disable();
       state.$enabled.set(false);
       showToast("Desktop notifications disabled.");
       return;
     }
-    const result = await systemNotificationService.requestPermission();
+    const result = await desktopNotificationService.requestPermission();
     if (result === "granted") {
       state.$enabled.set(true);
       showToast("Desktop notifications enabled.", { style: "success" });
@@ -148,9 +147,9 @@ export default async function settingsNotificationsView({
 
   pageEffect(root, () => {
     const enabled = state.$enabled.get();
-    const isSupported = systemNotificationService?.isSupported ?? false;
+    const isSupported = desktopNotificationService?.isSupported ?? false;
     const permissionState =
-      systemNotificationService?.permissionState ?? "unsupported";
+      desktopNotificationService?.permissionState ?? "unsupported";
     const isDenied = permissionState === "denied";
 
     let description =
@@ -184,7 +183,7 @@ export default async function settingsNotificationsView({
             class=${classnames("setting-item", {
               "setting-item-disabled": systemRowDisabled,
             })}
-            data-testid="settings-section-system-notifications"
+            data-testid="settings-section-desktop-notifications"
           >
             <div class="setting-item-info">
               <h2 class="setting-item-name">Desktop notifications</h2>
@@ -192,7 +191,7 @@ export default async function settingsNotificationsView({
             </div>
             <div class="setting-item-control">
               <toggle-switch
-                data-testid="system-notifications-toggle"
+                data-testid="desktop-notifications-toggle"
                 label="Enable notifications"
                 ?checked=${enabled}
                 ?disabled=${systemRowDisabled}

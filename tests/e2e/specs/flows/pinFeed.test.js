@@ -1,9 +1,66 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator } from "../../../shared/factories.js";
+import { createFeedGenerator, createPost } from "../../../shared/factories.js";
 
 test.describe("Pin feed flow", () => {
+  test("should fall back to Following on home after unpinning the selected feed", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.addFeedItems(feed.uri, [
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/trendingpost",
+        text: "Post from the trending feed",
+        authorHandle: "author1.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+    await login(page);
+
+    // Select the pinned feed on home
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    const tabs = homeView.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await tabs.nth(1).click();
+    await expect(homeView.locator(".tab-bar-button.active")).toContainText(
+      "Trending",
+    );
+
+    // Unpin it from the feeds view (in-app navigation keeps home cached)
+    await page.locator('[data-testid="pinned-feeds-more"]').click();
+    const feedsView = page.locator("#feeds-view");
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+    await feedsView
+      .locator(".feeds-list-item", { hasText: "Trending" })
+      .locator('[data-testid="feeds-list-item-unpin-button"]')
+      .click();
+    await feedsView.locator('[data-testid="feeds-save-button"]').click();
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    // Back on home, the selection falls back to Following
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
+    await expect(homeView.locator(".tab-bar-button")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(homeView.locator(".tab-bar-button.active")).toContainText(
+      "Following",
+    );
+  });
+
   test("should show feed in feeds index after pinning from feed detail", async ({
     page,
   }) => {

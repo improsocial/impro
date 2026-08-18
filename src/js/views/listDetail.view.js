@@ -1,10 +1,9 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
-import { isModerationList } from "/js/dataHelpers.js";
+import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -29,6 +28,7 @@ export default async function listDetailView({
   root,
   params,
   context: {
+    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -232,7 +232,7 @@ export default async function listDetailView({
                 ${list.avatar
                   ? html`<img
                       class="list-detail-avatar"
-                      src=${list.avatar}
+                      src=${cdnImageUrl(list.avatar)}
                       alt=${list.name}
                     />`
                   : html`<img

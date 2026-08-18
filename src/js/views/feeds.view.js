@@ -6,7 +6,6 @@ import {
   onPageHide,
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
@@ -18,13 +17,13 @@ import { linkToList, linkToFeed } from "/js/navigation.js";
 import { Signal, ReactiveStore, SignalSet, SignalArray } from "/js/signals.js";
 import { enableReorder } from "/js/utils.js";
 import { showToast } from "/js/toasts.js";
-import { valueForPinnedItem } from "/js/dataHelpers.js";
+import { cdnImageUrl, valueForPinnedItem } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
 
 export default async function feedsView({
   root,
   layout,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 
@@ -133,7 +132,8 @@ export default async function feedsView({
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${item.data.avatar ?? "/img/list-avatar-fallback.svg"}
+            src=${cdnImageUrl(item.data.avatar) ??
+            "/img/list-avatar-fallback.svg"}
             alt=${item.data.name}
             class="feed-avatar"
           />
@@ -161,7 +161,8 @@ export default async function feedsView({
     >
       <div class="feeds-list-item-avatar">
         <img
-          src=${feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg"}
+          src=${cdnImageUrl(feedGenerator.avatar) ??
+          "/img/feed-avatar-fallback.svg"}
           alt=${feedGenerator.displayName}
           class="feed-avatar"
         />

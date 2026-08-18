@@ -1,6 +1,11 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { waitFor } from "../testHelpers.js";
+import {
+  flushMicrotasks,
+  restoreDocumentVisibility,
+  setDocumentVisibility,
+  waitFor,
+} from "../testHelpers.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
 
 function createMockApi({
@@ -124,6 +129,38 @@ describe("startPolling", () => {
     t.after(stopPolling);
 
     await waitFor(() => service.$numNotifications.get() === 3);
+  });
+});
+
+describe("refresh on becoming visible", () => {
+  // Fake timers so the poll loop's interval never elapses and every fetch
+  // after the first is attributable to the visibility change.
+  beforeEach(() => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+  });
+  afterEach(() => {
+    mock.timers.reset();
+    restoreDocumentVisibility();
+  });
+
+  it("fetches when the document becomes visible", async (t) => {
+    let calls = 0;
+    const api = {
+      getChatUnreadCounts: async () => {
+        calls++;
+        return { unreadAcceptedConvos: 0, unreadRequestConvos: 0 };
+      },
+    };
+    const service = new ChatNotificationService(api);
+    t.after(service.startPolling());
+    await flushMicrotasks();
+    assert.deepEqual(calls, 1);
+
+    setDocumentVisibility("hidden");
+    assert.deepEqual(calls, 1);
+
+    setDocumentVisibility("visible");
+    assert.deepEqual(calls, 2);
   });
 });
 

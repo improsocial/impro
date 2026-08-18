@@ -1,6 +1,11 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { waitFor } from "../testHelpers.js";
+import {
+  flushMicrotasks,
+  restoreDocumentVisibility,
+  setDocumentVisibility,
+  waitFor,
+} from "../testHelpers.js";
 import { NotificationService } from "/js/notificationService.js";
 
 function createMockApi({
@@ -197,6 +202,40 @@ describe("NotificationService", () => {
       t.after(stopPolling);
 
       await waitFor(() => service.$numNotifications.get() === 3);
+    });
+
+    describe("restart on becoming visible", () => {
+      // Fake timers so the poll loop's interval only elapses when ticked.
+      beforeEach(() => {
+        mock.timers.enable({ apis: ["setTimeout"] });
+      });
+      afterEach(() => {
+        mock.timers.reset();
+        restoreDocumentVisibility();
+      });
+
+      function createCountingApi(counter) {
+        const api = createMockApi();
+        api.getNumNotifications = async () => {
+          counter.calls++;
+          return 0;
+        };
+        return api;
+      }
+
+      it("fetches when the document becomes visible", async (t) => {
+        const counter = { calls: 0 };
+        const service = new NotificationService(createCountingApi(counter));
+        t.after(service.startPolling());
+        await flushMicrotasks();
+        assert.deepEqual(counter.calls, 1);
+
+        setDocumentVisibility("hidden");
+        assert.deepEqual(counter.calls, 1);
+
+        setDocumentVisibility("visible");
+        assert.deepEqual(counter.calls, 2);
+      });
     });
   });
 

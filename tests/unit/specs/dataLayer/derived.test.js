@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Derived } from "/js/dataLayer/derived.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { DraftMediaStore, getDraftDeviceId } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
@@ -57,13 +58,13 @@ describe("$hydratedFeeds", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
   it("should return null when feed does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
 
     const rawFeed = {
@@ -88,7 +89,7 @@ describe("$hydratedFeeds", () => {
   });
 
   it("should apply patches to posts in feed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
 
     const rawFeed = {
@@ -114,7 +115,7 @@ describe("$hydratedFeeds", () => {
 
 describe("$hydratedEmbeddedPosts", () => {
   it("hydrates embedded posts without exposing them as full posts", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const post = {
       uri: "at://did:test/app.bsky.feed.post/quoted",
@@ -135,13 +136,13 @@ describe("$hydratedHashtagFeeds", () => {
   const hashtagKey = "javascript-top";
 
   it("should return null when feed does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedHashtagFeeds.get(hashtagKey), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
 
     const rawFeed = {
@@ -163,7 +164,7 @@ describe("$hydratedHashtagFeeds", () => {
   });
 
   it("should attach parentAuthor when post is a reply and parent is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
 
     const parentAuthor = { did: "did:parent", handle: "parent.test" };
@@ -195,7 +196,7 @@ describe("$hydratedHashtagFeeds", () => {
   });
 
   it("should apply patches to posts in feed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
 
     const rawFeed = {
@@ -222,13 +223,13 @@ describe("$hydratedProfiles", () => {
   const did = "did:plc:user";
 
   it("should return null when profile does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedProfiles.get(did), null);
   });
 
   it("should return the profile when it exists", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const profile = { did, handle: "user.test", followersCount: 10 };
     dataStore.$profiles.set(did, profile);
@@ -239,7 +240,7 @@ describe("$hydratedProfiles", () => {
   });
 
   it("should apply profile patches", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     const profile = {
       did,
@@ -269,13 +270,13 @@ describe("$convoProfiles", () => {
   }
 
   it("should return an empty list for an unknown convo", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$convoProfiles.get(convoId), []);
   });
 
   it("should return the members when no other profiles are referenced", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     setupConvo(dataStore);
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
@@ -284,7 +285,7 @@ describe("$convoProfiles", () => {
   });
 
   it("should append hydrated profiles referenced by the last interaction", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     setupConvo(dataStore, {
       lastMessage: { id: "msg1", sender: { did: referencedDid } },
     });
@@ -298,7 +299,7 @@ describe("$convoProfiles", () => {
   });
 
   it("should append hydrated profiles referenced by loaded messages", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     setupConvo(dataStore);
     dataStore.$convoMessages.set(convoId, {
       messages: [
@@ -319,7 +320,7 @@ describe("$convoProfiles", () => {
   });
 
   it("should not duplicate referenced profiles that are also members", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     setupConvo(dataStore, {
       lastMessage: { id: "msg1", sender: { did: memberDid } },
     });
@@ -330,7 +331,7 @@ describe("$convoProfiles", () => {
   });
 
   it("should skip referenced dids whose profiles are not hydrated", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     setupConvo(dataStore, {
       lastMessage: { id: "msg1", sender: { did: referencedDid } },
     });
@@ -346,13 +347,13 @@ describe("$hydratedAuthorFeeds", () => {
   const feedURI = `${did}-posts`;
 
   it("should return null when author feed does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedAuthorFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return an author feed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const post1 = { uri: "post1", likeCount: 1 };
     const post2 = { uri: "post2", likeCount: 2 };
@@ -370,7 +371,7 @@ describe("$hydratedAuthorFeeds", () => {
   });
 
   it("should filter to replies-only for replies feed type", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const repliesFeedURI = `${did}-replies`;
     const post1 = { uri: "post1" };
@@ -394,7 +395,7 @@ describe("$hydratedAuthorFeeds", () => {
   });
 
   it("should pass through tombstone reply roots and parents unchanged", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const repliesFeedURI = `${did}-replies`;
     const notFoundRoot = {
@@ -424,7 +425,7 @@ describe("$hydratedAuthorFeeds", () => {
   });
 
   it("should hydrate postView reply roots and parents from the post store", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const repliesFeedURI = `${did}-replies`;
     const rootPost = { uri: "root", likeCount: 3 };
@@ -448,7 +449,7 @@ describe("$hydratedAuthorFeeds", () => {
   });
 
   it("should apply author feed patches", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     const pinnedPost = { uri: "pinned", likeCount: 0 };
     const otherPost = { uri: "other", likeCount: 0 };
@@ -471,13 +472,13 @@ describe("$actorFeeds", () => {
   const did = "did:plc:author";
 
   it("should return null when actor feeds do not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$actorFeeds.get(did), null);
   });
 
   it("should return the stored actor feeds", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const actorFeeds = { feeds: [{ uri: "feed-1" }], cursor: "c" };
     dataStore.$actorFeeds.set(did, actorFeeds);
@@ -489,13 +490,13 @@ describe("$profileChatStatus", () => {
   const did = "did:plc:user";
 
   it("should return null when chat status does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$profileChatStatus.get(did), null);
   });
 
   it("should return the stored chat status", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const status = { canChat: true, convo: null };
     dataStore.$profileChatStatus.set(did, status);
@@ -507,13 +508,13 @@ describe("$labelerInfo", () => {
   const did = "did:plc:labeler";
 
   it("should return null when labeler info does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$labelerInfo.get(did), null);
   });
 
   it("should return the stored labeler info", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const info = { policies: { labelValues: ["spam"] } };
     dataStore.$labelerInfo.set(did, info);
@@ -523,7 +524,7 @@ describe("$labelerInfo", () => {
 
 describe("$labelerSettings", () => {
   it("should return labeler settings from preferences", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const labelerDid = "did:plc:labeler";
     const result = derived.$labelerSettings.get(labelerDid);
@@ -534,13 +535,13 @@ describe("$labelerSettings", () => {
 
 describe("$hydratedBookmarks", () => {
   it("should return null when bookmarks do not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedBookmarks.get(), null);
   });
 
   it("should hydrate and return bookmarks", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const post1 = { uri: "post1", likeCount: 5 };
     const post2 = { uri: "post2", likeCount: 10 };
@@ -558,7 +559,7 @@ describe("$hydratedBookmarks", () => {
   });
 
   it("should attach parentAuthor when bookmarked post is a reply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const parentAuthor = { did: "did:parent", handle: "parent.test" };
     dataStore.$posts.set("post-parent", {
@@ -586,13 +587,13 @@ describe("$hydratedBookmarks", () => {
 
 describe("$hydratedPinnedItems", () => {
   it("should return null when pinned items are not set", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedPinnedItems.get(), null);
   });
 
   it("should hydrate pinned feed generators from the store", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const fg1 = { uri: "feed-1", displayName: "Feed One" };
     const fg2 = { uri: "feed-2", displayName: "Feed Two" };
@@ -612,7 +613,7 @@ describe("$hydratedPinnedItems", () => {
   });
 
   it("should hydrate list and timeline entries", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const list = { uri: "list-1", name: "My List" };
     dataStore.$pinnedItems.set([
@@ -632,13 +633,13 @@ describe("$hydratedPosts (post hydration)", () => {
   const postURI = "at://did:test/app.bsky.feed.post/x";
 
   it("should return null when the post does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedPosts.get(postURI), null);
   });
 
   it("should mark the post when it contains a muted word", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({ postHasMutedWord: () => true }),
     });
@@ -648,7 +649,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should not mark the post when there is no muted word match", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -658,7 +659,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should mark the post hidden when preferences say so", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({ isPostHidden: () => true }),
     });
@@ -668,7 +669,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should attach badge, content, and media labels from preferences", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForPost: () => ["badge"],
@@ -684,7 +685,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should leave the post untouched when no labels apply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -696,7 +697,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should compose muted/hidden/label marks on a single post", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         postHasMutedWord: () => true,
@@ -712,7 +713,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should synthesize a #blockedPost when the viewer blocks the author", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -737,7 +738,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should not re-synthesize a post that is already a #blockedPost", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -770,7 +771,7 @@ describe("$hydratedPosts (post hydration)", () => {
   }
 
   it("should keep a viewer-blocked quote as blocked when the quoted post is not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -786,7 +787,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should mark a viewer-blocked quote as deleted when the post is confirmed unavailable", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -807,7 +808,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should mark a blocked-by quote as deleted when the post is confirmed unavailable", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -825,7 +826,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should keep a viewer-blocked quote blocked even when the quoted post is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -848,7 +849,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should resolve a third-party-blocked quote when the quoted post is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -869,7 +870,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should keep the quote blocked when the quoted author blocks the viewer", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -889,7 +890,7 @@ describe("$hydratedPosts (post hydration)", () => {
   });
 
   it("should return the post unchanged when there is no blocked quote to resolve", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -907,7 +908,7 @@ describe("$convoForProfile", () => {
   const members = [{ did: "did:plc:me" }, { did: profileDid }];
 
   it("should return the direct convo containing the profile", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convos.set("direct1", {
       id: "direct1",
       members,
@@ -919,7 +920,7 @@ describe("$convoForProfile", () => {
   });
 
   it("should ignore group convos even with two members", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convos.set("group1", {
       id: "group1",
       members,
@@ -942,7 +943,7 @@ describe("$hydratedConvoMessages", () => {
   const convoId = "convo-1";
 
   it("should return null when the convo has no messages", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedConvoMessages.get(convoId), null);
   });
@@ -958,7 +959,7 @@ describe("$hydratedConvoMessages", () => {
   }
 
   it("should pass through raw messages and cursor", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedMessages(
       dataStore,
       [
@@ -976,7 +977,7 @@ describe("$hydratedConvoMessages", () => {
   });
 
   it("should preserve replyTo when present on a message", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const replyTo = {
       $type: "chat.bsky.convo.defs#messageView",
       id: "m1",
@@ -1009,7 +1010,7 @@ describe("$hydratedConvoMessages", () => {
   });
 
   it("should drop reactions from senders the viewer is blocking or blocked by", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedConvoMembers(dataStore, [
       {
         did: "did:plc:blocked",
@@ -1037,7 +1038,7 @@ describe("$hydratedConvoMessages", () => {
   });
 
   it("should keep reactions from senders who are not convo members", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedConvoMembers(dataStore, [{ did: "did:plc:alice", viewer: {} }]);
     seedMessages(dataStore, [
       {
@@ -1053,7 +1054,7 @@ describe("$hydratedConvoMessages", () => {
   });
 
   it("should leave messages without reactions untouched", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedMessages(dataStore, [
       { id: "m1", sender: { did: "did:plc:alice" }, text: "hello" },
     ]);
@@ -1063,7 +1064,7 @@ describe("$hydratedConvoMessages", () => {
   });
 
   it("should not recompute when the convo changes but members stay the same", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const members = [{ did: "did:plc:alice", viewer: {} }];
     dataStore.$convos.set(convoId, { id: convoId, members, unreadCount: 3 });
     seedMessages(dataStore, [
@@ -1115,7 +1116,7 @@ describe("$hydratedDrafts", () => {
 
   // `localMedia` seeds the store's $media: path -> { url } | null
   function hydrateDraftPosts(draftViews, { localMedia = {} } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const draftMediaStore = new DraftMediaStore("test-media");
     draftMediaStore.$media.set(localMedia);
     const { derived } = makeDerived(dataStore, { draftMediaStore });
@@ -1124,7 +1125,7 @@ describe("$hydratedDrafts", () => {
   }
 
   it("is null before loading and carries the view fields and cursor through", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedDrafts.get(), null);
     dataStore.$drafts.set({ drafts: [makeDraftView()], cursor: "next" });
@@ -1281,13 +1282,13 @@ describe("$groupConvoMemberList", () => {
   const convoId = "convo1";
 
   it("should return null when nothing is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$groupConvoMemberList.get(convoId), null);
   });
 
   it("should pass through the stored members and cursor", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoMemberLists.set(convoId, {
       members: [{ did: "did:plc:alice" }, { did: "did:plc:bob" }],
       cursor: "2",
@@ -1323,7 +1324,7 @@ describe("$hydratedPosts (nested quotes and author labels)", () => {
   }
 
   it("should mark a quoted post that contains a muted word", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         quotedPostHasMutedWord: (quotedPost) => quotedPost.uri === quotedUri,
@@ -1336,7 +1337,7 @@ describe("$hydratedPosts (nested quotes and author labels)", () => {
   });
 
   it("should mark a quoted post that is hidden", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         isPostHidden: (uri) => uri === quotedUri,
@@ -1349,7 +1350,7 @@ describe("$hydratedPosts (nested quotes and author labels)", () => {
   });
 
   it("should attach a blur label to the post author", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getProfileBlurLabel: (author) =>
@@ -1366,7 +1367,7 @@ describe("$hydratedPosts (nested quotes and author labels)", () => {
   });
 
   it("should keep a third-party-blocked quote blocked when the quoted post is not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -1406,7 +1407,7 @@ describe("$hydratedPosts (join link previews)", () => {
   }
 
   it("should attach a loaded join link preview to an invite link embed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const preview = {
       $type: "chat.bsky.group.defs#joinLinkPreviewView",
@@ -1421,7 +1422,7 @@ describe("$hydratedPosts (join link previews)", () => {
   });
 
   it("should leave the embed unchanged when no preview is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set(postURI, makeInviteLinkPost());
     const result = derived.$hydratedPosts.get(postURI);
@@ -1433,7 +1434,7 @@ describe("$hydratedFeeds (reason, replies, following feed)", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
   it("should preserve the feed item reason", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const reason = {
       $type: "app.bsky.feed.defs#reasonRepost",
@@ -1449,7 +1450,7 @@ describe("$hydratedFeeds (reason, replies, following feed)", () => {
   });
 
   it("should hydrate reply root and parent post views and pass through other reply nodes", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const rootPost = { uri: "root1", record: { text: "r" }, likeCount: 7 };
     const parentPost = { uri: "parent1", record: { text: "p" }, likeCount: 3 };
@@ -1482,7 +1483,7 @@ describe("$hydratedFeeds (reason, replies, following feed)", () => {
   });
 
   it("should run the following feed through the following filter pipeline", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const post = createPost({
       uri: "at://did:plc:author/app.bsky.feed.post/1",
@@ -1512,13 +1513,13 @@ describe("$notifications", () => {
   }
 
   it("should return null when notifications are not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$notifications.get(), null);
   });
 
   it("should attach the liked post as subject when it is loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("post1", { uri: "post1", record: { text: "hi" } });
     seedNotifications(dataStore, [
@@ -1530,7 +1531,7 @@ describe("$notifications", () => {
   });
 
   it("should attach an unavailable subject when the liked post is missing", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     seedNotifications(dataStore, [
       createNotification({ reason: "repost", author, reasonSubject: "gone" }),
@@ -1540,7 +1541,7 @@ describe("$notifications", () => {
   });
 
   it("should resolve via-repost notifications from the record subject", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("post1", { uri: "post1", record: { text: "hi" } });
     seedNotifications(dataStore, [
@@ -1555,7 +1556,7 @@ describe("$notifications", () => {
   });
 
   it("should attach post and parent for reply notifications", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("reply1", { uri: "reply1", record: { text: "r" } });
     dataStore.$posts.set("parent1", { uri: "parent1", record: { text: "p" } });
@@ -1573,7 +1574,7 @@ describe("$notifications", () => {
   });
 
   it("should leave parentPost null for mentions without a reply parent", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("m1", { uri: "m1", record: { text: "m" } });
     seedNotifications(dataStore, [
@@ -1585,7 +1586,7 @@ describe("$notifications", () => {
   });
 
   it("should attach the post as reasonSubject for subscribed-post notifications", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("s1", { uri: "s1", record: { text: "s" } });
     seedNotifications(dataStore, [
@@ -1596,7 +1597,7 @@ describe("$notifications", () => {
   });
 
   it("should pass through notifications with other reasons unchanged", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const notification = createNotification({ reason: "follow", author });
     seedNotifications(dataStore, [notification]);
@@ -1605,7 +1606,7 @@ describe("$notifications", () => {
   });
 
   it("should hydrate the author from the profile store", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForProfile: () => ["verified"],
@@ -1621,7 +1622,7 @@ describe("$notifications", () => {
   });
 
   it("should override isRead using the captured seenAt", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     seedNotifications(dataStore, [
       createNotification({
@@ -1646,7 +1647,7 @@ describe("$notifications", () => {
   });
 
   it("should treat a notification indexed exactly at seenAt as read", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     seedNotifications(dataStore, [
       createNotification({
@@ -1661,7 +1662,7 @@ describe("$notifications", () => {
   });
 
   it("should trust the server isRead when seenAt is null", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     seedNotifications(dataStore, [
       createNotification({ reason: "follow", author, uri: "r", isRead: true }),
@@ -1673,7 +1674,7 @@ describe("$notifications", () => {
   });
 
   it("should filter out notifications from authors the viewer is blocking", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const blocked = createProfile({
       did: "did:plc:blocked",
@@ -1690,7 +1691,7 @@ describe("$notifications", () => {
   });
 
   it("should filter out notifications from muted authors the viewer does not follow", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const muted = createProfile({
       did: "did:plc:muted",
@@ -1707,7 +1708,7 @@ describe("$notifications", () => {
   });
 
   it("should keep notifications from muted authors when the viewer follows them", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const mutedFollow = createProfile({
       did: "did:plc:mutedfollow",
@@ -1726,7 +1727,7 @@ describe("$notifications", () => {
   });
 
   it("should recompute isRead when seenAt is captured later", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     seedNotifications(dataStore, [
       createNotification({
@@ -1744,13 +1745,13 @@ describe("$notifications", () => {
 
 describe("$mentionNotifications", () => {
   it("should return null when mention notifications are not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$mentionNotifications.get(), null);
   });
 
   it("should hydrate mention notifications", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const author = createProfile({ did: "did:plc:a", handle: "a.test" });
     dataStore.setProfiles([author]);
@@ -1772,7 +1773,7 @@ describe("$mentionNotifications", () => {
   });
 
   it("should override isRead using the shared seenAt from the main feed", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const author = createProfile({ did: "did:plc:a", handle: "a.test" });
     dataStore.setProfiles([author]);
@@ -1796,7 +1797,7 @@ describe("$hydratedPostThreads", () => {
   const threadUri = "post1";
 
   it("should return null when the thread or its hidden replies are not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), null);
     dataStore.$postThreads.set(threadUri, {
@@ -1808,7 +1809,7 @@ describe("$hydratedPostThreads", () => {
   });
 
   it("should pass through an empty (not found) thread", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const notFound = {
       $type: "app.bsky.feed.defs#notFoundPost",
@@ -1820,7 +1821,7 @@ describe("$hydratedPostThreads", () => {
   });
 
   it("should return null when the thread root post is not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$postThreads.set(threadUri, {
       $type: "app.bsky.feed.defs#threadViewPost",
@@ -1831,7 +1832,7 @@ describe("$hydratedPostThreads", () => {
   });
 
   it("should hydrate replies, marking hidden ones and passing through non-post replies", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const blockedReply = {
       $type: "app.bsky.feed.defs#blockedPost",
@@ -1876,7 +1877,7 @@ describe("$hydratedPostThreads", () => {
   }
 
   it("should hydrate a parent chain recursively", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const grandparent = { $type: "app.bsky.feed.defs#notFoundPost", uri: "gp" };
     dataStore.$posts.set("pp", { uri: "pp", record: { text: "parent" } });
@@ -1892,7 +1893,7 @@ describe("$hydratedPostThreads", () => {
   });
 
   it("should replace a confirmed-unavailable parent with an unavailable post", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$unavailablePosts.set("pp", createUnavailablePost("pp"));
     seedThreadWithParent(dataStore, {
@@ -1906,7 +1907,7 @@ describe("$hydratedPostThreads", () => {
   });
 
   it("should keep a blocked parent as-is when the parent author blocks the viewer", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const blockedParent = {
       $type: "app.bsky.feed.defs#blockedPost",
@@ -1928,7 +1929,7 @@ describe("actor search results", () => {
   }
 
   it("$profileSearchResults should be null before a search and hydrate after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$profileSearchResults.get(), null);
     assert.deepEqual(derived.$profileSearchCursor.get(), null);
@@ -1944,7 +1945,7 @@ describe("actor search results", () => {
   });
 
   it("$chatRecipientSearchResults should be null before a search and hydrate after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$chatRecipientSearchResults.get(), null);
     seedProfile(dataStore);
@@ -1954,7 +1955,7 @@ describe("actor search results", () => {
   });
 
   it("$searchTypeaheadResults should be null before a search and hydrate after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$searchTypeaheadResults.get(), null);
     seedProfile(dataStore);
@@ -1966,7 +1967,7 @@ describe("actor search results", () => {
 
 describe("$feedSearchResults", () => {
   it("should be null before a search and pass feeds through after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$feedSearchResults.get(), null);
     assert.deepEqual(derived.$feedSearchCursor.get(), null);
@@ -1979,7 +1980,7 @@ describe("$feedSearchResults", () => {
 
 describe("post search results", () => {
   it("should be null before a search and hydrate loaded posts after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$postSearchResultsTop.get(), null);
     assert.deepEqual(derived.$postSearchResultsLatest.get(), null);
@@ -2008,13 +2009,13 @@ describe("$hydratedPostQuotes", () => {
   const postUri = "post1";
 
   it("should return null when quotes are not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedPostQuotes.get(postUri), null);
   });
 
   it("should hydrate loaded quote posts and skip missing ones", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("quote1", { uri: "quote1", record: { text: "q" } });
     dataStore.$postQuotes.set(postUri, {
@@ -2032,13 +2033,13 @@ describe("$listMembers", () => {
   const listUri = "at://did:plc:owner/app.bsky.graph.list/1";
 
   it("should return null when list members are not loaded", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$listMembers.get(listUri), null);
   });
 
   it("should hydrate member profiles and carry the cursor", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     const did = "did:plc:member";
     dataStore.setProfiles([createProfile({ did, handle: "member.test" })]);
@@ -2057,7 +2058,7 @@ describe("$hydratedProfiles (labels)", () => {
   const did = "did:plc:user";
 
   it("should attach a blur label from preferences", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({ getProfileBlurLabel: () => "adult" }),
     });
@@ -2067,7 +2068,7 @@ describe("$hydratedProfiles (labels)", () => {
   });
 
   it("should attach badge labels from preferences", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForProfile: () => ["verified"],
@@ -2079,7 +2080,7 @@ describe("$hydratedProfiles (labels)", () => {
   });
 
   it("should return the profile unchanged when no labels apply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -2100,7 +2101,7 @@ describe("$mutedProfiles and $blockedProfiles", () => {
   }
 
   it("should attach badge labels to muted profiles", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForProfile: () => ["verified"],
@@ -2113,7 +2114,7 @@ describe("$mutedProfiles and $blockedProfiles", () => {
   });
 
   it("should attach badge labels to blocked profiles", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForProfile: () => ["verified"],
@@ -2127,7 +2128,7 @@ describe("$mutedProfiles and $blockedProfiles", () => {
   });
 
   it("should return the lists unchanged when no labels apply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -2138,7 +2139,7 @@ describe("$mutedProfiles and $blockedProfiles", () => {
   });
 
   it("should reflect profile patches in the list", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -2153,13 +2154,13 @@ describe("$hydratedDetailedProfiles", () => {
   const did = "did:plc:user";
 
   it("should return null when the detailed profile does not exist", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedDetailedProfiles.get(did), null);
   });
 
   it("should return the profile unchanged when no labels apply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
     });
@@ -2174,7 +2175,7 @@ describe("$hydratedDetailedProfiles", () => {
   });
 
   it("should attach blur and badge labels from preferences", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getProfileBlurLabel: () => "adult",
@@ -2216,14 +2217,14 @@ describe("$convoList and $convoRequestList", () => {
   }
 
   it("$convoList should be null before loading", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$convoList.get(), null);
     assert.deepEqual(derived.$convoListCursor.get(), null);
   });
 
   it("$convoList should sort convos by last interaction, newest first", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const older = makeConvoWithMessage("older", "2026-01-01T00:00:00.000Z");
     const newer = makeConvoWithMessage("newer", "2026-01-05T00:00:00.000Z");
     seedConvos(dataStore, [older, newer]);
@@ -2241,14 +2242,14 @@ describe("$convoList and $convoRequestList", () => {
   });
 
   it("$convoRequestList should be null before loading", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$convoRequestList.get(), null);
     assert.deepEqual(derived.$convoRequestListCursor.get(), null);
   });
 
   it("$convoRequestList should drop unknown convos and sort the rest", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const older = makeConvoWithMessage(
       "older",
       "2026-01-01T00:00:00.000Z",
@@ -2283,7 +2284,7 @@ describe("$convoProfiles (labels)", () => {
   }
 
   it("should attach badge labels to convo members", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedConvo(dataStore);
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
@@ -2295,7 +2296,7 @@ describe("$convoProfiles (labels)", () => {
   });
 
   it("should attach a blur label to convo members", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedConvo(dataStore);
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({ getProfileBlurLabel: () => "adult" }),
@@ -2305,7 +2306,7 @@ describe("$convoProfiles (labels)", () => {
   });
 
   it("should return members unchanged when no labels apply", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     seedConvo(dataStore);
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences(),
@@ -2326,7 +2327,7 @@ describe("interaction and graph list hydration", () => {
   }
 
   it("$postLikes should be null before loading and hydrate actors after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$postLikes.get("post1"), null);
     seedActor(dataStore);
@@ -2341,7 +2342,7 @@ describe("interaction and graph list hydration", () => {
   });
 
   it("$postReposts should be null before loading and hydrate actors after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$postReposts.get("post1"), null);
     seedActor(dataStore);
@@ -2355,7 +2356,7 @@ describe("interaction and graph list hydration", () => {
   });
 
   it("$profileFollows should be null before loading and hydrate actors after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$profileFollows.get("did:plc:subject"), null);
     seedActor(dataStore);
@@ -2369,7 +2370,7 @@ describe("interaction and graph list hydration", () => {
   });
 
   it("$profileFollowers should be null before loading and hydrate actors after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$profileFollowers.get("did:plc:subject"), null);
     seedActor(dataStore);
@@ -2383,7 +2384,7 @@ describe("interaction and graph list hydration", () => {
   });
 
   it("$knownFollowers should be null before loading and hydrate actors after", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$knownFollowers.get("did:plc:subject"), null);
     seedActor(dataStore);
@@ -2401,13 +2402,13 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
   const did = "did:test:pending";
 
   it("$isFollowPending is false when no follow/unfollow patch is pending", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$isFollowPending.get(did), false);
   });
 
   it("$isFollowPending flips true while a followProfile patch is pending", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     const patchId = patchStore.addProfilePatch(did, { type: "followProfile" });
     assert.deepEqual(derived.$isFollowPending.get(did), true);
@@ -2416,14 +2417,14 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
   });
 
   it("$isFollowPending flips true while an unfollowProfile patch is pending", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     patchStore.addProfilePatch(did, { type: "unfollowProfile" });
     assert.deepEqual(derived.$isFollowPending.get(did), true);
   });
 
   it("$isFollowPending ignores unrelated profile patches", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     patchStore.addProfilePatch(did, { type: "muteProfile" });
     patchStore.addProfilePatch(did, { type: "blockProfile" });
@@ -2431,7 +2432,7 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
   });
 
   it("$isBlockPending covers blockProfile and unblockProfile", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     const blockId = patchStore.addProfilePatch(did, { type: "blockProfile" });
     assert.deepEqual(derived.$isBlockPending.get(did), true);
@@ -2441,7 +2442,7 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
   });
 
   it("$isMutePending covers muteProfile and unmuteProfile", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     const muteId = patchStore.addProfilePatch(did, { type: "muteProfile" });
     assert.deepEqual(derived.$isMutePending.get(did), true);
@@ -2451,7 +2452,7 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
   });
 
   it("pending signals are keyed per profile", () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const { derived, patchStore } = makeDerived(dataStore);
     patchStore.addProfilePatch(did, { type: "followProfile" });
     assert.deepEqual(derived.$isFollowPending.get(did), true);

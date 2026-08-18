@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { cdnImageUrl } from "/js/dataHelpers.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
@@ -96,7 +97,10 @@ describe("avatarTemplate", () => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assert.deepEqual(img.getAttribute("data-lightbox-src"), post.author.avatar);
+    assert.deepEqual(
+      img.getAttribute("data-lightbox-src"),
+      cdnImageUrl(post.author.avatar),
+    );
   });
 
   it("should use thumbnail URL for src and full-size URL for data-lightbox-src", () => {

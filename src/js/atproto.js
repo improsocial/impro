@@ -1,18 +1,35 @@
 import { HANDLE_RESOLVER_SERVICE_URL, PLC_DIRECTORY_URL } from "/js/config.js";
+import { fetchWithTimeout, isValidDid } from "/js/utils.js";
+import { Slingshot } from "/js/slingshot.js";
 
 const PDS_SERVICE_ID = "#atproto_pds";
+
+export class HandleNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HandleNotFoundError";
+  }
+}
+
+export function findServiceEndpointInDidDoc(
+  didDoc,
+  serviceId = PDS_SERVICE_ID,
+) {
+  const service = didDoc?.service?.find((s) => s.id === serviceId);
+  return service?.serviceEndpoint ?? null;
+}
 
 export function getServiceEndpointFromDidDoc(
   didDoc,
   serviceId = PDS_SERVICE_ID,
 ) {
-  const service = didDoc.service?.find((s) => s.id === serviceId);
-  if (!service) {
+  const endpoint = findServiceEndpointInDidDoc(didDoc, serviceId);
+  if (!endpoint) {
     throw new Error(
       `No ${serviceId} service found in DID doc ${JSON.stringify(didDoc)}`,
     );
   }
-  return service.serviceEndpoint;
+  return endpoint;
 }
 
 export function didDocReferencesHandle(didDoc, handle) {
@@ -21,110 +38,212 @@ export function didDocReferencesHandle(didDoc, handle) {
   return aliases.includes(atHandle);
 }
 
-const RESOLVE_HANDLE_TIMEOUT_MS = 5000;
+const RESOLVE_TIMEOUT_MS = 5000;
 
 export async function resolveHandle(handle) {
   const params = new URLSearchParams({
     handle,
   });
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    RESOLVE_HANDLE_TIMEOUT_MS,
+  const res = await fetchWithTimeout(
+    `${HANDLE_RESOLVER_SERVICE_URL}/xrpc/com.atproto.identity.resolveHandle?` +
+      params.toString(),
+    { timeoutMs: RESOLVE_TIMEOUT_MS, label: `resolveHandle "${handle}"` },
   );
-  let res;
-  try {
-    res = await fetch(
-      `${HANDLE_RESOLVER_SERVICE_URL}/xrpc/com.atproto.identity.resolveHandle?` +
-        params.toString(),
-      { signal: controller.signal },
-    );
-  } catch (error) {
-    if (controller.signal.aborted) {
-      throw new Error(
-        `resolveHandle: timed out after ${RESOLVE_HANDLE_TIMEOUT_MS}ms resolving "${handle}"`,
-      );
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+  if (res.status === 400) return null;
+  if (!res.ok) {
+    throw new Error(`resolveHandle "${handle}": HTTP ${res.status}`);
   }
   const data = await res.json();
-  return data.did ?? null;
+  return isValidDid(data?.did) ? data.did : null;
 }
 
+// Returns null for a DID that isn't registered (or has been tombstoned),
+// throws otherwise
 export async function resolveDid(did) {
+  let url;
   if (did.startsWith("did:plc:")) {
-    const res = await fetch(`${PLC_DIRECTORY_URL}/${encodeURIComponent(did)}`);
-    const didDoc = await res.json();
-    return didDoc;
+    url = `${PLC_DIRECTORY_URL}/${encodeURIComponent(did)}`;
   } else if (did.startsWith("did:web:")) {
-    const website = did.split(":")[2];
-    const res = await fetch(`https://${website}/.well-known/did.json`);
-    const didDoc = await res.json();
-    return didDoc;
+    url = `https://${did.split(":")[2]}/.well-known/did.json`;
   } else {
     throw new Error(`Unsupported DID: ${did}`);
   }
+  const res = await fetchWithTimeout(url, {
+    timeoutMs: RESOLVE_TIMEOUT_MS,
+    label: `resolveDid "${did}"`,
+  });
+  if (res.status === 404 || res.status === 410) return null;
+  if (!res.ok) {
+    throw new Error(`resolveDid "${did}": HTTP ${res.status}`);
+  }
+  return await res.json();
 }
 
 export async function resolveIdentity(handle) {
   const did = await resolveHandle(handle);
   if (!did) return null;
   const didDoc = await resolveDid(did);
+  if (!didDoc) return null;
   if (!didDocReferencesHandle(didDoc, handle)) {
     throw new Error(`DID doc for ${did} does not reference handle: ${handle}`);
   }
   return { did, didDoc };
 }
 
-export async function getServiceEndpointForHandle(handle) {
-  const result = await resolveIdentity(handle);
-  if (!result) {
-    throw new HandleNotFoundError("DID not found for handle: " + handle);
-  }
-  return getServiceEndpointFromDidDoc(result.didDoc);
+let slingshotClient = null;
+
+function getSlingshot() {
+  slingshotClient ??= new Slingshot();
+  return slingshotClient;
 }
 
+const DEFAULT_HANDLE_PROVIDERS = [
+  { name: "bluesky", resolve: (handle) => resolveHandle(handle) },
+  {
+    name: "slingshot",
+    resolve: (handle) => getSlingshot().resolveHandle(handle),
+  },
+];
+
+async function resolveHandleWithFallback(handle, providers) {
+  let lastError = null;
+  for (const provider of providers) {
+    try {
+      return await provider.resolve(handle);
+    } catch (error) {
+      lastError = error;
+      console.debug(
+        `[IdentityResolver] provider "${provider.name}" could not resolve "${handle}"`,
+        error,
+      );
+    }
+  }
+  throw lastError ?? new Error(`resolveHandle: no providers for "${handle}"`);
+}
+
+function miniDocMatchesIdentifier(miniDoc, identifier) {
+  if (isValidDid(identifier)) {
+    return miniDoc.did === identifier;
+  }
+  return miniDoc.handle?.toLowerCase() === identifier.toLowerCase();
+}
+
+// Resolves a handle or DID to its DID and PDS endpoint.
+export async function resolveIdentityEndpoint(handleOrDid) {
+  try {
+    const miniDoc = await getSlingshot().resolveMiniDoc(handleOrDid);
+    if (miniDocMatchesIdentifier(miniDoc, handleOrDid)) {
+      return { did: miniDoc.did, pds: miniDoc.pds };
+    }
+    console.debug(
+      `[resolveIdentityEndpoint] slingshot returned a mismatched identity for "${handleOrDid}"`,
+      miniDoc,
+    );
+  } catch (error) {
+    console.debug(
+      `[resolveIdentityEndpoint] slingshot could not resolve "${handleOrDid}"`,
+      error,
+    );
+  }
+  if (isValidDid(handleOrDid)) {
+    const didDoc = await resolveDid(handleOrDid);
+    const pds = findServiceEndpointInDidDoc(didDoc);
+    return pds ? { did: handleOrDid, pds } : null;
+  }
+  const result = await resolveIdentity(handleOrDid);
+  if (!result) return null;
+  const pds = findServiceEndpointInDidDoc(result.didDoc);
+  return pds ? { did: result.did, pds } : null;
+}
+
+const HANDLE_NOT_FOUND_TTL_MS = 30_000;
+const ENDPOINT_TTL_MS = 300_000;
+
 export class IdentityResolver {
-  constructor() {
+  constructor({
+    providers = DEFAULT_HANDLE_PROVIDERS,
+    notFoundTtlMs = HANDLE_NOT_FOUND_TTL_MS,
+    endpointTtlMs = ENDPOINT_TTL_MS,
+  } = {}) {
+    this.providers = providers;
+    this.notFoundTtlMs = notFoundTtlMs;
+    this.endpointTtlMs = endpointTtlMs;
     this.handleToDidMap = new Map();
+    this.endpointCache = new Map();
+    this.notFoundAt = new Map();
+    this.inFlight = new Map();
+    this.endpointInFlight = new Map();
+  }
+
+  _isNotFound(identifier) {
+    const notFoundAt = this.notFoundAt.get(identifier);
+    if (notFoundAt == null) return false;
+    if (Date.now() - notFoundAt < this.notFoundTtlMs) return true;
+    this.notFoundAt.delete(identifier);
+    return false;
+  }
+
+  _dedupe(inFlight, identifier, start) {
+    const existing = inFlight.get(identifier);
+    if (existing) return existing;
+    const resolution = start().finally(() => inFlight.delete(identifier));
+    inFlight.set(identifier, resolution);
+    return resolution;
   }
 
   async resolveHandle(handle) {
     if (this.handleToDidMap.has(handle)) {
       return this.handleToDidMap.get(handle);
     }
-    console.debug("[IdentityResolver] Resolving handle", handle);
-    const did = await resolveHandle(handle);
-    this.handleToDidMap.set(handle, did);
-    return did;
+    if (this._isNotFound(handle)) return null;
+    return this._dedupe(this.inFlight, handle, () => {
+      console.debug("[IdentityResolver] Resolving handle", handle);
+      return resolveHandleWithFallback(handle, this.providers).then((did) => {
+        if (did) {
+          this.handleToDidMap.set(handle, did);
+        } else {
+          this.notFoundAt.set(handle, Date.now());
+        }
+        return did;
+      });
+    });
+  }
+
+  async resolveEndpoint(handleOrDid) {
+    const cached = this.endpointCache.get(handleOrDid);
+    if (cached && Date.now() - cached.at < this.endpointTtlMs) {
+      return cached.result;
+    }
+    if (this._isNotFound(handleOrDid)) return null;
+    return this._dedupe(this.endpointInFlight, handleOrDid, () => {
+      console.debug("[IdentityResolver] Resolving endpoint", handleOrDid);
+      return resolveIdentityEndpoint(handleOrDid).then((result) => {
+        if (result) {
+          this.endpointCache.set(handleOrDid, { at: Date.now(), result });
+          if (!isValidDid(handleOrDid)) {
+            this.handleToDidMap.set(handleOrDid, result.did);
+          }
+        } else {
+          this.notFoundAt.set(handleOrDid, Date.now());
+        }
+        return result;
+      });
+    });
   }
 
   setDidForHandle(handle, did) {
+    this.notFoundAt.delete(handle);
+    this.endpointCache.delete(handle);
     this.handleToDidMap.set(handle, did);
   }
 }
 
-const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
-const NSID_PATTERN = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*){2,}$/;
-const RKEY_PATTERN = /^[a-zA-Z0-9._~:-]{1,512}$/;
-
-export function isValidDid(value) {
-  return typeof value === "string" && DID_PATTERN.test(value);
-}
-
-export function isValidNsid(value) {
-  return typeof value === "string" && NSID_PATTERN.test(value);
-}
-
-export function isValidRkey(value) {
-  return (
-    typeof value === "string" &&
-    value !== "." &&
-    value !== ".." &&
-    RKEY_PATTERN.test(value)
-  );
+export async function getServiceEndpointForHandle(handle, resolver) {
+  const result = await resolver.resolveEndpoint(handle);
+  if (!result) {
+    throw new HandleNotFoundError("DID not found for handle: " + handle);
+  }
+  return result.pds;
 }
 
 const TID_ALPHABET = "234567abcdefghijklmnopqrstuvwxyz";

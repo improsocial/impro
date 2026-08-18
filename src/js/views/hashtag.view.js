@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
@@ -10,7 +9,13 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 export default async function hashtagView({
   root,
   params,
-  context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
+  context: {
+    auth,
+    dataLayer,
+    isAuthenticated,
+    pluginService,
+    interactionHandlers,
+  },
 }) {
   await auth.requireAuth();
 

@@ -2,8 +2,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { buildCdnUrl } from "/js/dataHelpers.js";
+import { isValidDid } from "/js/utils.js";
 
-const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
 const CID_PATTERN = /^b[a-z2-7]{20,}$/;
 
 function safeBuildCdnUrl(prefix, did, cid) {
@@ -12,10 +12,6 @@ function safeBuildCdnUrl(prefix, did, cid) {
   } catch {
     return null;
   }
-}
-
-function isValidDid(did) {
-  return typeof did === "string" && DID_PATTERN.test(did);
 }
 
 function isValidCid(cid) {

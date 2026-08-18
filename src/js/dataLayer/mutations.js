@@ -497,8 +497,12 @@ export class Mutations {
         pinnedItems.map((item) => [valueForPinnedItem(item), item]),
       );
       const next = values.map((value) => byValue.get(value)).filter(Boolean);
-      this.dataStore.$pinnedItems.set(next);
+      this.dataStore.setPinnedItems(next);
     }
+  }
+
+  setSelectedFeedUri(feedUri) {
+    this.dataStore.$selectedFeedUri.set(feedUri);
   }
 
   async hidePost(post) {
@@ -1165,7 +1169,7 @@ export class Mutations {
     }
     const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
     if (pinnedItems?.some((item) => item.data?.uri === list.uri)) {
-      this.dataStore.$pinnedItems.set(
+      this.dataStore.setPinnedItems(
         pinnedItems.filter((item) => item.data?.uri !== list.uri),
       );
     }

@@ -490,8 +490,72 @@ export function formatNumNotifications(numNotifications) {
   return numNotifications;
 }
 
-export function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Abortable wait
+export function wait(ms, { signal } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const handleAbort = () => {
+      clearTimeout(timeout);
+      reject(signal.reason);
+    };
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+export class Poller {
+  constructor(fn, intervalMs) {
+    this.fn = fn;
+    this.intervalMs = intervalMs;
+    this._controller = null;
+    this._pendingCall = null;
+  }
+
+  get isRunning() {
+    return this._controller !== null;
+  }
+
+  start() {
+    if (this._controller) return;
+    this._controller = new AbortController();
+    this._loop(this._controller.signal);
+  }
+
+  stop() {
+    this._controller?.abort();
+    this._controller = null;
+  }
+
+  restart() {
+    this.stop();
+    this.start();
+  }
+
+  async _loop(signal) {
+    while (true) {
+      // Restarting starts a second loop; reuse the pending call if possible
+      this._pendingCall ??= this._call().finally(() => {
+        this._pendingCall = null;
+      });
+      await this._pendingCall;
+      try {
+        await wait(this.intervalMs, { signal });
+      } catch {
+        return; // stopped via signal
+      }
+    }
+  }
+
+  async _call() {
+    try {
+      await this.fn();
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
 
 export function raf() {
@@ -726,6 +790,37 @@ export class KVIndexedDB {
   }
 }
 
+const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
+const NSID_PATTERN = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*){2,}$/;
+const HANDLE_PATTERN =
+  /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+const RKEY_PATTERN = /^[a-zA-Z0-9._~:-]{1,512}$/;
+
+export function isValidDid(value) {
+  return typeof value === "string" && DID_PATTERN.test(value);
+}
+
+export function isValidHandle(value) {
+  return (
+    typeof value === "string" &&
+    value.length <= 253 &&
+    HANDLE_PATTERN.test(value)
+  );
+}
+
+export function isValidNsid(value) {
+  return typeof value === "string" && NSID_PATTERN.test(value);
+}
+
+export function isValidRkey(value) {
+  return (
+    typeof value === "string" &&
+    value !== "." &&
+    value !== ".." &&
+    RKEY_PATTERN.test(value)
+  );
+}
+
 export class TimeoutError extends Error {
   constructor(message = "Timed out") {
     super(message);
@@ -744,6 +839,30 @@ export async function withTimeout(fn, timeoutMs) {
   });
   try {
     return await Promise.race([fn(controller.signal), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function fetchWithTimeout(
+  url,
+  { timeoutMs, label = "fetch", fetchImpl = null } = {},
+) {
+  const doFetch =
+    fetchImpl ?? ((input, options) => globalThis.fetch(input, options));
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await doFetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (timedOut && error?.name === "AbortError") {
+      throw new TimeoutError(`${label}: timed out after ${timeoutMs}ms`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }

@@ -521,12 +521,13 @@ describe("SourceProvider.getCacheUrls with fonts", () => {
 
 // tangled.org's own HTTP endpoints don't set CORS headers, so
 // SourceProvider resolves tangled: repos entirely through standard AT
-// Protocol infrastructure instead: resolveHandle -> plc.directory ->
-// the owner's PDS (for the repo's own "sh.tangled.repo" record, which
-// carries {knot, repoDid}) -> the knot's own CORS-enabled blob endpoint.
-// This stubs global fetch to answer those three resolution requests by URL
+// Protocol infrastructure instead: owner handle -> the owner's PDS (for the
+// repo's own "sh.tangled.repo" record, which carries {knot, repoDid}) ->
+// the knot's own CORS-enabled blob endpoint. The handle -> PDS step is
+// slingshot's mini doc, falling back to resolveHandle -> plc.directory.
+// This stubs global fetch to answer those resolution requests by URL
 // pattern; the actual file-content request is left to the caller (via
-// fakePluginCache, or a 4th branch here for plain-fetch methods).
+// fakePluginCache, or a further branch here for plain-fetch methods).
 // legacyRecordKey simulates repos created before the "rkey = repo name"
 // scheme existed: the direct getRecord lookup 404s (well, 400s — standard
 // atproto RecordNotFound), and the record only turns up via listRecords,
@@ -546,6 +547,13 @@ function stubTangledResolution({
   const fetchImpl = async (url, options) => {
     calls.push({ url: String(url), options });
     const urlStr = String(url);
+    if (urlStr.includes("blue.microcosm.identity.resolveMiniDoc")) {
+      return jsonResponse({
+        did: ownerDid,
+        handle: ownerHandle,
+        pds,
+      });
+    }
     if (urlStr.includes("com.atproto.identity.resolveHandle")) {
       return jsonResponse({ did: ownerDid });
     }
@@ -649,8 +657,8 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
       );
       assert.deepEqual(manifest.id, "alpha");
-      // resolveHandle, plc.directory, getRecord
-      assert.deepEqual(stub.calls.length, 3);
+      // resolveMiniDoc, getRecord
+      assert.deepEqual(stub.calls.length, 2);
     } finally {
       stub.restore();
     }
@@ -717,9 +725,9 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
       const repo = `tangled:${identity.ownerHandle}/alpha`;
       await provider.getManifest("alpha", "1.0.0", repo);
       await provider.getSource("alpha", "1.0.0", repo);
-      // Still just the 3 resolution calls, not 6 — the second fetch reused
+      // Still just the 2 resolution calls, not 4 — the second fetch reused
       // the cached {knot, repoDid}.
-      assert.deepEqual(stub.calls.length, 3);
+      assert.deepEqual(stub.calls.length, 2);
       assert.deepEqual(pluginCache.calls.length, 2);
     } finally {
       stub.restore();
@@ -799,8 +807,8 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         pluginCache.calls[0].url,
         knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
       );
-      // resolveHandle, plc.directory, getRecord (404), listRecords
-      assert.deepEqual(stub.calls.length, 4);
+      // resolveMiniDoc, getRecord (404), listRecords
+      assert.deepEqual(stub.calls.length, 3);
     } finally {
       stub.restore();
     }

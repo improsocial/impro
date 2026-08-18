@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { auth, getLoginErrorMessage } from "/js/auth.js";
+import { getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
@@ -53,9 +53,9 @@ class AccountSwitcherDialog extends Component {
   }
 
   async _load() {
-    const session = await auth.getSession();
+    const session = await this.auth.getSession();
     this.state.$currentDid.set(session?.did ?? null);
-    const accounts = await auth.listAccounts();
+    const accounts = await this.auth.listAccounts();
     this.state.$accounts.set(accounts);
     try {
       const profiles = await this.dataLayer.declarative.ensureDetailedProfiles(
@@ -256,7 +256,7 @@ class AccountSwitcherDialog extends Component {
     if (account.needsReauth) {
       this.state.$pendingAction.set({ type: "switch", did: account.did });
       try {
-        await auth.login({
+        await this.auth.login({
           handle: account.handle,
           returnTo: window.location.pathname + window.location.search,
         });
@@ -268,7 +268,7 @@ class AccountSwitcherDialog extends Component {
     }
     this.state.$pendingAction.set({ type: "switch", did: account.did });
     try {
-      await auth.switchAccount(account.did);
+      await this.auth.switchAccount(account.did);
     } catch {
       this.state.$pendingAction.set(null);
       showToast("Failed to switch account", { style: "error" });

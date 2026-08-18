@@ -138,9 +138,10 @@ export class BasicAuthSession {
 }
 
 export class BasicAuthProvider {
-  constructor() {
+  constructor({ identityResolver } = {}) {
     this.session = null;
     this._loaded = false;
+    this.identityResolver = identityResolver;
   }
 
   async getSession(did = null) {
@@ -153,7 +154,10 @@ export class BasicAuthProvider {
   }
 
   async login({ handle, password }) {
-    const serviceEndpoint = await getServiceEndpointForHandle(handle);
+    const serviceEndpoint = await getServiceEndpointForHandle(
+      handle,
+      this.identityResolver,
+    );
     const res = await fetch(
       serviceEndpoint + "/xrpc/com.atproto.server.createSession",
       {
@@ -201,8 +205,9 @@ export class BasicAuthProvider {
 }
 
 export class OAuthProvider {
-  constructor() {
+  constructor({ identityResolver } = {}) {
     this._client = null;
+    this.identityResolver = identityResolver;
   }
 
   async getClient() {
@@ -210,6 +215,7 @@ export class OAuthProvider {
       this._client = await OauthClient.load({
         clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
         redirectUri: `https://${window.env.hostName}/callback.html`,
+        identityResolver: this.identityResolver,
       });
     }
     return this._client;
@@ -448,6 +454,11 @@ export class Auth {
   }
 }
 
-export const auth = new Auth(
-  isNative() ? new BasicAuthProvider() : new OAuthProvider(),
-);
+export function createAuth({ identityResolver }) {
+  const providerOptions = { identityResolver };
+  return new Auth(
+    isNative()
+      ? new BasicAuthProvider(providerOptions)
+      : new OAuthProvider(providerOptions),
+  );
+}

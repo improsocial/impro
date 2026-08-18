@@ -2,12 +2,18 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { CDN_URL } from "/js/config.js";
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 const mockIdentityResolver = {
   resolveHandle: async () => null,
@@ -70,7 +76,7 @@ describe("addLike", () => {
     const mockApi = {
       createLikeRecord: async () => ({ uri: "like-uri" }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -94,7 +100,7 @@ describe("addLike", () => {
     const mockApi = {
       createLikeRecord: async () => mockLike,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -123,7 +129,7 @@ describe("addLike", () => {
           setTimeout(() => resolve({ uri: "like-uri" }), 50),
         ),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -147,7 +153,7 @@ describe("addLike", () => {
   });
 
   it("should not double-count when a refresh lands while the like is in flight", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockApi = {
       createLikeRecord: async () => {
@@ -194,7 +200,7 @@ describe("removeLike", () => {
           setTimeout(resolve, 100);
         }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -217,7 +223,7 @@ describe("removeLike", () => {
     const mockApi = {
       deleteLikeRecord: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -256,7 +262,7 @@ describe("followProfile", () => {
           setTimeout(() => resolve({ uri: "follow-uri" }), 100);
         }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -280,7 +286,7 @@ describe("followProfile", () => {
     const mockApi = {
       createFollowRecord: async () => mockFollow,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$detailedProfiles.set(testProfile.did, testProfile);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
@@ -323,7 +329,7 @@ describe("unfollowProfile", () => {
           setTimeout(resolve, 100);
         }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -346,7 +352,7 @@ describe("unfollowProfile", () => {
     const mockApi = {
       deleteFollowRecord: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$detailedProfiles.set(testProfile.did, testProfile);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
@@ -392,7 +398,7 @@ describe("subscribeLabeler", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -416,7 +422,7 @@ describe("subscribeLabeler", () => {
       }),
       updatePreferences: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -440,7 +446,7 @@ describe("subscribeLabeler", () => {
         throw new Error("API error");
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -477,7 +483,7 @@ describe("unsubscribeLabeler", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -501,7 +507,7 @@ describe("unsubscribeLabeler", () => {
       }),
       updatePreferences: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -525,7 +531,7 @@ describe("unsubscribeLabeler", () => {
         throw new Error("API error");
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -561,7 +567,7 @@ describe("updateLabelerSetting", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -587,7 +593,7 @@ describe("updateLabelerSetting", () => {
       }),
       updatePreferences: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -611,7 +617,7 @@ describe("updateLabelerSetting", () => {
         throw new Error("API error");
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -643,7 +649,7 @@ describe("updateLabelerSetting", () => {
       }),
       updatePreferences: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -676,7 +682,7 @@ describe("Error Handling and Edge Cases", () => {
       deleteLikeRecord: async () =>
         new Promise((resolve) => setTimeout(resolve, 75)),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -709,7 +715,7 @@ describe("Error Handling and Edge Cases", () => {
     const mockApi = {
       deleteLikeRecord: async () => undefined,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -737,7 +743,7 @@ describe("addMutedWord", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -767,7 +773,7 @@ describe("addMutedWord", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -821,7 +827,7 @@ describe("removeMutedWord", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -849,7 +855,7 @@ describe("updateProfile", () => {
   };
 
   function createMutationsWithMockApi(mockApi) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1007,11 +1013,15 @@ describe("updateProfile", () => {
     const updatedProfile = dataStore.$profiles.get(testProfile.did);
     assert.match(
       updatedProfile.avatar,
-      /^https:\/\/cdn\.bsky\.app\/img\/avatar\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+      new RegExp(
+        `^${escapeRegExp(CDN_URL)}/img/avatar/plain/did:plc:test123/bafkreiblob\\d+@jpeg$`,
+      ),
     );
     assert.match(
       updatedProfile.banner,
-      /^https:\/\/cdn\.bsky\.app\/img\/banner\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+      new RegExp(
+        `^${escapeRegExp(CDN_URL)}/img/banner/plain/did:plc:test123/bafkreiblob\\d+@jpeg$`,
+      ),
     );
   });
 
@@ -1075,7 +1085,7 @@ describe("pinPost", () => {
   };
 
   function setup(mockApi, { pinnedPost = null, authorFeed = null } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1249,7 +1259,7 @@ describe("unpinPost", () => {
   };
 
   function setup(mockApi, { pinnedPost, authorFeed = null } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1330,7 +1340,7 @@ describe("muteProfile", () => {
   };
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1391,7 +1401,7 @@ describe("unmuteProfile", () => {
   };
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1447,7 +1457,7 @@ describe("blockProfile", () => {
   const blockUri = "at://did:plc:me/app.bsky.graph.block/123";
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1539,7 +1549,7 @@ describe("unblockProfile", () => {
   };
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1619,7 +1629,7 @@ describe("addBookmark", () => {
   };
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1683,7 +1693,7 @@ describe("removeBookmark", () => {
   };
 
   function setup(mockApi = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1750,7 +1760,7 @@ describe("createRepost", () => {
   };
 
   function setup(mockApi = {}, { authorFeed } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1856,7 +1866,7 @@ describe("deleteRepost", () => {
   };
 
   function setup(mockApi = {}, { authorFeed } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -1932,7 +1942,7 @@ describe("pinFeed", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -1996,7 +2006,7 @@ describe("pinFeed", () => {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2037,7 +2047,7 @@ describe("unpinFeed", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2069,7 +2079,7 @@ describe("unpinFeed", () => {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2127,7 +2137,7 @@ describe("setPinnedItems", () => {
         await updatePromise;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     if (preloadPinnedItems) {
       dataStore.$pinnedItems.set([
         { type: "timeline", data: { uri: "following" } },
@@ -2201,7 +2211,7 @@ describe("setPinnedItems", () => {
         throw error;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$pinnedItems.set([
       { type: "feed", data: { uri: feedA } },
       { type: "list", data: { uri: listA } },
@@ -2240,7 +2250,7 @@ describe("hidePost", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2264,7 +2274,7 @@ describe("hidePost", () => {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2312,7 +2322,7 @@ describe("updateMutedWord", () => {
         updatedPreferences = prefs;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -2343,7 +2353,7 @@ describe("updatePostNotificationSubscription", () => {
 
   it("should set viewer.activitySubscription on the profile", async () => {
     const subscription = { post: true, reply: false };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2371,7 +2381,7 @@ describe("updatePostNotificationSubscription", () => {
   });
 
   it("should remove the patch on failure and rethrow", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2405,7 +2415,7 @@ describe("createThread", () => {
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
 
   function setup({ replyPostThread, authorFeed, replyAuthorFeed } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2528,7 +2538,7 @@ describe("deletePost", () => {
       cid: "cid-abc",
     };
     let apiCalledWith = null;
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2563,7 +2573,7 @@ describe("createMessage", () => {
   };
 
   function setup({ convoMessages, convo } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2617,7 +2627,7 @@ describe("createMessage", () => {
 
   it("should pass replyTo to the api", async () => {
     let apiCalledWith = null;
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2642,7 +2652,7 @@ describe("createMessage", () => {
 
   it("should pass embed to the api", async () => {
     let apiCalledWith = null;
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2667,7 +2677,7 @@ describe("createMessage", () => {
   });
 
   it("should propagate the raw error on send failure", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2696,7 +2706,7 @@ describe("acceptConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 
   function setup({ convoList, convoRequestList } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2784,7 +2794,7 @@ describe("rejectConvo", () => {
   it("should clear the convo, call api.leaveConvo, and remove it from the request list only", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2832,7 +2842,7 @@ describe("leaveConvo", () => {
   it("should clear the convo, call api.leaveConvo, and remove it from the accepted list only", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2875,7 +2885,7 @@ describe("leaveConvo", () => {
 
   it("should leave the store unchanged when api.leaveConvo throws", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2909,7 +2919,7 @@ describe("setConvoMuted", () => {
   const convo = { id: "convo-1", muted: false };
 
   it("should optimistically patch, then write to dataStore and clear the patch on success", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2941,7 +2951,7 @@ describe("setConvoMuted", () => {
 
   it("should call api.unmuteConvo when muted=false", async () => {
     const mutedConvo = { id: "convo-1", muted: true };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2966,7 +2976,7 @@ describe("setConvoMuted", () => {
   });
 
   it("should revert the optimistic patch and leave the dataStore unchanged when the api throws", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -2991,7 +3001,7 @@ describe("setConvoMuted", () => {
   });
 
   it("should not write to dataStore if the underlying convo was cleared during the api call", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3018,7 +3028,7 @@ describe("setConvoMuted", () => {
 describe("markConvoAsRead", () => {
   it("should call api.markConvoAsRead and zero the unread count", async () => {
     const convoId = "convo-1";
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3043,7 +3053,7 @@ describe("markConvoAsRead", () => {
   });
 
   it("should not throw when the convo is not cached", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3061,7 +3071,7 @@ describe("markConvoAsRead", () => {
 
   it("should not call the api when the convo has no unread messages", async () => {
     const convoId = "convo-read";
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3096,7 +3106,7 @@ describe("addMessageReaction", () => {
   };
 
   function setup({ convo } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3163,7 +3173,7 @@ describe("removeMessageReaction", () => {
   const updatedMessage = { id: messageId, reactions: [] };
 
   function setup({ convo } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3226,7 +3236,7 @@ describe("sendShowLessInteraction", () => {
   const feedProxyUrl = "https://feed.example/xrpc";
 
   it("should append the interaction to the dataStore (empty list branch)", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3261,7 +3271,7 @@ describe("sendShowLessInteraction", () => {
   });
 
   it("should append to an existing list (non-empty branch)", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3289,7 +3299,7 @@ describe("sendShowLessInteraction", () => {
   });
 
   it("should key stored interactions by feed", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3314,7 +3324,7 @@ describe("sendShowLessInteraction", () => {
   });
 
   it("should omit feedContext when null but keep an empty string", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3350,7 +3360,7 @@ describe("sendShowLessInteraction", () => {
   });
 
   it("should store but not send when there is no feed proxy url", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3381,7 +3391,7 @@ describe("sendShowMoreInteraction", () => {
   const feedProxyUrl = "https://feed.example/xrpc";
 
   it("should append the interaction to the dataStore (empty list branch)", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3415,7 +3425,7 @@ describe("sendShowMoreInteraction", () => {
   });
 
   it("should append to an existing list (non-empty branch)", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3467,7 +3477,7 @@ describe("pinList", () => {
       updatePreferences: async () =>
         new Promise((resolve) => setTimeout(resolve, 100)),
     });
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3482,7 +3492,7 @@ describe("pinList", () => {
 
   it("should call preferences.pinFeed with type 'list'", async () => {
     const { provider, pinFeedCalls } = makeMockProvider();
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3495,7 +3505,7 @@ describe("pinList", () => {
 
   it("should remove patch after successful update", async () => {
     const { provider } = makeMockProvider();
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3510,7 +3520,7 @@ describe("pinList", () => {
         throw new Error("API error");
       },
     });
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3538,7 +3548,7 @@ describe("pinFeed entryType", () => {
       updatePreferences: () =>
         new Promise((resolve) => setTimeout(resolve, 100)),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations(
       {},
@@ -3569,7 +3579,7 @@ describe("unpinList", () => {
       }),
       updatePreferences: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3590,7 +3600,7 @@ describe("unpinList", () => {
       }),
       updatePreferences: () => updatePromise,
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
@@ -3620,7 +3630,7 @@ describe("addProfileToList", () => {
     const mockApi = {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3655,7 +3665,7 @@ describe("addProfileToList", () => {
     const mockApi = {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3679,7 +3689,7 @@ describe("addProfileToList", () => {
     const mockApi = {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listMembers.set(testList.uri, {
       items: [
         {
@@ -3714,7 +3724,7 @@ describe("addProfileToList", () => {
         throw new Error("nope");
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3755,7 +3765,7 @@ describe("removeProfileFromList", () => {
     const mockApi = {
       deleteListItemRecord: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
       listsWithMembership: [
         {
@@ -3786,7 +3796,7 @@ describe("removeProfileFromList", () => {
     const mockApi = {
       deleteListItemRecord: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3810,7 +3820,7 @@ describe("removeProfileFromList", () => {
     const mockApi = {
       deleteListItemRecord: async () => {},
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
       listsWithMembership: [
         {
@@ -3857,7 +3867,7 @@ describe("removeProfileFromList", () => {
         throw new Error("boom");
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const initialListItem = { uri: membershipUri, subject: testProfile.did };
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
       listsWithMembership: [{ list: testList, listItem: initialListItem }],
@@ -3907,7 +3917,7 @@ describe("$detailedProfiles mirroring", () => {
   };
 
   function setup(mockApi, { seedDetailed = true } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3972,7 +3982,7 @@ describe("$detailedProfiles mirroring", () => {
   it("unfollowProfile mirrors viewer.following=null and decremented count", async () => {
     const seedFollowed = { ...detailedSeed, viewer: { following: "at://x" } };
     const mockApi = { deleteFollowRecord: async () => {} };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -4008,7 +4018,7 @@ describe("$detailedProfiles mirroring", () => {
   });
 
   it("unmuteProfile mirrors viewer.muted=false into $detailedProfiles", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -4049,7 +4059,7 @@ describe("$detailedProfiles mirroring", () => {
   });
 
   it("unblockProfile mirrors viewer.blocking=null into $detailedProfiles", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -4107,7 +4117,7 @@ describe("updateList", () => {
   };
 
   function setup(overrides = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -4301,7 +4311,7 @@ describe("updateList", () => {
 
     assert.equal(
       dataStore.$lists.get(listUri).avatar,
-      "https://cdn.bsky.app/img/avatar/plain/did:plc:test123/bafkreiavatarcid@jpeg",
+      `${CDN_URL}/img/avatar/plain/did:plc:test123/bafkreiavatarcid@jpeg`,
     );
   });
 
@@ -4335,7 +4345,7 @@ describe("deleteList", () => {
   };
 
   function setup({ listItems = [], overrides = {} } = {}) {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     const preferences = Preferences.createLoggedOutPreferences();
     const preferencesProvider = {
@@ -4522,7 +4532,7 @@ describe("deleteList", () => {
   });
 
   it("unpins the list if it was pinned", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
     let preferences = Preferences.createLoggedOutPreferences().pinFeed(
       listUri,
@@ -4553,5 +4563,16 @@ describe("deleteList", () => {
 
     assert.equal(updateCalls.length, 1);
     assert.equal(preferences.isFeedPinned(listUri), false);
+  });
+});
+
+describe("setSelectedFeedUri", () => {
+  it("should set the selection", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), {});
+    mutations.setSelectedFeedUri("following");
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
+    mutations.setSelectedFeedUri(null);
+    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
   });
 });

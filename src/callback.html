@@ -6,10 +6,13 @@
 
   <body>
     <script type="module">
-      import { auth, OAuthProvider } from "/js/auth.js";
+      import { createAuth, OAuthProvider } from "/js/auth.js";
+      import { IdentityResolver } from "/js/atproto.js";
       import { validateReturnToParam } from "/js/navigation.js";
 
       async function main() {
+        const auth = createAuth({ identityResolver: new IdentityResolver() });
+
         if (!(auth.provider instanceof OAuthProvider)) {
           throw new Error("callback.html requires an OAuth provider on auth");
         }

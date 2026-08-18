@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { TangledResolver, decodeTangledBlobContent } from "/js/tangled.js";
+import { IdentityResolver } from "/js/atproto.js";
 import { MockFetch, installFakeIndexedDB } from "../testHelpers.js";
 
 describe("TangledResolver", () => {
@@ -11,6 +12,7 @@ describe("TangledResolver", () => {
   const repoDid = "did:plc:repo";
 
   let identityResolutions;
+  let recordFetches;
   let resolver;
   // A fresh path per test: the persisted binding is keyed by it, so reusing
   // one would let an earlier test's entry satisfy a later test's first call
@@ -37,8 +39,13 @@ describe("TangledResolver", () => {
         },
       ],
     });
-    fetchMock.__interceptJson(/com\.atproto\.repo\.getRecord/, {
-      value: { knot, repoDid },
+    fetchMock.__intercept(/com\.atproto\.repo\.getRecord/, async () => {
+      recordFetches += 1;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ value: { knot, repoDid } }),
+      };
     });
   }
 
@@ -46,7 +53,9 @@ describe("TangledResolver", () => {
     installFakeIndexedDB();
     globalThis.fetch = new MockFetch();
     identityResolutions = 0;
-    resolver = new TangledResolver();
+    recordFetches = 0;
+    // Own identity resolver per test, so no endpoint is cached across tests
+    resolver = new TangledResolver(new IdentityResolver());
     stubResolutionChain();
   });
 
@@ -81,7 +90,9 @@ describe("TangledResolver", () => {
 
     // A fresh resolver stands in for a new session: only the persisted
     // entry can satisfy this call
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     assert.deepEqual(info, { knot, repoDid });
     assert.deepEqual(identityResolutions, 1);
@@ -97,7 +108,9 @@ describe("TangledResolver", () => {
       throw new Error("resolveHandle: timed out");
     });
 
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     assert.deepEqual(info, { knot, repoDid });
     assert.deepEqual(identityResolutions, 0);
@@ -110,7 +123,9 @@ describe("TangledResolver", () => {
     Date.now = originalDateNow;
 
     identityResolutions = 0;
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     // Served without waiting on the revalidation
     assert.deepEqual(info, { knot, repoDid });
@@ -118,13 +133,17 @@ describe("TangledResolver", () => {
     assert.deepEqual(identityResolutions, 1);
   });
 
+  // The owner's PDS endpoint is cached by the IdentityResolver, independently
+  // of the knot binding, so re-resolving after invalidate refetches the repo
+  // record but need not resolve the owner's identity again.
   it("re-resolves after invalidate", async () => {
     const path = nextPath();
     await resolver.resolveRepoInfo(path);
     await resolver.invalidate(path);
     await resolver.resolveRepoInfo(path);
 
-    assert.deepEqual(identityResolutions, 2);
+    assert.deepEqual(recordFetches, 2);
+    assert.deepEqual(identityResolutions, 1);
   });
 
   it("drops the persisted binding on invalidate", async () => {
@@ -132,10 +151,14 @@ describe("TangledResolver", () => {
     await resolver.resolveRepoInfo(path);
     await resolver.invalidate(path);
 
+    recordFetches = 0;
     identityResolutions = 0;
-    const info = await new TangledResolver().resolveRepoInfo(path);
+    const info = await new TangledResolver(
+      new IdentityResolver(),
+    ).resolveRepoInfo(path);
 
     assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(recordFetches, 1);
     assert.deepEqual(identityResolutions, 1);
   });
 

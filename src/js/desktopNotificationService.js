@@ -4,11 +4,17 @@ import { isTouchOnlyDevice } from "/js/utils.js";
 const STORAGE_KEY = "system-notifications-enabled";
 const ICON_URL = "/img/impro-logo-192.png";
 
-export class SystemNotificationService {
-  constructor(notificationService, chatNotificationService, router) {
+export class DesktopNotificationService {
+  constructor(
+    notificationService,
+    chatNotificationService,
+    router,
+    activeTabMonitor,
+  ) {
     this.notificationService = notificationService;
     this.chatNotificationService = chatNotificationService;
     this.router = router;
+    this.activeTabMonitor = activeTabMonitor;
     this._lastSeenActivityCount =
       notificationService.$numNotifications.get() ?? 0;
     this._lastSeenChatCount =
@@ -31,7 +37,7 @@ export class SystemNotificationService {
               : `You have ${activityCount} unread notifications`,
           tag: "impro-activity",
           url: "/notifications",
-        });
+        }).catch(console.error);
       }
 
       if (chatCount > this._lastSeenChatCount) {
@@ -43,7 +49,7 @@ export class SystemNotificationService {
               : `You have ${chatCount} unread conversations`,
           tag: "impro-chat",
           url: "/messages",
-        });
+        }).catch(console.error);
       }
 
       this._lastSeenActivityCount = activityCount;
@@ -85,19 +91,18 @@ export class SystemNotificationService {
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  notify({ title, body, tag, url }) {
+  async notify({ title, body, tag, url }) {
     if (
       !this.isSupported ||
       !this.isEnabled ||
-      Notification.permission !== "granted" ||
-      this.notificationService.isSnoozed
+      Notification.permission !== "granted"
     ) {
       return;
     }
+    if (await this.activeTabMonitor.isAnyTabActive()) return;
     const notification = new Notification(title, {
       body,
       icon: ICON_URL,
-      badge: ICON_URL,
       tag,
     });
     notification.onclick = () => {

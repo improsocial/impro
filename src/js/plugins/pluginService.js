@@ -23,6 +23,7 @@ import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.j
 import { PluginRichTextDispatcher } from "/js/plugins/pluginRichTextDispatcher.js";
 import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import { TangledResolver } from "/js/tangled.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
 import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
@@ -153,6 +154,7 @@ export class PluginService extends ReactiveStore {
     hiddenFeedItemsStore,
     router,
     constellation,
+    identityResolver,
   ) {
     super("pluginService");
     this.renderContext = null;
@@ -217,7 +219,10 @@ export class PluginService extends ReactiveStore {
       : null;
     this.pluginCache = new PluginCache();
     this.binaryCache = new PluginBinaryCache();
-    this.sourceProvider = new SourceProvider(this.pluginCache);
+    this.sourceProvider = new SourceProvider(
+      this.pluginCache,
+      new TangledResolver(identityResolver),
+    );
     this.pluginStylesLoader = new PluginStylesLoader();
     this.pluginBridge = new PluginBridge(
       this.sourceProvider,

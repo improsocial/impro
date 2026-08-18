@@ -39,14 +39,17 @@ import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { IdentityResolver } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import { installIOSFixedLayerResync } from "/js/iosFixedLayerResync.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { Api } from "/js/api.js";
-import { auth } from "/js/auth.js";
+import { createAuth } from "/js/auth.js";
 import { NotificationService } from "/js/notificationService.js";
 import { ChatNotificationService } from "/js/chatNotificationService.js";
-import { SystemNotificationService } from "/js/systemNotificationService.js";
+import { DesktopNotificationService } from "/js/desktopNotificationService.js";
+import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { PostComposerService } from "/js/postComposerService.js";
+import { NewChatService } from "/js/newChatService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
 import { GroupChatLinkService } from "/js/groupChatLinkService.js";
@@ -68,7 +71,7 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
 
-async function checkDraftsEnabled() {
+async function checkDraftsEnabled(auth) {
   const results = await Promise.all(
     [
       "rpc:app.bsky.draft.getDrafts",
@@ -88,17 +91,20 @@ export async function main() {
 
   handleAppViewResetQueryParam();
 
+  const identityResolver = new IdentityResolver();
+  const auth = createAuth({ identityResolver });
+
   await auth.handleForceLogoutParam();
   await auth.ensureCurrentScopes();
 
   const session = await auth.getSession();
   const appViewConfig = getAppViewConfig();
   const api = new Api(session ?? null, {
+    onTokenRefreshError: (did) => auth.logout(did),
     bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
     chatAppViewServiceDid: appViewConfig.chatServiceDid,
   });
   const preferencesProvider = new PreferencesProvider(api);
-  const identityResolver = new IdentityResolver();
   const draftMediaStore = new DraftMediaStore();
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const constellation = new Constellation();
@@ -118,6 +124,7 @@ export async function main() {
     hiddenFeedItemsStore,
     router,
     constellation,
+    identityResolver,
   );
   // put dataLayer on window for easy access in dev tools
   window.dataLayer = dataLayer;
@@ -125,24 +132,39 @@ export async function main() {
   const chatNotificationService = session
     ? new ChatNotificationService(api)
     : null;
-  const systemNotificationService =
+  const activeTabMonitor = startActiveTabMonitor();
+  const desktopNotificationService =
     notificationService && chatNotificationService
-      ? new SystemNotificationService(
+      ? new DesktopNotificationService(
           notificationService,
           chatNotificationService,
           router,
+          activeTabMonitor,
         )
       : null;
   const pushNotificationService = session
-    ? new PushNotificationService(api)
+    ? new PushNotificationService(api, auth)
     : null;
+
+  // The service worker skips the notification when a focused window exists and
+  // sends a message instead, so refresh the counts immediately.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "push-received") {
+        notificationService?.fetchNumNotifications().catch(console.error);
+        chatNotificationService?.fetchNumNotifications().catch(console.error);
+      }
+    });
+  }
+
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
-        draftsEnabled: await checkDraftsEnabled(),
+        draftsEnabled: await checkDraftsEnabled(auth),
       })
     : null;
+  const newChatService = session ? new NewChatService(dataLayer) : null;
   const accountSwitcherService = session
-    ? new AccountSwitcherService(dataLayer)
+    ? new AccountSwitcherService(dataLayer, auth)
     : null;
   const reportService = session ? new ReportService(dataLayer) : null;
   const groupChatLinkService = new GroupChatLinkService(dataLayer, router);
@@ -210,8 +232,8 @@ export async function main() {
     chatNotificationService.startPolling();
   }
 
-  if (systemNotificationService) {
-    systemNotificationService.start();
+  if (desktopNotificationService) {
+    desktopNotificationService.start();
   }
 
   if (pushNotificationService) {
@@ -223,13 +245,15 @@ export async function main() {
   const context = {
     isAuthenticated: !!session,
     api,
+    auth,
     dataLayer,
     identityResolver,
     notificationService,
     chatNotificationService,
-    systemNotificationService,
+    desktopNotificationService,
     pushNotificationService,
     postComposerService,
+    newChatService,
     accountSwitcherService,
     reportService,
     groupChatLinkService,
@@ -249,6 +273,7 @@ export async function main() {
   };
 
   scrollLocks.setContainerProvider(() => router.currentPage);
+  installIOSFixedLayerResync();
 
   if (notificationService) {
     effect(() => {
@@ -289,7 +314,10 @@ export async function main() {
     scrollRestore: "manual",
   });
   router.addRoute("/messages", () => chatView, {
-    layoutOptions: { activeNavItem: "chat", isNavItemPage: true },
+    layoutOptions: {
+      activeNavItem: "chat",
+      isNavItemPage: true,
+    },
   });
   router.addRoute("/feeds", () => feedsView, {
     layoutOptions: { activeNavItem: "feeds", isNavItemPage: true },

@@ -2,9 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 
 function setup() {
-  const dataStore = new DataStore();
+  const dataStore = new DataStore(createSessionState(null));
   const dataLayer = {
     dataStore,
     preferencesProvider: { $preferences: { get: () => null } },

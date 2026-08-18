@@ -1,4 +1,5 @@
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
@@ -20,7 +21,10 @@ export class DataLayer extends EventEmitter {
     this.identityResolver = identityResolver;
     this.draftMediaStore = draftMediaStore;
     this.isAuthenticated = api.isAuthenticated;
-    this.dataStore = new DataStore();
+    this.sessionState = createSessionState(
+      api.isAuthenticated ? api.session : null,
+    );
+    this.dataStore = new DataStore(this.sessionState);
     this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;

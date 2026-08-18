@@ -6,6 +6,9 @@ test.describe("Not Found view", () => {
   test("should display when navigating to an unknown route", async ({
     page,
   }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
     await page.goto("/some/nonexistent/route");
 
     const notFoundView = page.locator(

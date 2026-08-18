@@ -6,6 +6,9 @@ import { createProfile } from "../../../shared/factories.js";
 
 test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
     await page.goto("/login");
 
     const loginView = page.locator("#login-view");
@@ -42,6 +45,9 @@ test.describe("Login view", () => {
   test("advanced section is collapsed by default and reveals the app view dropdown when expanded", async ({
     page,
   }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
     await page.goto("/login");
 
     const advanced = page.locator("#login-advanced");
@@ -62,6 +68,9 @@ test.describe("Login view", () => {
   test("custom option reveals DID inputs and toggles off when a default is reselected", async ({
     page,
   }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
     await page.goto("/login");
 
     const advanced = page.locator("#login-advanced");
@@ -99,6 +108,9 @@ test.describe("Login view", () => {
       );
     });
 
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
     await page.goto("/login");
 
     const advanced = page.locator("#login-advanced");
@@ -112,6 +124,9 @@ test.describe("Login view", () => {
     test("requireAuth sends the original path as returnTo when bouncing logged-out users", async ({
       page,
     }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
       await page.goto("/bookmarks");
       await expect(page).toHaveURL(/\/login\?returnTo=%2Fbookmarks$/, {
         timeout: 10000,
@@ -141,6 +156,9 @@ test.describe("Login view", () => {
 
   test.describe("saved accounts list", () => {
     test("is not rendered when no accounts are stored", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
       await page.goto("/login");
       await expect(
         page.locator('[data-testid="saved-accounts-list"]'),
@@ -256,6 +274,25 @@ test.describe("Login view", () => {
       await expect(page.locator("#login-form")).toBeHidden();
       await expect(page).toHaveURL(/\/login/);
     });
+
+    test("Back button on the accounts list navigates home", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle, needsReauth: true },
+      ]);
+
+      await page.goto("/login");
+      await expect(
+        page.locator('[data-testid="saved-accounts-list"]'),
+      ).toBeVisible();
+
+      await page.locator('[data-testid="saved-accounts-back"]').click();
+      await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
+    });
   });
 
   test("prefills custom DID inputs when stored config is custom", async ({
@@ -272,6 +309,9 @@ test.describe("Login view", () => {
         }),
       );
     });
+
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
 
     await page.goto("/login");
 

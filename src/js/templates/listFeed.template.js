@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { isModerationList } from "/js/dataHelpers.js";
+import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { linkToList } from "/js/navigation.js";
 import "/js/components/container-link.js";
 
@@ -29,7 +29,7 @@ function listItemTemplate({ list }) {
     >
       <div class="feeds-list-item-avatar">
         <img
-          src=${list.avatar || "/img/list-avatar-fallback.svg"}
+          src=${cdnImageUrl(list.avatar) || "/img/list-avatar-fallback.svg"}
           alt=${list.name}
           class="feed-avatar"
         />

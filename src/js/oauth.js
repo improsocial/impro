@@ -1,5 +1,7 @@
-import { resolveIdentity, getServiceEndpointFromDidDoc } from "/js/atproto.js";
+import { HandleNotFoundError } from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
+
+export { HandleNotFoundError } from "/js/atproto.js";
 
 // Inspiration from:
 // https://www.npmjs.com/package/@atproto/oauth-client-browser
@@ -565,13 +567,6 @@ class AuthServer {
   }
 }
 
-export class HandleNotFoundError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "HandleNotFoundError";
-  }
-}
-
 export class InvalidAuthUrlError extends Error {
   constructor(message) {
     super(message);
@@ -580,30 +575,31 @@ export class InvalidAuthUrlError extends Error {
 }
 
 export class OauthClient {
-  constructor({ clientId, redirectUri, dpopKeypair }) {
+  constructor({ clientId, redirectUri, dpopKeypair, identityResolver }) {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     this.dpopRequests = new DPoPRequests(dpopKeypair);
     this.sessionsByDid = new Map();
+    this.identityResolver = identityResolver;
   }
 
-  static async load({ clientId, redirectUri }) {
+  static async load({ clientId, redirectUri, identityResolver }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
     migrateLegacySession();
     return new OauthClient({
       clientId,
       redirectUri,
       dpopKeypair,
+      identityResolver,
     });
   }
 
   async getAuthorizationUrl(handle, { scope = "atproto", state = {} } = {}) {
-    const result = await resolveIdentity(handle);
+    const result = await this.identityResolver.resolveEndpoint(handle);
     if (!result) {
       throw new HandleNotFoundError("DID not found for handle: " + handle);
     }
-    const { did, didDoc } = result;
-    const pdsEndpoint = getServiceEndpointFromDidDoc(didDoc);
+    const { did, pds: pdsEndpoint } = result;
     const resourceMetadata = await fetchResourceServerMetadata(pdsEndpoint);
     if (
       !resourceMetadata.authorization_servers ||

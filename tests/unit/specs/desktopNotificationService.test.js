@@ -1,15 +1,12 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Signal } from "/js/signals.js";
-import { SystemNotificationService } from "/js/systemNotificationService.js";
+import { DesktopNotificationService } from "/js/desktopNotificationService.js";
+import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
 
-function createMockNotificationService({
-  numNotifications = 0,
-  isSnoozed = false,
-} = {}) {
+function createMockNotificationService({ numNotifications = 0 } = {}) {
   return {
     $numNotifications: new Signal.State(numNotifications),
-    isSnoozed,
   };
 }
 
@@ -19,23 +16,41 @@ function createMockChatNotificationService({ numNotifications = 0 } = {}) {
   };
 }
 
-function flushEffects() {
-  return new Promise((resolve) =>
+function macrotask() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// Effects render on rAF, then notify() awaits the cross-tab focus query before
+// constructing the Notification.
+async function flushEffects() {
+  await new Promise((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(resolve)),
   );
+  await macrotask();
+  await macrotask();
 }
 
 function enable() {
   localStorage.setItem("system-notifications-enabled", "true");
 }
 
-describe("SystemNotificationService", () => {
+describe("DesktopNotificationService", () => {
   let instances;
   let originalNotification;
   let originalMatchMedia;
   let disposers;
   let navigations;
   let router;
+  let originalHasFocus;
+  let tabMonitors;
+
+  function simulateTabState({ visible, focused }) {
+    Object.defineProperty(document, "visibilityState", {
+      value: visible ? "visible" : "hidden",
+      configurable: true,
+    });
+    document.hasFocus = () => focused;
+  }
 
   function simulateTouchOnlyDevice() {
     window.matchMedia = (query) => ({
@@ -45,11 +60,21 @@ describe("SystemNotificationService", () => {
     });
   }
 
+  // A monitor with no peer tabs: its focus queries time out immediately, so
+  // these tests exercise only this tab's own focus state.
+  function createTabMonitor() {
+    const monitor = startActiveTabMonitor({ replyTimeoutMs: 0 });
+    tabMonitors.push(monitor);
+    return monitor;
+  }
+
   function startService(notificationService, chatNotificationService) {
-    const service = new SystemNotificationService(
+    const activeTabMonitor = createTabMonitor();
+    const service = new DesktopNotificationService(
       notificationService,
       chatNotificationService,
       router,
+      activeTabMonitor,
     );
     const dispose = service.start();
     disposers.push(dispose);
@@ -59,10 +84,13 @@ describe("SystemNotificationService", () => {
   beforeEach(() => {
     instances = [];
     disposers = [];
+    tabMonitors = [];
     navigations = [];
     router = { go: (path) => navigations.push(path) };
     originalNotification = globalThis.Notification;
     originalMatchMedia = window.matchMedia;
+    originalHasFocus = document.hasFocus;
+    simulateTabState({ visible: true, focused: false });
     globalThis.Notification = class {
       static permission = "granted";
       static async requestPermission() {
@@ -78,12 +106,20 @@ describe("SystemNotificationService", () => {
     localStorage.clear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     for (const dispose of disposers) {
       dispose();
     }
+    for (const monitor of tabMonitors) {
+      monitor.stop();
+    }
+    // Let any notify() still awaiting a focus query settle while the mock
+    // Notification is in place.
+    await flushEffects();
     globalThis.Notification = originalNotification;
     window.matchMedia = originalMatchMedia;
+    document.hasFocus = originalHasFocus;
+    delete document.visibilityState;
     localStorage.clear();
   });
 
@@ -237,12 +273,11 @@ describe("SystemNotificationService", () => {
       assert.deepEqual(instances.length, 0);
     });
 
-    it("does not notify when snoozed", async () => {
-      const notificationService = createMockNotificationService({
-        isSnoozed: true,
-      });
+    it("does not notify while the tab is visible and focused", async () => {
+      const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
       enable();
+      simulateTabState({ visible: true, focused: true });
       startService(notificationService, chatNotificationService);
 
       notificationService.$numNotifications.set(3);
@@ -250,15 +285,42 @@ describe("SystemNotificationService", () => {
 
       assert.deepEqual(instances.length, 0);
     });
+
+    it("notifies when the window is focused but not visible", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      simulateTabState({ visible: false, focused: true });
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 1);
+    });
+
+    it("notifies when the tab is visible but unfocused", async () => {
+      const notificationService = createMockNotificationService();
+      const chatNotificationService = createMockChatNotificationService();
+      enable();
+      simulateTabState({ visible: true, focused: false });
+      startService(notificationService, chatNotificationService);
+
+      notificationService.$numNotifications.set(3);
+      await flushEffects();
+
+      assert.deepEqual(instances.length, 1);
+    });
   });
 
   describe("touch-only devices", () => {
     it("reports as unsupported even though the Notification API exists", () => {
       simulateTouchOnlyDevice();
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         createMockNotificationService(),
         createMockChatNotificationService(),
         router,
+        createTabMonitor(),
       );
 
       assert.deepEqual(typeof globalThis.Notification !== "undefined", true);
@@ -266,10 +328,11 @@ describe("SystemNotificationService", () => {
     });
 
     it("reports as supported when hover and a fine pointer exist", () => {
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         createMockNotificationService(),
         createMockChatNotificationService(),
         router,
+        createTabMonitor(),
       );
 
       assert.deepEqual(service.isSupported, true);
@@ -290,10 +353,11 @@ describe("SystemNotificationService", () => {
 
     it("does not request permission or set the storage flag", async () => {
       simulateTouchOnlyDevice();
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         createMockNotificationService(),
         createMockChatNotificationService(),
         router,
+        createTabMonitor(),
       );
 
       const result = await service.requestPermission();
@@ -307,10 +371,11 @@ describe("SystemNotificationService", () => {
     it("sets the storage flag when granted", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         notificationService,
         chatNotificationService,
         router,
+        createTabMonitor(),
       );
       globalThis.Notification.permission = "granted";
 
@@ -323,10 +388,11 @@ describe("SystemNotificationService", () => {
     it("does not set the storage flag when denied", async () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         notificationService,
         chatNotificationService,
         router,
+        createTabMonitor(),
       );
       globalThis.Notification.permission = "denied";
 
@@ -341,10 +407,11 @@ describe("SystemNotificationService", () => {
     it("clears the storage flag", () => {
       const notificationService = createMockNotificationService();
       const chatNotificationService = createMockChatNotificationService();
-      const service = new SystemNotificationService(
+      const service = new DesktopNotificationService(
         notificationService,
         chatNotificationService,
         router,
+        createTabMonitor(),
       );
       enable();
       assert.deepEqual(service.isEnabled, true);

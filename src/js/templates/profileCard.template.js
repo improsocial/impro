@@ -5,7 +5,7 @@ import {
   linkToProfileFollowing,
   linkToSearchPostsByProfile,
 } from "/js/navigation.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import { cdnImageUrl, getDisplayName } from "/js/dataHelpers.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -287,7 +287,7 @@ export function profileCardTemplate({
         ? html`
             <lightbox-image-group hide-alt-text="true">
               <img
-                src="${profile.banner}"
+                src="${cdnImageUrl(profile.banner)}"
                 alt="${getDisplayName(profile)} banner"
                 class=${classnames("profile-banner", {
                   "profile-banner--blurred": !!profile.blurLabel,

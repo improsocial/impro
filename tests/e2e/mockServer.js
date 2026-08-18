@@ -1,3 +1,4 @@
+import { CDN_URL } from "../../src/js/config.js";
 import { createPost } from "../shared/factories.js";
 import { bskyLabeler, notificationService, userProfile } from "./testData.js";
 import {
@@ -73,6 +74,7 @@ export class MockServer {
     this.actorFeeds = new Map();
     this.actorLists = new Map();
     this.searchFeedGenerators = [];
+    this.trends = [];
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
@@ -106,6 +108,49 @@ export class MockServer {
     this.notificationServiceDid = null;
     this.registerPushCalls = [];
     this.unregisterPushCalls = [];
+    this.slingshotUnreachable = false;
+    this.pdsEndpoint = "http://localhost:8081";
+  }
+
+  // Make slingshot fail to resolve identities, so the app falls back to
+  // resolving handles and DID docs through standard atproto infrastructure.
+  failSlingshotLookup() {
+    this.slingshotUnreachable = true;
+  }
+
+  // Every actor the mocks know about, in the precedence order the identity
+  // endpoints resolve them in.
+  _knownIdentities() {
+    const identities = [];
+    const add = (actor) => {
+      if (actor?.did && actor?.handle) {
+        identities.push({ did: actor.did, handle: actor.handle });
+      }
+    };
+    [
+      ...this.timelinePosts,
+      ...this.bookmarks,
+      ...this.searchPosts,
+      ...this.posts,
+    ].forEach((post) => add(post.author));
+    this.feedGenerators.forEach((generator) => add(generator.creator));
+    this.lists.forEach((list) => add(list.creator));
+    this.starterPacks.forEach((starterPack) => add(starterPack.creator));
+    this.profiles.forEach((profile) => add(profile));
+    // The logged-in user always resolves, even when no mock data mentions
+    // them, mirroring the getProfile fallback.
+    add(userProfile);
+    return identities;
+  }
+
+  _findIdentity(handleOrDid) {
+    if (!handleOrDid) return null;
+    return (
+      this._knownIdentities().find(
+        (identity) =>
+          identity.handle === handleOrDid || identity.did === handleOrDid,
+      ) ?? null
+    );
   }
 
   // Make subsequent OAuth token refreshes fail with a non-retryable error,
@@ -240,6 +285,10 @@ export class MockServer {
 
   addSearchFeedGenerators(feedGenerators) {
     this.searchFeedGenerators.push(...feedGenerators);
+  }
+
+  addTrends(trends) {
+    this.trends.push(...trends);
   }
 
   addTypeaheadProfiles(profiles) {
@@ -1735,6 +1784,19 @@ export class MockServer {
       },
     );
 
+    // The trending pane renders on nearly every desktop page, so this must be
+    // registered unconditionally or unrelated specs fail on an unmocked request.
+    await page.route("**/xrpc/app.bsky.unspecced.getTrends*", (route) => {
+      const url = new URL(route.request().url());
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const trends = limit ? this.trends.slice(0, limit) : this.trends;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ trends }),
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.feed.getActorFeeds*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor") || "";
@@ -1888,16 +1950,18 @@ export class MockServer {
       });
     });
 
-    await page.route("https://cdn.bsky.app/img/**", (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: "image/png",
-        body: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-          "base64",
-        ),
+    for (const cdnUrl of new Set(["https://cdn.bsky.app", CDN_URL])) {
+      await page.route(`${cdnUrl}/img/**`, (route) => {
+        return route.fulfill({
+          status: 200,
+          contentType: "image/png",
+          body: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            "base64",
+          ),
+        });
       });
-    });
+    }
 
     await page.route("https://ogcard.cdn.bsky.app/**", (route) => {
       return route.fulfill({
@@ -2185,32 +2249,8 @@ export class MockServer {
     await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
       const url = new URL(route.request().url());
       const handle = url.searchParams.get("handle");
-      const allPosts = [
-        ...this.timelinePosts,
-        ...this.bookmarks,
-        ...this.searchPosts,
-        ...this.posts,
-      ];
-      const postAuthor = allPosts.find(
-        (p) => p.author?.handle === handle,
-      )?.author;
-      const generator = this.feedGenerators.find(
-        (g) => g.creator.handle === handle,
-      );
-      const list = this.lists.find((l) => l.creator?.handle === handle);
-      const starterPack = this.starterPacks.find(
-        (s) => s.creator?.handle === handle,
-      );
-      const profileEntry = [...this.profiles.values()].find(
-        (p) => p.handle === handle,
-      );
-      const did =
-        postAuthor?.did ||
-        generator?.creator?.did ||
-        list?.creator?.did ||
-        starterPack?.creator?.did ||
-        profileEntry?.did;
-      if (!did) {
+      const identity = this._findIdentity(handle);
+      if (!identity) {
         return route.fulfill({
           status: 404,
           body: JSON.stringify({ error: "NotFound" }),
@@ -2219,9 +2259,43 @@ export class MockServer {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ did }),
+        body: JSON.stringify({ did: identity.did }),
       });
     });
+
+    // Slingshot is the first identity provider the app tries; set
+    // slingshotUnreachable to force the atproto fallback path instead.
+    await page.route(
+      "**/xrpc/blue.microcosm.identity.resolveMiniDoc*",
+      (route) => {
+        const invalidRequest = (message) =>
+          route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "InvalidRequest", message }),
+          });
+        if (this.slingshotUnreachable) {
+          return invalidRequest(
+            "Errored while trying to resolve handle to DID",
+          );
+        }
+        const url = new URL(route.request().url());
+        const identifier = url.searchParams.get("identifier");
+        const identity = this._findIdentity(identifier);
+        if (!identity) {
+          return invalidRequest("Failed to resolve identity");
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            did: identity.did,
+            handle: identity.handle,
+            pds: this.pdsEndpoint,
+          }),
+        });
+      },
+    );
 
     await page.route("**/xrpc/com.atproto.repo.deleteRecord*", (route) => {
       const body = route.request().postDataJSON();

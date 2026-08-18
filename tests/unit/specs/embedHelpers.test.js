@@ -1,6 +1,10 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
+import {
+  parseAltFromGifDescription,
+  parseRecordLink,
+  resolveRecordFromLink,
+} from "/js/embedHelpers.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { makeTestDataLayer, stubRecordLinkResolution } from "../testHelpers.js";
 
@@ -207,5 +211,53 @@ describe("resolveRecordFromLink", () => {
       thrown = error;
     }
     assert.deepEqual(thrown?.message, "not found");
+  });
+});
+
+describe("parseAltFromGifDescription", () => {
+  it("strips the user-authored prefix and marks the alt as preferred", () => {
+    assert.deepEqual(parseAltFromGifDescription("Alt: a cat in a chair"), {
+      isPreferred: true,
+      alt: "a cat in a chair",
+    });
+  });
+
+  it("strips the vendor prefix without marking the alt as preferred", () => {
+    assert.deepEqual(parseAltFromGifDescription("ALT: dancing cat"), {
+      isPreferred: false,
+      alt: "dancing cat",
+    });
+  });
+
+  it("returns an unprefixed description unchanged", () => {
+    assert.deepEqual(parseAltFromGifDescription("dancing cat"), {
+      isPreferred: false,
+      alt: "dancing cat",
+    });
+  });
+
+  it("only strips the prefix at the start of the description", () => {
+    assert.deepEqual(parseAltFromGifDescription("a cat, ALT: dancing"), {
+      isPreferred: false,
+      alt: "a cat, ALT: dancing",
+    });
+  });
+
+  it("strips only the first prefix occurrence", () => {
+    assert.deepEqual(parseAltFromGifDescription("Alt: Alt: dancing cat"), {
+      isPreferred: true,
+      alt: "Alt: dancing cat",
+    });
+  });
+
+  it("returns an empty alt for a missing description", () => {
+    assert.deepEqual(parseAltFromGifDescription(undefined), {
+      isPreferred: false,
+      alt: "",
+    });
+    assert.deepEqual(parseAltFromGifDescription(""), {
+      isPreferred: false,
+      alt: "",
+    });
   });
 });

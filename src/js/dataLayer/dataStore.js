@@ -3,18 +3,21 @@ import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.
 export class DataStore extends ReactiveStore {
-  constructor() {
+  constructor(sessionState) {
     super("dataStore");
+    this.sessionState = sessionState;
     // Single-value signals
     this.$currentUser = new Signal.State(null);
     this.$profileSearchResults = new Signal.State(null);
     this.$chatRecipientSearchResults = new Signal.State(null);
     this.$searchTypeaheadResults = new Signal.State(null);
+    this.$sidebarSearchTypeaheadResults = new Signal.State(null);
     this.$feedSearchResults = new Signal.State(null);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
     this.$notificationsLastSeenAt = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
+    this.$selectedFeedUri = this.sessionState.$selectedFeedUri;
     this.$bookmarks = new Signal.State(null);
     this.$drafts = new Signal.State(null);
     this.$convoList = new Signal.State(null);
@@ -24,7 +27,9 @@ export class DataStore extends ReactiveStore {
     this.$latestProfileSearchRequestTime = new Signal.State(null);
     this.$latestChatRecipientSearchRequestTime = new Signal.State(null);
     this.$latestSearchTypeaheadRequestTime = new Signal.State(null);
+    this.$latestSidebarSearchTypeaheadRequestTime = new Signal.State(null);
     this.$latestFeedSearchRequestTime = new Signal.State(null);
+    this.$trends = new Signal.State(null);
     this.$postSearchResultsTop = new Signal.State(null);
     this.$postSearchResultsLatest = new Signal.State(null);
     this.$latestPostSearchRequestTimeTop = new Signal.State(null);
@@ -132,6 +137,22 @@ export class DataStore extends ReactiveStore {
           cursor: requestList.cursor,
         });
       }
+    }
+  }
+
+  // All pinned item writes go through here so the selected feed can't dangle:
+  // a selection that's no longer pinned falls back to the first pinned item.
+  setPinnedItems(pinnedItems) {
+    this.$pinnedItems.set(pinnedItems);
+    const selectedFeedUri = this.$selectedFeedUri.get();
+    if (!selectedFeedUri) {
+      return;
+    }
+    const isPinned = pinnedItems.some(
+      (item) => item.data.uri === selectedFeedUri,
+    );
+    if (!isPinned) {
+      this.$selectedFeedUri.set(pinnedItems[0]?.data.uri ?? null);
     }
   }
 }

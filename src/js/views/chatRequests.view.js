@@ -1,7 +1,6 @@
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
   getConvoPreviewText,
@@ -21,7 +20,7 @@ export default async function chatRequestsView({
   root,
   router,
   layout,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 

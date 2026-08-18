@@ -1,6 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import {
   bindToPage,
@@ -13,7 +12,13 @@ import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 export default async function bookmarksView({
   root,
   layout,
-  context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
+  context: {
+    auth,
+    dataLayer,
+    isAuthenticated,
+    pluginService,
+    interactionHandlers,
+  },
 }) {
   await auth.requireAuth();
 

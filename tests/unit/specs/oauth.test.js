@@ -8,6 +8,7 @@ import {
   HandleNotFoundError,
   InvalidAuthUrlError,
 } from "/js/oauth.js";
+import { IdentityResolver } from "/js/atproto.js";
 
 describe("oauth", () => {
   async function generateTestKeypair() {
@@ -61,6 +62,8 @@ describe("oauth", () => {
       clientId: "https://app.example.com/client-metadata.json",
       redirectUri: "https://app.example.com/callback",
       dpopKeypair,
+      // Own resolver per client, so no identity is cached across tests.
+      identityResolver: new IdentityResolver(),
     });
   }
 

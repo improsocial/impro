@@ -14,6 +14,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
+import { shareIconTemplate } from "/js/templates/icons/shareIcon.template.js";
 import {
   getRKey,
   canReplyToPost,
@@ -87,28 +88,9 @@ function postContextMenuTemplate({
           </context-menu-item-group>
         `
       : null}
-    <context-menu-item-group>
-      <context-menu-item
-        data-testid="menu-action-post-open-in-bsky"
-        icon="open-line"
-        @click=${() => {
-          window.open(getBlueskyLinkForPost(post), "_blank");
-        }}
-      >
-        Open in bsky.app
-      </context-menu-item>
-      <context-menu-item
-        data-testid="menu-action-post-copy-link"
-        icon="link-line"
-        @click=${() => {
-          navigator.clipboard.writeText(getPermalinkForPost(post));
-          showToast("Link copied to clipboard", { style: "success" });
-        }}
-      >
-        Copy link to post
-      </context-menu-item>
-      ${post.record?.text
-        ? html`
+    ${post.record?.text
+      ? html`
+          <context-menu-item-group>
             <context-menu-item
               data-testid="menu-action-post-translate"
               icon="globe-earth-line"
@@ -133,9 +115,9 @@ function postContextMenuTemplate({
             >
               Copy post text
             </context-menu-item>
-          `
-        : null}
-    </context-menu-item-group>
+          </context-menu-item-group>
+        `
+      : null}
     ${isAuthenticated
       ? html`
           ${enableFeedFeedback
@@ -276,6 +258,30 @@ async function openPostContextMenu(event, props) {
   openContextMenu(event, postContextMenuTemplate({ ...props, pluginItems }), {
     className: "post-context-menu",
   });
+}
+
+function shareMenuTemplate({ post }) {
+  return html`
+    <context-menu-item
+      data-testid="menu-action-post-open-in-bsky"
+      icon="open-line"
+      @click=${() => {
+        window.open(getBlueskyLinkForPost(post), "_blank");
+      }}
+    >
+      Open in bsky.app
+    </context-menu-item>
+    <context-menu-item
+      data-testid="menu-action-post-copy-link"
+      icon="link-line"
+      @click=${() => {
+        navigator.clipboard.writeText(getPermalinkForPost(post));
+        showToast("Link copied to clipboard", { style: "success" });
+      }}
+    >
+      Copy link to post
+    </context-menu-item>
+  `;
 }
 
 function repostMenuTemplate({
@@ -458,6 +464,18 @@ export function postActionBarTemplate({
               </div>
             </animated-button>`,
           )}
+        </div>
+        <div class="post-action post-action-share">
+          <button
+            class="post-action-button"
+            data-testid="post-action-share"
+            @click=${(e) => {
+              e.stopPropagation();
+              openContextMenu(e, shareMenuTemplate({ post }));
+            }}
+          >
+            <div class="post-action-icon">${shareIconTemplate()}</div>
+          </button>
         </div>
         <div class="post-action">
           <button

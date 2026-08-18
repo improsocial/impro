@@ -1,6 +1,6 @@
 import { unique } from "/js/utils.js";
 import {
-  BSKY_CDN_URL,
+  CDN_URL,
   FOLLOWING_FEED_URI,
   IN_APP_LINK_DOMAINS,
 } from "/js/config.js";
@@ -32,7 +32,25 @@ export function buildCdnUrl(prefix, did, cid) {
   if (!CDN_PREFIXES.has(prefix)) {
     throw new Error(`Invalid CDN prefix: ${prefix}`);
   }
-  return `${BSKY_CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
+  return `${CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
+}
+
+const BSKY_CDN_URL = "https://cdn.bsky.app";
+const BSKY_CDN_HOSTNAME = new URL(BSKY_CDN_URL).hostname;
+
+export function cdnImageUrl(url) {
+  if (CDN_URL === BSKY_CDN_URL || !url) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.hostname !== BSKY_CDN_HOSTNAME) return url;
+  const cdn = new URL(CDN_URL);
+  parsed.protocol = cdn.protocol;
+  parsed.host = cdn.host;
+  return parsed.href;
 }
 
 function blobCdnUrl(prefix, did, blob) {

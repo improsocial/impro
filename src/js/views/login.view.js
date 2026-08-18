@@ -1,4 +1,4 @@
-import { auth, BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
+import { BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
@@ -28,7 +28,7 @@ export default async function loginView({
   root,
   router,
   params,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireNoAuth();
 
@@ -320,6 +320,17 @@ export default async function loginView({
                 >Use another account</span
               >
             </span>
+          </button>
+        </div>
+        <div class="button-group">
+          <button
+            class="rounded-button rounded-button-secondary"
+            type="button"
+            data-testid="saved-accounts-back"
+            ?disabled=${pendingDid !== null}
+            @click=${() => handleBack()}
+          >
+            Back
           </button>
         </div>
       </div>

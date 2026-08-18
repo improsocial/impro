@@ -1,6 +1,7 @@
 import { html, keyed } from "/js/lib/lit-html.js";
 import {
   avatarThumbnailUrl,
+  cdnImageUrl,
   getDisplayName,
   isLabelerProfile,
 } from "/js/dataHelpers.js";
@@ -37,7 +38,7 @@ function getAvatarFallbackUrl(isLabeler) {
 
 function getAvataThumbnailUrl(author, isLabeler) {
   if (author.avatar) {
-    return avatarThumbnailUrl(author.avatar);
+    return cdnImageUrl(avatarThumbnailUrl(author.avatar));
   } else {
     return getAvatarFallbackUrl(isLabeler);
   }
@@ -45,7 +46,7 @@ function getAvataThumbnailUrl(author, isLabeler) {
 
 function getAvatarFullSizeUrl(author, isLabeler) {
   if (author.avatar) {
-    return author.avatar;
+    return cdnImageUrl(author.avatar);
   } else {
     return getAvatarFallbackUrl(isLabeler);
   }

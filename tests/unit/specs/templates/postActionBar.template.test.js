@@ -738,3 +738,120 @@ describe("postActionBarTemplate - translate menu action", () => {
     assert.deepEqual(capturedHrefs, []);
   });
 });
+
+describe("postActionBarTemplate - share menu", () => {
+  const originalOpen = window.open;
+  const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
+    window.navigator,
+    "clipboard",
+  );
+  let openMock;
+  let copiedText;
+
+  beforeEach(() => {
+    openMock = mock.fn();
+    window.open = openMock;
+    copiedText = [];
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText: (text) => copiedText.push(text) },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    window.open = originalOpen;
+    if (originalClipboardDescriptor) {
+      Object.defineProperty(
+        window.navigator,
+        "clipboard",
+        originalClipboardDescriptor,
+      );
+    } else {
+      delete window.navigator.clipboard;
+    }
+    document.body
+      .querySelectorAll("context-menu")
+      .forEach((menu) => menu.remove());
+    document.body.querySelectorAll(".toast").forEach((toast) => toast.remove());
+  });
+
+  function ensurePageVisible() {
+    if (!document.querySelector(".page-visible")) {
+      const pageVisible = document.createElement("div");
+      pageVisible.classList.add("page-visible");
+      document.body.appendChild(pageVisible);
+    }
+  }
+
+  function renderActionBar() {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService: { getPostContextMenuItems: async () => [] },
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    ensurePageVisible();
+    return container;
+  }
+
+  function openShareMenu(container) {
+    container.querySelector('[data-testid="post-action-share"]').click();
+    return document.body.querySelector("context-menu");
+  }
+
+  async function openMoreMenu(container) {
+    container.querySelector('[data-testid="post-action-more"]').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return document.body.querySelector("context-menu.post-context-menu");
+  }
+
+  it("should render a share button", () => {
+    const container = renderActionBar();
+    assert(
+      container.querySelector('[data-testid="post-action-share"]') !== null,
+    );
+    container.remove();
+  });
+
+  it("should open the bsky.app link from the share menu", () => {
+    const container = renderActionBar();
+    const menu = openShareMenu(container);
+    menu.querySelector('[data-testid="menu-action-post-open-in-bsky"]').click();
+    assert.deepEqual(openMock.mock.callCount(), 1);
+    assert.deepEqual(openMock.mock.calls[0].arguments, [
+      "https://bsky.app/profile/testauthor.bsky.social/post/3testpost2k",
+      "_blank",
+    ]);
+    container.remove();
+  });
+
+  it("should copy the post permalink from the share menu", () => {
+    const container = renderActionBar();
+    const menu = openShareMenu(container);
+    menu.querySelector('[data-testid="menu-action-post-copy-link"]').click();
+    assert.deepEqual(copiedText, [
+      "https://bsky.app/profile/testauthor.bsky.social/post/3testpost2k",
+    ]);
+    container.remove();
+  });
+
+  it("should not render the share items in the more menu", async () => {
+    const container = renderActionBar();
+    const menu = await openMoreMenu(container);
+    assert(
+      menu.querySelector('[data-testid="menu-action-post-open-in-bsky"]') ===
+        null,
+    );
+    assert(
+      menu.querySelector('[data-testid="menu-action-post-copy-link"]') === null,
+    );
+    assert(
+      menu.querySelector('[data-testid="menu-action-post-copy-text"]') !== null,
+    );
+    container.remove();
+  });
+});

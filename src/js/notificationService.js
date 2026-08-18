@@ -1,4 +1,4 @@
-import { wait } from "/js/utils.js";
+import { Poller, wait } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
@@ -11,41 +11,25 @@ export class NotificationService {
     this.$numNotifications = new Signal.State(0);
     this.$numNotifications.__debugName = "$numNotifications";
     this._lastVerifiedTopUri = null;
-  }
-
-  snooze(timeoutMinutes = 120) {
-    const snoozedUntil = new Date(Date.now() + timeoutMinutes * 60 * 1000);
-    localStorage.setItem(
-      "notifications-snoozed-until",
-      snoozedUntil.toISOString(),
+    this.poller = new Poller(
+      () => this.fetchNumNotifications(),
+      POLLING_INTERVAL_SECONDS * 1000,
     );
   }
 
-  get isSnoozed() {
-    const snoozedUntil = localStorage.getItem("notifications-snoozed-until");
-    return snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
+  startPolling() {
+    this.poller.start();
+    // Restart the poller on page visible to fetch notifications immediately
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") this.poller.restart();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      this.poller.stop();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }
 
-  startPolling() {
-    const pollingInterval = POLLING_INTERVAL_SECONDS * 1000;
-    let stopped = false;
-    const poll = async () => {
-      while (!stopped) {
-        try {
-          if (!this.isSnoozed) {
-            await this.fetchNumNotifications();
-          }
-        } catch (error) {
-          console.error(error);
-        }
-        await wait(pollingInterval);
-      }
-    };
-    poll();
-    return () => {
-      stopped = true;
-    };
-  }
   async fetchNumNotifications() {
     const numNotifications = await this.api.getNumNotifications();
     const currentCount = this.$numNotifications.get();

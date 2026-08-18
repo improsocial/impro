@@ -357,6 +357,29 @@ describe("filterAuthorFeed", () => {
     assert.deepEqual(result.feed.length, 2);
   });
 
+  it("should keep the rest of a thread when its newest reply is deleted", () => {
+    const rootUri = "at://did:plc:test/app.bsky.feed.post/root";
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/deleted-reply",
+          $type: "app.bsky.feed.defs#notFoundPost",
+        },
+        reply: {
+          root: { uri: rootUri },
+          parent: { uri: rootUri },
+        },
+      }),
+      createFeedItem({ post: { uri: rootUri } }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(result.feed[0].post.uri, rootUri);
+  });
+
   it("should not deduplicate reposts with the same root URI", () => {
     const rootUri = "at://did:plc:root/app.bsky.feed.post/123";
     const items = [

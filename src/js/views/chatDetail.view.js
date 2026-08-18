@@ -12,7 +12,6 @@ import {
   getLinkUrlsFromText,
   stripLeadingOrTrailingLink,
 } from "/js/facetHelpers.js";
-import { auth } from "/js/auth.js";
 import {
   getDisplayName,
   getGroupConvoDetails,
@@ -67,6 +66,7 @@ export default async function chatDetailView({
   router,
   layout,
   context: {
+    auth,
     dataLayer,
     chatNotificationService,
     identityResolver,

@@ -236,30 +236,34 @@ describe("postEmbedTemplate - video", () => {
     return container.querySelector(".post-video");
   }
 
-  it("renders the aspect ratio inline on .post-video", () => {
+  it("reserves height from the video aspect ratio", () => {
     const el = renderVideo({ width: 16, height: 9 });
     assert(el !== null);
-    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(
+      el.style.getPropertyValue("--post-video-height"),
+      "56.25%",
+    );
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("caps tall videos at a 1:2 ratio", () => {
     const el = renderVideo({ width: 1, height: 4 });
-    assert.deepEqual(el.style.aspectRatio, String(1 / 2));
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "200%");
   });
 
   it("passes through wide videos without clamping", () => {
     const el = renderVideo({ width: 5, height: 1 });
-    assert.deepEqual(el.style.aspectRatio, "5");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "20%");
   });
 
-  it("omits aspect-ratio when missing", () => {
+  it("reserves a square when the aspect ratio is missing", () => {
     const el = renderVideo(undefined);
-    assert.deepEqual(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
-  it("omits aspect-ratio when invalid", () => {
+  it("reserves a square when the aspect ratio is invalid", () => {
     const el = renderVideo({ width: 0, height: 0 });
-    assert.deepEqual(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
   it("renders a video with controls and no looping by default", () => {
@@ -304,9 +308,13 @@ describe("postEmbedTemplate - gif presentation video", () => {
     );
   });
 
-  it("renders the aspect ratio inline on .post-video", () => {
+  it("reserves height from the gif aspect ratio", () => {
     const el = renderGifVideo({ aspectRatio: { width: 16, height: 9 } });
-    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(
+      el.style.getPropertyValue("--post-video-height"),
+      "56.25%",
+    );
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("shows the ALT badge when alt text is present", () => {
@@ -386,6 +394,69 @@ describe("postEmbedTemplate - external links", () => {
         .querySelector("[data-testid='external-link-domain']")
         .textContent.trim(),
       "example.com",
+    );
+  });
+});
+
+describe("postEmbedTemplate - external GIFs", () => {
+  const TENOR_URI = "https://media.tenor.com/abcAAAAC/cat.gif";
+  const KLIPY_URI =
+    "https://static.klipy.com/ii/abc/cat.gif?hh=100&ww=200&mp4=catslug&webm=catslug";
+
+  function renderExternal({ uri, description }) {
+    const result = postEmbedTemplate({
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: { uri, title: "Cat", description, thumb: null },
+      },
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    return container;
+  }
+
+  it("strips the vendor alt prefix from a Tenor GIF's alt text", () => {
+    const container = renderExternal({
+      uri: TENOR_URI,
+      description: "ALT: dancing cat",
+    });
+    assert.deepEqual(
+      container.querySelector("streaming-video").getAttribute("alt"),
+      "dancing cat",
+    );
+  });
+
+  it("strips the user alt prefix from a Klipy GIF's alt text", () => {
+    const container = renderExternal({
+      uri: KLIPY_URI,
+      description: "Alt: a cat in a chair",
+    });
+    assert.deepEqual(
+      container.querySelector("streaming-video").getAttribute("alt"),
+      "a cat in a chair",
+    );
+  });
+
+  it("shows the unprefixed alt text in the alt dialog", () => {
+    const container = renderExternal({
+      uri: TENOR_URI,
+      description: "ALT: dancing cat",
+    });
+    const badge = container.querySelector("[data-testid='video-alt-badge']");
+    assert(badge !== null);
+    badge.click();
+    const dialogText = document.querySelector(".alt-text-dialog-text");
+    assert.deepEqual(dialogText?.textContent, "dancing cat");
+    dialogText.closest("dialog").remove();
+  });
+
+  it("hides the alt badge when the description carries only a prefix", () => {
+    const container = renderExternal({ uri: TENOR_URI, description: "ALT: " });
+    assert.deepEqual(
+      container.querySelector("[data-testid='video-alt-badge']"),
+      null,
     );
   });
 });

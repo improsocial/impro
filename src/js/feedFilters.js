@@ -329,12 +329,12 @@ export function filterFollowingFeed(
     ...(followingFeedPreference?.hideQuotePosts
       ? [new FilterQuotePosts()]
       : []),
+    new FilterEmptyPosts(),
     new DedupeFeed(),
     new FilterBlockedQuotes(),
     new FilterBlockedPosts(),
     new FilterMutedQuotes(),
     new FilterMutedPosts(),
-    new FilterEmptyPosts(),
     new FilterHiddenPosts(),
     new FilterContentLabeledPosts(),
     new FilterPluginFilteredPosts(pluginFilteredFeedItems),
@@ -351,12 +351,12 @@ export function filterAlgorithmicFeed(
   pluginFilteredFeedItems,
 ) {
   const filter = FeedFilter.compose(
+    new FilterEmptyPosts(),
     new FilterBlockedQuotes(),
     new FilterBlockedPosts(),
     new DedupeFeed(),
     new FilterMutedQuotes(),
     new FilterMutedPosts(),
-    new FilterEmptyPosts(),
     new FilterHiddenPosts(),
     new FilterContentLabeledPosts(),
     new FilterUnauthorizedPosts(isAuthenticated),
@@ -377,8 +377,8 @@ export function filterBookmarksFeed(feed) {
 
 export function filterAuthorFeed(feed, isAuthenticated) {
   const filter = FeedFilter.compose(
-    new DedupeFeed({ includeReposts: false }),
     new FilterEmptyPosts({ checkParents: false }),
+    new DedupeFeed({ includeReposts: false }),
     new FilterHiddenPosts(),
     new FilterContentLabeledPosts(),
     new FilterUnauthorizedPosts(isAuthenticated),

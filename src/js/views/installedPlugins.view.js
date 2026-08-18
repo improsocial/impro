@@ -1,7 +1,6 @@
 import { html, render, keyed } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -17,7 +16,7 @@ import "/js/components/toggle-switch.js";
 export default async function installedPluginsView({
   root,
   router,
-  context: { pluginService },
+  context: { auth, pluginService },
 }) {
   await auth.requireAuth();
 

@@ -42,52 +42,16 @@ export default async function homeView({
     interactionHandlers,
   },
 }) {
-  const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
   const WELCOME_MODAL_SEEN_STORAGE_KEY = "welcome-modal-seen";
 
-  // Keyed per account
-  const currentFeedUriStorageKey = isAuthenticated
-    ? `${CURRENT_FEED_URI_STORAGE_KEY}:${api.session.did}`
-    : null;
-
-  function readStoredFeedUri() {
-    if (!currentFeedUriStorageKey) {
-      return null;
-    }
-    const stored = localStorage.getItem(currentFeedUriStorageKey);
-    if (stored !== null) {
-      return stored;
-    }
-    // Carry over the selection saved before the key was per-account
-    const legacyStored = localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY);
-    localStorage.removeItem(CURRENT_FEED_URI_STORAGE_KEY);
-    return legacyStored;
-  }
-
-  function saveFeedUri(feedUri) {
-    if (!currentFeedUriStorageKey) {
-      return;
-    }
-    localStorage.setItem(currentFeedUriStorageKey, JSON.stringify(feedUri));
-  }
-
-  const storedFeedUri = readStoredFeedUri();
-
   const state = new ReactiveStore("homeView");
-  state.$currentFeedUri = new Signal.State(
-    storedFeedUri ? JSON.parse(storedFeedUri) : null,
-  );
   state.$isReloadingFeed = new Signal.State(false);
   state.$materializedFeedUris = new SignalSet();
 
-  function resetToDefaultFeed() {
-    state.$currentFeedUri.set(
+  if (!dataLayer.derived.$selectedFeedUri.get()) {
+    dataLayer.mutations.setSelectedFeedUri(
       isAuthenticated ? FOLLOWING_FEED_URI : LOGGED_OUT_FEED_URI,
     );
-  }
-
-  if (!state.$currentFeedUri.get()) {
-    resetToDefaultFeed();
   }
 
   if (
@@ -185,7 +149,7 @@ export default async function homeView({
   }
 
   async function handleTabClick(feedUri) {
-    let currentFeedUri = state.$currentFeedUri.get();
+    let currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     if (feedUri === currentFeedUri) {
       scrollAndReloadFeed();
       return;
@@ -194,8 +158,7 @@ export default async function homeView({
     feedScrollState.set(currentFeedUri, window.scrollY);
     state.$materializedFeedUris.add(currentFeedUri);
     // Switch feed
-    state.$currentFeedUri.set(feedUri);
-    saveFeedUri(feedUri);
+    dataLayer.mutations.setSelectedFeedUri(feedUri);
     // Scroll to saved position for new feed
     const savedScrollY = feedScrollState.get(feedUri) ?? 0;
     requestAnimationFrame(() => {
@@ -233,9 +196,15 @@ export default async function homeView({
     scrollAndReloadFeed();
   });
 
+  // Dispatched by the pinned feeds pane in the right column
+  bindToPage(root, window, "home-feed-select", (event) => {
+    const feedUri = event.detail;
+    handleTabClick(feedUri);
+  });
+
   const $currentPinnedItem = new Signal.Computed(() => {
     const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
-    const currentFeedUri = state.$currentFeedUri.get();
+    const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     return pinnedItems.find((item) => item.uri === currentFeedUri);
   });
 
@@ -306,7 +275,7 @@ export default async function homeView({
   pageEffect(root, () => {
     const currentUser = dataLayer.derived.$currentUser.get();
     const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
-    const currentFeedUri = state.$currentFeedUri.get();
+    const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     const currentFeedRequestStatus =
       dataLayer.requests.statusStore.$statuses.get(
         "loadNextFeedPage-" + currentFeedUri,
@@ -390,7 +359,7 @@ export default async function homeView({
   }
 
   async function loadCurrentFeed({ reload = false } = {}) {
-    const currentFeedUri = state.$currentFeedUri.get();
+    const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     await dataLayer.requests.loadNextFeedPage(
       getFeedRequestDescriptor(currentFeedUri),
       { reload, limit: FEED_PAGE_SIZE + 1 },
@@ -398,10 +367,11 @@ export default async function homeView({
   }
 
   async function preloadHiddenFeeds(pinnedItems) {
-    const currentFeedUri = state.$currentFeedUri.get();
+    const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     const itemsToPreload = pinnedItems
       .filter((item) => item.uri !== currentFeedUri)
-      .slice(0, 5);
+      .slice(0, 5)
+      .filter((item) => !dataLayer.hasCachedFeed(item.uri));
     for (const item of itemsToPreload) {
       await dataLayer.requests.loadNextFeedPage(item, {
         limit: FEED_PAGE_SIZE + 1,
@@ -419,23 +389,20 @@ export default async function homeView({
   }
 
   async function loadPageData() {
-    const currentFeedUri = state.$currentFeedUri.get();
     const pinnedItems = await dataLayer.declarative.ensurePinnedItems();
-    if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
-      resetToDefaultFeed();
-    }
     preloadHiddenFeeds(pinnedItems);
     // Ensure current user before loading the feed to prevent a flash of
     // unfiltered posts
     if (isAuthenticated) {
       await dataLayer.declarative.ensureCurrentUser();
     }
-    await loadCurrentFeed({ reload: true });
+    if (!dataLayer.hasCachedFeed(dataLayer.derived.$selectedFeedUri.get())) {
+      await loadCurrentFeed();
+    }
   }
 
-  loadPageData().catch((error) => console.error(error));
-
   onPageShow(root, () => {
+    loadPageData().catch((error) => console.error(error));
     for (const observer of postSeenObservers.values()) {
       observer.connect();
     }

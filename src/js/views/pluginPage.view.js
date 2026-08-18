@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/plugin-custom-content.js";
 
@@ -10,7 +9,7 @@ export default async function pluginPageView({
   router,
   layout,
   params,
-  context: { pluginService },
+  context: { auth, pluginService },
 }) {
   await auth.requireAuth();
 

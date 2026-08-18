@@ -1,5 +1,5 @@
 import { parseUri } from "/js/dataHelpers.js";
-import { RefreshTokenError, auth } from "/js/auth.js";
+import { RefreshTokenError } from "/js/auth.js";
 import { TokenRefreshError as OauthRefreshTokenError } from "/js/oauth.js";
 import { batch, buildQueryString, getCurrentTimestamp } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
@@ -47,12 +47,14 @@ export class Api {
   constructor(
     session,
     {
+      onTokenRefreshError = null,
       bskyAppViewServiceDid = BSKY_APPVIEW_SERVICE_DID,
       chatAppViewServiceDid = BSKY_CHAT_SERVICE_DID,
     } = {},
   ) {
     this.isAuthenticated = !!session;
     this.session = session ?? new PublicSession();
+    this.onTokenRefreshError = onTokenRefreshError;
     this.bskyAppViewServiceDid = bskyAppViewServiceDid;
     this.chatAppViewServiceDid = chatAppViewServiceDid;
   }
@@ -99,7 +101,7 @@ export class Api {
       ) {
         console.error("Token refresh error", error);
         const did = this.isAuthenticated ? (this.session.did ?? null) : null;
-        await auth.logout(did);
+        await this.onTokenRefreshError?.(did);
         window.location.href = linkToLogin();
         await new Promise(() => {});
       }
@@ -482,6 +484,16 @@ export class Api {
         },
       },
     );
+    return res.data;
+  }
+
+  async getTrends({ limit = 5 } = {}) {
+    const res = await this.request(`app.bsky.unspecced.getTrends`, {
+      query: { limit },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
     return res.data;
   }
 

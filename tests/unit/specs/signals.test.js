@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   Signal,
@@ -6,6 +6,7 @@ import {
   SignalMap,
   SignalArray,
   effect,
+  PersistedReactiveStore,
 } from "/js/signals.js";
 
 // effect() batches reactions via a double requestAnimationFrame (see
@@ -607,5 +608,69 @@ describe("effect", () => {
     await flushEffects();
 
     assert.deepEqual(seen, [0]);
+  });
+});
+
+describe("PersistedReactiveStore", () => {
+  const storageKey = "persisted-store-test";
+
+  beforeEach(() => localStorage.removeItem(storageKey));
+  afterEach(() => localStorage.removeItem(storageKey));
+
+  it("restores a stored value matching the default's type", () => {
+    localStorage.setItem(storageKey, JSON.stringify({ hidden: true }));
+    const store = new PersistedReactiveStore(storageKey);
+    store.$hidden = new Signal.State(false);
+    assert.deepEqual(store.$hidden.get(), true);
+  });
+
+  it("ignores a stored value whose type differs from the default", () => {
+    localStorage.setItem(storageKey, JSON.stringify({ hidden: "yes" }));
+    const store = new PersistedReactiveStore(storageKey);
+    store.$hidden = new Signal.State(false);
+    assert.deepEqual(store.$hidden.get(), false);
+  });
+
+  it("restores any stored value when the default is null", () => {
+    localStorage.setItem(storageKey, JSON.stringify({ selected: "following" }));
+    const store = new PersistedReactiveStore(storageKey);
+    store.$selected = new Signal.State(null);
+    assert.deepEqual(store.$selected.get(), "following");
+  });
+
+  it("keeps a null default when nothing is stored", () => {
+    const store = new PersistedReactiveStore(storageKey);
+    store.$selected = new Signal.State(null);
+    assert.deepEqual(store.$selected.get(), null);
+  });
+
+  it("saves changed values and drops values back at their default", async () => {
+    const store = new PersistedReactiveStore(storageKey);
+    store.$hidden = new Signal.State(false);
+    store.$selected = new Signal.State(null);
+
+    store.$hidden.set(true);
+    store.$selected.set("following");
+    await flushEffects();
+    assert.deepEqual(JSON.parse(localStorage.getItem(storageKey)), {
+      hidden: true,
+      selected: "following",
+    });
+
+    store.$hidden.set(false);
+    store.$selected.set(null);
+    await flushEffects();
+    assert.deepEqual(localStorage.getItem(storageKey), null);
+  });
+
+  it("does not write the defaults back on registration", async () => {
+    const store = new PersistedReactiveStore(storageKey);
+    store.$hidden = new Signal.State(false);
+    await flushEffects();
+    assert.deepEqual(localStorage.getItem(storageKey), null);
+  });
+
+  it("throws without a storage key", () => {
+    assert.throws(() => new PersistedReactiveStore(), /storage key/);
   });
 });

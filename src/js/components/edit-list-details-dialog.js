@@ -5,6 +5,7 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
+import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -41,7 +42,7 @@ class EditListDetailsDialog extends Component {
     this._list = list;
     this._name = list.name || "";
     this._description = list.description || "";
-    this._currentAvatar = list.avatar || null;
+    this._currentAvatar = cdnImageUrl(list.avatar) || null;
     this._newAvatarDataUrl = null;
     this._removeAvatar = false;
     this._saving = false;

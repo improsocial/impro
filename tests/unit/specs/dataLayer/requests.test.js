@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
@@ -46,7 +47,7 @@ describe("loadPostThread", () => {
       getPostThreadOther: async () => mockPostThreadOther,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -85,7 +86,7 @@ describe("loadPostThread", () => {
       getPostThreadOther: async () => [],
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -118,7 +119,7 @@ describe("loadNextFeedPage", () => {
       getFeed: async () => mockFeed,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -139,7 +140,7 @@ describe("loadNextFeedPage", () => {
   });
 
   it("should append to existing feed", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
 
     // Set up existing feed
     const existingFeed = {
@@ -185,7 +186,7 @@ describe("loadNextFeedPage", () => {
   });
 
   it("should discard a stale page when a reload lands mid-flight", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$feeds.set(feedURI, {
       feed: [{ post: { uri: "post1" } }],
       cursor: "cursor1",
@@ -218,7 +219,7 @@ describe("loadNextFeedPage", () => {
   });
 
   it("should emit feedLoaded with the reload flag", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$feeds.set(feedURI, {
       feed: [{ post: { uri: "post1" } }],
       cursor: "cursor1",
@@ -256,7 +257,7 @@ describe("loadNextFeedPage", () => {
       getFeed: async () => emptyFeed,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -295,7 +296,7 @@ describe("loadNextFeedPage", () => {
       getFeed: async () => feedWithReplies,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -332,7 +333,7 @@ describe("loadDetailedProfile", () => {
       getProfile: async () => mockProfile,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
 
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -350,7 +351,7 @@ describe("loadDetailedProfile", () => {
   });
 
   it("should handle profile updates", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
 
     // Load initial profile
     const initialProfile = {
@@ -404,7 +405,7 @@ describe("loadPosts", () => {
       },
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -430,7 +431,7 @@ describe("loadPosts", () => {
       },
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -464,7 +465,7 @@ describe("loadLabelerInfo", () => {
       getLabeler: async () => mockLabelerInfo,
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -488,7 +489,7 @@ describe("loadLabelerInfo", () => {
       },
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -515,7 +516,7 @@ describe("loadLabelerInfo", () => {
       },
     };
 
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -547,7 +548,7 @@ describe("loadMutedProfiles", () => {
       cursor: "next",
     };
     const mockApi = { getMutes: async () => res };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -569,7 +570,7 @@ describe("loadMutedProfiles", () => {
   });
 
   it("should append paginated muted profiles when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$mutedProfiles.set({
       mutes: [{ did: "did:plc:a" }],
       cursor: "page2",
@@ -606,7 +607,7 @@ describe("loadMutedProfiles", () => {
         return { mutes: [], cursor: undefined };
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$mutedProfiles.set({ mutes: [], cursor: "abc" });
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -622,7 +623,7 @@ describe("loadMutedProfiles", () => {
   });
 
   it("should discard the response when the cursor no longer matches", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const existing = {
       mutes: [{ did: "did:plc:a" }],
       cursor: "page3",
@@ -650,7 +651,11 @@ describe("loadMutedProfiles", () => {
   });
 });
 
-function makeRequests(api, dataStore = new DataStore(), preferences) {
+function makeRequests(
+  api,
+  dataStore = new DataStore(createSessionState(null)),
+  preferences,
+) {
   const provider = {
     requirePreferences: () =>
       preferences ?? Preferences.createLoggedOutPreferences(),
@@ -665,7 +670,7 @@ describe("loadBlockedProfiles", () => {
       cursor: "next",
     };
     const mockApi = { getBlocks: async () => res };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadBlockedProfiles();
@@ -680,7 +685,7 @@ describe("loadBlockedProfiles", () => {
   });
 
   it("should append paginated blocked profiles when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$blockedProfiles.set({
       blocks: [{ did: "did:plc:a" }],
       cursor: "page2",
@@ -710,7 +715,7 @@ describe("loadBlockedProfiles", () => {
         return { blocks: [], cursor: undefined };
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$blockedProfiles.set({ blocks: [], cursor: "abc" });
     const requests = makeRequests(mockApi, dataStore);
 
@@ -730,7 +735,7 @@ describe("loadNextAuthorFeedPage", () => {
         return { feed: [{ post: { uri: "p1" } }], cursor: "c1" };
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadNextAuthorFeedPage(did, "posts");
@@ -797,7 +802,7 @@ describe("loadNextAuthorFeedPage", () => {
 
   it("should append to existing feed", async () => {
     const feedURI = `${did}-posts`;
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$authorFeeds.set(feedURI, {
       feed: [{ post: { uri: "old1" } }],
       cursor: "c1",
@@ -822,7 +827,7 @@ describe("loadNextAuthorFeedPage", () => {
 
   it("should reset cursor and replace feed on reload", async () => {
     const feedURI = `${did}-posts`;
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$authorFeeds.set(feedURI, {
       feed: [{ post: { uri: "old1" } }],
       cursor: "c1",
@@ -861,7 +866,7 @@ describe("loadNextAuthorFeedPage", () => {
 
 describe("loadPostSearchTop / loadPostSearchLatest", () => {
   it("should clear results for both sorts when query is empty", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$postSearchResultsTop.set({
       posts: [{ uri: "p1" }],
       cursor: "c1",
@@ -887,7 +892,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
         cursor: "next",
       }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadPostSearchTop("hello");
@@ -904,7 +909,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
         cursor: null,
       }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadPostSearchTop("hello");
@@ -921,7 +926,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
   });
 
   it("should not discard an in-flight sort when the other sort loads", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveTop;
     const topPromise = new Promise((resolve) => {
       resolveTop = resolve;
@@ -954,7 +959,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
   });
 
   it("should discard stale responses based on requestTime guard", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveFirst;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
@@ -984,7 +989,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
   });
 
   it("should discard a stale cursored response that finishes dependency loading after a re-search", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const replyPost = (uri) => ({
       uri,
       record: { reply: { parent: { uri: `${uri}-parent` } } },
@@ -1028,7 +1033,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
   });
 
   it("should append when cursor is provided and existing results present", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$postSearchResultsTop.set({
       posts: [{ uri: "p1", record: {} }],
       cursor: "c1",
@@ -1052,7 +1057,7 @@ describe("loadPostSearchTop / loadPostSearchLatest", () => {
 
 describe("loadProfileSearch", () => {
   it("should clear results when query is empty", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$profileSearchResults.set({
       actors: [{ did: "x" }],
       cursor: "c",
@@ -1074,7 +1079,7 @@ describe("loadProfileSearch", () => {
         cursor: "next",
       }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadProfileSearch("alice");
@@ -1085,7 +1090,7 @@ describe("loadProfileSearch", () => {
   });
 
   it("should discard stale responses", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveFirst;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
@@ -1114,7 +1119,7 @@ describe("loadProfileSearch", () => {
   });
 
   it("should append when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$profileSearchResults.set({
       actors: [{ did: "did:plc:a" }],
       cursor: "c1",
@@ -1135,7 +1140,7 @@ describe("loadProfileSearch", () => {
   });
 
   it("should discard in-flight responses after the query is cleared", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveSearch;
     const searchPromise = new Promise((resolve) => {
       resolveSearch = resolve;
@@ -1159,7 +1164,7 @@ describe("loadProfileSearch", () => {
 
 describe("loadChatRecipientSearch", () => {
   it("should store the search results", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchProfilesTypeahead: async () => ({
         actors: [{ did: "did:plc:a" }],
@@ -1175,7 +1180,7 @@ describe("loadChatRecipientSearch", () => {
   });
 
   it("should clear results when query is empty", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$chatRecipientSearchResults.set({ actors: [{ did: "x" }] });
     const mockApi = {
       searchProfilesTypeahead: async () => ({ actors: [] }),
@@ -1188,7 +1193,7 @@ describe("loadChatRecipientSearch", () => {
   });
 
   it("should discard in-flight responses after the query is cleared", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveSearch;
     const searchPromise = new Promise((resolve) => {
       resolveSearch = resolve;
@@ -1212,7 +1217,7 @@ describe("loadChatRecipientSearch", () => {
 
 describe("loadSearchTypeahead", () => {
   it("should store the search results and hydrate profiles", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchProfilesTypeahead: async () => ({
         actors: [{ did: "did:plc:a" }],
@@ -1231,7 +1236,7 @@ describe("loadSearchTypeahead", () => {
   });
 
   it("should clear results when query is empty", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$searchTypeaheadResults.set({ actors: [{ did: "x" }] });
     const mockApi = {
       searchProfilesTypeahead: async () => ({ actors: [] }),
@@ -1244,7 +1249,7 @@ describe("loadSearchTypeahead", () => {
   });
 
   it("should discard in-flight responses after the query is cleared", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveSearch;
     const searchPromise = new Promise((resolve) => {
       resolveSearch = resolve;
@@ -1266,9 +1271,85 @@ describe("loadSearchTypeahead", () => {
   });
 });
 
+describe("loadSidebarSearchTypeahead", () => {
+  it("should store the search results and hydrate profiles", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSidebarSearchTypeahead("alice");
+
+    const stored = dataStore.$sidebarSearchTypeaheadResults.get();
+    assert.deepEqual(stored.actors.length, 1);
+    assert.deepEqual(stored.actors[0].did, "did:plc:a");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
+      did: "did:plc:a",
+    });
+  });
+
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$sidebarSearchTypeaheadResults.set({ actors: [{ did: "x" }] });
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({ actors: [] }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSidebarSearchTypeahead("");
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+  });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfilesTypeahead: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadSidebarSearchTypeahead("query");
+    await requests.loadSidebarSearchTypeahead("");
+    resolveSearch();
+    await inFlight;
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+  });
+
+  it("should not disturb the search view's typeahead results", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:sidebar" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+    await requests.loadSearchTypeahead("alice");
+
+    await requests.loadSidebarSearchTypeahead("bob");
+    await requests.loadSidebarSearchTypeahead("");
+
+    assert.deepEqual(dataStore.$sidebarSearchTypeaheadResults.get(), null);
+    assert.deepEqual(
+      dataStore.$searchTypeaheadResults.get().actors[0].did,
+      "did:plc:sidebar",
+    );
+  });
+});
+
 describe("loadFeedSearch", () => {
   it("should clear results when query is empty", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$feedSearchResults.set({ feeds: [{ uri: "f1" }], cursor: "c" });
     const mockApi = {
       searchFeedGenerators: async () => ({ feeds: [], cursor: null }),
@@ -1281,7 +1362,7 @@ describe("loadFeedSearch", () => {
   });
 
   it("should store feeds and cache feed generators", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchFeedGenerators: async () => ({
         feeds: [{ uri: "f1", displayName: "Feed One" }],
@@ -1301,7 +1382,7 @@ describe("loadFeedSearch", () => {
   });
 
   it("should discard stale responses", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let resolveFirst;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
@@ -1330,7 +1411,7 @@ describe("loadFeedSearch", () => {
   });
 
   it("should append when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$feedSearchResults.set({
       feeds: [{ uri: "f1" }],
       cursor: "c1",
@@ -1353,7 +1434,7 @@ describe("loadFeedSearch", () => {
 
 describe("loadNotifications", () => {
   it("should set notifications and cursor on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
@@ -1375,7 +1456,7 @@ describe("loadNotifications", () => {
   });
 
   it("should append when cursor matches previous", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ reason: "like", uri: "n1" }],
       cursor: "page2",
@@ -1404,7 +1485,7 @@ describe("loadNotifications", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ reason: "like", uri: "n1" }],
       cursor: "page2",
@@ -1435,7 +1516,7 @@ describe("loadNotifications", () => {
   });
 
   it("should capture seenAt on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
@@ -1457,7 +1538,7 @@ describe("loadNotifications", () => {
   });
 
   it("should overwrite the captured seenAt on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ reason: "like", uri: "n1" }],
       cursor: "page2",
@@ -1485,7 +1566,7 @@ describe("loadNotifications", () => {
   });
 
   it("should not capture seenAt on subsequent pages", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ reason: "like", uri: "n1" }],
       cursor: "page2",
@@ -1513,7 +1594,7 @@ describe("loadNotifications", () => {
   });
 
   it("should set seenAt to null when the response omits it", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notificationsLastSeenAt.set("2025-01-14T10:00:00.000Z");
     const mockApi = {
       getNotifications: async () => ({
@@ -1532,7 +1613,7 @@ describe("loadNotifications", () => {
   });
 
   it("should discard a stale response when a reload lands mid-flight", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ uri: "n1", reason: "follow" }],
       cursor: "c1",
@@ -1562,7 +1643,7 @@ describe("loadNotifications", () => {
   });
 
   it("should discard a stale page when the list reaches its end mid-flight", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$notifications.set({
       notifications: [{ uri: "n1", reason: "follow" }],
       cursor: "c1",
@@ -1597,7 +1678,7 @@ describe("loadNotifications", () => {
 
 describe("loadMentionNotifications", () => {
   it("should request only mention reasons and store results", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let capturedReasons;
     const mockApi = {
       getNotifications: async ({ reasons }) => {
@@ -1624,7 +1705,7 @@ describe("loadMentionNotifications", () => {
   });
 
   it("should not capture seenAt", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
@@ -1643,7 +1724,7 @@ describe("loadMentionNotifications", () => {
   });
 
   it("should append when cursor matches previous", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$mentionNotifications.set({
       notifications: [{ reason: "mention", uri: "n1" }],
       cursor: "page2",
@@ -1670,7 +1751,7 @@ describe("loadMentionNotifications", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$mentionNotifications.set({
       notifications: [{ reason: "mention", uri: "n1" }],
       cursor: "page2",
@@ -1697,7 +1778,7 @@ describe("loadMentionNotifications", () => {
 
 describe("loadBookmarks", () => {
   it("should set bookmarks on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getBookmarks: async () => ({
         bookmarks: [{ item: { uri: "post1", record: {} } }],
@@ -1716,7 +1797,7 @@ describe("loadBookmarks", () => {
   });
 
   it("should append on subsequent loads", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$bookmarks.set({
       bookmarks: [{ item: { uri: "post1" } }],
       cursor: "c1",
@@ -1739,7 +1820,7 @@ describe("loadBookmarks", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$bookmarks.set({
       bookmarks: [{ item: { uri: "post1" } }],
       cursor: "c1",
@@ -1771,7 +1852,7 @@ describe("loadProfileFollowers", () => {
   const profileDid = "did:plc:profile";
 
   it("should set followers on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const res = {
       followers: [{ did: "did:plc:a" }],
       cursor: "next",
@@ -1785,7 +1866,7 @@ describe("loadProfileFollowers", () => {
   });
 
   it("should append followers when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$profileFollowers.set(profileDid, {
       followers: [{ did: "did:plc:a" }],
       cursor: "c1",
@@ -1810,7 +1891,7 @@ describe("loadProfileFollows", () => {
   const profileDid = "did:plc:profile";
 
   it("should set follows on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const res = { follows: [{ did: "did:plc:a" }], cursor: "next" };
     const mockApi = { getFollows: async () => res };
     const requests = makeRequests(mockApi, dataStore);
@@ -1821,7 +1902,7 @@ describe("loadProfileFollows", () => {
   });
 
   it("should append follows when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$profileFollows.set(profileDid, {
       follows: [{ did: "did:plc:a" }],
       cursor: "c1",
@@ -1844,7 +1925,7 @@ describe("loadProfileFollows", () => {
 
 describe("loadConvoList", () => {
   it("should set convo list and cache individual convos on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       listConvos: async () => ({
         convos: [
@@ -1865,7 +1946,7 @@ describe("loadConvoList", () => {
   });
 
   it("should append when previous cursor matches", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
 
     const mockApi = {
@@ -1883,7 +1964,7 @@ describe("loadConvoList", () => {
   });
 
   it("should drop convos already in the list when appending a page", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({
       convos: [{ id: "c2", unreadCount: 1 }, { id: "c1" }],
       cursor: "page2",
@@ -1908,7 +1989,7 @@ describe("loadConvoList", () => {
   });
 
   it("should reset cursor and replace on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
 
     let capturedCursor;
@@ -1931,7 +2012,7 @@ describe("loadConvoList", () => {
 
 describe("loadConvoRequestList", () => {
   it("should request only request convos and cache them on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let capturedStatus;
     const mockApi = {
       listConvos: async ({ status }) => {
@@ -1957,7 +2038,7 @@ describe("loadConvoRequestList", () => {
   });
 
   it("should append when previous cursor matches", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoRequestList.set({
       convos: [{ id: "r1" }],
       cursor: "page2",
@@ -1978,7 +2059,7 @@ describe("loadConvoRequestList", () => {
   });
 
   it("should drop convos already in the list when appending a page", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoRequestList.set({
       convos: [{ id: "r2" }, { id: "r1" }],
       cursor: "page2",
@@ -2001,7 +2082,7 @@ describe("loadConvoRequestList", () => {
   });
 
   it("should reset cursor and replace on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoRequestList.set({
       convos: [{ id: "r1" }],
       cursor: "page2",
@@ -2029,7 +2110,7 @@ describe("loadConvo", () => {
   const convoId = "convo1";
 
   it("should store the convo and track status under a namespaced key", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getConvo: async () => ({ convo: { id: convoId } }),
     };
@@ -2044,7 +2125,7 @@ describe("loadConvo", () => {
   });
 
   it("should add the convo to the loaded convo list", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [{ id: "other" }], cursor: null });
     const mockApi = {
       getConvo: async () => ({ convo: { id: convoId, status: "accepted" } }),
@@ -2067,7 +2148,7 @@ describe("loadConvo", () => {
       headers: {},
       url: "/x",
     });
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getConvo: async () => {
         throw apiError;
@@ -2089,7 +2170,7 @@ describe("loadConvo", () => {
 
 describe("loadConvoForProfile", () => {
   it("should store the convo and add it to the loaded convo list", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoList.set({ convos: [{ id: "other" }], cursor: null });
     const mockApi = {
       getConvoForMembers: async () => ({
@@ -2112,7 +2193,7 @@ describe("loadConvoMembers", () => {
   const convoId = "convo1";
 
   it("should store the first page with its cursor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getConvoMembers: async () => ({
         members: [{ did: "did:plc:alice" }, { did: "did:plc:bob" }],
@@ -2132,7 +2213,7 @@ describe("loadConvoMembers", () => {
   });
 
   it("should append the next page using the stored cursor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const capturedCursors = [];
     const pages = [
       { members: [{ did: "did:plc:alice" }], cursor: "1" },
@@ -2159,7 +2240,7 @@ describe("loadConvoMembers", () => {
   });
 
   it("should overwrite the stored list on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoMemberLists.set(convoId, {
       members: [{ did: "did:plc:stale" }],
       cursor: "5",
@@ -2191,7 +2272,7 @@ describe("loadConvoMembers", () => {
       headers: {},
       url: "/x",
     });
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getConvoMembers: async () => {
         throw apiError;
@@ -2215,7 +2296,7 @@ describe("loadConvoMessages", () => {
   const convoId = "convo1";
 
   it("should set messages on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getMessages: async () => ({
         messages: [{ id: "m1" }, { id: "m2" }],
@@ -2232,7 +2313,7 @@ describe("loadConvoMessages", () => {
   });
 
   it("should append messages when prior cursor exists", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoMessages.set(convoId, {
       messages: [{ id: "m1" }],
       cursor: "page2",
@@ -2259,7 +2340,7 @@ describe("loadConvoMessages", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$convoMessages.set(convoId, {
       messages: [{ id: "old" }],
       cursor: "page2",
@@ -2283,7 +2364,7 @@ describe("loadConvoMessages", () => {
   });
 
   it("should store related profiles", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getMessages: async () => ({
         messages: [{ id: "m1" }],
@@ -2322,7 +2403,7 @@ describe("pollConvoMessages", () => {
   let dataStore;
 
   beforeEach(() => {
-    dataStore = new DataStore();
+    dataStore = new DataStore(createSessionState(null));
     dataStore.$currentUser.set({ did: currentUserDid });
     dataStore.$convos.set(convoId, {
       id: convoId,
@@ -2615,7 +2696,7 @@ describe("loadPostLikes", () => {
   const postUri = "at://did/post/1";
 
   it("should set likes on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const res = { likes: [{ actor: { did: "did:plc:a" } }], cursor: "next" };
     const mockApi = { getLikes: async () => res };
     const requests = makeRequests(mockApi, dataStore);
@@ -2626,7 +2707,7 @@ describe("loadPostLikes", () => {
   });
 
   it("should append likes when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$postLikes.set(postUri, {
       likes: [{ actor: { did: "did:plc:a" } }],
       cursor: "c1",
@@ -2651,7 +2732,7 @@ describe("loadPostQuotes", () => {
   const postUri = "at://did/post/1";
 
   it("should set quotes on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getQuotes: async () => ({
         posts: [{ uri: "q1", record: {} }],
@@ -2669,7 +2750,7 @@ describe("loadPostQuotes", () => {
   });
 
   it("should append quotes when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$postQuotes.set(postUri, {
       posts: [{ uri: "q1", record: {} }],
       cursor: "c1",
@@ -2695,7 +2776,7 @@ describe("loadPostReposts", () => {
   const postUri = "at://did/post/1";
 
   it("should set reposts on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getRepostedBy: async () => ({
         repostedBy: [{ did: "did:plc:a" }],
@@ -2712,7 +2793,7 @@ describe("loadPostReposts", () => {
   });
 
   it("should append reposts when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$postReposts.set(postUri, {
       repostedBy: [{ did: "did:plc:a" }],
       cursor: "c1",
@@ -2737,7 +2818,7 @@ describe("loadActorFeeds", () => {
   const did = "did:plc:author";
 
   it("should set actor feeds and cache feed generators on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getActorFeeds: async () => ({
         feeds: [{ uri: "f1", displayName: "F1" }],
@@ -2755,7 +2836,7 @@ describe("loadActorFeeds", () => {
   });
 
   it("should append on subsequent calls when cursor remains", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: "c1",
@@ -2776,7 +2857,7 @@ describe("loadActorFeeds", () => {
   });
 
   it("should short-circuit when there is no remaining cursor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: null,
@@ -2796,7 +2877,7 @@ describe("loadActorFeeds", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: null,
@@ -2826,7 +2907,7 @@ describe("loadListsWithMembershipForActor", () => {
   const list2 = { uri: "at://owner/app.bsky.graph.list/2", name: "L2" };
 
   it("should store the first page keyed by actor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getListsWithMembership: async () => ({
         listsWithMembership: [
@@ -2847,7 +2928,7 @@ describe("loadListsWithMembershipForActor", () => {
   });
 
   it("should append the next page when called again with a cached cursor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listsWithMembershipByActor.set(actorDid, {
       listsWithMembership: [{ list: list1 }],
       cursor: "c1",
@@ -2873,7 +2954,7 @@ describe("loadListsWithMembershipForActor", () => {
   });
 
   it("should short-circuit when fully loaded", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listsWithMembershipByActor.set(actorDid, {
       listsWithMembership: [{ list: list1 }],
       cursor: null,
@@ -2893,7 +2974,7 @@ describe("loadListsWithMembershipForActor", () => {
   });
 
   it("should refetch from scratch on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listsWithMembershipByActor.set(actorDid, {
       listsWithMembership: [{ list: list1 }],
       cursor: "c1",
@@ -2921,7 +3002,7 @@ describe("loadListsWithMembershipForActor", () => {
 
 describe("loadHashtagFeed", () => {
   it("should store hashtag feed posts on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchPosts: async () => ({
         posts: [{ uri: "p1", record: {} }],
@@ -2940,7 +3021,7 @@ describe("loadHashtagFeed", () => {
   });
 
   it("should append on subsequent loads", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$hashtagFeeds.set("foo-top", {
       posts: [{ uri: "p1" }],
       cursor: "c1",
@@ -2962,7 +3043,7 @@ describe("loadHashtagFeed", () => {
   });
 
   it("should store an empty page when the response has no posts array", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchPosts: async () => ({ cursor: null }),
       getPosts: async () => [],
@@ -2977,7 +3058,7 @@ describe("loadHashtagFeed", () => {
   });
 
   it("should reset on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$hashtagFeeds.set("foo-top", {
       posts: [{ uri: "p1" }],
       cursor: "c1",
@@ -3025,7 +3106,7 @@ describe("loadPinnedItems", () => {
         return { list: { uri, name: `list-${uri}` }, items: [], cursor: "" };
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
@@ -3063,7 +3144,7 @@ describe("loadPinnedItems", () => {
         return null;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
@@ -3080,7 +3161,7 @@ describe("loadPinnedItems", () => {
 describe("enableStatus / getStatus", () => {
   it("should track loading start, end, and clear errors on success", async () => {
     const mockApi = { getMutes: async () => ({ mutes: [], cursor: null }) };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     const initialStatus = requests.getStatus("loadMutedProfiles");
@@ -3109,7 +3190,7 @@ describe("enableStatus / getStatus", () => {
         throw apiError;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadMutedProfiles();
@@ -3129,7 +3210,7 @@ describe("enableStatus / getStatus", () => {
         throw otherError;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     let caught = null;
@@ -3157,7 +3238,7 @@ describe("enableStatus / getStatus", () => {
         return { mutes: [], cursor: null };
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadMutedProfiles().catch(() => {});
@@ -3169,7 +3250,7 @@ describe("enableStatus / getStatus", () => {
   });
 
   it("should namespace status by request id derived from arguments", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getProfile: async (did) => ({ did, handle: "x" }),
     };
@@ -3199,7 +3280,7 @@ describe("_loadBlockedPosts", () => {
 
   function setup({ getPosts = async () => [], getRecord }) {
     const mockApi = { getPosts, getRecord };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3283,7 +3364,10 @@ describe("statusStore.$statuses", () => {
         throw apiError;
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
 
     assert.deepEqual(requests.statusStore.$statuses.get("loadMutedProfiles"), {
       loading: false,
@@ -3314,7 +3398,7 @@ describe("loadCurrentUser", () => {
         return profile;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadCurrentUser();
@@ -3334,7 +3418,7 @@ describe("loadCurrentUser", () => {
         value: { displayName: "Me" },
       }),
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadCurrentUser();
@@ -3360,7 +3444,7 @@ describe("loadCurrentUser", () => {
         });
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadCurrentUser();
@@ -3382,7 +3466,7 @@ describe("loadCurrentUser", () => {
         throw recordError;
       },
     };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await assert.rejects(() => requests.loadCurrentUser(), recordError);
@@ -3394,7 +3478,7 @@ describe("loadPost", () => {
   it("should load and store a single post", async () => {
     const post = { uri: "at://did:plc:a/app.bsky.feed.post/1", record: {} };
     const mockApi = { getPost: async () => post };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadPost(post.uri);
@@ -3456,7 +3540,7 @@ describe("loadPostThread with a blocked parent", () => {
   }
 
   it("should rebuild the parent chain from backlinks across blocked authors", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => [
         {
@@ -3503,7 +3587,7 @@ describe("loadPostThread with a blocked parent", () => {
       [grandparentUri, grandparentPost],
       [rootUri, rootPost],
     ]);
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => [
         {
@@ -3543,7 +3627,7 @@ describe("loadPostThread with a blocked parent", () => {
   });
 
   it("should rethrow non-abort backlink failures", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => {
         throw new TypeError("network down");
@@ -3567,7 +3651,7 @@ describe("loadPostThread with a blocked parent", () => {
   });
 
   it("should fall back to loading the blocked parent thread when the viewer is involved in the block", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let constellationCalled = false;
     const constellation = {
       getLinks: async () => {
@@ -3604,7 +3688,7 @@ describe("loadPostThread with a blocked parent", () => {
   });
 
   it("should fall back to loading the blocked parent thread when backlinks time out", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => {
         throw Object.assign(new Error("timed out"), { name: "AbortError" });
@@ -3638,7 +3722,7 @@ describe("loadPostThread with a blocked parent", () => {
   });
 
   it("should fall back to loading the blocked parent thread when backlinks yield no posts", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     // No backlinks by the blocked author — only the root gets appended
     const constellation = { getLinks: async () => [] };
     const parentThread = {
@@ -3675,7 +3759,7 @@ describe("_loadBlockedReplies", () => {
   const blockedReplyUri = "at://did:plc:blocker/app.bsky.feed.post/r2";
 
   it("should return an empty list when the thread has no post", async () => {
-    const requests = makeRequests({}, new DataStore());
+    const requests = makeRequests({}, new DataStore(createSessionState(null)));
 
     const replies = await requests._loadBlockedReplies({});
 
@@ -3683,7 +3767,7 @@ describe("_loadBlockedReplies", () => {
   });
 
   it("should keep the loaded replies when backlinks time out", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => {
         throw Object.assign(new Error("timed out"), { name: "AbortError" });
@@ -3708,7 +3792,7 @@ describe("_loadBlockedReplies", () => {
   });
 
   it("should rethrow non-abort backlink failures", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => {
         throw new TypeError("network down");
@@ -3731,7 +3815,7 @@ describe("_loadBlockedReplies", () => {
   });
 
   it("should load missing replies from backlinks and mark them as blocked replies", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const constellation = {
       getLinks: async () => [
         {
@@ -3788,7 +3872,7 @@ describe("_loadBlockedReplies", () => {
 
 describe("loadNextFeedPage feed types", () => {
   it("should use getFollowingFeed for the timeline type", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let called = false;
     const mockApi = {
       getFollowingFeed: async () => {
@@ -3805,7 +3889,7 @@ describe("loadNextFeedPage feed types", () => {
   });
 
   it("should use getListFeed for the list type", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const listUri = "at://did/app.bsky.graph.list/1";
     let requestedUri = null;
     const mockApi = {
@@ -3823,7 +3907,7 @@ describe("loadNextFeedPage feed types", () => {
   });
 
   it("should reject on an unknown feed type", async () => {
-    const requests = makeRequests({}, new DataStore());
+    const requests = makeRequests({}, new DataStore(createSessionState(null)));
 
     await assert.rejects(
       requests.loadNextFeedPage({ type: "bogus", uri: "x" }),
@@ -3839,7 +3923,7 @@ describe("loadDetailedProfiles", () => {
       { did: "did:plc:b", handle: "b.test" },
     ];
     const mockApi = { getProfiles: async () => profiles };
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadDetailedProfiles(["did:plc:a", "did:plc:b"]);
@@ -3856,7 +3940,10 @@ describe("loadDetailedProfiles", () => {
         return [];
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
 
     await requests.loadDetailedProfiles([]);
 
@@ -3866,7 +3953,7 @@ describe("loadDetailedProfiles", () => {
 
 describe("_loadJoinLinkPreviews", () => {
   it("should fetch distinct codes and store previews by code", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let requestedCodes = null;
     const mockApi = {
       isAuthenticated: true,
@@ -3901,7 +3988,10 @@ describe("_loadJoinLinkPreviews", () => {
         return { joinLinkPreviews: [] };
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
 
     await requests._loadJoinLinkPreviews(["abc"]);
     assert.deepEqual(called, false);
@@ -3918,7 +4008,10 @@ describe("_loadJoinLinkPreviews", () => {
         throw new Error("boom");
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
 
     await requests._loadJoinLinkPreviews(["abc"]);
   });
@@ -3931,7 +4024,10 @@ describe("_loadPostDependencies", () => {
         throw new Error("network down");
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
     const blockedPost = {
       $type: "app.bsky.feed.defs#blockedPost",
       uri: "at://did:plc:x/app.bsky.feed.post/1",
@@ -3943,7 +4039,7 @@ describe("_loadPostDependencies", () => {
 
 describe("loadFeedGenerator / loadList / loadStarterPack", () => {
   it("should store the feed generator by uri", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const feedGenerator = { uri: "at://did/feed/1", displayName: "Feed" };
     const mockApi = { getFeedGenerator: async () => feedGenerator };
     const requests = makeRequests(mockApi, dataStore);
@@ -3957,7 +4053,7 @@ describe("loadFeedGenerator / loadList / loadStarterPack", () => {
   });
 
   it("should store the list view by uri", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const listUri = "at://did/app.bsky.graph.list/1";
     let capturedOptions = null;
     const mockApi = {
@@ -3975,7 +4071,7 @@ describe("loadFeedGenerator / loadList / loadStarterPack", () => {
   });
 
   it("should store the starter pack by uri", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const starterPack = { uri: "at://did/starterpack/1", record: {} };
     const mockApi = { getStarterPack: async () => starterPack };
     const requests = makeRequests(mockApi, dataStore);
@@ -3990,7 +4086,7 @@ describe("loadListMembers", () => {
   const listUri = "at://did/app.bsky.graph.list/1";
 
   it("should store the first page and hydrate member profiles", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getList: async () => ({
         list: { uri: listUri },
@@ -4009,7 +4105,7 @@ describe("loadListMembers", () => {
   });
 
   it("should short-circuit when fully loaded", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listMembers.set(listUri, { items: [], cursor: null });
     let called = false;
     const mockApi = {
@@ -4026,7 +4122,7 @@ describe("loadListMembers", () => {
   });
 
   it("should refetch from scratch on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$listMembers.set(listUri, {
       items: [{ uri: "li1", subject: { did: "did:plc:a" } }],
       cursor: null,
@@ -4056,7 +4152,7 @@ describe("loadActorLists", () => {
   const did = "did:plc:author";
 
   it("should store actor lists and cache each list view", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getActorLists: async () => ({
         lists: [{ uri: "at://did/app.bsky.graph.list/1", name: "L1" }],
@@ -4077,7 +4173,7 @@ describe("loadActorLists", () => {
   });
 
   it("should short-circuit when there is no remaining cursor", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$actorLists.set(did, { lists: [], cursor: null });
     let called = false;
     const mockApi = {
@@ -4094,7 +4190,7 @@ describe("loadActorLists", () => {
   });
 
   it("should refetch from scratch on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$actorLists.set(did, {
       lists: [{ uri: "old" }],
       cursor: null,
@@ -4126,7 +4222,10 @@ describe("loadCurrentUserLists", () => {
         return { lists: [], cursor: null };
       },
     };
-    const requests = makeRequests(mockApi, new DataStore());
+    const requests = makeRequests(
+      mockApi,
+      new DataStore(createSessionState(null)),
+    );
 
     await requests.loadCurrentUserLists();
 
@@ -4134,7 +4233,7 @@ describe("loadCurrentUserLists", () => {
   });
 
   it("should load the current user's lists", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$currentUser.set({ did: "did:plc:me" });
     let requestedDid = null;
     const mockApi = {
@@ -4165,7 +4264,7 @@ describe("loadDrafts", () => {
   }
 
   it("should store the drafts page and load local media refs", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const draftView = {
       draft: {
         posts: [
@@ -4200,7 +4299,7 @@ describe("loadDrafts", () => {
   });
 
   it("should refetch from scratch on reload", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$drafts.set({ drafts: [{ draft: {} }], cursor: "c1" });
     let capturedCursor;
     const mockApi = {
@@ -4226,7 +4325,7 @@ describe("loadKnownFollowers", () => {
   const profileDid = "did:plc:target";
 
   it("should store known followers and hydrate profiles on first load", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       getKnownFollowers: async () => ({
         followers: [{ did: "did:plc:a", handle: "a" }],
@@ -4244,7 +4343,7 @@ describe("loadKnownFollowers", () => {
   });
 
   it("should append when cursor is provided", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     dataStore.$knownFollowers.set(profileDid, {
       followers: [{ did: "did:plc:a" }],
       cursor: "c1",
@@ -4267,7 +4366,7 @@ describe("loadKnownFollowers", () => {
 
 describe("loadProfileChatStatus", () => {
   it("should store the availability response keyed by profile did", async () => {
-    const dataStore = new DataStore();
+    const dataStore = new DataStore(createSessionState(null));
     let requestedDids = null;
     const availability = { canChat: true };
     const mockApi = {

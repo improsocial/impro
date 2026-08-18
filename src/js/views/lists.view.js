@@ -1,5 +1,4 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import {
@@ -15,7 +14,7 @@ import "/js/components/create-list-dialog.js";
 export default async function listsView({
   root,
   layout,
-  context: { dataLayer },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 
