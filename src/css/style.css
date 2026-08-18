@@ -489,7 +489,7 @@ pinned-feeds-pane {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  margin: 16px;
+  margin: 0 16px;
 }
 
 .pinned-feeds-item {
@@ -6140,7 +6140,7 @@ sidebar-search {
 .sidebar-search {
   position: relative;
   z-index: var(--sidebar-search-z-index);
-  margin: 16px 16px 0 16px;
+  margin: 16px;
 }
 
 .sidebar-search-input-container {
