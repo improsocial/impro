@@ -26,6 +26,7 @@ import {
   isUnavailablePost,
   parseUri,
 } from "/js/dataHelpers.js";
+import { getGifFromPost } from "/js/embedHelpers.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { getTimestampFromRkey } from "/js/atproto.js";
@@ -81,8 +82,14 @@ export default async function notificationsView({
 
     const images = getImagesFromPost(post);
     const video = getVideoFromPost(post);
+    const gif = getGifFromPost(post);
 
-    if (postPreview === null && images.length === 0 && video === null) {
+    if (
+      postPreview === null &&
+      images.length === 0 &&
+      video === null &&
+      gif === null
+    ) {
       return null;
     }
 
@@ -116,6 +123,20 @@ export default async function notificationsView({
                   alt="${video.alt || ""}"
                 />
                 <div class="video-preview-play-button"></div>
+                ${video.presentation === "gif"
+                  ? html`<div class="gif-preview-badge" data-testid="gif-badge">
+                      GIF
+                    </div>`
+                  : ""}
+              </div>
+            `
+          : ""}
+        ${gif
+          ? html`
+              <div class="notification-preview-video">
+                <img src="${cdnImageUrl(gif.thumb)}" alt="${gif.alt}" />
+                <div class="video-preview-play-button"></div>
+                <div class="gif-preview-badge" data-testid="gif-badge">GIF</div>
               </div>
             `
           : ""}

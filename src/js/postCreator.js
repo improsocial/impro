@@ -292,7 +292,7 @@ export class PostCreator {
           throw error;
         }
         // Don't fail the post creation if the image can't be uploaded
-        console.error("Error uploading external link image: ", error);
+        console.warn("Error uploading external link image: ", error);
       }
     }
     return externalEmbed;

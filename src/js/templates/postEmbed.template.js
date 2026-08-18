@@ -517,20 +517,32 @@ function parseKlipyGif(url) {
   return { imageUri: proxyUrl.href, aspectRatio };
 }
 
-function externalTemplate({ external, lazyLoadImages }) {
-  if (isTenorGifUrl(external.uri)) {
-    return gifPlayerTemplate({
-      uri: getTenorGifPlayerUri(external.uri),
-      alt: parseAltFromGifDescription(external.description).alt,
-    });
+function isGifUrl(uri) {
+  return isTenorGifUrl(uri) || !!parseKlipyGif(uri);
+}
+
+export function gifExternalTemplate({ uri, alt }) {
+  if (isTenorGifUrl(uri)) {
+    return gifPlayerTemplate({ uri: getTenorGifPlayerUri(uri), alt });
   }
-  const klipyGif = parseKlipyGif(external.uri);
+  const klipyGif = parseKlipyGif(uri);
   if (klipyGif) {
     return gifPlayerTemplate({
       type: klipyGif.videoUri ? "video" : "image",
       uri: klipyGif.videoUri ?? klipyGif.imageUri,
-      alt: parseAltFromGifDescription(external.description).alt,
+      alt,
       aspectRatio: klipyGif.aspectRatio,
+    });
+  }
+  console.warn("Uri has unknown gif type: " + uri);
+  return null;
+}
+
+function externalTemplate({ external, lazyLoadImages }) {
+  if (isGifUrl(external.uri)) {
+    return gifExternalTemplate({
+      uri: external.uri,
+      alt: parseAltFromGifDescription(external.description).alt,
     });
   }
   const youtubeVideo = parseYouTubeVideoFromUrl(external.uri);

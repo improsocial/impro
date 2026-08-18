@@ -545,6 +545,12 @@ export class Mutations {
     }
   }
 
+  async addRecentGif(gif) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.addRecentGif(gif);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
   async addRecentSearchProfile(did) {
     const preferences = this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addRecentSearchProfile(did);

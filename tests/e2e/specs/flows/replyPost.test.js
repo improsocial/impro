@@ -43,7 +43,9 @@ test.describe("Reply flow", () => {
 
     // Type into the composer's rich text input
     const composer = page.locator("post-composer");
-    await expect(composer.locator("dialog")).toBeVisible({ timeout: 10000 });
+    await expect(composer.locator("dialog.post-composer")).toBeVisible({
+      timeout: 10000,
+    });
     await composer
       .locator("rich-text-input [contenteditable]")
       .fill("My reply to the thread");
@@ -52,7 +54,7 @@ test.describe("Reply flow", () => {
     await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // The composer should close and the reply should appear in the thread
-    await expect(composer.locator("dialog")).not.toBeVisible({
+    await expect(composer.locator("dialog.post-composer")).not.toBeVisible({
       timeout: 10000,
     });
     await expect(view).toContainText("My reply to the thread", {
@@ -96,14 +98,16 @@ test.describe("Reply flow", () => {
     await view.locator(".post-thread-reply-prompt").click();
 
     const composer = page.locator("post-composer");
-    await expect(composer.locator("dialog")).toBeVisible({ timeout: 10000 });
+    await expect(composer.locator("dialog.post-composer")).toBeVisible({
+      timeout: 10000,
+    });
     await composer
       .locator("rich-text-input [contenteditable]")
       .fill("Another reply");
 
     await composer.locator('[data-testid="composer-submit-button"]').click();
 
-    await expect(composer.locator("dialog")).not.toBeVisible({
+    await expect(composer.locator("dialog.post-composer")).not.toBeVisible({
       timeout: 10000,
     });
 

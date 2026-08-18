@@ -13,6 +13,7 @@ import { generateTid } from "/js/atproto.js";
 import { LOGGED_OUT_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
 import { isListFeed } from "/js/dataHelpers.js";
+import { isValidGif, createMinimalGifObject } from "/js/embedHelpers.js";
 
 export const HIDDEN_POSTS_PREF_TYPE =
   "app.bsky.actor.defs#improHiddenPostsPref";
@@ -22,6 +23,7 @@ export const INSTALLED_PLUGINS_PREF_TYPE =
   "app.bsky.actor.defs#improInstalledPluginsPref";
 export const SEARCH_HISTORY_PREF_TYPE =
   "app.bsky.actor.defs#improSearchHistoryPref";
+export const GIF_HISTORY_PREF_TYPE = "app.bsky.actor.defs#improGifHistoryPref";
 
 function getContentTextFromEmbed(embed) {
   const texts = [];
@@ -53,6 +55,7 @@ function getContentTextFromEmbed(embed) {
 const MAX_RECENT_SEARCHES = 5;
 const MAX_RECENT_SEARCH_PROFILES = 10;
 const MAX_RECENT_SEARCH_QUERY_LENGTH = 300;
+const MAX_RECENT_GIFS = 20;
 
 const WORD_BOUNDARY_REGEX = /[\s\n\t\r\f\v]+/g;
 const LEADING_TRAILING_PUNCTUATION_REGEX = /(?:^\p{P}+|\p{P}+$)/gu;
@@ -221,6 +224,29 @@ export class Preferences {
       return clone;
     }
     pref.searches = pref.searches.filter((entry) => entry?.q !== q);
+    return clone;
+  }
+
+  getRecentGifs() {
+    const pref = Preferences.getGifHistoryPreference(this.obj);
+    if (!pref || !Array.isArray(pref.gifs)) {
+      return [];
+    }
+    return pref.gifs.filter(isValidGif).slice(0, MAX_RECENT_GIFS);
+  }
+
+  addRecentGif(gif) {
+    const clone = this.clone();
+    if (!isValidGif(gif)) {
+      return clone;
+    }
+    const pref = Preferences.ensureGifHistoryPreference(clone.obj);
+    if (!Array.isArray(pref.gifs)) {
+      pref.gifs = [];
+    }
+    pref.gifs = pref.gifs.filter((entry) => entry?.id !== gif.id);
+    pref.gifs.unshift(createMinimalGifObject(gif));
+    pref.gifs = pref.gifs.slice(0, MAX_RECENT_GIFS);
     return clone;
   }
 
@@ -704,6 +730,23 @@ export class Preferences {
       pref = {
         $type: SEARCH_HISTORY_PREF_TYPE,
         searches: [],
+      };
+      obj.push(pref);
+    }
+    return pref;
+  }
+
+  static getGifHistoryPreference(obj) {
+    // As with search history, store these on preferences instead of locally.
+    return Preferences.getPreferenceByType(obj, GIF_HISTORY_PREF_TYPE);
+  }
+
+  static ensureGifHistoryPreference(obj) {
+    let pref = Preferences.getGifHistoryPreference(obj);
+    if (!pref) {
+      pref = {
+        $type: GIF_HISTORY_PREF_TYPE,
+        gifs: [],
       };
       obj.push(pref);
     }

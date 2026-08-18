@@ -29,6 +29,17 @@ class ImageAltTextDialog extends Component {
     return this._value || "";
   }
 
+  set placeholder(value) {
+    this._placeholder = value;
+    if (this.initialized) {
+      this.render();
+    }
+  }
+
+  get placeholder() {
+    return this._placeholder || "Alt text";
+  }
+
   render() {
     const currentCharCount = graphemeCount(this.value);
     const maxChars = 2000;
@@ -78,7 +89,7 @@ class ImageAltTextDialog extends Component {
             <div class="image-alt-text-dialog-input-container">
               <textarea
                 class="image-alt-text-dialog-textarea"
-                placeholder="Alt text"
+                placeholder=${this.placeholder}
                 .value=${this.value}
                 @input=${(e) => {
                   this.value = e.target.value;

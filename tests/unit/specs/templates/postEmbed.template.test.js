@@ -7,6 +7,8 @@ import {
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 import { makeTestPluginService } from "../../testHelpers.js";
+import { buildGifExternal } from "/js/embedHelpers.js";
+import { createGif } from "../../../shared/factories.js";
 
 const pluginService = makeTestPluginService();
 
@@ -457,6 +459,28 @@ describe("postEmbedTemplate - external GIFs", () => {
     assert.deepEqual(
       container.querySelector("[data-testid='video-alt-badge']"),
       null,
+    );
+  });
+
+  it("round-trips a buildGifExternal record into a proxied gif player", () => {
+    const gif = createGif({ id: "dance", width: 498, height: 280 });
+    const external = buildGifExternal({ gif, alt: "a cat" });
+    const container = renderExternal({
+      uri: external.url,
+      description: external.description,
+    });
+    const video = container.querySelector("streaming-video");
+    // Non-Safari test env selects the webm slug through the klipy proxy
+    assert.deepEqual(
+      video.getAttribute("src"),
+      "https://k.gifs.bsky.app/ii/abc/def/dance-webm.webm",
+    );
+    assert.deepEqual(video.getAttribute("alt"), "a cat");
+    const sizedWrapper = container.querySelector(".post-video");
+    // 498x280 -> height is 100 / (498/280) percent of the width
+    assert.deepEqual(
+      sizedWrapper.getAttribute("style"),
+      `--post-video-height: ${100 / (498 / 280)}%;`,
     );
   });
 });

@@ -571,6 +571,62 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".notification-preview-image")).toHaveCount(2);
   });
 
+  test("should display post preview with a GIF embed", async ({ page }) => {
+    const gifUri = "https://media.tenor.com/abc123/dance.gif?hh=200&ww=300";
+    const postWithGif = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/gif1",
+      text: "Look at this",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+      recordEmbed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          uri: gifUri,
+          title: "dance.gif",
+          description: "ALT: a dancing cat",
+        },
+      },
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri: gifUri,
+          title: "dance.gif",
+          description: "ALT: a dancing cat",
+          thumb: "http://localhost/gif-thumb.jpg",
+        },
+      },
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([postWithGif]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "like",
+        author: alice,
+        reasonSubject: postWithGif.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    await expect(view.locator(".notification-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    const gifPreview = view.locator(".notification-preview-video");
+    await expect(gifPreview.locator("img")).toHaveAttribute(
+      "src",
+      "http://localhost/gif-thumb.jpg",
+    );
+    await expect(
+      gifPreview.locator(".video-preview-play-button"),
+    ).toBeVisible();
+    await expect(gifPreview.locator('[data-testid="gif-badge"]')).toBeVisible();
+  });
+
   test("should display 'No more notifications' at end of list", async ({
     page,
   }) => {
