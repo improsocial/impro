@@ -1455,7 +1455,7 @@ tab-bar:not([full-width]) {
 .sidebar-profile-avatar {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 @media (min-width: 800px) {
