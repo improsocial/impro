@@ -400,7 +400,8 @@ video {
   }
 
   .view-column-right {
-    display: block;
+    display: flex;
+    flex-direction: column;
     flex: 1 1 var(--sidebar-max-width);
     min-width: 0;
     max-width: var(--sidebar-max-width);
@@ -420,6 +421,7 @@ trending-pane {
 @media (min-width: 1100px) {
   trending-pane {
     display: block;
+    flex-shrink: 0;
   }
 }
 
@@ -476,6 +478,9 @@ pinned-feeds-pane {
 @media (min-width: 1100px) {
   pinned-feeds-pane {
     display: block;
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 }
 
@@ -6128,6 +6133,7 @@ sidebar-search {
 @media (min-width: 1100px) {
   sidebar-search {
     display: block;
+    flex-shrink: 0;
   }
 }
 
