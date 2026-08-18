@@ -30,6 +30,7 @@ describe("MainLayout", () => {
     const $numChatNotifications = new Signal.State(0);
     const sidebarItems = new SignalSet();
     const composePost = mock.fn();
+    const openNewChatDialog = mock.fn();
     const $trends = new Signal.State(null);
     const loadTrends = mock.fn(async () => {});
     const $hydratedPinnedItems = new Signal.State(null);
@@ -50,6 +51,7 @@ describe("MainLayout", () => {
       notificationService: { $numNotifications },
       chatNotificationService: { $numNotifications: $numChatNotifications },
       postComposerService: { composePost },
+      newChatService: { openNewChatDialog },
       accountSwitcherService: null,
       pluginService: makeTestPluginService({
         getSidebarItems: () => [...sidebarItems],
@@ -71,6 +73,7 @@ describe("MainLayout", () => {
       $numNotifications,
       sidebarItems,
       composePost,
+      openNewChatDialog,
       $trends,
       loadTrends,
     };
@@ -241,6 +244,20 @@ describe("MainLayout", () => {
       composePost.mock.calls[0].arguments[0].currentUser,
       mockUser,
     );
+  });
+
+  it("opens the new chat dialog from the sidebar new chat button on chat routes", async () => {
+    const { appRoot, openNewChatDialog, composePost } = harness;
+    setRoute({ layoutOptions: { activeNavItem: "chat" } });
+    await flushRender();
+
+    assert.deepEqual(
+      appRoot.querySelector("[data-testid='sidebar-compose-button']"),
+      null,
+    );
+    appRoot.querySelector("[data-testid='sidebar-new-chat-button']").click();
+    assert.deepEqual(openNewChatDialog.mock.callCount(), 1);
+    assert.deepEqual(composePost.mock.callCount(), 0);
   });
 
   it("lets a layout listener claim active nav clicks via preventDefault", async (t) => {

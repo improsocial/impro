@@ -49,6 +49,7 @@ import { DesktopNotificationService } from "/js/desktopNotificationService.js";
 import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { PostComposerService } from "/js/postComposerService.js";
+import { NewChatService } from "/js/newChatService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
 import { GroupChatLinkService } from "/js/groupChatLinkService.js";
@@ -161,6 +162,7 @@ export async function main() {
         draftsEnabled: await checkDraftsEnabled(auth),
       })
     : null;
+  const newChatService = session ? new NewChatService(dataLayer) : null;
   const accountSwitcherService = session
     ? new AccountSwitcherService(dataLayer, auth)
     : null;
@@ -251,6 +253,7 @@ export async function main() {
     desktopNotificationService,
     pushNotificationService,
     postComposerService,
+    newChatService,
     accountSwitcherService,
     reportService,
     groupChatLinkService,

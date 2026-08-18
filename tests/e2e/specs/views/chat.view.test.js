@@ -481,6 +481,29 @@ test.describe("Chat view", () => {
     await expect(dialog).not.toBeVisible();
   });
 
+  test("should open the new chat dialog from the sidebar new chat button", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const newChatButton = page.locator(
+      '[data-testid="sidebar-new-chat-button"]',
+    );
+    await expect(newChatButton).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('[data-testid="sidebar-compose-button"]'),
+    ).toBeHidden();
+    await newChatButton.click();
+
+    await expect(page.locator('[data-testid="new-chat-dialog"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
   test("should show a FAB instead of the header button on mobile viewports", async ({
     page,
   }) => {

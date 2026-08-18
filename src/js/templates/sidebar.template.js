@@ -19,6 +19,7 @@ import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.
 import { listIconTemplate } from "/js/templates/icons/listIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
+import { messagePlusIconTemplate } from "/js/templates/icons/messagePlusIcon.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
@@ -198,6 +199,7 @@ export function sidebarTemplate({
   numChatNotifications = 0,
   onClickActiveItem,
   onClickComposeButton,
+  onClickNewChatButton,
   pluginSidebarItems = [],
   onLongPressProfile = null,
 }) {
@@ -371,15 +373,23 @@ export function sidebarTemplate({
         onClickActiveItem,
         pluginSidebarItems,
       })}
-      ${onClickComposeButton
+      ${activeNavItem === "chat" && onClickNewChatButton
         ? html`<button
             class="rounded-button rounded-button-primary sidebar-compose-button"
-            data-testid="sidebar-compose-button"
-            @click=${() => onClickComposeButton()}
+            data-testid="sidebar-new-chat-button"
+            @click=${() => onClickNewChatButton()}
           >
-            ${editIconTemplate()} <span>New Post</span>
+            ${messagePlusIconTemplate()} <span>New Chat</span>
           </button>`
-        : ""}
+        : onClickComposeButton
+          ? html`<button
+              class="rounded-button rounded-button-primary sidebar-compose-button"
+              data-testid="sidebar-compose-button"
+              @click=${() => onClickComposeButton()}
+            >
+              ${editIconTemplate()} <span>New Post</span>
+            </button>`
+          : ""}
       <div class="sidebar-spacer"></div>
     </animated-sidebar>
   `;

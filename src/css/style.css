@@ -1455,7 +1455,7 @@ tab-bar:not([full-width]) {
 .sidebar-profile-avatar {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 @media (min-width: 800px) {
@@ -1536,8 +1536,8 @@ tab-bar:not([full-width]) {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 3px 14px;
-  margin: 3px 6px;
+  padding: 4px 14px;
+  margin-right: 8px;
   color: var(--text-color);
   text-decoration: none;
   transition: background-color 0.2s;
@@ -1625,7 +1625,7 @@ plugin-blob-image .blob-image-fallback {
 
 .sidebar-compose-button {
   display: none;
-  margin-top: 18px;
+  margin-top: 12px;
   margin-left: 10px;
   width: fit-content;
   padding: 12px 20px;
@@ -7138,25 +7138,25 @@ sidebar-search {
   transform: scale(0.95);
 }
 
+@media (min-width: 1100px) {
+  .fab {
+    display: none;
+  }
+}
+
 .floating-compose-button .icon {
   width: 24px;
   height: 24px;
 }
 
 @media (min-width: 800px) {
-  .floating-compose-button {
+  .fab {
     right: 50px;
   }
 
   .floating-compose-button .icon {
     width: 30px;
     height: 30px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .floating-compose-button {
-    display: none;
   }
 }
 
@@ -10024,12 +10024,6 @@ toggle-switch {
 .new-chat-fab .icon {
   width: 28px;
   height: 28px;
-}
-
-@media (min-width: 800px) {
-  .new-chat-fab {
-    display: none;
-  }
 }
 
 @media (max-width: 799px) {

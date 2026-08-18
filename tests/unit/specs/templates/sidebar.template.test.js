@@ -450,6 +450,63 @@ describe("sidebarTemplate - compose button", () => {
     container.querySelector("[data-testid='sidebar-compose-button']").click();
     assert(clicked);
   });
+
+  it("should render new chat button instead of compose button when chat nav item is active", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      activeNavItem: "chat",
+      onClickComposeButton: () => {},
+      onClickNewChatButton: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='sidebar-new-chat-button']") !==
+        null,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-compose-button']"),
+      null,
+    );
+  });
+
+  it("should render compose button on non-chat nav items even when onClickNewChatButton is provided", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      activeNavItem: "home",
+      onClickComposeButton: () => {},
+      onClickNewChatButton: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='sidebar-compose-button']") !==
+        null,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-new-chat-button']"),
+      null,
+    );
+  });
+
+  it("should call onClickNewChatButton when new chat button is clicked", () => {
+    let clicked = false;
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      activeNavItem: "chat",
+      onClickComposeButton: () => {},
+      onClickNewChatButton: () => {
+        clicked = true;
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    container.querySelector("[data-testid='sidebar-new-chat-button']").click();
+    assert(clicked);
+  });
 });
 
 describe("sidebarTemplate - profile long-press", () => {
