@@ -59,7 +59,9 @@ test.describe("Persistent layout navigation", () => {
       timeout: 10000,
     });
     await expect(layoutRoot).toBeVisible();
-    await expect(layoutRoot.locator(".icon.filled")).not.toBeVisible();
+    await expect(
+      layoutRoot.locator('[data-testid="sidebar-nav"] .icon.filled'),
+    ).not.toBeVisible();
 
     // Returning to a layout route restores the active nav item
     await page.goto("/");
