@@ -236,30 +236,34 @@ describe("postEmbedTemplate - video", () => {
     return container.querySelector(".post-video");
   }
 
-  it("renders the aspect ratio inline on .post-video", () => {
+  it("reserves height from the video aspect ratio", () => {
     const el = renderVideo({ width: 16, height: 9 });
     assert(el !== null);
-    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(
+      el.style.getPropertyValue("--post-video-height"),
+      "56.25%",
+    );
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("caps tall videos at a 1:2 ratio", () => {
     const el = renderVideo({ width: 1, height: 4 });
-    assert.deepEqual(el.style.aspectRatio, String(1 / 2));
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "200%");
   });
 
   it("passes through wide videos without clamping", () => {
     const el = renderVideo({ width: 5, height: 1 });
-    assert.deepEqual(el.style.aspectRatio, "5");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "20%");
   });
 
-  it("omits aspect-ratio when missing", () => {
+  it("reserves a square when the aspect ratio is missing", () => {
     const el = renderVideo(undefined);
-    assert.deepEqual(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
-  it("omits aspect-ratio when invalid", () => {
+  it("reserves a square when the aspect ratio is invalid", () => {
     const el = renderVideo({ width: 0, height: 0 });
-    assert.deepEqual(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
   it("renders a video with controls and no looping by default", () => {
@@ -304,9 +308,13 @@ describe("postEmbedTemplate - gif presentation video", () => {
     );
   });
 
-  it("renders the aspect ratio inline on .post-video", () => {
+  it("reserves height from the gif aspect ratio", () => {
     const el = renderGifVideo({ aspectRatio: { width: 16, height: 9 } });
-    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(
+      el.style.getPropertyValue("--post-video-height"),
+      "56.25%",
+    );
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("shows the ALT badge when alt text is present", () => {

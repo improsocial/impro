@@ -276,6 +276,12 @@ function getPostMediaAspectRatio(media) {
   return Math.max(ratio, MIN_POST_MEDIA_ASPECT_RATIO);
 }
 
+function postVideoSizingStyle(aspectRatio) {
+  const ratio =
+    Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
+  return `--post-video-height: ${100 / ratio}%;`;
+}
+
 function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
   return html`<div class="post-image-container">
     <img
@@ -342,7 +348,7 @@ function videoTemplate({ video }) {
   }
   return html`<div
     class="post-video"
-    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
+    style=${postVideoSizingStyle(aspectRatio)}
     @click=${(e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -401,7 +407,7 @@ function openAltTextDialog(altText) {
 function gifPlayerTemplate({ type = "video", uri, alt, aspectRatio = null }) {
   return html` <div
     class="post-video"
-    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
+    style=${postVideoSizingStyle(aspectRatio)}
   >
     ${type === "video"
       ? html`<streaming-video

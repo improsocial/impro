@@ -2675,7 +2675,14 @@ animated-button {
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--video-border-radius);
   overflow: hidden;
-  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
+}
+
+/* Reserve the media height without CSS aspect-ratio, which can flicker while
+ * scrolling video elements in WebKit. Percentage padding is based on width. */
+.post-video::before {
+  content: "";
+  display: block;
+  padding-top: var(--post-video-height, 100%);
 }
 
 .post-video > .alt-indicator {
@@ -2731,7 +2738,8 @@ animated-button {
 }
 
 .post-video streaming-video {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
@@ -2741,11 +2749,11 @@ animated-button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
 .post-video img {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
