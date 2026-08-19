@@ -83,7 +83,7 @@ export class Modal {
       update();
 
       dialog.addEventListener("click", (event) => {
-        if (event.target.tagName === "DIALOG") dismissIfAllowed();
+        if (event.target === event.currentTarget) dismissIfAllowed();
       });
       document.body.appendChild(dialog);
       scrollLock = scrollLocks.acquire({ target: dialog });

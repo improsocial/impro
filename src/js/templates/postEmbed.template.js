@@ -382,7 +382,7 @@ function openAltTextDialog(altText) {
   dialog.dataset.testid = "alt-text-dialog";
   dialog.addEventListener("close", () => dialog.remove());
   dialog.addEventListener("click", (e) => {
-    if (e.target === dialog) closeWithAnimation(dialog);
+    if (e.target === e.currentTarget) closeWithAnimation(dialog);
   });
   dialog.addEventListener("cancel", (e) => {
     e.preventDefault();

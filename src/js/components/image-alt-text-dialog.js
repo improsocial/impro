@@ -54,7 +54,7 @@ class ImageAltTextDialog extends Component {
         class="image-alt-text-dialog bottom-sheet bottom-sheet-stacked"
         autofocus
         @click=${(e) => {
-          if (e.target.tagName === "DIALOG") {
+          if (e.target === e.currentTarget) {
             this.close();
           }
         }}

@@ -92,7 +92,7 @@ class AccountSwitcherDialog extends Component {
           data-testid="account-switcher-dialog"
           @click=${(event) => {
             if (
-              event.target.tagName === "DIALOG" &&
+              event.target === event.currentTarget &&
               this.state.$pendingAction.get() === null
             ) {
               this.close();

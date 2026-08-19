@@ -613,7 +613,7 @@ class PostComposer extends Component {
           class="post-composer bottom-sheet bottom-sheet-fullscreen no-handle"
           autofocus
           @click=${async (e) => {
-            if (e.target.tagName === "DIALOG") {
+            if (e.target === e.currentTarget) {
               if (await this.confirmClose()) {
                 this.close();
               }
@@ -1446,7 +1446,8 @@ class PostComposer extends Component {
         !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||
         el.isContentEditable ||
-        !!el.closest("[contenteditable]"),
+        !!el.closest("[contenteditable]") ||
+        !!el.closest("gif-picker-dialog"),
       disableWhenKeyboardOpen: true,
     });
 

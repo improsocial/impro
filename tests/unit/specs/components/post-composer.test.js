@@ -2652,6 +2652,25 @@ describe("post-composer", () => {
       await waitFor(() => !dialog.open);
     });
 
+    it("dismissing the gif picker via its backdrop keeps the composer open", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer({
+        api: { getFeaturedGifs: async () => ({ next: "", results: [] }) },
+      });
+      connectElement(element);
+      element.open();
+      element.querySelector('[data-testid="composer-gif-button"]').click();
+      await nextFrame();
+      const composerDialog = element.querySelector(".post-composer");
+      const gifDialog = element.querySelector(".gif-picker-dialog");
+      assert(gifDialog.open);
+      gifDialog.dispatchEvent(
+        new globalThis.window.MouseEvent("click", { bubbles: true }),
+      );
+      await waitFor(() => !gifDialog.open);
+      assert(composerDialog.open);
+    });
+
     it("closes on the dialog cancel event with no content", async () => {
       const element = createPostComposer();
       connectElement(element);

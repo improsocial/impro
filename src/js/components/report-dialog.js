@@ -651,7 +651,7 @@ class ReportDialog extends Component {
         <dialog
           class="bottom-sheet bottom-sheet-fullscreen report-dialog"
           @click=${(e) => {
-            if (e.target.tagName === "DIALOG") {
+            if (e.target === e.currentTarget) {
               this.close();
             }
           }}

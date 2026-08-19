@@ -409,7 +409,7 @@ class GifPickerDialog extends Component {
           aria-label="GIF picker"
           autofocus
           @click=${(event) => {
-            if (event.target.tagName === "DIALOG") {
+            if (event.target === event.currentTarget) {
               this.close();
             }
           }}

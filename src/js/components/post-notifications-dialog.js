@@ -35,7 +35,7 @@ class PostNotificationsDialog extends Component {
         <dialog
           class="bottom-sheet post-notifications-dialog"
           @click=${(event) => {
-            if (event.target.tagName === "DIALOG") {
+            if (event.target === event.currentTarget) {
               this.close();
             }
           }}

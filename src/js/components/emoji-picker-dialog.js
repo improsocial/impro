@@ -41,7 +41,7 @@ class EmojiPickerDialog extends Component {
     dialog.addEventListener("emoji-click", this._handleEmojiClick);
     dialog.addEventListener("click", (event) => {
       // A click whose target is the dialog itself means the backdrop was clicked
-      if (event.target === dialog) {
+      if (event.target === event.currentTarget) {
         this.close();
       }
     });
