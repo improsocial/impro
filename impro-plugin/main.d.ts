@@ -51,6 +51,15 @@ export function flattenForScan(tokens: RichTextToken[]): FlattenedTokens;
  *   Paginated response from `getKnownFollowers`: `{ followers, cursor }`.
  * @typedef {Record<string, unknown>} RepoRecord
  *   A raw repo record: `{ uri, cid, value }`.
+ * @typedef {Record<string, unknown>} PostThreadView
+ *   Hydrated thread for a post: the post plus `parent`/`replies`.
+ * @typedef {Record<string, unknown>} ListView
+ *   An `app.bsky.graph.defs#listView` shape.
+ * @typedef {Record<string, unknown>} FeedGeneratorView
+ *   An `app.bsky.feed.defs#generatorView` shape.
+ * @typedef {{ ok: boolean, status: number, data: unknown }} XrpcQueryResponse
+ *   Raw XRPC response: on failure `data` is the error body
+ *   (`{ error, message }`) when the service provided one.
  * @typedef {{ did: string, collection: string, rkey: string }} BacklinkRecord
  *   A record that links to a queried subject.
  * @typedef {Record<string, unknown>} FeedItem
@@ -239,6 +248,47 @@ export class PluginData {
         source: string;
         limit?: number;
     }): Promise<BacklinkRecord[]>;
+    /**
+     * Fetch the hydrated thread around a post (the post, its parents, and
+     * replies), as the host renders it.
+     * @param {string} uri
+     * @returns {Promise<PostThreadView | null>}
+     */
+    getPostThread(uri: string): Promise<PostThreadView | null>;
+    /**
+     * Fetch a list's metadata view by AT-URI.
+     * @param {string} uri
+     * @returns {Promise<ListView | null>}
+     */
+    getList(uri: string): Promise<ListView | null>;
+    /**
+     * Fetch a feed generator view by AT-URI.
+     * @param {string} uri
+     * @returns {Promise<FeedGeneratorView | null>}
+     */
+    getFeedGenerator(uri: string): Promise<FeedGeneratorView | null>;
+    /**
+     * The current user's full hydrated profile (unlike `app.currentUser`,
+     * which carries only `did` and `handle`). `null` when signed out.
+     * @returns {Promise<DetailedProfileView | null>}
+     */
+    getCurrentUserProfile(): Promise<DetailedProfileView | null>;
+    /**
+     * Call a read-only AppView query endpoint through the current user's
+     * session and get the raw XRPC response back.
+     *
+     * Only an allowlisted set of `app.bsky.*` query NSIDs is accepted;
+     * viewer-private queries (mutes, bookmarks, notifications, preferences,
+     * timeline, ...) additionally require the `"privateData"` action
+     * permission. Unlike the curated methods above, responses are canonical
+     * server state — they may briefly disagree with what the host UI shows
+     * while an optimistic update is in flight, and results are not cached.
+     *
+     * @param {string} nsid e.g. `"app.bsky.feed.getQuotes"`
+     * @param {Record<string, string | number | boolean | string[]>} [params]
+     * @returns {Promise<XrpcQueryResponse>}
+     */
+    xrpcQuery(nsid: string, params?: Record<string, string | number | boolean | string[]>): Promise<XrpcQueryResponse>;
 }
 /**
  * Host-mediated persistent storage for binary data too large for
@@ -1230,6 +1280,27 @@ export type KnownFollowersResponse = Record<string, unknown>;
  * A raw repo record: `{ uri, cid, value }`.
  */
 export type RepoRecord = Record<string, unknown>;
+/**
+ * Hydrated thread for a post: the post plus `parent`/`replies`.
+ */
+export type PostThreadView = Record<string, unknown>;
+/**
+ * An `app.bsky.graph.defs#listView` shape.
+ */
+export type ListView = Record<string, unknown>;
+/**
+ * An `app.bsky.feed.defs#generatorView` shape.
+ */
+export type FeedGeneratorView = Record<string, unknown>;
+/**
+ * Raw XRPC response: on failure `data` is the error body
+ * (`{ error, message }`) when the service provided one.
+ */
+export type XrpcQueryResponse = {
+    ok: boolean;
+    status: number;
+    data: unknown;
+};
 /**
  * A record that links to a queried subject.
  */

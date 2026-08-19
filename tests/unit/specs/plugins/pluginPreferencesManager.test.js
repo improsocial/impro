@@ -298,3 +298,63 @@ describe("plugin settings", () => {
     assert.deepEqual(saveCalls.length, 1);
   });
 });
+
+describe("getUserGrantedFetchOrigins", () => {
+  it("normalizes and de-duplicates stored origins", () => {
+    const { provider } = makeProvider({
+      installedPlugins: [
+        {
+          id: "alpha",
+          enabled: true,
+          userGrantedFetchOrigins: [
+            "https://api.example.com/v1",
+            "https://api.example.com/v2",
+            "http://localhost:11434/api",
+          ],
+        },
+      ],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    assert.deepEqual(manager.getUserGrantedFetchOrigins("alpha"), [
+      "https://api.example.com/*",
+      "http://localhost:11434/*",
+    ]);
+  });
+
+  // The preferences record is writable by anything holding the account's
+  // credentials, so stored values are untrusted input
+  it("drops anything that isn't a normalizable origin", () => {
+    const { provider } = makeProvider({
+      installedPlugins: [
+        {
+          id: "alpha",
+          enabled: true,
+          userGrantedFetchOrigins: [
+            "https://*/*",
+            "http://evil.example.com/*",
+            "not a url",
+            42,
+            null,
+          ],
+        },
+      ],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    assert.deepEqual(manager.getUserGrantedFetchOrigins("alpha"), []);
+  });
+
+  it("returns an empty list for a missing entry or malformed field", () => {
+    const { provider } = makeProvider({
+      installedPlugins: [
+        {
+          id: "alpha",
+          enabled: true,
+          userGrantedFetchOrigins: "https://a.com/*",
+        },
+      ],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    assert.deepEqual(manager.getUserGrantedFetchOrigins("alpha"), []);
+    assert.deepEqual(manager.getUserGrantedFetchOrigins("missing"), []);
+  });
+});

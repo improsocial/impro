@@ -5,7 +5,6 @@ import {
   hidePluginModal,
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
-  showPluginFetchPermissionModal,
 } from "/js/plugins/pluginModal.js";
 import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
@@ -25,19 +24,17 @@ import { PluginSlotDispatcher } from "/js/plugins/pluginSlotDispatcher.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { TangledResolver } from "/js/tangled.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import { PluginRequests } from "/js/plugins/pluginRequests.js";
+import { PluginDataProvider } from "/js/plugins/pluginDataProvider.js";
 import { Slingshot } from "/js/slingshot.js";
+import { PluginPermissionsManager } from "/js/plugins/pluginPermissionsManager.js";
 import {
-  getPermissionsFromManifest,
-  parsePermissions,
-  diffPermissions,
-  isEmptyPermissions,
-  isActionAllowed,
-  isUserFetchAllowed,
-  parseUserGrantedFetchOrigins,
-  normalizeFetchOrigin,
-} from "/js/plugins/pluginPermissions.js";
-import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
+  compareVersions,
+  groupBy,
+  isDev,
+  requireArg,
+  sortBy,
+} from "/js/utils.js";
 import {
   Signal,
   SignalMap,
@@ -53,24 +50,7 @@ const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
 
 const INITIAL_PLUGIN_LOAD_TIMEOUT_MS = 3000;
 
-function requireHostMethodArg(method, name, value) {
-  if (!value) {
-    throw new Error(`${method} requires a ${name}`);
-  }
-}
-
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
-
-function getGrantedOriginsForPlugin(entry) {
-  return parseUserGrantedFetchOrigins(entry?.userGrantedFetchOrigins);
-}
-
-// Whether the plugin's settings page has a host-owned section to render.
-// Keyed off the same normalization the section uses, so the settings link
-// can't point at an empty section.
-function hasSystemSettings(entry) {
-  return getGrantedOriginsForPlugin(entry).length > 0;
-}
 
 // Page id must also be a valid URL segment
 const PAGE_ID_PATTERN = /^[a-z0-9-]+$/;
@@ -198,7 +178,9 @@ export class PluginService extends ReactiveStore {
         author: entry.author,
         enabled: entry.enabled,
         hasSettings: this.$settingTabs.get(entry.id) !== null,
-        hasSystemSettings: hasSystemSettings(entry),
+        hasSystemSettings: this.permissionsManager.hasUserGrantedFetchOrigins(
+          entry.id,
+        ),
       }));
     });
     this.$settingTabs = new SignalMap();
@@ -229,6 +211,9 @@ export class PluginService extends ReactiveStore {
       this.pluginStylesLoader,
     );
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
+    this.permissionsManager = new PluginPermissionsManager({
+      prefManager: this.prefManager,
+    });
     this.$installedPlugins = new Signal.Computed(() =>
       this.prefManager.$installedPlugins.get(),
     );
@@ -237,9 +222,20 @@ export class PluginService extends ReactiveStore {
       ? new PluginLocalDataStore(session.did)
       : new PluginMemoryDataStore();
     this.isPreviewMode = false;
-    this._pendingFetchPermissionRequests = new Set();
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
+    this.pluginRequests = new PluginRequests({
+      dataLayer,
+      session,
+      permissionsManager: this.permissionsManager,
+    });
+    this.pluginDataProvider = new PluginDataProvider({
+      dataLayer,
+      pluginRequests: this.pluginRequests,
+      slingshot: this.slingshot,
+      constellation: this.constellation,
+      session,
+    });
     this._setupRegistries();
     this._setupHostMethods();
     this._setupFeedFilterIntegration();
@@ -452,7 +448,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "getBinaryCacheEntry",
       async (plugin, { key }) => {
-        requireHostMethodArg("getBinaryCacheEntry", "key", key);
+        requireArg("getBinaryCacheEntry", "key", key);
         return await this.binaryCache.get(plugin.pluginId, key);
       },
     );
@@ -460,7 +456,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "hasBinaryCacheEntry",
       async (plugin, { key }) => {
-        requireHostMethodArg("hasBinaryCacheEntry", "key", key);
+        requireArg("hasBinaryCacheEntry", "key", key);
         return await this.binaryCache.has(plugin.pluginId, key);
       },
     );
@@ -475,8 +471,8 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "putBinaryCacheEntry",
       async (plugin, { key, data }) => {
-        requireHostMethodArg("putBinaryCacheEntry", "key", key);
-        requireHostMethodArg("putBinaryCacheEntry", "data", data);
+        requireArg("putBinaryCacheEntry", "key", key);
+        requireArg("putBinaryCacheEntry", "data", data);
         if (!(data instanceof ArrayBuffer)) {
           throw new Error("putBinaryCacheEntry data must be an ArrayBuffer");
         }
@@ -487,7 +483,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "deleteBinaryCacheEntry",
       async (plugin, { key }) => {
-        requireHostMethodArg("deleteBinaryCacheEntry", "key", key);
+        requireArg("deleteBinaryCacheEntry", "key", key);
         await this.binaryCache.delete(plugin.pluginId, key);
       },
     );
@@ -501,7 +497,7 @@ export class PluginService extends ReactiveStore {
     );
 
     this.pluginBridge.addHostMethod("openPage", (plugin, { pageId } = {}) => {
-      requireHostMethodArg("openPage", "pageId", pageId);
+      requireArg("openPage", "pageId", pageId);
       const encodedPluginId = encodeURIComponent(plugin.pluginId);
       const encodedPageId = encodeURIComponent(pageId);
       this.router.go(`/plugin/${encodedPluginId}/pages/${encodedPageId}`);
@@ -510,7 +506,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod(
       "refreshPage",
       (plugin, { pageId, reset = false } = {}) => {
-        requireHostMethodArg("refreshPage", "pageId", pageId);
+        requireArg("refreshPage", "pageId", pageId);
         const page = this.getPage(plugin.pluginId, pageId);
         page?.customContent.refresh({ reset });
       },
@@ -563,94 +559,30 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      const permissions = this._getPermissionsForPlugin(plugin.pluginId);
-      return pluginFetch(permissions, url, init);
+      const permissions = this.permissionsManager.getPermissionsForPlugin(
+        plugin.pluginId,
+      );
+      return this.pluginRequests.pluginFetch(permissions, url, init);
     });
 
     this.pluginBridge.addHostMethod(
       "requestFetchPermission",
-      (plugin, { url }) => this._requestFetchPermission(plugin.pluginId, url),
+      (plugin, { url }) =>
+        this.permissionsManager.requestFetchPermission(plugin.pluginId, url),
     );
 
     this.pluginBridge.addHostMethod("getUserGrantedFetchOrigins", (plugin) =>
-      this.getUserGrantedFetchOrigins(plugin.pluginId),
+      this.permissionsManager.getUserGrantedFetchOrigins(plugin.pluginId),
     );
 
-    this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
-      try {
-        return await this._dataLayer.declarative.ensurePost(uri);
-      } catch {
-        return null;
-      }
-    });
-
-    this.pluginBridge.addHostMethod("getProfile", async (plugin, { did }) => {
-      const profile = this._dataLayer.derived.$hydratedProfiles.get(did);
-      if (profile) return profile;
-      try {
-        await this._dataLayer.declarative.ensureDetailedProfile(did);
-      } catch {
-        return null;
-      }
-      return this._dataLayer.derived.$hydratedProfiles.get(did) ?? null;
-    });
-
-    this.pluginBridge.addHostMethod(
-      "getDetailedProfile",
-      async (plugin, { did }) => {
-        try {
-          return await this._dataLayer.declarative.ensureDetailedProfile(did);
-        } catch {
-          return null;
-        }
-      },
-    );
-
-    // Full known-followers list for did (the profile.viewer.knownFollowers
-    // included on getProfile/getDetailedProfile is capped to a handful).
-    // The AppView doesn't currently paginate this endpoint in practice, so
-    // this is a single round-trip, not a cursor loop.
-    this.pluginBridge.addHostMethod(
-      "getKnownFollowers",
-      async (plugin, { did }) => {
-        try {
-          return await this._dataLayer.declarative.ensureKnownFollowers(did);
-        } catch {
-          return null;
-        }
-      },
-    );
-
-    this.pluginBridge.addHostMethod(
-      "getRecord",
-      (plugin, { repo, collection, rkey }) =>
-        this.slingshot.getRecord({ repo, collection, rkey }),
-    );
-
-    this.pluginBridge.addHostMethod(
-      "getBacklinks",
-      (plugin, { subject, source, limit }) => {
-        if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
-          throw new Error(`getBacklinks: invalid limit "${limit}"`);
-        }
-        return this.constellation.getLinks({ subject, source, limit });
-      },
-    );
-
-    this.pluginBridge.addHostMethod("getCurrentUser", () => {
-      if (!this.session) return null;
-      return {
-        did: this.session.did,
-        handle: this.session.handle,
-      };
-    });
+    this.pluginDataProvider.registerHostMethods(this.pluginBridge);
 
     this.pluginBridge.addHostMethod(
       "muteActor",
       async (plugin, { did, mute = true }) => {
         this._requireSignedIn();
-        this._requireActionPermission(plugin, "mute");
-        requireHostMethodArg("muteActor", "did", did);
+        this.permissionsManager.requireActionPermission(plugin, "mute");
+        requireArg("muteActor", "did", did);
         const profile = await this._dataLayer.declarative.ensureProfile(did);
         if (mute) await this._dataLayer.mutations.muteProfile(profile);
         else await this._dataLayer.mutations.unmuteProfile(profile);
@@ -661,8 +593,8 @@ export class PluginService extends ReactiveStore {
       "blockActor",
       async (plugin, { did, block = true }) => {
         this._requireSignedIn();
-        this._requireActionPermission(plugin, "block");
-        requireHostMethodArg("blockActor", "did", did);
+        this.permissionsManager.requireActionPermission(plugin, "block");
+        requireArg("blockActor", "did", did);
         const profile = await this._dataLayer.declarative.ensureProfile(did);
         if (block) await this._dataLayer.mutations.blockProfile(profile);
         else await this._dataLayer.mutations.unblockProfile(profile);
@@ -673,9 +605,9 @@ export class PluginService extends ReactiveStore {
       "showLessLikeThis",
       async (plugin, { postUri, feedUri = null }) => {
         this._requireSignedIn();
-        this._requireActionPermission(plugin, "feedFeedback");
-        requireHostMethodArg("showLessLikeThis", "postUri", postUri);
-        requireHostMethodArg("showLessLikeThis", "feedUri", feedUri);
+        this.permissionsManager.requireActionPermission(plugin, "feedFeedback");
+        requireArg("showLessLikeThis", "postUri", postUri);
+        requireArg("showLessLikeThis", "feedUri", feedUri);
         const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
           postUri,
           feedUri,
@@ -693,9 +625,9 @@ export class PluginService extends ReactiveStore {
       "showMoreLikeThis",
       async (plugin, { postUri, feedUri = null }) => {
         this._requireSignedIn();
-        this._requireActionPermission(plugin, "feedFeedback");
-        requireHostMethodArg("showMoreLikeThis", "postUri", postUri);
-        requireHostMethodArg("showMoreLikeThis", "feedUri", feedUri);
+        this.permissionsManager.requireActionPermission(plugin, "feedFeedback");
+        requireArg("showMoreLikeThis", "postUri", postUri);
+        requireArg("showMoreLikeThis", "feedUri", feedUri);
         const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
           postUri,
           feedUri,
@@ -722,63 +654,6 @@ export class PluginService extends ReactiveStore {
 
   _requireSignedIn() {
     if (!this.session) throw new Error("Not signed in");
-  }
-
-  _getPermissionsForPlugin(pluginId) {
-    const entry = this.prefManager.$installedPlugin.get(pluginId);
-    const permissions = parsePermissions(entry?.permissions ?? {});
-    if (!isUserFetchAllowed(permissions)) return permissions;
-    const granted = this.getUserGrantedFetchOrigins(pluginId);
-    if (granted.length === 0) return permissions;
-    return {
-      ...permissions,
-      fetch: [...(permissions.fetch ?? []), ...granted],
-    };
-  }
-
-  async _requestFetchPermission(pluginId, url) {
-    const entry = this.prefManager.$installedPlugin.get(pluginId);
-    if (!isUserFetchAllowed(parsePermissions(entry?.permissions ?? {}))) {
-      throw new Error(`"${pluginId}" does not have the "userFetch" permission`);
-    }
-    const origin = normalizeFetchOrigin(url);
-    if (!origin) return false;
-    if (this._getPermissionsForPlugin(pluginId).fetch?.includes(origin)) {
-      return true;
-    }
-    if (this._pendingFetchPermissionRequests.has(pluginId)) return false;
-    this._pendingFetchPermissionRequests.add(pluginId);
-    let granted = false;
-    try {
-      granted = await showPluginFetchPermissionModal({
-        pluginName: entry?.name ?? null,
-        origin,
-      });
-    } finally {
-      this._pendingFetchPermissionRequests.delete(pluginId);
-    }
-    if (!granted) return false;
-    await this.prefManager.addUserGrantedFetchOrigin(pluginId, origin);
-    return true;
-  }
-
-  async revokeUserGrantedFetchOrigin(pluginId, origin) {
-    await this.prefManager.removeUserGrantedFetchOrigin(pluginId, origin);
-  }
-
-  getUserGrantedFetchOrigins(pluginId) {
-    return getGrantedOriginsForPlugin(
-      this.prefManager.$installedPlugin.get(pluginId),
-    );
-  }
-
-  _requireActionPermission(plugin, action) {
-    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
-    if (!isActionAllowed(action, permissions)) {
-      throw new Error(
-        `"${plugin.pluginId}" does not have "${action}" action permission`,
-      );
-    }
   }
 
   async loadEnabledPlugins() {
@@ -870,8 +745,9 @@ export class PluginService extends ReactiveStore {
       });
       return;
     }
-    const permissions = getPermissionsFromManifest(manifest);
-    if (!isEmptyPermissions(permissions)) {
+    const permissions =
+      this.permissionsManager.getManifestPermissions(manifest);
+    if (!permissions.isEmpty()) {
       showToast(
         `"${manifest.name}" can't be previewed because it requires user permissions.`,
         { style: "error", timeout: 5000 },
@@ -887,7 +763,7 @@ export class PluginService extends ReactiveStore {
       description,
       repo: listing.repo,
       enabled: true,
-      permissions,
+      permissions: permissions.toJSON(),
     });
   }
 
@@ -991,8 +867,9 @@ export class PluginService extends ReactiveStore {
       console.error("Failed to fetch manifest", e);
       throw new Error("Failed to fetch manifest");
     }
-    const permissions = getPermissionsFromManifest(manifest);
-    if (!isEmptyPermissions(permissions)) {
+    const permissions =
+      this.permissionsManager.getManifestPermissions(manifest);
+    if (!permissions.isEmpty()) {
       if (
         !(await showPluginInstallPermissionsModal({
           pluginName: manifest.name,
@@ -1011,7 +888,7 @@ export class PluginService extends ReactiveStore {
       description,
       repo,
       enabled: true,
-      permissions,
+      permissions: permissions.toJSON(),
     });
     try {
       await this.pluginBridge.loadPlugin(pluginId, version, repo);
@@ -1034,8 +911,9 @@ export class PluginService extends ReactiveStore {
       console.error("Failed to fetch manifest", e);
       throw new Error("Failed to fetch manifest");
     }
-    const permissions = getPermissionsFromManifest(manifest);
-    if (!isEmptyPermissions(permissions)) {
+    const permissions =
+      this.permissionsManager.getManifestPermissions(manifest);
+    if (!permissions.isEmpty()) {
       if (
         !(await showPluginInstallPermissionsModal({
           pluginName: manifest.name,
@@ -1064,7 +942,7 @@ export class PluginService extends ReactiveStore {
       description,
       repo,
       enabled: true,
-      permissions,
+      permissions: permissions.toJSON(),
     });
     try {
       await this.pluginBridge.loadPlugin(id, version, repo);
@@ -1113,9 +991,8 @@ export class PluginService extends ReactiveStore {
       installedPlugin.repo,
     );
     if (compareVersions(liveManifest.version, installedPlugin.version) > 0) {
-      const currentPermissions = installedPlugin.permissions ?? {};
-      const permissions = getPermissionsFromManifest(liveManifest);
-      const permissionsDiff = diffPermissions(currentPermissions, permissions);
+      const { permissions, permissionsDiff } =
+        this.permissionsManager.getPermissionsUpdate(pluginId, liveManifest);
       if (permissionsDiff) {
         const accepted = await showPluginUpdatePermissionsModal({
           pluginName: liveManifest.name,
@@ -1125,7 +1002,7 @@ export class PluginService extends ReactiveStore {
         if (!accepted) throw new PermissionsDeclinedError();
       }
       const { name, version, author, description } = liveManifest;
-      const keepUserGrantedFetch = isUserFetchAllowed(permissions);
+      const keepUserGrantedFetch = permissions.allowsUserFetch();
       await this.prefManager.updateInstalledPlugin(pluginId, (entry) => {
         const next = {
           ...entry,
@@ -1133,7 +1010,7 @@ export class PluginService extends ReactiveStore {
           version,
           author,
           description,
-          permissions,
+          permissions: permissions.toJSON(),
         };
         // Drop stored grants when the new manifest no longer requests
         // userFetch, so a later manifest that re-adds the scope starts fresh.

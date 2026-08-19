@@ -1,5 +1,14 @@
 import { Signal, ReactiveStore, ComputedMap } from "/js/signals.js";
-import { parseUserGrantedFetchOrigins } from "/js/plugins/pluginPermissions.js";
+import { Permissions } from "/js/plugins/pluginPermissions.js";
+import { unique } from "/js/utils.js";
+
+// Sanitizes stored user-granted origins into canonical fetch patterns. The
+// installed-plugins list lives in the user's preferences record, we need to
+// sanitize before using it.
+function parseGrantedOrigins(origins) {
+  if (!Array.isArray(origins)) return [];
+  return unique(origins.map(Permissions.normalizeFetchOrigin).filter(Boolean));
+}
 
 // Handles persisting plugin settings in user preferences
 export class PluginPreferencesManager extends ReactiveStore {
@@ -83,11 +92,14 @@ export class PluginPreferencesManager extends ReactiveStore {
   }
 
   // User-granted fetch origins are kept apart from the manifest permissions.
+  getUserGrantedFetchOrigins(pluginId) {
+    const entry = this.$installedPlugin.get(pluginId);
+    return parseGrantedOrigins(entry?.userGrantedFetchOrigins);
+  }
+
   async addUserGrantedFetchOrigin(pluginId, origin) {
     await this.updateInstalledPlugin(pluginId, (entry) => {
-      const granted = parseUserGrantedFetchOrigins(
-        entry.userGrantedFetchOrigins,
-      );
+      const granted = parseGrantedOrigins(entry.userGrantedFetchOrigins);
       if (granted.includes(origin)) {
         return { ...entry, userGrantedFetchOrigins: granted };
       }
@@ -98,7 +110,7 @@ export class PluginPreferencesManager extends ReactiveStore {
   async removeUserGrantedFetchOrigin(pluginId, origin) {
     await this.updateInstalledPlugin(pluginId, (entry) => ({
       ...entry,
-      userGrantedFetchOrigins: parseUserGrantedFetchOrigins(
+      userGrantedFetchOrigins: parseGrantedOrigins(
         entry.userGrantedFetchOrigins,
       ).filter((granted) => granted !== origin),
     }));

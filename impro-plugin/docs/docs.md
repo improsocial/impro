@@ -1268,6 +1268,17 @@ with a narrower subject).
 
 `Promise`\<[`BacklinkRecord`](#backlinkrecord)[]\>
 
+##### getCurrentUserProfile()
+
+> **getCurrentUserProfile**(): `Promise`\<[`DetailedProfileView`](#detailedprofileview) \| `null`\>
+
+The current user's full hydrated profile (unlike `app.currentUser`,
+which carries only `did` and `handle`). `null` when signed out.
+
+###### Returns
+
+`Promise`\<[`DetailedProfileView`](#detailedprofileview) \| `null`\>
+
 ##### getDetailedProfile()
 
 > **getDetailedProfile**(`did`): `Promise`\<[`DetailedProfileView`](#detailedprofileview)\>
@@ -1287,6 +1298,22 @@ followers).
 
 `Promise`\<[`DetailedProfileView`](#detailedprofileview)\>
 
+##### getFeedGenerator()
+
+> **getFeedGenerator**(`uri`): `Promise`\<[`FeedGeneratorView`](#feedgeneratorview) \| `null`\>
+
+Fetch a feed generator view by AT-URI.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `uri` | `string` |
+
+###### Returns
+
+`Promise`\<[`FeedGeneratorView`](#feedgeneratorview) \| `null`\>
+
 ##### getKnownFollowers()
 
 > **getKnownFollowers**(`did`): `Promise`\<[`KnownFollowersResponse`](#knownfollowersresponse)\>
@@ -1305,6 +1332,22 @@ capped to a handful; use this to paginate the complete list.
 
 `Promise`\<[`KnownFollowersResponse`](#knownfollowersresponse)\>
 
+##### getList()
+
+> **getList**(`uri`): `Promise`\<[`ListView`](#listview) \| `null`\>
+
+Fetch a list's metadata view by AT-URI.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `uri` | `string` |
+
+###### Returns
+
+`Promise`\<[`ListView`](#listview) \| `null`\>
+
 ##### getPost()
 
 > **getPost**(`uri`): `Promise`\<[`PostView`](#postview)\>
@@ -1320,6 +1363,23 @@ Fetch a hydrated post view by AT-URI, as seen by the current user.
 ###### Returns
 
 `Promise`\<[`PostView`](#postview)\>
+
+##### getPostThread()
+
+> **getPostThread**(`uri`): `Promise`\<[`PostThreadView`](#postthreadview) \| `null`\>
+
+Fetch the hydrated thread around a post (the post, its parents, and
+replies), as the host renders it.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `uri` | `string` |
+
+###### Returns
+
+`Promise`\<[`PostThreadView`](#postthreadview) \| `null`\>
 
 ##### getProfile()
 
@@ -1354,6 +1414,31 @@ Fetch a raw repo record by `(repo, collection, rkey)`.
 ###### Returns
 
 `Promise`\<[`RepoRecord`](#reporecord)\>
+
+##### xrpcQuery()
+
+> **xrpcQuery**(`nsid`, `params?`): `Promise`\<[`XrpcQueryResponse`](#xrpcqueryresponse)\>
+
+Call a read-only AppView query endpoint through the current user's
+session and get the raw XRPC response back.
+
+Only an allowlisted set of `app.bsky.*` query NSIDs is accepted;
+viewer-private queries (mutes, bookmarks, notifications, preferences,
+timeline, ...) additionally require the `"privateData"` action
+permission. Unlike the curated methods above, responses are canonical
+server state — they may briefly disagree with what the host UI shows
+while an optimistic update is in flight, and results are not cached.
+
+###### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `nsid` | `string` | e.g. `"app.bsky.feed.getQuotes"` |
+| `params?` | `Record`\<`string`, `string` \| `number` \| `boolean` \| `string`[]\> | - |
+
+###### Returns
+
+`Promise`\<[`XrpcQueryResponse`](#xrpcqueryresponse)\>
 
 ***
 
@@ -2403,6 +2488,19 @@ Detailed profile view with viewer relationship fields.
 
 ***
 
+### FeedGeneratorView
+
+> **FeedGeneratorView** = `Record`\<`string`, `unknown`\>
+
+An `app.bsky.feed.defs#generatorView` shape.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
 ### FeedItem
 
 > **FeedItem** = `Record`\<`string`, `unknown`\>
@@ -2421,6 +2519,19 @@ A `app.bsky.feed.defs#feedViewPost` (post + reply/repost context).
 > **KnownFollowersResponse** = `Record`\<`string`, `unknown`\>
 
 Paginated response from `getKnownFollowers`: `{ followers, cursor }`.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+***
+
+### ListView
+
+> **ListView** = `Record`\<`string`, `unknown`\>
+
+An `app.bsky.graph.defs#listView` shape.
 
 #### Type Parameters
 
@@ -2524,6 +2635,19 @@ Where a post was seen, passed to `post-context-menu` listeners.
 | <a id="property-feedcontext"></a> `feedContext` | `string` \| `null` |
 | <a id="property-feedgenerator"></a> `feedGenerator` | `Record`\<`string`, `unknown`\> \| `null` |
 | <a id="property-feedproxyurl"></a> `feedProxyUrl` | `string` \| `null` |
+
+***
+
+### PostThreadView
+
+> **PostThreadView** = `Record`\<`string`, `unknown`\>
+
+Hydrated thread for a post: the post plus `parent`/`replies`.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
 
 ***
 
@@ -2692,6 +2816,28 @@ One token in a rich-text stream — `text`, `facet`, `inline`, or `block`.
 
 | Type Parameter |
 | ------ |
+
+***
+
+### XrpcQueryResponse
+
+> **XrpcQueryResponse** = `object`
+
+Raw XRPC response: on failure `data` is the error body
+  (`{ error, message }`) when the service provided one.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
+#### Type Declaration
+
+| Name | Type |
+| ------ | ------ |
+| <a id="property-data-1"></a> `data` | `unknown` |
+| <a id="property-ok-1"></a> `ok` | `boolean` |
+| <a id="property-status-1"></a> `status` | `number` |
 
 ## Functions
 

@@ -9,7 +9,6 @@ import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { respondToConfirm } from "../../testHelpers.js";
-import { isFetchAllowed } from "/js/plugins/pluginPermissions.js";
 
 function emptyDataLayer() {
   const dataLayer = new EventEmitter();
@@ -1751,134 +1750,67 @@ describe("page wiring", () => {
   });
 });
 
-describe("app.data host methods", () => {
-  function makeStubComputedMap(lookup) {
-    const calls = [];
-    const map = {
-      get: (key) => {
-        calls.push(key);
-        return lookup(key);
-      },
-    };
-    return { map, calls };
-  }
-
-  function makeService(dataLayerOverrides) {
-    const dataLayer = Object.assign(emptyDataLayer(), dataLayerOverrides);
-    return makeServiceWithRealBridge({ dataLayer });
-  }
-
-  it("getProfile host method returns the hydrated profile from derived", async () => {
-    const profiles = makeStubComputedMap((did) => ({
-      did,
-      handle: "alice.test",
-    }));
-    const service = makeService({
-      derived: { $hydratedProfiles: profiles.map },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
-    const result = await handler(null, { did: "did:plc:abc" });
-    assert.deepEqual(profiles.calls, ["did:plc:abc"]);
-    assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
+describe("data host method wiring", () => {
+  it("registers the PluginDataProvider methods on the bridge", () => {
+    const service = makeServiceWithRealBridge();
+    for (const name of [
+      "getPost",
+      "getProfile",
+      "getDetailedProfile",
+      "getKnownFollowers",
+      "getPostThread",
+      "getList",
+      "getFeedGenerator",
+      "getCurrentUser",
+      "getCurrentUserProfile",
+      "getRecord",
+      "getBacklinks",
+      "xrpcQuery",
+    ]) {
+      assert(
+        service.pluginBridge._hostCallHandlers.has(name),
+        `expected host method "${name}" to be registered`,
+      );
+    }
   });
 
-  it("getPost fetches the post on a cache miss", async () => {
-    const ensureCalls = [];
-    const service = makeService({
-      declarative: {
-        ensurePost: async (uri) => {
-          ensureCalls.push(uri);
-          return { uri, record: { text: "fetched" } };
-        },
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
-    const result = await handler(null, { uri: "at://example/post/1" });
-    assert.deepEqual(ensureCalls, ["at://example/post/1"]);
-    assert.deepEqual(result, {
-      uri: "at://example/post/1",
-      record: { text: "fetched" },
-    });
-  });
+  // The provider's permission callback is wired to the service's real
+  // grant lookup - exercise the privateData gate end to end.
+  it("xrpcQuery enforces privateData through the service's granted permissions", async () => {
+    function makeXrpcService(permissions) {
+      const { state, provider } = makeProvider();
+      state.installedPlugins = [
+        { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
+      ];
+      const dataLayer = Object.assign(emptyDataLayer(), {
+        api: { request: async () => ({ status: 200, data: { mutes: [] } }) },
+        requests: { requireLabelers: () => [] },
+      });
+      const service = makeServiceWithRealBridge({
+        provider,
+        session: { did: "did:plc:me", handle: "me.test" },
+        dataLayer,
+      });
+      return service.pluginBridge._hostCallHandlers.get("xrpcQuery");
+    }
 
-  it("getPost returns null when the post cannot be loaded", async () => {
-    const service = makeService({
-      declarative: {
-        ensurePost: async () => {
-          throw new Error("Post not found");
-        },
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
-    const result = await handler(null, { uri: "at://example/post/gone" });
-    assert.deepEqual(result, null);
-  });
-
-  it("getProfile fetches on a cache miss and returns the basic hydrated profile", async () => {
-    let loaded = false;
-    const profiles = makeStubComputedMap((did) =>
-      loaded ? { did, handle: "alice.test" } : null,
+    const denied = makeXrpcService({});
+    await assert.rejects(
+      denied(
+        { pluginId: "test-plugin" },
+        { nsid: "app.bsky.graph.getMutes", params: {} },
+      ),
+      /"privateData" action permission/,
     );
-    const ensureCalls = [];
-    const service = makeService({
-      derived: { $hydratedProfiles: profiles.map },
-      declarative: {
-        ensureDetailedProfile: async (did) => {
-          ensureCalls.push(did);
-          loaded = true;
-        },
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
-    const result = await handler(null, { did: "did:plc:abc" });
-    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
-    assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
-  });
 
-  it("getKnownFollowers resolves via the declarative layer", async () => {
-    const knownFollowers = { followers: [{ did: "did:plc:follower" }] };
-    const ensureCalls = [];
-    const service = makeService({
-      declarative: {
-        ensureKnownFollowers: async (did) => {
-          ensureCalls.push(did);
-          return knownFollowers;
-        },
-      },
-    });
-    const handler =
-      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
-    const result = await handler(null, { did: "did:plc:abc" });
-    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
-    assert.deepEqual(result, knownFollowers);
-  });
-
-  it("getKnownFollowers returns null when the list cannot be loaded", async () => {
-    const service = makeService({
-      declarative: {
-        ensureKnownFollowers: async () => {
-          throw new Error("Known followers not found");
-        },
-      },
-    });
-    const handler =
-      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
-    const result = await handler(null, { did: "did:plc:missing" });
-    assert.deepEqual(result, null);
-  });
-
-  it("getProfile returns null when the profile cannot be loaded", async () => {
-    const service = makeService({
-      derived: { $hydratedProfiles: makeStubComputedMap(() => null).map },
-      declarative: {
-        ensureDetailedProfile: async () => {
-          throw new Error("Profile not found");
-        },
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
-    const result = await handler(null, { did: "did:plc:missing" });
-    assert.deepEqual(result, null);
+    const granted = makeXrpcService({ actions: ["privateData"] });
+    assert.deepEqual(
+      await granted(
+        { pluginId: "test-plugin" },
+        { nsid: "app.bsky.graph.getMutes", params: {} },
+      ),
+      { ok: true, status: 200, data: { mutes: [] } },
+    );
   });
 });
 
@@ -2695,10 +2627,9 @@ describe("user-granted fetch origins", () => {
       "https://api.example.com/*",
     ]);
     assert(
-      isFetchAllowed(
-        "https://api.example.com/anything",
-        service._getPermissionsForPlugin("alpha"),
-      ),
+      service.permissionsManager
+        .getPermissionsForPlugin("alpha")
+        .allowsFetch("https://api.example.com/anything"),
     );
   });
 
@@ -2774,9 +2705,10 @@ describe("user-granted fetch origins", () => {
       ...entry,
       userGrantedFetchOrigins: ["https://*/*", "http://evil.example.com/*", 42],
     }));
-    const permissions = service._getPermissionsForPlugin("alpha");
+    const permissions =
+      service.permissionsManager.getPermissionsForPlugin("alpha");
     assert.deepEqual(permissions.fetch ?? [], []);
-    assert(!isFetchAllowed("https://evil.example.com/", permissions));
+    assert(!permissions.allowsFetch("https://evil.example.com/"));
   });
 
   it("merges user grants with manifest patterns", async () => {
@@ -2786,9 +2718,10 @@ describe("user-granted fetch origins", () => {
     const requesting = callRequest(service, "https://granted.example/v1");
     await respondToConfirm(true);
     await requesting;
-    const permissions = service._getPermissionsForPlugin("alpha");
-    assert(isFetchAllowed("https://declared.example/x", permissions));
-    assert(isFetchAllowed("https://granted.example/x", permissions));
+    const permissions =
+      service.permissionsManager.getPermissionsForPlugin("alpha");
+    assert(permissions.allowsFetch("https://declared.example/x"));
+    assert(permissions.allowsFetch("https://granted.example/x"));
   });
 
   it("revokes a granted origin", async () => {
@@ -2796,16 +2729,18 @@ describe("user-granted fetch origins", () => {
     const requesting = callRequest(service, "https://api.example.com/v1");
     await respondToConfirm(true);
     await requesting;
-    await service.revokeUserGrantedFetchOrigin(
+    await service.permissionsManager.revokeUserGrantedFetchOrigin(
       "alpha",
       "https://api.example.com/*",
     );
-    assert.deepEqual(service.getUserGrantedFetchOrigins("alpha"), []);
+    assert.deepEqual(
+      service.permissionsManager.getUserGrantedFetchOrigins("alpha"),
+      [],
+    );
     assert(
-      !isFetchAllowed(
-        "https://api.example.com/x",
-        service._getPermissionsForPlugin("alpha"),
-      ),
+      !service.permissionsManager
+        .getPermissionsForPlugin("alpha")
+        .allowsFetch("https://api.example.com/x"),
     );
   });
 
