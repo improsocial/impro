@@ -64,7 +64,7 @@ class ContextMenu extends Component {
             class="bottom-sheet context-menu"
             @click=${(e) => {
               // close the dialog if the user clicks outside of it
-              if (e.target.tagName === "DIALOG") {
+              if (e.target === e.currentTarget) {
                 this.close();
               }
             }}

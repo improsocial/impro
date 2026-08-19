@@ -1,5 +1,6 @@
 import { Signal, untrack } from "/js/signals.js";
 import { KVIndexedDB } from "/js/utils.js";
+import { buildGifDraftUri } from "/js/embedHelpers.js";
 
 const DEVICE_ID_STORAGE_KEY = "improDraftDeviceId";
 
@@ -200,7 +201,17 @@ function buildDraftPostFromSnapshot(postSnapshot, media) {
   } else if (postSnapshot.unrestoredVideo) {
     draftPost.embedVideos = [postSnapshot.unrestoredVideo];
   }
-  if (postSnapshot.external) {
+  if (postSnapshot.gif) {
+    const gifUri = buildGifDraftUri(postSnapshot.gif);
+    if (gifUri) {
+      draftPost.embedExternals = [
+        {
+          $type: "app.bsky.draft.defs#draftEmbedExternal",
+          uri: gifUri,
+        },
+      ];
+    }
+  } else if (postSnapshot.external) {
     draftPost.embedExternals = [
       {
         $type: "app.bsky.draft.defs#draftEmbedExternal",

@@ -208,7 +208,9 @@ test.describe("Post Composer Edge Cases", () => {
     await view.locator(".post-thread-reply-prompt").click();
 
     const composer = page.locator("post-composer");
-    await expect(composer.locator("dialog")).toBeVisible({ timeout: 10000 });
+    await expect(composer.locator("dialog.post-composer")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify parent post context is shown in the composer
     const replyContext = composer.locator(".reply-to");

@@ -14,34 +14,8 @@ import {
   getImagesFromDraftPost,
 } from "/js/dataHelpers.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { parseGifFromUrl } from "/js/embedHelpers.js";
 import "/js/components/infinite-scroll-container.js";
-
-// GIFs are serialized by bsky as external URLs with ww/hh query params on
-// known GIF proxy hostnames - no local bytes involved.
-const GIF_HOSTNAMES = ["media.tenor.com", "static.klipy.com"];
-
-function parseGifFromUrl(url) {
-  let parsed = null;
-  try {
-    parsed = new URL(url);
-  } catch (error) {
-    return null;
-  }
-  if (!GIF_HOSTNAMES.includes(parsed.hostname)) {
-    return null;
-  }
-  const width = Number(parsed.searchParams.get("ww"));
-  const height = Number(parsed.searchParams.get("hh"));
-  if (!width || !height) {
-    return null;
-  }
-  return {
-    url,
-    width,
-    height,
-    alt: parsed.searchParams.get("alt") ?? "",
-  };
-}
 
 function draftTagTemplate(name, label, { warning = false } = {}) {
   return html`<span
@@ -258,7 +232,7 @@ class DraftsDialog extends Component {
           class="bottom-sheet bottom-sheet-stacked no-handle drafts-dialog"
           data-testid="drafts-dialog"
           @click=${(event) => {
-            if (event.target.tagName === "DIALOG") {
+            if (event.target === event.currentTarget) {
               this.close();
             }
           }}

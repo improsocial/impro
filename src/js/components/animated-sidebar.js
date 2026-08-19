@@ -39,7 +39,7 @@ class AnimatedSidebar extends Component {
       html`<dialog
         class="sidebar"
         @click=${(event) => {
-          if (event.target.tagName === "DIALOG") {
+          if (event.target === event.currentTarget) {
             this.close();
           }
         }}

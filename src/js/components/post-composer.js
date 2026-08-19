@@ -29,8 +29,17 @@ import {
   VideoValidationError,
 } from "/js/videoUtils.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
-import { recordEmbedTemplate } from "/js/templates/postEmbed.template.js";
-import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
+import {
+  recordEmbedTemplate,
+  gifExternalTemplate,
+} from "/js/templates/postEmbed.template.js";
+import {
+  parseRecordLink,
+  resolveRecordFromLink,
+  buildGifExternal,
+  restoreGifFromDraftUri,
+} from "/js/embedHelpers.js";
+import "/js/components/app-icon.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { choiceModal } from "/js/modals/choice.modal.js";
 import {
@@ -48,6 +57,7 @@ import { ApiError } from "/js/api.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
+import "/js/components/gif-picker-dialog.js";
 import "/js/components/drafts-dialog.js";
 
 const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
@@ -67,6 +77,7 @@ function hasPostStateContent(postState) {
     postState.text.length > 0 ||
     postState.images.length > 0 ||
     postState.video !== null ||
+    postState.gif !== null ||
     postState.external !== null ||
     postState.quotedRecord !== null
   );
@@ -226,6 +237,42 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
   `;
 }
 
+function gifPreviewTemplate({ gif, onRemove, onEditAltText }) {
+  const external = buildGifExternal(gif);
+  const hasAlt = gif.alt.trim().length > 0;
+  return html`
+    <div class="post-composer-gif-preview" data-testid="composer-gif-preview">
+      <div class="gif-preview-item">
+        ${external ? gifExternalTemplate({ uri: external.url, alt: "" }) : ""}
+        <button
+          class="image-preview-remove-button"
+          data-testid="composer-gif-remove"
+          aria-label="Remove GIF"
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          ${closeIconTemplate()}
+        </button>
+        <button
+          class="alt-indicator ${hasAlt ? "has-alt" : "no-alt"}"
+          data-testid="composer-gif-alt-button"
+          data-teststate=${hasAlt ? "set" : "unset"}
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEditAltText();
+          }}
+        >
+          ${altIndicatorContentTemplate(hasAlt)}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
   return html`
     <div class="post-composer-image-preview">
@@ -273,6 +320,8 @@ function composerPostTemplate({
   onEditAltText,
   onRemoveVideo,
   onEditVideoAltText,
+  onRemoveGif,
+  onEditGifAltText,
   onCloseExternal,
   onCloseQuote,
 }) {
@@ -331,6 +380,13 @@ function composerPostTemplate({
             video: postState.video,
             onRemove: () => onRemoveVideo(),
             onEditAltText: () => onEditVideoAltText(),
+          })
+        : ""}
+      ${postState.gif
+        ? gifPreviewTemplate({
+            gif: postState.gif,
+            onRemove: () => onRemoveGif(),
+            onEditAltText: () => onEditGifAltText(),
           })
         : ""}
       ${postState.quotedRecord
@@ -418,6 +474,7 @@ class PostComposer extends Component {
       unresolvedFacets: [],
       images: [],
       video: null,
+      gif: null,
       external: null,
       externalLinkUrl: null,
       quotedRecord: null,
@@ -533,6 +590,7 @@ class PostComposer extends Component {
         postState.video?.status === "error",
     );
     const hasVideo = !!activePost.video;
+    const hasGif = !!activePost.gif;
     const nextPost = posts[activePostIndex + 1] ?? null;
     const canAddPost =
       hasPostStateContent(activePost) &&
@@ -555,7 +613,7 @@ class PostComposer extends Component {
           class="post-composer bottom-sheet bottom-sheet-fullscreen no-handle"
           autofocus
           @click=${async (e) => {
-            if (e.target.tagName === "DIALOG") {
+            if (e.target === e.currentTarget) {
               if (await this.confirmClose()) {
                 this.close();
               }
@@ -658,6 +716,9 @@ class PostComposer extends Component {
                       onRemoveVideo: () => this.handleRemoveVideo(postState.id),
                       onEditVideoAltText: () =>
                         this.handleEditVideoAltText(postState.id),
+                      onRemoveGif: () => this.handleRemoveGif(postState.id),
+                      onEditGifAltText: () =>
+                        this.handleEditGifAltText(postState.id),
                       onCloseExternal: () =>
                         this.handleExternalLinkEmbedPreviewClose(postState.id),
                       onCloseQuote: () =>
@@ -682,10 +743,29 @@ class PostComposer extends Component {
                   <button
                     class="icon-button image-picker-button"
                     @click=${() => this.handleMediaButtonClick()}
-                    .disabled=${hasVideo || activePost.images.length >= 4}
+                    .disabled=${hasVideo ||
+                    hasGif ||
+                    activePost.images.length >= 4}
                   >
                     ${imageIconTemplate()}
                   </button>
+                  <button
+                    type="button"
+                    class="icon-button post-composer-gif-button"
+                    data-testid="composer-gif-button"
+                    aria-label="Select GIF"
+                    .disabled=${hasVideo ||
+                    hasGif ||
+                    activePost.images.length > 0 ||
+                    !!activePost.external}
+                    @click=${() => this.handleGifButtonClick()}
+                  >
+                    <app-icon icon="gif-square-line"></app-icon>
+                  </button>
+                  <gif-picker-dialog
+                    .dataLayer=${this.dataLayer}
+                    @gif-selected=${(e) => this.handleGifSelected(e.detail.gif)}
+                  ></gif-picker-dialog>
                   <div class="post-composer-emoji-wrapper">
                     <button
                       type="button"
@@ -855,6 +935,66 @@ class PostComposer extends Component {
     this._savedEmojiCursor = null;
   }
 
+  handleGifButtonClick() {
+    this.querySelector("gif-picker-dialog")?.open();
+  }
+
+  handleGifSelected(gif) {
+    const activePost = this._getActivePost();
+    const patch = { gif: { gif, alt: "" } };
+    // Drop link embed
+    if (activePost.externalLinkUrl) {
+      activePost.rejectedLinkEmbeds.add(activePost.externalLinkUrl);
+      patch.externalLinkUrl = null;
+      patch.external = null;
+    }
+    this._updatePost(activePost.id, patch);
+    this._isDirty = true;
+  }
+
+  handleRemoveGif(postId) {
+    this._updatePost(postId, { gif: null });
+    this._isDirty = true;
+  }
+
+  _openAltTextDialog({ value, imageUrl = null, placeholder = null, onSave }) {
+    const dialog = document.createElement("image-alt-text-dialog");
+    dialog.value = value || "";
+    if (imageUrl) {
+      dialog.imageUrl = imageUrl;
+    }
+    if (placeholder) {
+      dialog.placeholder = placeholder;
+    }
+    dialog.addEventListener("alt-text-saved", (e) => {
+      onSave(e.detail.altText);
+      dialog.remove();
+    });
+    dialog.addEventListener("alt-text-dialog-closed", () => {
+      dialog.remove();
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  handleEditGifAltText(postId) {
+    const postState = this._getPost(postId);
+    if (!postState?.gif) return;
+    const { gif, alt } = postState.gif;
+    this._openAltTextDialog({
+      value: alt,
+      placeholder: gif.content_description || gif.title || "",
+      onSave: (altText) => {
+        const latestPost = this._getPost(postId);
+        if (!latestPost?.gif) return;
+        this._updatePost(postId, {
+          gif: { ...latestPost.gif, alt: altText },
+        });
+        this._isDirty = true;
+      },
+    });
+  }
+
   handleExternalLinkEmbedPreviewClose(postId) {
     const postState = this._getPost(postId);
     if (!postState) return;
@@ -939,7 +1079,7 @@ class PostComposer extends Component {
     if (videoFiles.length > 0) {
       const postState = this._getPost(postId);
       if (!postState) return;
-      if (postState.images.length > 0) {
+      if (postState.images.length > 0 || postState.gif) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
@@ -958,7 +1098,7 @@ class PostComposer extends Component {
     if (imageFiles.length > 0) {
       const postState = this._getPost(postId);
       if (!postState) return;
-      if (postState.video) {
+      if (postState.video || postState.gif) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
@@ -1016,31 +1156,22 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState) return;
     const image = postState.images[index];
-    const dialog = document.createElement("image-alt-text-dialog");
-    dialog.imageUrl = image.dataUrl;
-    dialog.value = image.alt || "";
-
-    dialog.addEventListener("alt-text-saved", (e) => {
-      const latestPost = this._getPost(postId);
-      if (latestPost) {
+    this._openAltTextDialog({
+      value: image.alt,
+      imageUrl: image.dataUrl,
+      onSave: (altText) => {
+        const latestPost = this._getPost(postId);
+        if (!latestPost) return;
         this._updatePost(postId, {
           images: latestPost.images.map((selectedImage, imageIndex) =>
             imageIndex === index
-              ? { ...selectedImage, alt: e.detail.altText }
+              ? { ...selectedImage, alt: altText }
               : selectedImage,
           ),
         });
         this._isDirty = true;
-      }
-      dialog.remove();
+      },
     });
-
-    dialog.addEventListener("alt-text-dialog-closed", () => {
-      dialog.remove();
-    });
-
-    document.body.appendChild(dialog);
-    dialog.open();
   }
 
   async processVideoFile(postId, file) {
@@ -1167,21 +1298,13 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState?.video) return;
     const token = postState.videoToken;
-    const dialog = document.createElement("image-alt-text-dialog");
-    dialog.value = postState.video.alt || "";
-
-    dialog.addEventListener("alt-text-saved", (e) => {
-      this.patchSelectedVideo(postId, token, { alt: e.detail.altText });
-      this._isDirty = true;
-      dialog.remove();
+    this._openAltTextDialog({
+      value: postState.video.alt,
+      onSave: (altText) => {
+        this.patchSelectedVideo(postId, token, { alt: altText });
+        this._isDirty = true;
+      },
     });
-
-    dialog.addEventListener("alt-text-dialog-closed", () => {
-      dialog.remove();
-    });
-
-    document.body.appendChild(dialog);
-    dialog.open();
   }
 
   handleInput(postId, e) {
@@ -1213,7 +1336,7 @@ class PostComposer extends Component {
           const url = feature.uri;
           const latestPost = this._getPost(postId);
           if (!latestPost) return;
-          if (latestPost.externalLinkUrl) {
+          if (latestPost.externalLinkUrl || latestPost.gif) {
             // automatically reject links if there's an existing link embed
             latestPost.rejectedLinkEmbeds.add(url);
           } else if (!latestPost.rejectedLinkEmbeds.has(url)) {
@@ -1323,7 +1446,8 @@ class PostComposer extends Component {
         !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||
         el.isContentEditable ||
-        !!el.closest("[contenteditable]"),
+        !!el.closest("[contenteditable]") ||
+        !!el.closest("gif-picker-dialog"),
       disableWhenKeyboardOpen: true,
     });
 
@@ -1409,7 +1533,9 @@ class PostComposer extends Component {
             postText: postState.text,
             images: postState.images,
             video: postState.video,
-            external: postState.external,
+            external: postState.gif
+              ? buildGifExternal(postState.gif)
+              : postState.external,
             quotedRecord: postState.quotedRecord,
             labels: postState.labels ?? this._draftPassthrough?.labels ?? null,
           })),
@@ -1464,6 +1590,7 @@ class PostComposer extends Component {
               captions: postState.draftVideoCaptions,
             }
           : null,
+        gif: postState.gif,
         external: postState.external,
         quotedRecord: postState.quotedRecord,
         labels: postState.labels,
@@ -1715,8 +1842,13 @@ class PostComposer extends Component {
       }
       const externalUri = draftPost.embedExternals?.[0]?.uri ?? null;
       if (externalUri) {
-        this._updatePost(postId, { externalLinkUrl: externalUri });
-        this.loadExternalLinkEmbedPreview(postId);
+        const gifState = restoreGifFromDraftUri(externalUri);
+        if (gifState) {
+          this._updatePost(postId, { gif: gifState });
+        } else {
+          this._updatePost(postId, { externalLinkUrl: externalUri });
+          this.loadExternalLinkEmbedPreview(postId);
+        }
       }
       const quoteRef = draftPost.embedRecords?.[0]?.record ?? null;
       if (quoteRef) {

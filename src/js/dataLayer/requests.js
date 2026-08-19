@@ -260,6 +260,7 @@ export class Requests {
       this.loadKnownFollowers,
       (profileDid) => "loadKnownFollowers-" + profileDid,
     );
+    this.enableStatus(this.loadGifs, (query) => "loadGifs-" + query);
     this.enableStatus(this.loadDrafts, "loadDrafts");
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
@@ -810,6 +811,41 @@ export class Requests {
         cursor: searchData.cursor,
       });
     }
+  }
+
+  async loadGifs(query, { limit = 30, cursor = "" } = {}) {
+    if (!cursor) {
+      this.dataStore.$gifResults.set(null);
+    }
+    const requestTime = Date.now();
+    this.dataStore.$latestGifRequestTime.set(requestTime);
+    // Empty query loads featured gifs
+    const gifData = query
+      ? await this.api.searchGifs(query, { limit, cursor })
+      : await this.api.getFeaturedGifs({ limit, cursor });
+    if (requestTime !== this.dataStore.$latestGifRequestTime.get()) {
+      return;
+    }
+    const results = gifData.results ?? [];
+    // The provider repeats ids across pages; a page of nothing-but-repeats
+    // should end pagination
+    const existingGifs = this.dataStore.$gifResults.get()?.gifs ?? [];
+    const existingIds = new Set(existingGifs.map((gifItem) => gifItem.id));
+    const hasFreshResults =
+      results.filter((gifItem) => !existingIds.has(gifItem.id)).length > 0;
+    // KLIPY's `next` is a positional offset; falsy (or a "0" reset sentinel)
+    // means end of list
+    const nextCursor =
+      gifData.next && String(gifData.next) !== "0" ? String(gifData.next) : "";
+    writePageToCollection(
+      this.dataStore.$gifResults,
+      "gifs",
+      {
+        gifs: results,
+        cursor: cursor && !hasFreshResults ? "" : nextCursor,
+      },
+      { requestCursor: cursor, dedupeBy: "id" },
+    );
   }
 
   async loadNextAuthorFeedPage(

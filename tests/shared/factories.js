@@ -413,3 +413,63 @@ export function createFeedItem({
     feedContext,
   };
 }
+
+export function createGif({
+  id = "gif-1",
+  title = "dancing cat",
+  contentDescription = "a cat dancing",
+  url = `https://static.klipy.com/ii/abc/def/${id}.gif`,
+  width = 498,
+  height = 280,
+  mp4Slug = `${id}-mp4`,
+  webmSlug = `${id}-webm`,
+} = {}) {
+  const basePath = url.slice(0, url.lastIndexOf("/") + 1);
+  return {
+    created: 1700000000,
+    hasaudio: false,
+    id,
+    media_formats: {
+      preview: {
+        url: `${basePath}${id}-preview.jpg`,
+        dims: [width, height],
+        duration: 0,
+        size: 1000,
+      },
+      gif: { url, dims: [width, height], duration: 0, size: 100000 },
+      tinygif: {
+        url: `${basePath}${id}-tiny.gif`,
+        dims: [Math.round(width / 2), Math.round(height / 2)],
+        duration: 0,
+        size: 20000,
+      },
+      ...(mp4Slug
+        ? {
+            mp4: {
+              url: `${basePath}${mp4Slug}.mp4`,
+              dims: [width, height],
+              duration: 1,
+              size: 50000,
+            },
+          }
+        : {}),
+      ...(webmSlug
+        ? {
+            webm: {
+              url: `${basePath}${webmSlug}.webm`,
+              dims: [width, height],
+              duration: 1,
+              size: 40000,
+            },
+          }
+        : {}),
+    },
+    tags: [],
+    title,
+    content_description: contentDescription,
+    itemurl: url,
+    hascaption: false,
+    flags: "",
+    url,
+  };
+}

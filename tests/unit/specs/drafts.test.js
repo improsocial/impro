@@ -6,6 +6,7 @@ import {
   buildDraftFromComposerSnapshot,
   getDraftDeviceId,
 } from "/js/drafts.js";
+import { createGif } from "../../shared/factories.js";
 
 describe("getDraftDeviceId", () => {
   it("mints a device id once and returns the same value after", () => {
@@ -272,6 +273,39 @@ describe("buildDraftFromComposerSnapshot", () => {
       makeDraftSnapshot({ video: { file: { type: "video/mp4" }, captions } }),
     );
     assert.deepEqual(draft.posts[0].embedVideos[0].captions, captions);
+  });
+
+  it("serializes a gif into a ww/hh/alt external uri with no media entries", () => {
+    const { draft, media } = buildDraftFromComposerSnapshot(
+      makeDraftSnapshot({
+        gif: {
+          gif: createGif({ id: "dance", width: 498, height: 280 }),
+          alt: "a cat",
+        },
+      }),
+    );
+    assert.deepEqual(draft.posts[0].embedExternals, [
+      {
+        $type: "app.bsky.draft.defs#draftEmbedExternal",
+        uri: "https://static.klipy.com/ii/abc/def/dance.gif?ww=498&hh=280&alt=a+cat",
+      },
+    ]);
+    assert.deepEqual(media, []);
+  });
+
+  it("prefers the gif over a lingering external link", () => {
+    const { draft } = buildDraftFromComposerSnapshot(
+      makeDraftSnapshot({
+        gif: { gif: createGif({ id: "dance" }), alt: "" },
+        external: { url: "https://example.com/article", title: "t" },
+      }),
+    );
+    assert.deepEqual(draft.posts[0].embedExternals.length, 1);
+    assert(
+      draft.posts[0].embedExternals[0].uri.startsWith(
+        "https://static.klipy.com/",
+      ),
+    );
   });
 
   it("serializes external links and quotes without media entries", () => {

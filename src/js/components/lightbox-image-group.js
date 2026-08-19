@@ -64,7 +64,7 @@ class LightboxDialog extends Component {
           class="lightbox"
           autofocus
           @click=${(e) => {
-            if (e.target.tagName === "DIALOG") {
+            if (e.target === e.currentTarget) {
               this.close();
             }
           }}

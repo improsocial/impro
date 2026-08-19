@@ -34,6 +34,8 @@ export class DataStore extends ReactiveStore {
     this.$postSearchResultsLatest = new Signal.State(null);
     this.$latestPostSearchRequestTimeTop = new Signal.State(null);
     this.$latestPostSearchRequestTimeLatest = new Signal.State(null);
+    this.$gifResults = new Signal.State(null);
+    this.$latestGifRequestTime = new Signal.State(null);
     // Keyed signals
     this.$showLessInteractions = new SignalMap();
     this.$showMoreInteractions = new SignalMap();

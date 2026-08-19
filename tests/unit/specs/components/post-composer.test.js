@@ -11,6 +11,7 @@ import {
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
+import { createGif } from "../../../shared/factories.js";
 import "/js/components/post-composer.js";
 
 describe("post-composer", () => {
@@ -2651,6 +2652,25 @@ describe("post-composer", () => {
       await waitFor(() => !dialog.open);
     });
 
+    it("dismissing the gif picker via its backdrop keeps the composer open", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer({
+        api: { getFeaturedGifs: async () => ({ next: "", results: [] }) },
+      });
+      connectElement(element);
+      element.open();
+      element.querySelector('[data-testid="composer-gif-button"]').click();
+      await nextFrame();
+      const composerDialog = element.querySelector(".post-composer");
+      const gifDialog = element.querySelector(".gif-picker-dialog");
+      assert(gifDialog.open);
+      gifDialog.dispatchEvent(
+        new globalThis.window.MouseEvent("click", { bubbles: true }),
+      );
+      await waitFor(() => !gifDialog.open);
+      assert(composerDialog.open);
+    });
+
     it("closes on the dialog cancel event with no content", async () => {
       const element = createPostComposer();
       connectElement(element);
@@ -2862,6 +2882,156 @@ describe("post-composer", () => {
       assert.deepEqual(
         document.body.querySelector("image-alt-text-dialog"),
         null,
+      );
+    });
+  });
+
+  describe("PostComposer - GIF selection", () => {
+    it("attaches a selected GIF, renders the preview, and disables the media buttons", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleGifSelected(createGif({ id: "dance" }));
+      await nextFrame();
+      const post = getFirstPost(element);
+      assert.deepEqual(post.gif.gif.id, "dance");
+      assert.deepEqual(post.gif.alt, "");
+      assert.deepEqual(element._isDirty, true);
+      assert(
+        element.querySelector('[data-testid="composer-gif-preview"]') !== null,
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-gif-button"]').disabled,
+        true,
+      );
+      assert.deepEqual(
+        element.querySelector(".image-picker-button").disabled,
+        true,
+      );
+    });
+
+    it("drops a pending link embed when a GIF is selected", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        externalLinkUrl: "https://example.com/article",
+        external: { url: "https://example.com/article", title: "t" },
+      });
+      element.handleGifSelected(createGif({ id: "dance" }));
+      const post = getFirstPost(element);
+      assert.deepEqual(post.externalLinkUrl, null);
+      assert.deepEqual(post.external, null);
+      assert(post.rejectedLinkEmbeds.has("https://example.com/article"));
+    });
+
+    it("removes the GIF via the remove button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleGifSelected(createGif({ id: "dance" }));
+      await nextFrame();
+      element.querySelector('[data-testid="composer-gif-remove"]').click();
+      assert.deepEqual(getFirstPost(element).gif, null);
+      await nextFrame();
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-gif-preview"]'),
+        null,
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-gif-button"]').disabled,
+        false,
+      );
+    });
+
+    it("edits GIF alt text through the alt-text dialog with a vendor placeholder", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleGifSelected(
+        createGif({ id: "dance", contentDescription: "a cat dancing" }),
+      );
+      await nextFrame();
+      element.querySelector('[data-testid="composer-gif-alt-button"]').click();
+      const dialog = document.body.querySelector("image-alt-text-dialog");
+      assert(dialog !== null);
+      const textarea = dialog.querySelector(".image-alt-text-dialog-textarea");
+      assert.deepEqual(textarea.getAttribute("placeholder"), "a cat dancing");
+      textarea.value = "my alt";
+      textarea.dispatchEvent(
+        new globalThis.window.InputEvent("input", { bubbles: true }),
+      );
+      dialog.querySelector('[data-testid="alt-text-save"]').click();
+      assert.deepEqual(getFirstPost(element).gif.alt, "my alt");
+      await nextFrame();
+      assert.deepEqual(
+        element
+          .querySelector('[data-testid="composer-gif-alt-button"]')
+          .getAttribute("data-teststate"),
+        "set",
+      );
+    });
+
+    it("publishes the GIF as a conventional external embed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleGifSelected(createGif({ id: "dance" }));
+      const latestPost = getFirstPost(element);
+      element._updatePost(latestPost.id, {
+        gif: { ...latestPost.gif, alt: "my alt" },
+      });
+
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      await element.send();
+      const external = receivedDetail.posts[0].external;
+      assert.deepEqual(
+        external.url,
+        "https://static.klipy.com/ii/abc/def/dance.gif?hh=280&ww=498&mp4=dance-mp4&webm=dance-webm",
+      );
+      assert.deepEqual(external.description, "Alt: my alt");
+      assert.deepEqual(
+        external.image,
+        "https://k.gifs.bsky.app/ii/abc/def/dance-preview.jpg",
+      );
+    });
+
+    it("blocks adding media files while a GIF is attached", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleGifSelected(createGif({ id: "dance" }));
+      const post = getFirstPost(element);
+      await element.addMediaFiles(post.id, [{ type: "image/png" }]);
+      assert.deepEqual(getFirstPost(element).images, []);
+      await element.addMediaFiles(post.id, [{ type: "video/mp4" }]);
+      assert.deepEqual(getFirstPost(element).video, null);
+    });
+
+    it("restores a GIF draft external as a GIF, not a link card", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          posts: [
+            {
+              text: "gif post",
+              embedExternals: [
+                {
+                  $type: "app.bsky.draft.defs#draftEmbedExternal",
+                  uri: "https://static.klipy.com/ii/a/b/d.gif?ww=498&hh=280&alt=a+cat",
+                },
+              ],
+            },
+          ],
+        },
+      });
+      const post = getFirstPost(element);
+      assert.deepEqual(post.externalLinkUrl, null);
+      assert.deepEqual(post.gif.alt, "a cat");
+      assert.deepEqual(
+        post.gif.gif.media_formats.gif.url,
+        "https://static.klipy.com/ii/a/b/d.gif",
       );
     });
   });

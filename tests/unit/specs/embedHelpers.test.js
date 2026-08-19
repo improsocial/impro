@@ -1,12 +1,23 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
+  getGifFromPost,
   parseAltFromGifDescription,
   parseRecordLink,
   resolveRecordFromLink,
+  getFileSlug,
+  gifProxyUrl,
+  buildGifExternal,
+  createGifDescription,
+  parseGifFromUrl,
+  buildGifDraftUri,
+  restoreGifFromDraftUri,
+  isValidGif,
+  createMinimalGifObject,
 } from "/js/embedHelpers.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { makeTestDataLayer, stubRecordLinkResolution } from "../testHelpers.js";
+import { createPost, createGif } from "../../shared/factories.js";
 
 describe("parseRecordLink", () => {
   it("parses a post link", () => {
@@ -259,5 +270,339 @@ describe("parseAltFromGifDescription", () => {
       isPreferred: false,
       alt: "",
     });
+  });
+});
+
+describe("getGifFromPost", () => {
+  const gifUri = "https://media.tenor.com/abc123/dance.gif?hh=200&ww=300";
+  const thumb = "https://cdn.bsky.app/img/feed_thumbnail/plain/gif@jpeg";
+
+  function makePostWithExternal(external) {
+    return createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/gif1",
+      text: "look at this",
+      authorHandle: "testuser.bsky.social",
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external,
+      },
+    });
+  }
+
+  it("extracts thumb and alt from a GIF external embed", () => {
+    const post = makePostWithExternal({
+      uri: gifUri,
+      title: "dance.gif",
+      description: "Alt: a dancing cat",
+      thumb,
+    });
+    assert.deepEqual(getGifFromPost(post), {
+      thumb,
+      alt: "a dancing cat",
+    });
+  });
+
+  it("extracts a GIF from a recordWithMedia embed", () => {
+    const post = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/gif2",
+      text: "quote with gif",
+      authorHandle: "testuser.bsky.social",
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia#view",
+        record: { record: {} },
+        media: {
+          $type: "app.bsky.embed.external#view",
+          external: {
+            uri: gifUri,
+            title: "dance.gif",
+            description: "ALT: dancing cat",
+            thumb,
+          },
+        },
+      },
+    });
+    assert.deepEqual(getGifFromPost(post), {
+      thumb,
+      alt: "dancing cat",
+    });
+  });
+
+  it("returns null for a non-GIF external embed", () => {
+    const post = makePostWithExternal({
+      uri: "https://example.com/article",
+      title: "An article",
+      description: "Some article",
+      thumb,
+    });
+    assert.equal(getGifFromPost(post), null);
+  });
+
+  it("returns null when the GIF embed has no thumbnail", () => {
+    const post = makePostWithExternal({
+      uri: gifUri,
+      title: "dance.gif",
+      description: "ALT: dancing cat",
+    });
+    assert.equal(getGifFromPost(post), null);
+  });
+
+  it("returns null for a post without an embed", () => {
+    const post = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/plain",
+      text: "no embed here",
+      authorHandle: "testuser.bsky.social",
+    });
+    assert.equal(getGifFromPost(post), null);
+  });
+});
+
+describe("createMinimalGifObject", () => {
+  it("keeps only the fields the app reads", () => {
+    const trimmed = createMinimalGifObject(createGif({ id: "dance" }));
+    assert.deepEqual(trimmed, {
+      id: "dance",
+      title: "dancing cat",
+      content_description: "a cat dancing",
+      media_formats: {
+        gif: {
+          url: "https://static.klipy.com/ii/abc/def/dance.gif",
+          dims: [498, 280],
+        },
+        tinygif: {
+          url: "https://static.klipy.com/ii/abc/def/dance-tiny.gif",
+          dims: [249, 140],
+        },
+        preview: {
+          url: "https://static.klipy.com/ii/abc/def/dance-preview.jpg",
+        },
+        mp4: { url: "https://static.klipy.com/ii/abc/def/dance-mp4.mp4" },
+        webm: { url: "https://static.klipy.com/ii/abc/def/dance-webm.webm" },
+      },
+    });
+    assert(isValidGif(trimmed));
+  });
+
+  it("omits formats the gif doesn't have", () => {
+    const trimmed = createMinimalGifObject(
+      createGif({ id: "g", mp4Slug: null, webmSlug: null }),
+    );
+    assert.deepEqual(Object.keys(trimmed.media_formats), [
+      "gif",
+      "tinygif",
+      "preview",
+    ]);
+  });
+
+  it("produces an object buildGifExternal accepts", () => {
+    const gif = createGif({ id: "dance" });
+    assert.deepEqual(
+      buildGifExternal({ gif: createMinimalGifObject(gif), alt: "" }),
+      buildGifExternal({ gif, alt: "" }),
+    );
+  });
+});
+
+describe("getFileSlug", () => {
+  it("returns the filename without its extension", () => {
+    assert.deepEqual(
+      getFileSlug("https://static.klipy.com/ii/a/b/happy-dance.mp4"),
+      "happy-dance",
+    );
+  });
+
+  it("returns null for extensionless and leading-dot filenames", () => {
+    assert.deepEqual(getFileSlug("https://example.com/path/noext"), null);
+    assert.deepEqual(getFileSlug("https://example.com/path/.hidden"), null);
+  });
+
+  it("returns null for missing input", () => {
+    assert.deepEqual(getFileSlug(null), null);
+    assert.deepEqual(getFileSlug(""), null);
+  });
+});
+
+describe("gifProxyUrl", () => {
+  it("rewrites tenor and klipy hosts to the bsky proxies", () => {
+    assert.deepEqual(
+      gifProxyUrl("https://media.tenor.com/abc/dance.gif"),
+      "https://t.gifs.bsky.app/abc/dance.gif",
+    );
+    assert.deepEqual(
+      gifProxyUrl("https://static.klipy.com/ii/a/b/dance.gif"),
+      "https://k.gifs.bsky.app/ii/a/b/dance.gif",
+    );
+  });
+
+  it("leaves other hosts untouched", () => {
+    assert.deepEqual(
+      gifProxyUrl("https://example.com/dance.gif"),
+      "https://example.com/dance.gif",
+    );
+  });
+
+  it("returns null for missing or invalid urls", () => {
+    assert.deepEqual(gifProxyUrl(null), null);
+    assert.deepEqual(gifProxyUrl("not a url"), null);
+  });
+});
+
+describe("createGifDescription", () => {
+  it("round-trips a user alt through parseAltFromGifDescription", () => {
+    const description = createGifDescription("vendor text", "a cat spinning");
+    assert.deepEqual(description, "Alt: a cat spinning");
+    assert.deepEqual(parseAltFromGifDescription(description), {
+      isPreferred: true,
+      alt: "a cat spinning",
+    });
+  });
+
+  it("round-trips the vendor fallback through parseAltFromGifDescription", () => {
+    const description = createGifDescription("vendor text", "   ");
+    assert.deepEqual(description, "ALT: vendor text");
+    assert.deepEqual(parseAltFromGifDescription(description), {
+      isPreferred: false,
+      alt: "vendor text",
+    });
+  });
+});
+
+describe("buildGifExternal", () => {
+  it("builds the wire uri with hh (height) before ww (width) plus klipy slugs", () => {
+    const gif = createGif({ id: "dance", width: 498, height: 280 });
+    const external = buildGifExternal({ gif, alt: "" });
+    assert.deepEqual(
+      external.url,
+      "https://static.klipy.com/ii/abc/def/dance.gif?hh=280&ww=498&mp4=dance-mp4&webm=dance-webm",
+    );
+    assert.deepEqual(external.title, "a cat dancing");
+    assert.deepEqual(external.description, "ALT: a cat dancing");
+    assert.deepEqual(
+      external.image,
+      "https://k.gifs.bsky.app/ii/abc/def/dance-preview.jpg",
+    );
+  });
+
+  it("uses the user alt in the description when set", () => {
+    const gif = createGif();
+    const external = buildGifExternal({ gif, alt: "my alt" });
+    assert.deepEqual(external.description, "Alt: my alt");
+  });
+
+  it("omits missing mp4/webm slugs", () => {
+    const gif = createGif({ id: "g", mp4Slug: null, webmSlug: null });
+    const external = buildGifExternal({ gif, alt: "" });
+    assert.deepEqual(
+      external.url,
+      "https://static.klipy.com/ii/abc/def/g.gif?hh=280&ww=498",
+    );
+  });
+
+  it("does not add slugs for non-klipy hosts", () => {
+    const gif = createGif({
+      id: "t",
+      url: "https://media.tenor.com/abc/t.gif",
+    });
+    const external = buildGifExternal({ gif, alt: "" });
+    assert.deepEqual(
+      external.url,
+      "https://media.tenor.com/abc/t.gif?hh=280&ww=498",
+    );
+  });
+
+  it("falls back to tinygif when the gif format is missing", () => {
+    const gif = createGif({ id: "f" });
+    delete gif.media_formats.gif;
+    const external = buildGifExternal({ gif, alt: "" });
+    assert.deepEqual(
+      external.url,
+      "https://static.klipy.com/ii/abc/def/f-tiny.gif?hh=140&ww=249&mp4=f-mp4&webm=f-webm",
+    );
+  });
+
+  it("returns null for zero or missing dims", () => {
+    const gif = createGif();
+    gif.media_formats.gif.dims = [0, 280];
+    assert.deepEqual(buildGifExternal({ gif, alt: "" }), null);
+    gif.media_formats.gif.dims = null;
+    assert.deepEqual(buildGifExternal({ gif, alt: "" }), null);
+  });
+
+  it("still builds the uri when the format url is unparseable", () => {
+    const gif = createGif();
+    gif.media_formats.gif.url = "not a url";
+    const external = buildGifExternal({ gif, alt: "" });
+    assert.deepEqual(external.url, "not a url?hh=280&ww=498");
+  });
+});
+
+describe("parseGifFromUrl", () => {
+  it("parses gif urls on allowed hosts", () => {
+    assert.deepEqual(
+      parseGifFromUrl(
+        "https://static.klipy.com/ii/a/b/d.gif?hh=280&ww=498&alt=a+cat",
+      ),
+      {
+        url: "https://static.klipy.com/ii/a/b/d.gif?hh=280&ww=498&alt=a+cat",
+        width: 498,
+        height: 280,
+        alt: "a cat",
+      },
+    );
+  });
+
+  it("rejects other hosts and missing dims", () => {
+    assert.deepEqual(
+      parseGifFromUrl("https://example.com/d.gif?hh=280&ww=498"),
+      null,
+    );
+    assert.deepEqual(
+      parseGifFromUrl("https://static.klipy.com/ii/a/b/d.gif?ww=498"),
+      null,
+    );
+    assert.deepEqual(parseGifFromUrl("not a url"), null);
+  });
+});
+
+describe("buildGifDraftUri / restoreGifFromDraftUri", () => {
+  it("serializes ww/hh/alt and restores a stub gif with clean urls", () => {
+    const gif = createGif({ id: "dance", width: 498, height: 280 });
+    const uri = buildGifDraftUri({ gif, alt: "a cat" });
+    assert.deepEqual(
+      uri,
+      "https://static.klipy.com/ii/abc/def/dance.gif?ww=498&hh=280&alt=a+cat",
+    );
+    const restored = restoreGifFromDraftUri(uri);
+    assert.deepEqual(restored.alt, "a cat");
+    assert.deepEqual(
+      restored.gif.media_formats.gif.url,
+      "https://static.klipy.com/ii/abc/def/dance.gif",
+    );
+    assert.deepEqual(restored.gif.media_formats.gif.dims, [498, 280]);
+    assert.deepEqual(restored.gif.content_description, "a cat");
+  });
+
+  it("omits the alt param when empty", () => {
+    const gif = createGif({ id: "dance" });
+    assert.deepEqual(
+      buildGifDraftUri({ gif, alt: "  " }),
+      "https://static.klipy.com/ii/abc/def/dance.gif?ww=498&hh=280",
+    );
+  });
+
+  it("does not stack query strings across save/restore cycles", () => {
+    const gif = createGif({ id: "dance", width: 498, height: 280 });
+    const firstUri = buildGifDraftUri({ gif, alt: "a cat" });
+    const restored = restoreGifFromDraftUri(firstUri);
+    const secondUri = buildGifDraftUri(restored);
+    assert.deepEqual(secondUri, firstUri);
+    const external = buildGifExternal(restored);
+    assert.deepEqual(
+      external.url,
+      "https://static.klipy.com/ii/abc/def/dance.gif?hh=280&ww=498",
+    );
+  });
+
+  it("returns null for non-gif draft uris", () => {
+    assert.deepEqual(restoreGifFromDraftUri("https://example.com/page"), null);
   });
 });

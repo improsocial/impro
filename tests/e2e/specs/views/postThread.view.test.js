@@ -617,7 +617,9 @@ test.describe("Post thread view", () => {
 
     // Type into the composer's rich text input
     const composer = page.locator("post-composer");
-    await expect(composer.locator("dialog")).toBeVisible({ timeout: 10000 });
+    await expect(composer.locator("dialog.post-composer")).toBeVisible({
+      timeout: 10000,
+    });
     await composer
       .locator("rich-text-input [contenteditable]")
       .fill("My reply text");
@@ -626,7 +628,7 @@ test.describe("Post thread view", () => {
     await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // The composer should close and the reply should appear in the thread
-    await expect(composer.locator("dialog")).not.toBeVisible({
+    await expect(composer.locator("dialog.post-composer")).not.toBeVisible({
       timeout: 10000,
     });
     await expect(view).toContainText("My reply text", { timeout: 10000 });

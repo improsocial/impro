@@ -4,8 +4,16 @@ import { html, render } from "/js/lib/lit-html.js";
 export class AppIcon extends Component {
   static observedAttributes = ["icon"];
 
+  connectedCallback() {
+    if (this.getAttribute("icon")) {
+      this.render();
+    }
+  }
+
   attributeChangedCallback() {
-    this.render();
+    if (this.isConnected) {
+      this.render();
+    }
   }
 
   render() {

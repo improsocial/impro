@@ -103,7 +103,7 @@ class AddToListsDialog extends Component {
           class="bottom-sheet add-to-lists-dialog"
           data-testid="add-to-lists-dialog"
           @click=${(event) => {
-            if (event.target.tagName === "DIALOG") {
+            if (event.target === event.currentTarget) {
               this.close();
             }
           }}

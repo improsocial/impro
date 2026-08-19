@@ -5,7 +5,10 @@ import {
   PLUGIN_SETTINGS_PREF_TYPE,
   INSTALLED_PLUGINS_PREF_TYPE,
   SEARCH_HISTORY_PREF_TYPE,
+  GIF_HISTORY_PREF_TYPE,
 } from "/js/preferences.js";
+import { createGif } from "../../shared/factories.js";
+import { createMinimalGifObject } from "/js/embedHelpers.js";
 
 describe("Preferences.createLoggedOutPreferences", () => {
   it("should create preferences with discover feed pinned", () => {
@@ -3312,5 +3315,61 @@ describe("Preferences recent search profiles", () => {
       .addRecentSearchProfile("")
       .addRecentSearchProfile(null);
     assert.deepEqual(preferences.getRecentSearchProfiles(), []);
+  });
+});
+
+describe("recent GIFs", () => {
+  it("creates the preference on first add and stores trimmed gif objects", () => {
+    const preferences = new Preferences([], []);
+    const gif = createGif({ id: "g1" });
+    const updated = preferences.addRecentGif(gif);
+    const pref = Preferences.getGifHistoryPreference(updated.obj);
+    assert.deepEqual(pref.$type, GIF_HISTORY_PREF_TYPE);
+    assert.deepEqual(updated.getRecentGifs(), [createMinimalGifObject(gif)]);
+    // Original unchanged
+    assert.deepEqual(preferences.getRecentGifs(), []);
+  });
+
+  it("dedupes by id and keeps MRU order", () => {
+    const first = createGif({ id: "g1" });
+    const second = createGif({ id: "g2" });
+    const preferences = new Preferences([], [])
+      .addRecentGif(first)
+      .addRecentGif(second)
+      .addRecentGif(first);
+    assert.deepEqual(
+      preferences.getRecentGifs().map((gif) => gif.id),
+      ["g1", "g2"],
+    );
+  });
+
+  it("caps the list at 20 entries", () => {
+    let preferences = new Preferences([], []);
+    for (let i = 0; i < 25; i++) {
+      preferences = preferences.addRecentGif(createGif({ id: `g${i}` }));
+    }
+    const gifs = preferences.getRecentGifs();
+    assert.deepEqual(gifs.length, 20);
+    assert.deepEqual(gifs[0].id, "g24");
+    assert.deepEqual(gifs[19].id, "g5");
+  });
+
+  it("filters malformed entries per-item instead of wiping the list", () => {
+    const good = createGif({ id: "good" });
+    const missingTinygif = createGif({ id: "bad1" });
+    delete missingTinygif.media_formats.tinygif;
+    const obj = [
+      {
+        $type: GIF_HISTORY_PREF_TYPE,
+        gifs: [good, missingTinygif, "not-an-object", { id: "bad2" }],
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assert.deepEqual(preferences.getRecentGifs(), [good]);
+  });
+
+  it("ignores adds of malformed gifs", () => {
+    const preferences = new Preferences([], []).addRecentGif({ id: "nope" });
+    assert.deepEqual(preferences.getRecentGifs(), []);
   });
 });

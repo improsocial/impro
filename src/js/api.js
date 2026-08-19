@@ -10,6 +10,7 @@ import {
   BSKY_LABELER_DID,
   VIDEO_SERVICE_URL,
   VIDEO_SERVICE_DID,
+  GIF_SERVICE_URL,
 } from "/js/config.js";
 
 // Matches the header format in @atproto/api
@@ -1426,6 +1427,38 @@ export class Api {
       { query: { jobId }, signal },
     );
     return res.data.jobStatus;
+  }
+
+  // The gifs.bsky.app proxy normalizes KLIPY responses into the Tenor Gif
+  // shape: { next, results }.
+  async _gifServiceRequest(path, { query = "", limit, cursor, signal }) {
+    const params = {
+      client_key: "impro-web",
+      limit: String(limit),
+      contentfilter: "low",
+    };
+    if (query) {
+      params.q = query;
+    }
+    if (cursor) {
+      params.pos = String(cursor);
+    }
+    const res = await this.serviceRequest(
+      `${GIF_SERVICE_URL}/klipy/v2/${path}`,
+      {
+        query: params,
+        signal,
+      },
+    );
+    return res.data;
+  }
+
+  async searchGifs(query, { limit = 30, cursor = "", signal = null } = {}) {
+    return this._gifServiceRequest("search", { query, limit, cursor, signal });
+  }
+
+  async getFeaturedGifs({ limit = 30, cursor = "", signal = null } = {}) {
+    return this._gifServiceRequest("featured", { limit, cursor, signal });
   }
 
   async getProfileRecord() {

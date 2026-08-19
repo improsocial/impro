@@ -38,6 +38,9 @@ export class MockServer {
     this.typeaheadProfiles = [];
     this.typeaheadDelayMs = 0;
     this.externalLinkCards = new Map();
+    this.featuredGifs = [];
+    this.gifSearchResults = new Map();
+    this.gifRequests = [];
     this.feedGenerators = [];
     this.feeds = new Map();
     this.hiddenPostUris = [];
@@ -614,7 +617,7 @@ export class MockServer {
 
     // Stub gif proxy fetches (gif embeds stream from these CDNs).
     await page.route(
-      /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,
+      /https:\/\/([tk]\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,
       (route) =>
         route.fulfill({
           status: 200,
@@ -622,6 +625,27 @@ export class MockServer {
           body: "",
         }),
     );
+
+    // GIF picker service (KLIPY via the bsky proxy)
+    await page.route("https://gifs.bsky.app/klipy/v2/**", (route) => {
+      const url = new URL(route.request().url());
+      const query = url.searchParams.get("q") ?? "";
+      const pos = url.searchParams.get("pos") ?? "";
+      this.gifRequests.push({
+        path: url.pathname,
+        query,
+        pos,
+      });
+      const isSearch = url.pathname.endsWith("/search");
+      const results = isSearch
+        ? (this.gifSearchResults.get(query) ?? [])
+        : this.featuredGifs;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ next: "", results }),
+      });
+    });
 
     // Stub the YouTube embed player so tests don't hit the network.
     await page.route("https://www.youtube-nocookie.com/**", (route) =>

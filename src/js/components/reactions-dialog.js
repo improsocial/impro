@@ -117,7 +117,7 @@ class ReactionsDialog extends Component {
           class="bottom-sheet reactions-dialog"
           data-testid="reactions-dialog"
           @click=${(event) => {
-            if (event.target.tagName === "DIALOG") this._close();
+            if (event.target === event.currentTarget) this._close();
           }}
           @cancel=${(event) => {
             event.preventDefault();

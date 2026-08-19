@@ -26,7 +26,7 @@ function waitForExitMotion(dialog) {
       resolve();
     };
     const onMotionEnd = (event) => {
-      if (event.target === dialog) finish();
+      if (event.target === event.currentTarget) finish();
     };
     const timeoutId = setTimeout(finish, 400);
 
