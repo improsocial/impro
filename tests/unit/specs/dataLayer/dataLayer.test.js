@@ -59,15 +59,14 @@ describe("constructor", () => {
   });
 });
 
-describe("initializePreferences", () => {
-  it("should call preferencesProvider.fetchPreferences", async () => {
+describe("preferences", () => {
+  it("should load logged out preferences on demand", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
 
-    await dataLayer.initializePreferences();
+    const preferences =
+      await dataLayer.preferencesProvider.requirePreferences();
 
-    // Verify preferences were loaded (logged out preferences for unauthenticated)
-    const preferences = dataLayer.preferencesProvider.requirePreferences();
     assert(preferences !== null);
   });
 
@@ -81,9 +80,9 @@ describe("initializePreferences", () => {
     });
     const dataLayer = createDataLayer(mockApi);
 
-    await dataLayer.initializePreferences();
+    const preferences =
+      await dataLayer.preferencesProvider.requirePreferences();
 
-    const preferences = dataLayer.preferencesProvider.requirePreferences();
     assert.deepEqual(preferences.obj, mockPreferences);
   });
 });
@@ -162,8 +161,7 @@ describe("component integration", () => {
     const postURI = "at://post/uri";
     const post = { uri: postURI, text: "test", likeCount: 5 };
 
-    // Initialize preferences first (required by derived)
-    await dataLayer.initializePreferences();
+    await dataLayer.preferencesProvider.requirePreferences();
 
     // Set data through dataStore
     dataLayer.dataStore.$posts.set(postURI, post);
@@ -179,8 +177,7 @@ describe("component integration", () => {
     const postURI = "at://post/uri";
     const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
 
-    // Initialize preferences first (required by derived)
-    await dataLayer.initializePreferences();
+    await dataLayer.preferencesProvider.requirePreferences();
 
     dataLayer.dataStore.$posts.set(postURI, post);
     dataLayer.patchStore.addPostPatch(postURI, { type: "addLike" });
@@ -199,8 +196,7 @@ describe("component integration", () => {
     });
     const dataLayer = createDataLayer(mockApi);
 
-    // Initialize preferences first
-    await dataLayer.initializePreferences();
+    await dataLayer.preferencesProvider.requirePreferences();
 
     // Verify declarative can access derived
     const profile =

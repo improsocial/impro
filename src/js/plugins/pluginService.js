@@ -671,9 +671,8 @@ export class PluginService extends ReactiveStore {
 
   async _loadEnabledPlugins() {
     if (arePluginsDisabledByQueryParam()) {
-      const enabledPluginIds = this.prefManager.$enabledPlugins
-        .get()
-        .map((entry) => entry.id);
+      const enabledPlugins = await this.prefManager.getEnabledPlugins();
+      const enabledPluginIds = enabledPlugins.map((entry) => entry.id);
       await this.prefManager.setPluginsDisabled(enabledPluginIds);
       return;
     }
@@ -692,11 +691,10 @@ export class PluginService extends ReactiveStore {
         });
       }
     }
-    const enabledPlugins = this.prefManager.$enabledPlugins
-      .get()
-      .filter(
-        (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
-      );
+    const allEnabledPlugins = await this.prefManager.getEnabledPlugins();
+    const enabledPlugins = allEnabledPlugins.filter(
+      (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
+    );
     const { erroredPlugins } =
       await this.pluginBridge.loadPlugins(enabledPlugins);
     if (erroredPlugins.length) {
@@ -714,7 +712,7 @@ export class PluginService extends ReactiveStore {
     }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     await this._reconcileCache(installedPlugins);
   }
 
@@ -770,7 +768,7 @@ export class PluginService extends ReactiveStore {
   async checkForUpdates() {
     // Load listings first to ensure we have the latest repo URLs for plugins
     await this.loadRegistryListings();
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     const results = await Promise.allSettled(
       installedPlugins.map(async (entry) => {
         const liveManifest = await this.sourceProvider.getLiveManifest(
@@ -802,7 +800,7 @@ export class PluginService extends ReactiveStore {
   }
 
   async reloadPlugins() {
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     const results = await Promise.allSettled(
       installedPlugins
         .filter((entry) => entry.enabled === true)
@@ -824,7 +822,7 @@ export class PluginService extends ReactiveStore {
   }
 
   async getManifest(pluginId) {
-    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
+    const installedPlugin = await this.prefManager.getInstalledPlugin(pluginId);
     return this.sourceProvider
       .getManifest(pluginId, installedPlugin?.version, installedPlugin?.repo)
       .catch(() => null);
@@ -856,7 +854,7 @@ export class PluginService extends ReactiveStore {
       }
       repo = listing.repo;
     }
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     if (installedPlugins.some((plugin) => plugin.id === pluginId)) {
       throw new Error(`Plugin ${pluginId} already installed`);
     }
@@ -930,7 +928,7 @@ export class PluginService extends ReactiveStore {
     if (this.localRegistry && (await this.localRegistry.getListing(id))) {
       throw new Error(`Plugin ${id} is in the registry; install it from there`);
     }
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     if (installedPlugins.some((plugin) => plugin.id === id)) {
       throw new Error(`Plugin ${id} already installed`);
     }
@@ -960,12 +958,13 @@ export class PluginService extends ReactiveStore {
     await this.prefManager.clearSettingsForPlugin(pluginId);
     this.localDataStore.clear(pluginId);
     await this.binaryCache.clear(pluginId);
-    await this._reconcileCache(this.prefManager.$installedPlugins.get());
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
+    await this._reconcileCache(installedPlugins);
   }
 
   async enablePlugin(pluginId) {
     await this.prefManager.setPluginEnabled(pluginId);
-    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
+    const installedPlugin = await this.prefManager.getInstalledPlugin(pluginId);
     try {
       await this.pluginBridge.loadPlugin(
         pluginId,
@@ -984,7 +983,7 @@ export class PluginService extends ReactiveStore {
   }
 
   async updatePlugin(pluginId) {
-    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
+    const installedPlugin = await this.prefManager.getInstalledPlugin(pluginId);
     if (!installedPlugin) return null;
     const liveManifest = await this.sourceProvider.getLiveManifest(
       pluginId,
@@ -1070,7 +1069,7 @@ export class PluginService extends ReactiveStore {
     const listingById = new Map(
       listings.map((listing) => [listing.id, listing]),
     );
-    const installedPlugins = this.prefManager.$installedPlugins.get();
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
     let changed = false;
     const updated = installedPlugins.map((plugin) => {
       const listing = listingById.get(plugin.id);

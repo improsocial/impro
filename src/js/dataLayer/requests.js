@@ -266,8 +266,8 @@ export class Requests {
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
 
-  requireLabelers() {
-    const preferences = this.preferencesProvider.requirePreferences();
+  async requireLabelers() {
+    const preferences = await this.preferencesProvider.requirePreferences();
     return preferences.getLabelerDids();
   }
 
@@ -306,7 +306,7 @@ export class Requests {
   }
 
   async loadPostThread(postURI, { depth = 6 } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     let [postThread, postThreadOther] = await Promise.all([
       this.api.getPostThread(postURI, {
         labelers,
@@ -350,7 +350,7 @@ export class Requests {
   }
 
   async loadPost(postURI) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const post = await this.api.getPost(postURI, { labelers });
     await this._loadPostDependencies([post]);
     this.dataStore.setPosts([post]);
@@ -358,7 +358,7 @@ export class Requests {
 
   async loadPosts(postURIs) {
     if (postURIs.length === 0) return;
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const posts = await this.api.getPosts(postURIs, { labelers });
     await this._loadPostDependencies(posts);
     this.dataStore.setPosts(posts);
@@ -524,7 +524,7 @@ export class Requests {
   }
 
   async loadNextFeedPage({ type, uri }, { reload = false, limit = 31 } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$feeds, { key: uri });
@@ -578,7 +578,7 @@ export class Requests {
 
   async _loadBlockedPosts(blockedPostUris) {
     if (blockedPostUris.length === 0) return;
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const fetchedBlockedPosts = await this.api.getPosts(blockedPostUris, {
       labelers,
     });
@@ -604,7 +604,7 @@ export class Requests {
   }
 
   async loadDetailedProfile(did) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const profile = await this.api.getProfile(did, { labelers });
     this.dataStore.$profiles.set(did, profile);
     this.dataStore.$detailedProfiles.set(did, profile);
@@ -612,7 +612,7 @@ export class Requests {
 
   async loadDetailedProfiles(dids) {
     if (dids.length === 0) return;
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const profiles = await this.api.getProfiles(dids, { labelers });
     for (const profile of profiles) {
       this.dataStore.$profiles.set(profile.did, profile);
@@ -630,9 +630,9 @@ export class Requests {
     if (!cursor) {
       this.dataStore.$profileSearchResults.set(null);
     }
-    const labelers = this.requireLabelers();
     const requestTime = Date.now();
     this.dataStore.$latestProfileSearchRequestTime.set(requestTime);
+    const labelers = await this.requireLabelers();
     const searchData = await this.api.searchProfiles(query, {
       limit,
       cursor,
@@ -660,9 +660,9 @@ export class Requests {
       $results.set(null);
       return;
     }
-    const labelers = this.requireLabelers();
     const requestTime = Date.now();
     $latestRequestTime.set(requestTime);
+    const labelers = await this.requireLabelers();
     const searchData = await this.api.searchProfilesTypeahead(query, {
       limit,
       labelers,
@@ -732,9 +732,9 @@ export class Requests {
     if (!cursor) {
       $results.set(null);
     }
-    const labelers = this.requireLabelers();
     const requestTime = Date.now();
     $latestRequestTime.set(requestTime);
+    const labelers = await this.requireLabelers();
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
@@ -857,7 +857,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$authorFeeds, { key: feedURI });
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const params = { limit, cursor, labelers };
 
     let feed;
@@ -902,7 +902,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$notifications);
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getNotifications({ cursor, limit, labelers });
     if (cursor === "") {
       this.dataStore.$notificationsLastSeenAt.set(res.seenAt ?? null);
@@ -928,7 +928,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$mentionNotifications);
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getNotifications({
       cursor,
       limit,
@@ -959,7 +959,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoList);
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.listConvos({ cursor, limit, labelers });
     // Store individual convos
     for (const convo of res.convos) {
@@ -976,7 +976,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoRequestList);
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.listConvos({
       cursor,
       limit,
@@ -995,7 +995,7 @@ export class Requests {
   }
 
   async loadConvo(convoId) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getConvo(convoId, { labelers });
     this.dataStore.setConvo(res.convo);
   }
@@ -1006,7 +1006,7 @@ export class Requests {
       : readCollectionCursor(this.dataStore.$convoMemberLists, {
           key: convoId,
         });
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getConvoMembers(convoId, { cursor, labelers });
     writePageToCollection(this.dataStore.$convoMemberLists, "members", res, {
       key: convoId,
@@ -1044,7 +1044,7 @@ export class Requests {
   }
 
   async loadConvoForProfile(profileDid) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getConvoForMembers([profileDid], { labelers });
     this.dataStore.setConvo(res.convo);
   }
@@ -1053,7 +1053,7 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoMessages, { key: convoId });
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getMessages(convoId, {
       cursor,
       limit,
@@ -1079,7 +1079,7 @@ export class Requests {
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getChatLogs({ cursor, labelers });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
     const newMessages = [];
@@ -1159,7 +1159,7 @@ export class Requests {
   }
 
   async loadPostLikes(postUri, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getLikes(postUri, { cursor, labelers });
     this.dataStore.setProfiles(res.likes.map((like) => like.actor));
 
@@ -1171,7 +1171,7 @@ export class Requests {
   }
 
   async loadPostQuotes(postUri, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getQuotes(postUri, { cursor, labelers });
 
     // if there are posts that are replies, load the parents
@@ -1194,7 +1194,7 @@ export class Requests {
   }
 
   async loadPostReposts(postUri, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
     this.dataStore.setProfiles(res.repostedBy);
 
@@ -1276,7 +1276,7 @@ export class Requests {
   }
 
   async loadPinnedItems() {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const pinnedFeeds = preferences.getPinnedFeeds();
 
     const feedUris = pinnedFeeds
@@ -1399,7 +1399,7 @@ export class Requests {
 
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
 
     const cursor = reload
       ? ""
@@ -1441,7 +1441,7 @@ export class Requests {
       ? ""
       : readCollectionCursor(this.dataStore.$bookmarks);
 
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getBookmarks({ limit, cursor, labelers });
 
     // Extract posts from bookmarks array: [{item: post, ...}]
@@ -1483,7 +1483,7 @@ export class Requests {
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getFollowers(profileDid, { cursor, labelers });
     this.dataStore.setProfiles(res.followers);
 
@@ -1495,7 +1495,7 @@ export class Requests {
   }
 
   async loadKnownFollowers(profileDid, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getKnownFollowers(profileDid, {
       cursor,
       labelers,
@@ -1510,7 +1510,7 @@ export class Requests {
   }
 
   async loadProfileFollows(profileDid, { cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getFollows(profileDid, { cursor, labelers });
     this.dataStore.setProfiles(res.follows);
 
@@ -1522,7 +1522,7 @@ export class Requests {
   }
 
   async loadBlockedProfiles({ cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getBlocks({ cursor, labelers });
     this.dataStore.setProfiles(res.blocks);
 
@@ -1533,7 +1533,7 @@ export class Requests {
   }
 
   async loadMutedProfiles({ cursor } = {}) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getMutes({ cursor, labelers });
     this.dataStore.setProfiles(res.mutes);
 
@@ -1544,7 +1544,7 @@ export class Requests {
   }
 
   async loadProfileChatStatus(profileDid) {
-    const labelers = this.requireLabelers();
+    const labelers = await this.requireLabelers();
     const res = await this.api.getConvoAvailability([profileDid], {
       labelers,
     });

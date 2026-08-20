@@ -238,11 +238,10 @@ describe("gif-picker-dialog", () => {
     await flushMicrotasks();
     assert.deepEqual(selected, [gif]);
     assert.deepEqual(dialog.querySelector("dialog").open, false);
+    const preferences =
+      await dataLayer.preferencesProvider.requirePreferences();
     assert.deepEqual(
-      dataLayer.preferencesProvider
-        .requirePreferences()
-        .getRecentGifs()
-        .map((entry) => entry.id),
+      preferences.getRecentGifs().map((entry) => entry.id),
       ["picked"],
     );
   });

@@ -28,27 +28,45 @@ export class PluginPreferencesManager extends ReactiveStore {
     );
   }
 
+  // The signals above remain empty until preferences load, which is correct for
+  // reactive consumers (they re-run when necessary) but silently wrong for
+  // non-reactive consumers. These methods make sure preferences are loaded first.
+  async getInstalledPlugins() {
+    await this.preferencesProvider.requirePreferences();
+    return this.$installedPlugins.get();
+  }
+
+  async getEnabledPlugins() {
+    await this.preferencesProvider.requirePreferences();
+    return this.$enabledPlugins.get();
+  }
+
+  async getInstalledPlugin(pluginId) {
+    await this.preferencesProvider.requirePreferences();
+    return this.$installedPlugin.get(pluginId);
+  }
+
   async setInstalledPlugins(plugins) {
-    const preferences = this.preferencesProvider
-      .requirePreferences()
-      .setInstalledPlugins(plugins);
-    await this.preferencesProvider.updatePreferences(preferences);
+    const preferences = await this.preferencesProvider.requirePreferences();
+    await this.preferencesProvider.updatePreferences(
+      preferences.setInstalledPlugins(plugins),
+    );
   }
 
   async addInstalledPlugin(plugin) {
-    const installedPlugins = this.$installedPlugins.get();
+    const installedPlugins = await this.getInstalledPlugins();
     await this.setInstalledPlugins([...installedPlugins, plugin]);
   }
 
   async removeInstalledPlugin(pluginId) {
-    const installedPlugins = this.$installedPlugins.get();
+    const installedPlugins = await this.getInstalledPlugins();
     await this.setInstalledPlugins(
       installedPlugins.filter((plugin) => plugin.id !== pluginId),
     );
   }
 
   async updateInstalledPlugin(pluginId, updateFunc) {
-    const installedPlugins = this.$installedPlugins.get();
+    const installedPlugins = await this.getInstalledPlugins();
     if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
       throw new Error(
         `Tried to update preference for uninstalled plugin: ${pluginId}`,
@@ -70,7 +88,7 @@ export class PluginPreferencesManager extends ReactiveStore {
   async setPluginsDisabled(pluginIds) {
     const ids = new Set(pluginIds);
     if (ids.size === 0) return;
-    const installedPlugins = this.$installedPlugins.get();
+    const installedPlugins = await this.getInstalledPlugins();
     for (const pluginId of ids) {
       if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
         throw new Error(
@@ -116,23 +134,22 @@ export class PluginPreferencesManager extends ReactiveStore {
     }));
   }
 
-  readSettingsForPlugin(pluginId) {
-    return this.preferencesProvider
-      .requirePreferences()
-      .getPluginSettings(pluginId);
+  async readSettingsForPlugin(pluginId) {
+    const preferences = await this.preferencesProvider.requirePreferences();
+    return preferences.getPluginSettings(pluginId);
   }
 
   async writeSettingsForPlugin(pluginId, data) {
-    const preferences = this.preferencesProvider
-      .requirePreferences()
-      .setPluginSettings(pluginId, data);
-    await this.preferencesProvider.updatePreferences(preferences);
+    const preferences = await this.preferencesProvider.requirePreferences();
+    await this.preferencesProvider.updatePreferences(
+      preferences.setPluginSettings(pluginId, data),
+    );
   }
 
   async clearSettingsForPlugin(pluginId) {
-    const preferences = this.preferencesProvider
-      .requirePreferences()
-      .clearPluginSettings(pluginId);
-    await this.preferencesProvider.updatePreferences(preferences);
+    const preferences = await this.preferencesProvider.requirePreferences();
+    await this.preferencesProvider.updatePreferences(
+      preferences.clearPluginSettings(pluginId),
+    );
   }
 }

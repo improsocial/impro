@@ -99,7 +99,7 @@ export class PluginRequests {
         query,
         headers: {
           "atproto-accept-labelers": Api.buildAcceptLabelersHeader(
-            this._getLabelers(),
+            await this._getLabelers(),
           ),
           "atproto-proxy": this.dataLayer.api.bskyAppViewServiceDid,
         },
@@ -113,11 +113,11 @@ export class PluginRequests {
     }
   }
 
-  _getLabelers() {
-    // Preferences may not be loaded yet (or the user is signed out) —
-    // requests without the labelers header just hydrate fewer labels.
+  async _getLabelers() {
+    // Preferences may fail to load (or the user is signed out) — requests
+    // without the labelers header just hydrate fewer labels.
     try {
-      return this.dataLayer.requests.requireLabelers();
+      return await this.dataLayer.requests.requireLabelers();
     } catch {
       return [];
     }
