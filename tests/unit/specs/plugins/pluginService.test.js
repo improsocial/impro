@@ -2472,6 +2472,12 @@ describe("binaryCache host methods", () => {
 });
 
 describe("getPostComposerInit", () => {
+  function makeLoadedService() {
+    const { service } = makeService();
+    service._completeInitialLoad();
+    return service;
+  }
+
   function addListener(service, pluginId, handler) {
     let listeners = service.registries.eventListeners.get("post-composer-open");
     if (!listeners) {
@@ -2482,13 +2488,13 @@ describe("getPostComposerInit", () => {
   }
 
   it("returns null when no listeners are registered", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     const result = await service.getPostComposerInit({ kind: "post" });
     assert.deepEqual(result, null);
   });
 
   it("returns null when listeners contribute no ops and no cursor", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     addListener(service, "noop", async () => ({ ops: [], cursor: null }));
     addListener(service, "alsoNoop", async () => null);
     const result = await service.getPostComposerInit({ kind: "post" });
@@ -2496,7 +2502,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("appends text from a single listener", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     addListener(service, "sig", async () => ({
       ops: [{ op: "append", text: "\n\n— signed" }],
       cursor: null,
@@ -2506,7 +2512,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("composes set/append/prepend across multiple listeners in order", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     addListener(service, "alpha", async () => ({
       ops: [{ op: "set", text: "middle" }],
       cursor: null,
@@ -2524,7 +2530,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("last setCursor wins; nulls do not clobber prior cursor", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     addListener(service, "alpha", async () => ({
       ops: [{ op: "append", text: "a" }],
       cursor: 0,
@@ -2542,7 +2548,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("ignores listeners that throw", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     addListener(service, "alpha", async () => {
       throw new Error("boom");
     });
@@ -2562,7 +2568,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("passes context through to each listener", async () => {
-    const { service } = makeService();
+    const service = makeLoadedService();
     let captured = null;
     addListener(service, "alpha", async (context) => {
       captured = context;
@@ -2578,6 +2584,23 @@ describe("getPostComposerInit", () => {
       replyRoot: undefined,
       quotedPost: undefined,
     });
+  });
+
+  it("waits for the initial plugin load before reading listeners", async () => {
+    const { service } = makeService();
+    let result = null;
+    const pending = service
+      .getPostComposerInit({ kind: "post" })
+      .then((value) => {
+        result = value;
+      });
+    addListener(service, "late", async () => ({
+      ops: [{ op: "append", text: "late" }],
+      cursor: null,
+    }));
+    service._completeInitialLoad();
+    await pending;
+    assert.deepEqual(result, { text: "late", cursor: null });
   });
 });
 

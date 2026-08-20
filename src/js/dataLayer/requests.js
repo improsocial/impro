@@ -1363,9 +1363,8 @@ export class Requests {
   }
 
   async loadCurrentUserLists({ reload = false } = {}) {
-    const currentUser = this.dataStore.$currentUser.get();
-    if (!currentUser) return;
-    await this.loadActorLists(currentUser.did, { reload });
+    if (!this.api.isAuthenticated) return;
+    await this.loadActorLists(this.api.session.did, { reload });
   }
 
   async loadListsWithMembershipForActor(

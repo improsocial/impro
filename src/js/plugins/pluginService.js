@@ -1137,6 +1137,7 @@ export class PluginService extends ReactiveStore {
   }
 
   async getPostComposerInit({ kind, replyTo, replyRoot, quotedPost }) {
+    await this._waitForInitialPluginLoad();
     const listeners = this.registries.eventListeners.get("post-composer-open");
     if (!listeners || listeners.size === 0) return null;
     const context = { kind, replyTo, replyRoot, quotedPost };
