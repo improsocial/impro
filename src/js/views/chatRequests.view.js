@@ -1,4 +1,5 @@
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
+import { Signal } from "/js/signals.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { displayRelativeTime } from "/js/utils.js";
@@ -23,6 +24,8 @@ export default async function chatRequestsView({
   context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
+
+  const $isReloading = new Signal.State(false);
 
   async function handleAccept(convo) {
     try {
@@ -213,9 +216,8 @@ export default async function chatRequestsView({
 
   pageEffect(root, () => {
     const chatRequests = dataLayer.derived.$convoRequestList.get();
-    const requestsStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadConvoRequestList",
-    );
+    const requestsError = dataLayer.derived.$convoRequestListError.get();
+    const isReloading = $isReloading.get();
     const cursor = dataLayer.derived.$convoRequestListCursor.get();
     const hasMore = !!cursor;
 
@@ -223,14 +225,14 @@ export default async function chatRequestsView({
       html`<div id="chat-requests-view">
         ${headerTemplate({
           title: "Chat requests",
-          showLoadingSpinner: requestsStatus.loading && !!chatRequests,
+          showLoadingSpinner: isReloading && !!chatRequests,
           backButtonFallbackRoute: "/messages",
         })}
         <main class="chat-requests-main">
           ${(() => {
-            if (requestsStatus.error) {
+            if (requestsError) {
               return requestsErrorTemplate({
-                error: requestsStatus.error,
+                error: requestsError,
               });
             } else if (chatRequests) {
               return requestsTemplate({
@@ -247,8 +249,13 @@ export default async function chatRequestsView({
     );
   });
 
-  function loadPageData() {
-    dataLayer.requests.loadConvoRequestList({ reload: true });
+  async function loadPageData() {
+    $isReloading.set(true);
+    try {
+      await dataLayer.requests.loadConvoRequestList({}, { reload: true });
+    } finally {
+      $isReloading.set(false);
+    }
   }
 
   onPageShow(root, ({ action }) => {

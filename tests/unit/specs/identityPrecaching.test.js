@@ -3,11 +3,19 @@ import assert from "node:assert/strict";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
+import { QueryStore } from "/js/dataLayer/queryStore.js";
+import {
+  notificationsQueryKey,
+  profileSearchQueryKey,
+  searchTypeaheadQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 
 function setup() {
-  const dataStore = new DataStore(createSessionState(null));
+  const queryStore = new QueryStore();
+  const dataStore = new DataStore(createSessionState(null), queryStore);
   const dataLayer = {
     dataStore,
+    queryStore,
     preferencesProvider: { $preferences: { get: () => null } },
   };
   const resolvedHandles = new Map();
@@ -21,13 +29,17 @@ const flushEffects = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("notifications precaching", () => {
   it("should cache author identities from stored notifications", async () => {
-    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
-    dataStore.$notifications.set({
-      notifications: [
-        { author: { handle: "alice.test", did: "did:plc:alice" } },
-        { author: { handle: "bob.test", did: "did:plc:bob" } },
+    const { dataLayer, identityResolver, resolvedHandles } = setup();
+    dataLayer.queryStore.set(notificationsQueryKey(), {
+      pages: [
+        {
+          items: [
+            { author: { handle: "alice.test", did: "did:plc:alice" } },
+            { author: { handle: "bob.test", did: "did:plc:bob" } },
+          ],
+          cursor: "c1",
+        },
       ],
-      cursor: "c1",
     });
 
     setUpIdentityPrecaching(dataLayer, identityResolver);
@@ -37,14 +49,16 @@ describe("notifications precaching", () => {
   });
 
   it("should cache identities when notifications load after setup", async () => {
-    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    const { dataLayer, identityResolver, resolvedHandles } = setup();
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
-    dataStore.$notifications.set({
-      notifications: [
-        { author: { handle: "carol.test", did: "did:plc:carol" } },
+    dataLayer.queryStore.set(notificationsQueryKey(), {
+      pages: [
+        {
+          items: [{ author: { handle: "carol.test", did: "did:plc:carol" } }],
+          cursor: null,
+        },
       ],
-      cursor: null,
     });
     await flushEffects();
 
@@ -57,12 +71,28 @@ describe("search typeahead precaching", () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
-    dataStore.$searchTypeaheadResults.set({
-      actors: [{ handle: "dave.test", did: "did:plc:dave" }],
+    dataStore.setProfiles([{ handle: "dave.test", did: "did:plc:dave" }]);
+    dataLayer.queryStore.set(searchTypeaheadQueryKey({ query: "dave" }), {
+      pages: [{ items: ["did:plc:dave"], cursor: null }],
     });
     await flushEffects();
 
     assert.deepEqual(resolvedHandles.get("dave.test"), "did:plc:dave");
+  });
+});
+
+describe("profile search precaching", () => {
+  it("should cache identities from profile search results", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.setProfiles([{ handle: "erin.test", did: "did:plc:erin" }]);
+    dataLayer.queryStore.set(profileSearchQueryKey({ query: "erin" }), {
+      pages: [{ items: ["did:plc:erin"], cursor: null }],
+    });
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("erin.test"), "did:plc:erin");
   });
 });
 

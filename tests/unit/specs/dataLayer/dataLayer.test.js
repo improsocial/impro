@@ -5,6 +5,7 @@ import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
+import { authorFeedQueryKey, feedQueryKey } from "/js/dataLayer/queryKeys.js";
 
 function createMockApi(options = {}) {
   const isAuthenticated = options.isAuthenticated ?? false;
@@ -102,7 +103,9 @@ describe("hasCachedFeed", () => {
     const dataLayer = createDataLayer(mockApi);
     const feedURI = "at://feed/uri";
 
-    dataLayer.dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
+    dataLayer.queryStore.set(feedQueryKey({ uri: feedURI }), {
+      pages: [{ items: [], cursor: null }],
+    });
 
     const result = dataLayer.hasCachedFeed(feedURI);
 
@@ -126,10 +129,10 @@ describe("hasCachedAuthorFeed", () => {
     const profileDid = "did:test:user";
     const feedType = "posts";
 
-    dataLayer.dataStore.$authorFeeds.set(`${profileDid}-${feedType}`, {
-      feed: [],
-      cursor: null,
-    });
+    dataLayer.queryStore.set(
+      authorFeedQueryKey({ did: profileDid, feedType }),
+      { pages: [{ items: [], cursor: null }] },
+    );
 
     const result = dataLayer.hasCachedAuthorFeed(profileDid, feedType);
 
@@ -142,11 +145,11 @@ describe("hasCachedAuthorFeed", () => {
     const profileDid = "did:test:user";
     const feedType = "replies";
 
-    // Cache with the expected URI format
-    dataLayer.dataStore.$authorFeeds.set("did:test:user-replies", {
-      feed: [],
-      cursor: null,
-    });
+    // Cache under the key built from the same did and feed type
+    dataLayer.queryStore.set(
+      authorFeedQueryKey({ did: "did:test:user", feedType: "replies" }),
+      { pages: [{ items: [], cursor: null }] },
+    );
 
     const result = dataLayer.hasCachedAuthorFeed(profileDid, feedType);
 

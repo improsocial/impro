@@ -117,10 +117,8 @@ class NewChatDialog extends Component {
   _onSearchInput(value) {
     this.state.$query.set(value);
     const query = value.trim();
-    if (!query) {
-      this.dataLayer.requests.loadChatRecipientSearch("");
-    } else {
-      this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
+    if (query) {
+      this.dataLayer.requests.loadChatRecipientSearch({ query, limit: 12 });
     }
     const results = this.querySelector(".search-dialog-results");
     if (results) results.scrollTop = 0;
@@ -146,17 +144,15 @@ class NewChatDialog extends Component {
   render() {
     const query = this.state.$query.get().trim();
     const currentUserDid = this.dataLayer.derived.$currentUser.get()?.did;
-    const results = this.dataLayer.derived.$chatRecipientSearchResults.get();
-    const searchStatus = this.dataLayer.requests.statusStore.$statuses.get(
-      "loadChatRecipientSearch",
-    );
+    const results =
+      this.dataLayer.derived.$chatRecipientSearchResults.get(query);
+    const searchError =
+      this.dataLayer.derived.$chatRecipientSearchError.get(query);
     const profileFollows = currentUserDid
       ? this.dataLayer.derived.$profileFollows.get(currentUserDid)?.follows
       : null;
-    const profileFollowsStatus = currentUserDid
-      ? this.dataLayer.requests.statusStore.$statuses.get(
-          `loadProfileFollows-${currentUserDid}`,
-        )
+    const profileFollowsError = currentUserDid
+      ? this.dataLayer.derived.$profileFollowsError.get(currentUserDid)
       : null;
     render(
       html`
@@ -222,7 +218,7 @@ class NewChatDialog extends Component {
             <div class="search-dialog-results">
               ${(() => {
                 if (query) {
-                  if (searchStatus?.error) {
+                  if (searchError) {
                     return html`<div
                       class="search-dialog-message"
                       data-testid="new-chat-error"
@@ -239,7 +235,7 @@ class NewChatDialog extends Component {
                   });
                 }
                 let suggestedProfiles = null;
-                if (profileFollowsStatus?.error) {
+                if (profileFollowsError) {
                   suggestedProfiles = [];
                 } else if (profileFollows) {
                   suggestedProfiles = partitionRows(

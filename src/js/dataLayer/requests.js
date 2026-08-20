@@ -21,7 +21,50 @@ import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
-import { FOLLOWING_FEED_URI } from "/js/config.js";
+import {
+  AUTHOR_FEED_PAGE_SIZE,
+  BOOKMARKS_PAGE_SIZE,
+  FOLLOWING_FEED_URI,
+} from "/js/config.js";
+import {
+  Resources,
+  actorFeedsQueryKey,
+  actorListsQueryKey,
+  authorFeedQueryKey,
+  blockedProfilesQueryKey,
+  bookmarksQueryKey,
+  buildQueryKey,
+  chatRecipientSearchQueryKey,
+  convoListQueryKey,
+  convoMembersQueryKey,
+  convoMessagesQueryKey,
+  convoRequestListQueryKey,
+  detailedProfileRequestKey,
+  draftsQueryKey,
+  feedQueryKey,
+  feedSearchQueryKey,
+  gifSearchQueryKey,
+  hashtagFeedQueryKey,
+  knownFollowersQueryKey,
+  listMembersQueryKey,
+  listsWithMembershipQueryKey,
+  mentionNotificationsQueryKey,
+  mutedProfilesQueryKey,
+  notificationsQueryKey,
+  postLikesQueryKey,
+  postQuotesQueryKey,
+  postRepostsQueryKey,
+  postSearchLatestQueryKey,
+  postSearchTopQueryKey,
+  postThreadOtherQueryKey,
+  postThreadQueryKey,
+  profileFollowersQueryKey,
+  profileFollowsQueryKey,
+  profileSearchQueryKey,
+  searchTypeaheadQueryKey,
+  sidebarSearchTypeaheadQueryKey,
+  trendsQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 
 const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logAddMember",
@@ -37,51 +80,6 @@ const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logEnableJoinLink",
   "chat.bsky.convo.defs#logDisableJoinLink",
 ]);
-
-function readCollectionCursor(signal, { key } = {}) {
-  const current = key === undefined ? signal.get() : signal.get(key);
-  return current?.cursor ?? "";
-}
-
-// Write a page response to a stored collection — an object shaped { [itemsKey]: [...], cursor }
-// Re-reads the collection and compares its cursor to the request cursor;
-// a mismatch means a reload or competing page load landed mid-flight.
-function writePageToCollection(
-  signal,
-  itemsKey,
-  page,
-  { key, requestCursor, overwrite = false, dedupeBy },
-) {
-  const current = key === undefined ? signal.get() : signal.get(key);
-  const currentCursor = current?.cursor ?? "";
-  if (!overwrite && currentCursor !== (requestCursor ?? "")) {
-    console.warn("Cursor mismatch, discarding page", {
-      itemsKey,
-      key,
-      requestCursor,
-      currentCursor,
-    });
-    return false;
-  }
-  const append = !overwrite && Boolean(currentCursor);
-  let items = page[itemsKey] ?? [];
-  if (append && dedupeBy) {
-    const existingIds = new Set(
-      current[itemsKey].map((item) => item[dedupeBy]),
-    );
-    items = items.filter((item) => !existingIds.has(item[dedupeBy]));
-  }
-  const next = {
-    [itemsKey]: append ? [...current[itemsKey], ...items] : items,
-    cursor: page.cursor || null,
-  };
-  if (key === undefined) {
-    signal.set(next);
-  } else {
-    signal.set(key, next);
-  }
-  return true;
-}
 
 // Get URIs of blocked posts and blocked quotes referenced by the given posts
 function getBlockedPostUris(posts) {
@@ -139,7 +137,7 @@ function updateGroupConvoForSystemMessage(convo, log) {
   };
 }
 
-class StatusStore extends ReactiveStore {
+export class StatusStore extends ReactiveStore {
   constructor() {
     super("statusStore");
     this.$loading = new SignalMap();
@@ -169,6 +167,10 @@ class StatusStore extends ReactiveStore {
 
 // Handles making requests to the API and storing the data in the data store.
 export class Requests {
+  static convoRequestKey({ convoId }) {
+    return buildQueryKey(Resources.CONVO, { convoId });
+  }
+
   constructor(
     api,
     dataStore,
@@ -176,10 +178,12 @@ export class Requests {
     draftMediaStore,
     events,
     constellation,
+    queryStore,
   ) {
     this.api = api;
     this.events = events;
     this.dataStore = dataStore;
+    this.queryStore = queryStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
     this.constellation = constellation;
@@ -187,91 +191,695 @@ export class Requests {
     this._inFlightRequests = new Map();
     // Register the loaders
     this.registerLoader(
-      this.loadPostThread,
-      (postUri) => "loadPostThread-" + postUri,
-      { dedupe: true },
-    );
-    this.registerLoader(
-      this.loadNextFeedPage,
-      ({ uri }) => "loadNextFeedPage-" + uri,
-    );
-    this.registerLoader(
       this.loadDetailedProfile,
-      (did) => "loadDetailedProfile-" + did,
+      (did) => detailedProfileRequestKey({ did }),
       { dedupe: true },
     );
     this.registerLoader(
-      this.loadProfileSearch,
-      (query) => "loadProfileSearch-" + query,
+      this.loadConvo,
+      (convoId) => Requests.convoRequestKey({ convoId }),
+      {
+        dedupe: true,
+      },
     );
-    this.registerLoader(
-      this.loadChatRecipientSearch,
-      "loadChatRecipientSearch",
+    this._defineQueryLoaders();
+  }
+
+  // Query loaders are named here rather than on the prototype so each one sits
+  // next to the query key it reads and writes under.
+
+  _defineQueryLoaders() {
+    this.loadBookmarks = this.collectionQueryLoader(
+      () => bookmarksQueryKey(),
+      async (cursor, { limit = BOOKMARKS_PAGE_SIZE + 1 } = {}) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getBookmarks({ limit, cursor, labelers });
+
+        // Extract posts from bookmarks array: [{item: post, ...}]
+        const posts = res.bookmarks.map((bookmark) => bookmark.item);
+
+        // Replies render with their parent, which the response doesn't carry.
+        const replyParentUris = posts
+          .map((post) => post.record?.reply?.parent?.uri)
+          .filter(Boolean);
+        const parentPosts = replyParentUris.length
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
+
+        await this._loadPostDependencies(posts);
+        this.dataStore.setPosts([...posts, ...parentPosts]);
+
+        return { items: posts.map((post) => post.uri), cursor: res.cursor };
+      },
     );
-    this.registerLoader(this.loadSearchTypeahead, "loadSearchTypeahead");
-    this.registerLoader(
-      this.loadSidebarSearchTypeahead,
-      "loadSidebarSearchTypeahead",
+    this.loadActorFeeds = this.collectionQueryLoader(
+      ({ did }) => actorFeedsQueryKey({ did }),
+      async (cursor, { did, limit = 50 }) => {
+        const data = await this.api.getActorFeeds(did, { limit, cursor });
+        for (const feed of data.feeds) {
+          this.dataStore.$feedGenerators.set(feed.uri, feed);
+        }
+        return {
+          items: data.feeds.map((feed) => feed.uri),
+          cursor: data.cursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadPostSearchTop,
-      (query) => "loadPostSearchTop-" + query,
+    this.loadActorLists = this.collectionQueryLoader(
+      ({ did }) => actorListsQueryKey({ did }),
+      async (cursor, { did, limit = 50 }) => {
+        const data = await this.api.getActorLists(did, { limit, cursor });
+        for (const list of data.lists) {
+          this.dataStore.$lists.set(list.uri, list);
+        }
+        return {
+          items: data.lists.map((list) => list.uri),
+          cursor: data.cursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadPostSearchLatest,
-      (query) => "loadPostSearchLatest-" + query,
+    this.loadNextAuthorFeedPage = this.collectionQueryLoader(
+      ({ did, feedType }) => authorFeedQueryKey({ did, feedType }),
+      async (cursor, { did, feedType, limit = AUTHOR_FEED_PAGE_SIZE + 1 }) => {
+        const labelers = await this.requireLabelers();
+        const params = { limit, cursor, labelers };
+
+        let feed;
+        // The likes feed uses a different API endpoint
+        if (feedType === "likes") {
+          feed = await this.api.getActorLikes(did, params);
+        } else {
+          switch (feedType) {
+            case "posts":
+              params.filter = "posts_and_author_threads";
+              params.includePins = true;
+              break;
+            case "replies":
+              params.filter = "posts_with_replies";
+              params.includePins = false;
+              break;
+            case "media":
+              params.filter = "posts_with_media";
+              params.includePins = false;
+              break;
+            default:
+              throw new Error(`Unknown feed type: ${feedType}`);
+          }
+          feed = await this.api.getAuthorFeed(did, params);
+        }
+
+        const postsToSave = getPostsFromFeed(feed);
+        await this._loadPostDependencies(postsToSave);
+        this.dataStore.setPosts(postsToSave);
+
+        return { items: feed.feed, cursor: feed.cursor };
+      },
     );
-    this.registerLoader(
-      this.loadFeedSearch,
-      (query) => "loadFeedSearch-" + query,
+    this.loadPostThread = this.queryLoader(
+      ({ uri }) => postThreadQueryKey({ uri }),
+      async ({ uri, depth = 6 }) => {
+        const labelers = await this.requireLabelers();
+        let [postThread, postThreadOther] = await Promise.all([
+          this.api.getPostThread(uri, {
+            labelers,
+            depth,
+          }),
+          this.api.getPostThreadOther(uri, {
+            labelers,
+          }),
+        ]);
+        // Save posts
+        const postsToSave = getPostsFromPostThread(postThread);
+        await this._loadPostDependencies(postsToSave);
+        this.dataStore.setPosts(postsToSave);
+        const parent = postThread.parent;
+        if (parent) {
+          const topParent = flattenParents(postThread)[0];
+          // Special case for post thread: if a parent is blocked or missing, we need to load the parent chain ourselves
+          if (topParent.$type === "app.bsky.feed.defs#blockedPost") {
+            const rootUri =
+              postThread.post?.record?.reply?.root?.uri ?? postThread.post?.uri;
+            const loadedParent = await this._loadParentChain(topParent, {
+              labelers,
+              rootUri,
+            });
+            postThread = replaceTopParent(postThread, loadedParent);
+          }
+        }
+        const totalNumReplies = postThread.post?.replyCount ?? 0;
+        const numAttachedReplies = postThread.replies?.length ?? 0;
+        if (numAttachedReplies !== totalNumReplies) {
+          postThread.replies = await this._loadBlockedReplies(postThread, {
+            labelers,
+          });
+        }
+
+        this.queryStore.setValue(
+          postThreadOtherQueryKey({ uri }),
+          postThreadOther,
+        );
+        // Returned for queryLoader to store, and used by _loadParentChain
+        return postThread;
+      },
+      { dedupe: true },
     );
-    this.registerLoader(this.loadTrends, "loadTrends", { dedupe: true });
-    this.registerLoader(this.loadNotifications, "loadNotifications");
-    this.registerLoader(
-      this.loadMentionNotifications,
-      "loadMentionNotifications",
+
+    this.loadConvoMessages = this.collectionQueryLoader(
+      ({ convoId }) => convoMessagesQueryKey({ convoId }),
+      async (cursor, { convoId, limit = 50 }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getMessages(convoId, {
+          cursor,
+          limit,
+          labelers,
+        });
+        // For group convos, convo.members is partial; relatedProfiles carries
+        // the authors and system-message subjects for the returned page.
+        if (res.relatedProfiles) {
+          this.dataStore.setProfiles(res.relatedProfiles);
+        }
+        await this._loadJoinLinkPreviews(
+          getJoinLinkCodesFromMessages(res.messages),
+        );
+        for (const message of res.messages) {
+          this.dataStore.$messages.set(message.id, message);
+        }
+        return {
+          items: res.messages.map((message) => message.id),
+          cursor: res.cursor,
+        };
+      },
     );
-    this.registerLoader(this.loadConvoList, "loadConvoList");
-    this.registerLoader(this.loadConvoRequestList, "loadConvoRequestList");
-    this.registerLoader(this.loadConvo, (convoId) => "loadConvo-" + convoId, {
-      dedupe: true,
-    });
-    this.registerLoader(
-      this.loadConvoMembers,
-      (convoId) => "loadConvoMembers-" + convoId,
+
+    this.loadTrends = this.collectionQueryLoader(
+      () => trendsQueryKey(),
+      async (cursor, { limit = 5 } = {}) => {
+        const data = await this.api.getTrends({ limit });
+        return {
+          items: unique(data.trends ?? [], { by: "link" }),
+          cursor: null,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadConvoMessages,
-      (convoId) => "loadConvoMessages-" + convoId,
+
+    this.loadNextFeedPage = this.collectionQueryLoader(
+      ({ uri }) => feedQueryKey({ uri }),
+      async (cursor, { type, uri, limit = 31 }, { reload }) => {
+        const labelers = await this.requireLabelers();
+        let feed;
+        switch (type) {
+          case "timeline":
+            feed = await this.api.getFollowingFeed({ limit, cursor, labelers });
+            break;
+          case "list":
+            feed = await this.api.getListFeed(uri, { limit, cursor, labelers });
+            break;
+          case "feed":
+            feed = await this.api.getFeed(uri, { limit, cursor, labelers });
+            break;
+          default:
+            throw new Error(`Unknown pinned item type: ${type}`);
+        }
+        const postsToSave = getPostsFromFeed(feed);
+        await this._loadPostDependencies(postsToSave);
+        this.dataStore.setPosts(postsToSave);
+        await this.events.emitAsync("feedLoaded", {
+          feedURI: uri,
+          feed,
+          reload,
+        });
+        return { items: feed.feed, cursor: feed.cursor };
+      },
     );
-    this.registerLoader(
-      this.loadPostLikes,
-      (postUri) => "loadPostLikes-" + postUri,
+
+    this.loadSidebarSearchTypeahead = this.collectionQueryLoader(
+      ({ query }) => sidebarSearchTypeaheadQueryKey({ query }),
+      async (cursor, { query, limit = 8 }) => {
+        const labelers = await this.requireLabelers();
+        const searchData = await this.api.searchProfilesTypeahead(query, {
+          limit,
+          labelers,
+        });
+        this.dataStore.setProfiles(searchData.actors);
+        return {
+          items: searchData.actors.map((actor) => actor.did),
+          cursor: searchData.cursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadPostQuotes,
-      (postUri) => "loadPostQuotes-" + postUri,
+
+    this.loadChatRecipientSearch = this.collectionQueryLoader(
+      ({ query }) => chatRecipientSearchQueryKey({ query }),
+      async (cursor, { query, limit = 12 }) => {
+        const labelers = await this.requireLabelers();
+        const searchData = await this.api.searchProfilesTypeahead(query, {
+          limit,
+          labelers,
+        });
+        this.dataStore.setProfiles(searchData.actors);
+        return {
+          items: searchData.actors.map((actor) => actor.did),
+          cursor: searchData.cursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadPostReposts,
-      (postUri) => "loadPostReposts-" + postUri,
+
+    this.loadGifs = this.collectionQueryLoader(
+      ({ query = "" }) => gifSearchQueryKey({ query }),
+      async (cursor, { query = "", limit = 30 }) => {
+        // Empty query loads featured gifs
+        const gifData = query
+          ? await this.api.searchGifs(query, { limit, cursor })
+          : await this.api.getFeaturedGifs({ limit, cursor });
+        const results = gifData.results ?? [];
+        // The provider repeats ids across pages; a page of nothing-but-repeats
+        // should end pagination
+        const existingGifs = cursor
+          ? (this.queryStore.getItems(gifSearchQueryKey({ query })) ?? [])
+          : [];
+        const existingIds = new Set(existingGifs.map((gifItem) => gifItem.id));
+        const items = results.filter((gifItem) => !existingIds.has(gifItem.id));
+        // KLIPY's `next` is a positional offset; falsy (or a "0" reset
+        // sentinel) means end of list
+        const nextCursor =
+          gifData.next && String(gifData.next) !== "0"
+            ? String(gifData.next)
+            : "";
+        return {
+          items,
+          cursor: cursor && items.length === 0 ? "" : nextCursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadProfileFollowers,
-      (profileDid) => "loadProfileFollowers-" + profileDid,
+
+    this.loadFeedSearch = this.collectionQueryLoader(
+      ({ query }) => feedSearchQueryKey({ query }),
+      async (cursor, { query, limit = 15 }) => {
+        const res = await this.api.searchFeedGenerators(query, {
+          limit,
+          cursor,
+        });
+        const feeds = res.feeds ?? [];
+        for (const feed of feeds) {
+          this.dataStore.$feedGenerators.set(feed.uri, feed);
+        }
+        return { items: feeds.map((feed) => feed.uri), cursor: res.cursor };
+      },
     );
-    this.registerLoader(
-      this.loadProfileFollows,
-      (profileDid) => "loadProfileFollows-" + profileDid,
+
+    this.loadConvoList = this.collectionQueryLoader(
+      () => convoListQueryKey(),
+      async (cursor, { limit = 30 } = {}) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.listConvos({ cursor, limit, labelers });
+        for (const convo of res.convos) {
+          this.dataStore.$convos.set(convo.id, convo);
+        }
+        return {
+          items: res.convos.map((convo) => convo.id),
+          cursor: res.cursor,
+        };
+      },
     );
-    this.registerLoader(
-      this.loadKnownFollowers,
-      (profileDid) => "loadKnownFollowers-" + profileDid,
+
+    this.loadProfileFollowers = this.collectionQueryLoader(
+      ({ did }) => profileFollowersQueryKey({ did }),
+      async (cursor, { did }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getFollowers(did, { cursor, labelers });
+        this.dataStore.setProfiles(res.followers);
+        return {
+          items: res.followers.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
     );
-    this.registerLoader(this.loadGifs, (query) => "loadGifs-" + query);
-    this.registerLoader(this.loadDrafts, "loadDrafts");
-    this.registerLoader(this.loadBlockedProfiles, "loadBlockedProfiles");
-    this.registerLoader(this.loadMutedProfiles, "loadMutedProfiles");
+
+    this.loadProfileSearch = this.collectionQueryLoader(
+      ({ query }) => profileSearchQueryKey({ query }),
+      async (cursor, { query, limit = 10 }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.searchProfiles(query, {
+          limit,
+          cursor,
+          labelers,
+        });
+        this.dataStore.setProfiles(res.actors);
+        return {
+          items: res.actors.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadKnownFollowers = this.collectionQueryLoader(
+      ({ did }) => knownFollowersQueryKey({ did }),
+      async (cursor, { did }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getKnownFollowers(did, { cursor, labelers });
+        this.dataStore.setProfiles(res.followers);
+        return {
+          items: res.followers.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadProfileFollows = this.collectionQueryLoader(
+      ({ did }) => profileFollowsQueryKey({ did }),
+      async (cursor, { did }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getFollows(did, { cursor, labelers });
+        this.dataStore.setProfiles(res.follows);
+        return {
+          items: res.follows.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadBlockedProfiles = this.collectionQueryLoader(
+      () => blockedProfilesQueryKey(),
+      async (cursor) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getBlocks({ cursor, labelers });
+        this.dataStore.setProfiles(res.blocks);
+        return {
+          items: res.blocks.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadSearchTypeahead = this.collectionQueryLoader(
+      ({ query }) => searchTypeaheadQueryKey({ query }),
+      async (cursor, { query, limit = 8 }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.searchProfilesTypeahead(query, {
+          limit,
+          labelers,
+        });
+        this.dataStore.setProfiles(res.actors);
+        return {
+          items: res.actors.map((actor) => actor.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadPostLikes = this.collectionQueryLoader(
+      ({ postUri }) => postLikesQueryKey({ postUri }),
+      async (cursor, { postUri }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getLikes(postUri, { cursor, labelers });
+        this.dataStore.setProfiles(res.likes.map((like) => like.actor));
+        return {
+          items: res.likes.map((like) => like.actor.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadPostReposts = this.collectionQueryLoader(
+      ({ postUri }) => postRepostsQueryKey({ postUri }),
+      async (cursor, { postUri }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
+        this.dataStore.setProfiles(res.repostedBy);
+        return {
+          items: res.repostedBy.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadPostSearchLatest = this.collectionQueryLoader(
+      ({ query }) => postSearchLatestQueryKey({ query }),
+      async (cursor, { query, limit = 25 }) => {
+        const labelers = await this.requireLabelers();
+        const searchData = await this.api.searchPosts(query, {
+          limit,
+          sort: "latest",
+          cursor,
+          labelers,
+        });
+        const posts = searchData.posts || [];
+        if (posts.length > 0) {
+          // If there are posts that are replies, load the parents
+          const replyParentUris = posts
+            .map((post) => post.record?.reply?.parent?.uri)
+            .filter(Boolean);
+          const parentPosts =
+            replyParentUris.length > 0
+              ? await this.api.getPosts(replyParentUris, { labelers })
+              : [];
+          await this._loadPostDependencies(posts);
+          this.dataStore.setPosts([...posts, ...parentPosts]);
+        }
+        return {
+          items: posts.map((post) => post.uri),
+          cursor: searchData.cursor,
+        };
+      },
+    );
+
+    this.loadPostQuotes = this.collectionQueryLoader(
+      ({ postUri }) => postQuotesQueryKey({ postUri }),
+      async (cursor, { postUri }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getQuotes(postUri, { cursor, labelers });
+
+        // if there are posts that are replies, load the parents
+        const replyPosts = res.posts.filter((post) => post.record?.reply);
+        const replyParentUris = replyPosts
+          .map((post) => post.record?.reply?.parent?.uri)
+          .filter(Boolean);
+        const parentPosts =
+          replyParentUris.length > 0
+            ? await this.api.getPosts(replyParentUris, { labelers })
+            : [];
+        await this._loadPostDependencies(res.posts);
+        this.dataStore.setPosts([...res.posts, ...parentPosts]);
+
+        return {
+          items: res.posts.map((post) => post.uri),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadHashtagFeed = this.collectionQueryLoader(
+      ({ hashtag, sort }) => hashtagFeedQueryKey({ hashtag, sort }),
+      async (cursor, { hashtag, sort, limit = 25 }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.searchPosts(`#${hashtag}`, {
+          limit,
+          sort,
+          cursor,
+          labelers,
+        });
+
+        const posts = res.posts || [];
+        if (posts.length > 0) {
+          // If there are posts that are replies, load the parents
+          const replyPosts = posts.filter((post) => post.record?.reply);
+          const replyParentUris = replyPosts
+            .map((post) => post.record?.reply?.parent?.uri)
+            .filter(Boolean);
+          const parentPosts =
+            replyParentUris.length > 0
+              ? await this.api.getPosts(replyParentUris, { labelers })
+              : [];
+          await this._loadPostDependencies(posts);
+          this.dataStore.setPosts([...posts, ...parentPosts]);
+        }
+
+        return {
+          items: posts.map((post) => post.uri),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadPostSearchTop = this.collectionQueryLoader(
+      ({ query }) => postSearchTopQueryKey({ query }),
+      async (cursor, { query, limit = 25 }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.searchPosts(query, {
+          limit,
+          sort: "top",
+          cursor,
+          labelers,
+        });
+
+        const posts = res.posts || [];
+        if (posts.length > 0) {
+          // If there are posts that are replies, load the parents
+          const replyPosts = posts.filter((post) => post.record?.reply);
+          const replyParentUris = replyPosts
+            .map((post) => post.record?.reply?.parent?.uri)
+            .filter(Boolean);
+          const parentPosts =
+            replyParentUris.length > 0
+              ? await this.api.getPosts(replyParentUris, { labelers })
+              : [];
+          await this._loadPostDependencies(posts);
+          this.dataStore.setPosts([...posts, ...parentPosts]);
+        }
+
+        return {
+          items: posts.map((post) => post.uri),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadListMembers = this.collectionQueryLoader(
+      ({ listUri }) => listMembersQueryKey({ listUri }),
+      async (cursor, { listUri, limit = 50 }) => {
+        const data = await this.api.getList(listUri, { limit, cursor });
+        const items = data.items ?? [];
+        this.dataStore.setProfiles(items.map((item) => item.subject));
+        this.dataStore.setListItemUris(listUri, items);
+        return {
+          items: items.map((item) => item.subject.did),
+          cursor: data.cursor,
+        };
+      },
+    );
+
+    this.loadConvoMembers = this.collectionQueryLoader(
+      ({ convoId }) => convoMembersQueryKey({ convoId }),
+      async (cursor, { convoId }) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getConvoMembers(convoId, {
+          cursor,
+          labelers,
+        });
+        return { items: res.members, cursor: res.cursor };
+      },
+    );
+
+    this.loadListsWithMembershipForActor = this.collectionQueryLoader(
+      ({ did }) => listsWithMembershipQueryKey({ did }),
+      async (cursor, { did, limit = 50 }) => {
+        const data = await this.api.getListsWithMembership(did, {
+          limit,
+          cursor,
+        });
+        const entries = data.listsWithMembership ?? [];
+        for (const entry of entries) {
+          this.dataStore.$lists.set(entry.list.uri, entry.list);
+          if (entry.listItem) {
+            this.dataStore.setListItemUri(
+              entry.list.uri,
+              did,
+              entry.listItem.uri,
+            );
+          } else {
+            this.dataStore.deleteListItemUri(entry.list.uri, did);
+          }
+        }
+        return {
+          items: entries.map((entry) => entry.list.uri),
+          cursor: data.cursor,
+        };
+      },
+    );
+
+    this.loadNotifications = this.collectionQueryLoader(
+      () => notificationsQueryKey(),
+      async (cursor, { limit = 31 } = {}) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getNotifications({
+          cursor,
+          limit,
+          labelers,
+        });
+        if (cursor === "") {
+          this.dataStore.$notificationsLastSeenAt.set(res.seenAt ?? null);
+        }
+        this.dataStore.setProfiles(
+          res.notifications.map((notification) => notification.author),
+        );
+        // Get associated posts
+        const postUris = getPostUrisFromNotifications(res.notifications);
+        if (postUris.length > 0) {
+          const fetchedPosts = await this.api.getPosts(postUris, { labelers });
+          await this._loadPostDependencies(fetchedPosts);
+          this.dataStore.setPosts(fetchedPosts);
+        }
+        return { items: res.notifications, cursor: res.cursor };
+      },
+    );
+
+    this.loadMentionNotifications = this.collectionQueryLoader(
+      () => mentionNotificationsQueryKey(),
+      async (cursor, { limit = 31 } = {}) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getNotifications({
+          cursor,
+          limit,
+          reasons: ["mention", "reply", "quote"],
+          labelers,
+        });
+        this.dataStore.setProfiles(
+          res.notifications.map((notification) => notification.author),
+        );
+        const postUris = getPostUrisFromNotifications(res.notifications);
+        if (postUris.length > 0) {
+          const fetchedPosts = await this.api.getPosts(postUris, { labelers });
+          await this._loadPostDependencies(fetchedPosts);
+          this.dataStore.setPosts(fetchedPosts);
+        }
+        return { items: res.notifications, cursor: res.cursor };
+      },
+    );
+
+    this.loadMutedProfiles = this.collectionQueryLoader(
+      () => mutedProfilesQueryKey(),
+      async (cursor) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.getMutes({ cursor, labelers });
+        this.dataStore.setProfiles(res.mutes);
+        return {
+          items: res.mutes.map((profile) => profile.did),
+          cursor: res.cursor,
+        };
+      },
+    );
+
+    this.loadDrafts = this.collectionQueryLoader(
+      () => draftsQueryKey(),
+      async (cursor) => {
+        const res = await this.api.getDrafts({ cursor });
+        const localRefs = res.drafts.flatMap((draftView) =>
+          getLocalRefsFromDraft(draftView.draft),
+        );
+        await this.draftMediaStore.load(localRefs);
+        return { items: res.drafts, cursor: res.cursor };
+      },
+    );
+
+    this.loadConvoRequestList = this.collectionQueryLoader(
+      () => convoRequestListQueryKey(),
+      async (cursor, { limit = 30 } = {}) => {
+        const labelers = await this.requireLabelers();
+        const res = await this.api.listConvos({
+          cursor,
+          limit,
+          status: "request",
+          labelers,
+        });
+        for (const convo of res.convos) {
+          this.dataStore.$convos.set(convo.id, convo);
+        }
+        return {
+          items: res.convos.map((convo) => convo.id),
+          cursor: res.cursor,
+        };
+      },
+    );
   }
 
   async requireLabelers() {
@@ -313,50 +921,6 @@ export class Requests {
     });
   }
 
-  async loadPostThread(postURI, { depth = 6 } = {}) {
-    const labelers = await this.requireLabelers();
-    let [postThread, postThreadOther] = await Promise.all([
-      this.api.getPostThread(postURI, {
-        labelers,
-        depth,
-      }),
-      this.api.getPostThreadOther(postURI, {
-        labelers,
-      }),
-    ]);
-    // Save posts
-    const postsToSave = getPostsFromPostThread(postThread);
-    await this._loadPostDependencies(postsToSave);
-    this.dataStore.setPosts(postsToSave);
-    const parent = postThread.parent;
-    if (parent) {
-      const topParent = flattenParents(postThread)[0];
-      // Special case for post thread: if a parent is blocked or missing, we need to load the parent chain ourselves
-      if (topParent.$type === "app.bsky.feed.defs#blockedPost") {
-        const rootUri =
-          postThread.post?.record?.reply?.root?.uri ?? postThread.post?.uri;
-        const loadedParent = await this._loadParentChain(topParent, {
-          labelers,
-          rootUri,
-        });
-        postThread = replaceTopParent(postThread, loadedParent);
-      }
-    }
-    const totalNumReplies = postThread.post?.replyCount ?? 0;
-    const numAttachedReplies = postThread.replies?.length ?? 0;
-    if (numAttachedReplies !== totalNumReplies) {
-      postThread.replies = await this._loadBlockedReplies(postThread, {
-        labelers,
-      });
-    }
-
-    // Save post thread
-    this.dataStore.$postThreads.set(postURI, postThread);
-    this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
-    // Note - this return value is used by loadParentChain
-    return postThread;
-  }
-
   async loadPost(postURI) {
     const labelers = await this.requireLabelers();
     const post = await this.api.getPost(postURI, { labelers });
@@ -378,7 +942,8 @@ export class Requests {
       isBlockingUser(blockedParent) ||
       isBlockedByViewer(blockedParent)
     ) {
-      return await this.loadPostThread(blockedParent.uri, {
+      return await this.loadPostThread({
+        uri: blockedParent.uri,
         depth: 0,
         labelers,
       });
@@ -389,7 +954,8 @@ export class Requests {
       backlinks = await this._getPostsInThreadFromBacklinks(rootUri);
     } catch (error) {
       if (error.name === "AbortError") {
-        return await this.loadPostThread(blockedParent.uri, {
+        return await this.loadPostThread({
+          uri: blockedParent.uri,
           depth: 0,
           labelers,
         });
@@ -451,7 +1017,8 @@ export class Requests {
     }
 
     if (loadedPostsByUri.size === 0) {
-      return await this.loadPostThread(blockedParent.uri, {
+      return await this.loadPostThread({
+        uri: blockedParent.uri,
         depth: 0,
         labelers,
       });
@@ -531,36 +1098,6 @@ export class Requests {
     return loadedReplies;
   }
 
-  async loadNextFeedPage({ type, uri }, { reload = false, limit = 31 } = {}) {
-    const labelers = await this.requireLabelers();
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$feeds, { key: uri });
-    let feed;
-    switch (type) {
-      case "timeline":
-        feed = await this.api.getFollowingFeed({ limit, cursor, labelers });
-        break;
-      case "list":
-        feed = await this.api.getListFeed(uri, { limit, cursor, labelers });
-        break;
-      case "feed":
-        feed = await this.api.getFeed(uri, { limit, cursor, labelers });
-        break;
-      default:
-        throw new Error(`Unknown pinned item type: ${type}`);
-    }
-    const postsToSave = getPostsFromFeed(feed);
-    await this._loadPostDependencies(postsToSave);
-    this.dataStore.setPosts(postsToSave);
-    await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
-    writePageToCollection(this.dataStore.$feeds, "feed", feed, {
-      key: uri,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
   async _getReplyUrisForPostFromBacklinks(post) {
     const backlinks = await this.constellation.getLinks({
       subject: post.uri,
@@ -628,399 +1165,10 @@ export class Requests {
     }
   }
 
-  async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
-    if (!query) {
-      // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestProfileSearchRequestTime.set(null);
-      this.dataStore.$profileSearchResults.set(null);
-      return;
-    }
-    if (!cursor) {
-      this.dataStore.$profileSearchResults.set(null);
-    }
-    const requestTime = Date.now();
-    this.dataStore.$latestProfileSearchRequestTime.set(requestTime);
-    const labelers = await this.requireLabelers();
-    const searchData = await this.api.searchProfiles(query, {
-      limit,
-      cursor,
-      labelers,
-    });
-    if (requestTime !== this.dataStore.$latestProfileSearchRequestTime.get()) {
-      return;
-    }
-    this.dataStore.setProfiles(searchData.actors);
-    const existingResults = this.dataStore.$profileSearchResults.get();
-    if (existingResults && cursor) {
-      this.dataStore.$profileSearchResults.set({
-        actors: [...existingResults.actors, ...searchData.actors],
-        cursor: searchData.cursor,
-      });
-    } else {
-      this.dataStore.$profileSearchResults.set(searchData);
-    }
-  }
-
-  async _loadProfileTypeahead(query, { limit, $results, $latestRequestTime }) {
-    if (!query) {
-      // Invalidate in-flight searches so they can't repopulate cleared results
-      $latestRequestTime.set(null);
-      $results.set(null);
-      return;
-    }
-    const requestTime = Date.now();
-    $latestRequestTime.set(requestTime);
-    const labelers = await this.requireLabelers();
-    const searchData = await this.api.searchProfilesTypeahead(query, {
-      limit,
-      labelers,
-    });
-    if (requestTime !== $latestRequestTime.get()) {
-      return;
-    }
-    this.dataStore.setProfiles(searchData.actors);
-    $results.set(searchData);
-  }
-
-  async loadChatRecipientSearch(query, { limit = 12 } = {}) {
-    await this._loadProfileTypeahead(query, {
-      limit,
-      $results: this.dataStore.$chatRecipientSearchResults,
-      $latestRequestTime: this.dataStore.$latestChatRecipientSearchRequestTime,
-    });
-  }
-
-  async loadSearchTypeahead(query, { limit = 8 } = {}) {
-    await this._loadProfileTypeahead(query, {
-      limit,
-      $results: this.dataStore.$searchTypeaheadResults,
-      $latestRequestTime: this.dataStore.$latestSearchTypeaheadRequestTime,
-    });
-  }
-
-  async loadSidebarSearchTypeahead(query, { limit = 8 } = {}) {
-    await this._loadProfileTypeahead(query, {
-      limit,
-      $results: this.dataStore.$sidebarSearchTypeaheadResults,
-      $latestRequestTime:
-        this.dataStore.$latestSidebarSearchTypeaheadRequestTime,
-    });
-  }
-
-  async loadPostSearchTop(query, { limit = 25, cursor = "" } = {}) {
-    await this._loadPostSearch(query, {
-      limit,
-      cursor,
-      sort: "top",
-      $results: this.dataStore.$postSearchResultsTop,
-      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeTop,
-    });
-  }
-
-  async loadPostSearchLatest(query, { limit = 25, cursor = "" } = {}) {
-    await this._loadPostSearch(query, {
-      limit,
-      cursor,
-      sort: "latest",
-      $results: this.dataStore.$postSearchResultsLatest,
-      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeLatest,
-    });
-  }
-
-  async _loadPostSearch(
-    query,
-    { limit, cursor, sort, $results, $latestRequestTime },
-  ) {
-    if (!query) {
-      // Invalidate in-flight searches so they can't repopulate cleared results
-      $latestRequestTime.set(null);
-      $results.set(null);
-      return;
-    }
-    if (!cursor) {
-      $results.set(null);
-    }
-    const requestTime = Date.now();
-    $latestRequestTime.set(requestTime);
-    const labelers = await this.requireLabelers();
-    const searchData = await this.api.searchPosts(query, {
-      limit,
-      sort,
-      cursor,
-      labelers,
-    });
-    if (requestTime !== $latestRequestTime.get()) {
-      return;
-    }
-    const searchResults = searchData.posts || [];
-    if (searchResults.length > 0) {
-      // If there are posts that are replies, load the parents
-      const replyPosts = searchResults.filter((post) => post.record?.reply);
-      const replyParentUris = replyPosts
-        .map((post) => post.record?.reply?.parent?.uri)
-        .filter(Boolean);
-      const parentPosts =
-        replyParentUris.length > 0
-          ? await this.api.getPosts(replyParentUris, { labelers })
-          : [];
-      await this._loadPostDependencies(searchResults);
-      this.dataStore.setPosts([...searchResults, ...parentPosts]);
-    }
-    // Re-check relevance after loading dependencies
-    if (requestTime !== $latestRequestTime.get()) {
-      return;
-    }
-    const existingResults = $results.get();
-    if (existingResults && cursor) {
-      $results.set({
-        posts: [...existingResults.posts, ...searchResults],
-        cursor: searchData.cursor,
-      });
-    } else {
-      $results.set({
-        posts: searchResults,
-        cursor: searchData.cursor,
-      });
-    }
-  }
-
-  async loadFeedSearch(query, { limit = 15, cursor = "" } = {}) {
-    if (!query) {
-      // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestFeedSearchRequestTime.set(null);
-      this.dataStore.$feedSearchResults.set(null);
-      return;
-    }
-    if (!cursor) {
-      this.dataStore.$feedSearchResults.set(null);
-    }
-    const requestTime = Date.now();
-    this.dataStore.$latestFeedSearchRequestTime.set(requestTime);
-    const searchData = await this.api.searchFeedGenerators(query, {
-      limit,
-      cursor,
-    });
-    if (requestTime !== this.dataStore.$latestFeedSearchRequestTime.get()) {
-      return;
-    }
-    const feeds = searchData.feeds || [];
-    for (const feed of feeds) {
-      this.dataStore.$feedGenerators.set(feed.uri, feed);
-    }
-    const existingResults = this.dataStore.$feedSearchResults.get();
-    if (existingResults && cursor) {
-      this.dataStore.$feedSearchResults.set({
-        feeds: [...existingResults.feeds, ...feeds],
-        cursor: searchData.cursor,
-      });
-    } else {
-      this.dataStore.$feedSearchResults.set({
-        feeds,
-        cursor: searchData.cursor,
-      });
-    }
-  }
-
-  async loadGifs(query, { limit = 30, cursor = "" } = {}) {
-    if (!cursor) {
-      this.dataStore.$gifResults.set(null);
-    }
-    const requestTime = Date.now();
-    this.dataStore.$latestGifRequestTime.set(requestTime);
-    // Empty query loads featured gifs
-    const gifData = query
-      ? await this.api.searchGifs(query, { limit, cursor })
-      : await this.api.getFeaturedGifs({ limit, cursor });
-    if (requestTime !== this.dataStore.$latestGifRequestTime.get()) {
-      return;
-    }
-    const results = gifData.results ?? [];
-    // The provider repeats ids across pages; a page of nothing-but-repeats
-    // should end pagination
-    const existingGifs = this.dataStore.$gifResults.get()?.gifs ?? [];
-    const existingIds = new Set(existingGifs.map((gifItem) => gifItem.id));
-    const hasFreshResults =
-      results.filter((gifItem) => !existingIds.has(gifItem.id)).length > 0;
-    // KLIPY's `next` is a positional offset; falsy (or a "0" reset sentinel)
-    // means end of list
-    const nextCursor =
-      gifData.next && String(gifData.next) !== "0" ? String(gifData.next) : "";
-    writePageToCollection(
-      this.dataStore.$gifResults,
-      "gifs",
-      {
-        gifs: results,
-        cursor: cursor && !hasFreshResults ? "" : nextCursor,
-      },
-      { requestCursor: cursor, dedupeBy: "id" },
-    );
-  }
-
-  async loadNextAuthorFeedPage(
-    did,
-    feedType,
-    { reload = false, limit = 31 } = {},
-  ) {
-    const feedURI = `${did}-${feedType}`;
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$authorFeeds, { key: feedURI });
-    const labelers = await this.requireLabelers();
-    const params = { limit, cursor, labelers };
-
-    let feed;
-
-    // Handle likes feed separately since it uses a different API endpoint
-    if (feedType === "likes") {
-      feed = await this.api.getActorLikes(did, params);
-    } else {
-      // set params based on feed type
-      switch (feedType) {
-        case "posts":
-          params.filter = "posts_and_author_threads";
-          params.includePins = true;
-          break;
-        case "replies":
-          params.filter = "posts_with_replies";
-          params.includePins = false;
-          break;
-        case "media":
-          params.filter = "posts_with_media";
-          params.includePins = false;
-          break;
-        default:
-          throw new Error(`Unknown feed type: ${feedType}`);
-      }
-      feed = await this.api.getAuthorFeed(did, params);
-    }
-
-    // Save posts
-    const postsToSave = getPostsFromFeed(feed);
-    await this._loadPostDependencies(postsToSave);
-    this.dataStore.setPosts(postsToSave);
-    // Save feed
-    writePageToCollection(this.dataStore.$authorFeeds, "feed", feed, {
-      key: feedURI,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadNotifications({ reload = false, limit = 31 } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$notifications);
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getNotifications({ cursor, limit, labelers });
-    if (cursor === "") {
-      this.dataStore.$notificationsLastSeenAt.set(res.seenAt ?? null);
-    }
-    this.dataStore.setProfiles(
-      res.notifications.map((notification) => notification.author),
-    );
-    // Get associated posts
-    const postUris = getPostUrisFromNotifications(res.notifications);
-    if (postUris.length > 0) {
-      const fetchedPosts = await this.api.getPosts(postUris, { labelers });
-      await this._loadPostDependencies(fetchedPosts);
-      this.dataStore.setPosts(fetchedPosts);
-    }
-    writePageToCollection(this.dataStore.$notifications, "notifications", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
-    const MENTION_REASONS = ["mention", "reply", "quote"];
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$mentionNotifications);
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getNotifications({
-      cursor,
-      limit,
-      reasons: MENTION_REASONS,
-      labelers,
-    });
-    this.dataStore.setProfiles(
-      res.notifications.map((notification) => notification.author),
-    );
-    const postUris = getPostUrisFromNotifications(res.notifications);
-    if (postUris.length > 0) {
-      const fetchedPosts = await this.api.getPosts(postUris, { labelers });
-      await this._loadPostDependencies(fetchedPosts);
-      this.dataStore.setPosts(fetchedPosts);
-    }
-    writePageToCollection(
-      this.dataStore.$mentionNotifications,
-      "notifications",
-      res,
-      {
-        requestCursor: cursor,
-        overwrite: reload,
-      },
-    );
-  }
-
-  async loadConvoList({ reload = false, limit = 30 } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$convoList);
-    const labelers = await this.requireLabelers();
-    const res = await this.api.listConvos({ cursor, limit, labelers });
-    // Store individual convos
-    for (const convo of res.convos) {
-      this.dataStore.$convos.set(convo.id, convo);
-    }
-    writePageToCollection(this.dataStore.$convoList, "convos", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-      dedupeBy: "id", // skip convos that were bumped locally
-    });
-  }
-
-  async loadConvoRequestList({ reload = false, limit = 30 } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$convoRequestList);
-    const labelers = await this.requireLabelers();
-    const res = await this.api.listConvos({
-      cursor,
-      limit,
-      status: "request",
-      labelers,
-    });
-    // Store individual convos
-    for (const convo of res.convos) {
-      this.dataStore.$convos.set(convo.id, convo);
-    }
-    writePageToCollection(this.dataStore.$convoRequestList, "convos", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-      dedupeBy: "id", // skip convos that were bumped locally
-    });
-  }
-
   async loadConvo(convoId) {
     const labelers = await this.requireLabelers();
     const res = await this.api.getConvo(convoId, { labelers });
     this.dataStore.setConvo(res.convo);
-  }
-
-  async loadConvoMembers(convoId, { reload = false } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$convoMemberLists, {
-          key: convoId,
-        });
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getConvoMembers(convoId, { cursor, labelers });
-    writePageToCollection(this.dataStore.$convoMemberLists, "members", res, {
-      key: convoId,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
   }
 
   async _loadPostDependencies(posts) {
@@ -1057,35 +1205,6 @@ export class Requests {
     this.dataStore.setConvo(res.convo);
   }
 
-  async loadConvoMessages(convoId, { reload = false, limit = 50 } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$convoMessages, { key: convoId });
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getMessages(convoId, {
-      cursor,
-      limit,
-      labelers,
-    });
-    // For group convos, convo.members is partial; relatedProfiles carries
-    // the authors and system-message subjects for the returned page.
-    if (res.relatedProfiles) {
-      this.dataStore.setProfiles(res.relatedProfiles);
-    }
-    await this._loadJoinLinkPreviews(
-      getJoinLinkCodesFromMessages(res.messages),
-    );
-    // Save individual messages
-    for (const message of res.messages) {
-      this.dataStore.$messages.set(message.id, message);
-    }
-    writePageToCollection(this.dataStore.$convoMessages, "messages", res, {
-      key: convoId,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
     const labelers = await this.requireLabelers();
     const res = await this.api.getChatLogs({ cursor, labelers });
@@ -1100,32 +1219,17 @@ export class Requests {
           this.dataStore.setProfiles(log.relatedProfiles);
         }
         this.dataStore.$messages.set(log.message.id, log.message);
-        const convoMessages = this.dataStore.$convoMessages.get(convoId);
-        if (convoMessages) {
-          this.dataStore.$convoMessages.set(convoId, {
-            messages: convoMessages.messages.map((message) =>
-              message.id === log.message.id ? log.message : message,
-            ),
-            cursor: convoMessages.cursor,
-          });
-        }
         continue;
       }
       if (
         log.$type === "chat.bsky.convo.defs#logDeleteMessage" &&
         log.message?.id
       ) {
-        const messageId = log.message.id;
-        const convoMessages = this.dataStore.$convoMessages.get(convoId);
-        if (convoMessages) {
-          this.dataStore.$convoMessages.set(convoId, {
-            messages: convoMessages.messages.filter(
-              (message) => message.id !== messageId,
-            ),
-            cursor: convoMessages.cursor,
-          });
-        }
-        this.dataStore.$messages.delete(messageId);
+        this.queryStore.removeFromQuery(
+          convoMessagesQueryKey({ convoId }),
+          log.message.id,
+        );
+        this.dataStore.$messages.delete(log.message.id);
         continue;
       }
       const isUserMessage =
@@ -1136,15 +1240,13 @@ export class Requests {
       if (log.relatedProfiles) {
         this.dataStore.setProfiles(log.relatedProfiles);
       }
-      const convoMessages = this.dataStore.$convoMessages.get(convoId);
-      if (!convoMessages) {
+      const queryKey = convoMessagesQueryKey({ convoId });
+      const messageIds = this.queryStore.getItems(queryKey);
+      if (!messageIds) {
         console.warn("No messages data found for convoId", convoId);
         return res.cursor;
       }
-      const alreadyIngested = convoMessages.messages.some(
-        (message) => message.id === log.message.id,
-      );
-      if (alreadyIngested) continue;
+      if (messageIds.includes(log.message.id)) continue;
       if (isSystemMessage) {
         // Update convo for system message
         const convo = this.dataStore.$convos.get(convoId);
@@ -1156,69 +1258,56 @@ export class Requests {
         }
       }
       this.dataStore.$messages.set(log.message.id, log.message);
-      this.dataStore.$convoMessages.set(convoId, {
-        messages: [log.message, ...convoMessages.messages],
-        cursor: convoMessages.cursor,
-      });
+      this.queryStore.prependToQuery(queryKey, log.message.id);
       newMessages.push(log.message);
     }
     await this._loadJoinLinkPreviews(getJoinLinkCodesFromMessages(newMessages));
     return res.cursor;
   }
 
-  async loadPostLikes(postUri, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getLikes(postUri, { cursor, labelers });
-    this.dataStore.setProfiles(res.likes.map((like) => like.actor));
-
-    writePageToCollection(this.dataStore.$postLikes, "likes", res, {
-      key: postUri,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
+  queryLoader(queryKeyFn, fetchValue, options = {}) {
+    return this._wrapLoader(
+      async (queryKey, params = {}) => {
+        const value = await fetchValue(params);
+        this.queryStore.setValue(queryKey, value);
+        return value;
+      },
+      queryKeyFn,
+      { ...options, injectKey: true },
+    );
   }
 
-  async loadPostQuotes(postUri, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getQuotes(postUri, { cursor, labelers });
-
-    // if there are posts that are replies, load the parents
-    const replyPosts = res.posts.filter((post) => post.record?.reply);
-    const replyParentUris = replyPosts
-      .map((post) => post.record?.reply?.parent?.uri)
-      .filter(Boolean);
-    const parentPosts =
-      replyParentUris.length > 0
-        ? await this.api.getPosts(replyParentUris, { labelers })
-        : [];
-    // Save posts and parents
-    await this._loadPostDependencies(res.posts);
-    this.dataStore.setPosts([...res.posts, ...parentPosts]);
-    writePageToCollection(this.dataStore.$postQuotes, "posts", res, {
-      key: postUri,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
+  collectionQueryLoader(queryKeyFn, fetchPage) {
+    return this._wrapLoader(
+      async (queryKey, params = {}, { reload = false } = {}) => {
+        const cursor = reload ? "" : this.queryStore.getNextCursor(queryKey);
+        if (cursor === null) {
+          return;
+        }
+        const page = await fetchPage(cursor, params, { reload });
+        this.queryStore.writePage(queryKey, page, {
+          reload,
+          requestCursor: cursor,
+        });
+      },
+      queryKeyFn,
+      { injectKey: true },
+    );
   }
 
-  async loadPostReposts(postUri, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
-    this.dataStore.setProfiles(res.repostedBy);
-
-    writePageToCollection(this.dataStore.$postReposts, "repostedBy", res, {
-      key: postUri,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
+  registerLoader(requestMethod, requestIdOrFn, options) {
+    this[requestMethod.name] = this._wrapLoader(
+      requestMethod,
+      requestIdOrFn,
+      options,
+    );
   }
 
-  // Wraps a loader so its loading/error state is tracked under `requestId`.
-  // `dedupe: true` additionally coalesces calls that arrive while an identical
-  // request is in flight — only safe when the requestId captures everything
-  // about the arguments that changes what the request does, which rules out
-  // loaders taking `reload`/`cursor`/`limit` options the id omits.
-  registerLoader(requestMethod, requestIdOrFn, { dedupe = false } = {}) {
+  _wrapLoader(
+    requestMethod,
+    requestIdOrFn,
+    { dedupe = false, injectKey = false } = {},
+  ) {
     async function wrappedRequestMethod(...args) {
       const requestId =
         typeof requestIdOrFn === "function"
@@ -1235,7 +1324,10 @@ export class Requests {
       const promise = (async () => {
         this.statusStore.setLoading(requestId, true);
         try {
-          const result = await requestMethod.apply(this, args);
+          const result = await requestMethod.apply(
+            this,
+            injectKey ? [requestId, ...args] : args,
+          );
           // Clear any errors from previous requests
           this.statusStore.setError(requestId, null);
           return result;
@@ -1262,7 +1354,7 @@ export class Requests {
         this._inFlightRequests.delete(requestId);
       }
     }
-    this[requestMethod.name] = wrappedRequestMethod.bind(this);
+    return wrappedRequestMethod.bind(this);
   }
 
   getStatus(requestId) {
@@ -1284,28 +1376,6 @@ export class Requests {
   async loadStarterPack(starterPackUri) {
     const starterPack = await this.api.getStarterPack(starterPackUri);
     this.dataStore.$starterPacks.set(starterPackUri, starterPack);
-  }
-
-  async loadListMembers(listUri, { reload = false, limit = 50 } = {}) {
-    const existing = this.dataStore.$listMembers.get(listUri);
-    if (existing && !existing.cursor && !reload) {
-      return;
-    }
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$listMembers, { key: listUri });
-    const data = await this.api.getList(listUri, { limit, cursor });
-    this.dataStore.setProfiles((data.items ?? []).map((item) => item.subject));
-    writePageToCollection(this.dataStore.$listMembers, "items", data, {
-      key: listUri,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadTrends({ limit = 5 } = {}) {
-    const data = await this.api.getTrends({ limit });
-    this.dataStore.$trends.set(unique(data.trends ?? [], { by: "link" }));
   }
 
   async loadPinnedItems() {
@@ -1357,223 +1427,10 @@ export class Requests {
     this.dataStore.setPinnedItems(orderedItems);
   }
 
-  async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
-    const existing = this.dataStore.$actorFeeds.get(did);
-    if (existing && !existing.cursor && !reload) {
-      return;
-    }
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$actorFeeds, { key: did });
-    const data = await this.api.getActorFeeds(did, { limit, cursor });
-    for (const feed of data.feeds) {
-      this.dataStore.$feedGenerators.set(feed.uri, feed);
-    }
-    writePageToCollection(this.dataStore.$actorFeeds, "feeds", data, {
-      key: did,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadActorLists(did, { reload = false, limit = 50 } = {}) {
-    const existing = this.dataStore.$actorLists.get(did);
-    if (existing && !existing.cursor && !reload) {
-      return;
-    }
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$actorLists, { key: did });
-    const data = await this.api.getActorLists(did, { limit, cursor });
-    for (const list of data.lists) {
-      this.dataStore.$lists.set(list.uri, list);
-    }
-    writePageToCollection(this.dataStore.$actorLists, "lists", data, {
-      key: did,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadCurrentUserLists({ reload = false } = {}) {
+  async loadCurrentUserLists(params = {}, { reload = false } = {}) {
     const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) return;
-    await this.loadActorLists(currentUser.did, { reload });
-  }
-
-  async loadListsWithMembershipForActor(
-    actorDid,
-    { reload = false, limit = 50 } = {},
-  ) {
-    const existing = this.dataStore.$listsWithMembershipByActor.get(actorDid);
-    if (existing && !reload && !existing.cursor) {
-      return;
-    }
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$listsWithMembershipByActor, {
-          key: actorDid,
-        });
-    const data = await this.api.getListsWithMembership(actorDid, {
-      limit,
-      cursor,
-    });
-    writePageToCollection(
-      this.dataStore.$listsWithMembershipByActor,
-      "listsWithMembership",
-      data,
-      {
-        key: actorDid,
-        requestCursor: cursor,
-        overwrite: reload,
-      },
-    );
-  }
-
-  async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
-    const hashtagKey = `${hashtag}-${sort}`;
-    const labelers = await this.requireLabelers();
-
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$hashtagFeeds, { key: hashtagKey });
-
-    // Search posts with the hashtag
-    const query = `#${hashtag}`;
-    const searchData = await this.api.searchPosts(query, {
-      limit,
-      sort,
-      cursor,
-      labelers,
-    });
-
-    const searchResults = searchData.posts || [];
-    if (searchResults.length > 0) {
-      // If there are posts that are replies, load the parents
-      const replyPosts = searchResults.filter((post) => post.record?.reply);
-      const replyParentUris = replyPosts
-        .map((post) => post.record?.reply?.parent?.uri)
-        .filter(Boolean);
-      const parentPosts =
-        replyParentUris.length > 0
-          ? await this.api.getPosts(replyParentUris, { labelers })
-          : [];
-      await this._loadPostDependencies(searchResults);
-      this.dataStore.setPosts([...searchResults, ...parentPosts]);
-    }
-
-    writePageToCollection(this.dataStore.$hashtagFeeds, "posts", searchData, {
-      key: hashtagKey,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadBookmarks({ reload = false, limit = 31 } = {}) {
-    const cursor = reload
-      ? ""
-      : readCollectionCursor(this.dataStore.$bookmarks);
-
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getBookmarks({ limit, cursor, labelers });
-
-    // Extract posts from bookmarks array: [{item: post, ...}]
-    const posts = res.bookmarks.map((bookmark) => bookmark.item);
-
-    // Save posts to the store
-    if (posts.length > 0) {
-      // If there are posts that are replies, load the parents
-      const replyPosts = posts.filter((post) => post.record?.reply);
-      const replyParentUris = replyPosts
-        .map((post) => post.record?.reply?.parent?.uri)
-        .filter(Boolean);
-      const parentPosts =
-        replyParentUris.length > 0
-          ? await this.api.getPosts(replyParentUris, { labelers })
-          : [];
-      await this._loadPostDependencies(posts);
-      this.dataStore.setPosts([...posts, ...parentPosts]);
-    }
-
-    writePageToCollection(this.dataStore.$bookmarks, "bookmarks", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-  }
-
-  async loadDrafts({ reload = false } = {}) {
-    const cursor = reload ? "" : readCollectionCursor(this.dataStore.$drafts);
-    const res = await this.api.getDrafts({ cursor });
-    writePageToCollection(this.dataStore.$drafts, "drafts", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-    });
-    // Load media refs
-    const localRefs = res.drafts.flatMap((draftView) =>
-      getLocalRefsFromDraft(draftView.draft),
-    );
-    await this.draftMediaStore.load(localRefs);
-  }
-
-  async loadProfileFollowers(profileDid, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getFollowers(profileDid, { cursor, labelers });
-    this.dataStore.setProfiles(res.followers);
-
-    writePageToCollection(this.dataStore.$profileFollowers, "followers", res, {
-      key: profileDid,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
-  }
-
-  async loadKnownFollowers(profileDid, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getKnownFollowers(profileDid, {
-      cursor,
-      labelers,
-    });
-    this.dataStore.setProfiles(res.followers);
-
-    writePageToCollection(this.dataStore.$knownFollowers, "followers", res, {
-      key: profileDid,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
-  }
-
-  async loadProfileFollows(profileDid, { cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getFollows(profileDid, { cursor, labelers });
-    this.dataStore.setProfiles(res.follows);
-
-    writePageToCollection(this.dataStore.$profileFollows, "follows", res, {
-      key: profileDid,
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
-  }
-
-  async loadBlockedProfiles({ cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getBlocks({ cursor, labelers });
-    this.dataStore.setProfiles(res.blocks);
-
-    writePageToCollection(this.dataStore.$blockedProfiles, "blocks", res, {
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
-  }
-
-  async loadMutedProfiles({ cursor } = {}) {
-    const labelers = await this.requireLabelers();
-    const res = await this.api.getMutes({ cursor, labelers });
-    this.dataStore.setProfiles(res.mutes);
-
-    writePageToCollection(this.dataStore.$mutedProfiles, "mutes", res, {
-      requestCursor: cursor ?? "",
-      overwrite: !cursor,
-    });
+    await this.loadActorLists({ did: currentUser.did }, { reload });
   }
 
   async loadProfileChatStatus(profileDid) {

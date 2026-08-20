@@ -4,7 +4,7 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
@@ -12,7 +12,11 @@ import { respondToConfirm } from "../../testHelpers.js";
 
 function emptyDataLayer() {
   const dataLayer = new EventEmitter();
-  dataLayer.dataStore = { $feeds: new SignalMap() };
+  const cachedFeeds = new Map();
+  dataLayer.cachedFeeds = cachedFeeds;
+  dataLayer.getCachedFeed = (uri) => cachedFeeds.get(uri) ?? null;
+  dataLayer.getCachedFeeds = () =>
+    [...cachedFeeds].map(([uri, feed]) => ({ uri, feed }));
   return dataLayer;
 }
 
@@ -1388,8 +1392,8 @@ describe("feed filter integration", () => {
         return { [`x-${uri}`]: false };
       },
     );
-    dataLayer.dataStore.$feeds.set("a", { feed: [] });
-    dataLayer.dataStore.$feeds.set("b", { feed: [] });
+    dataLayer.cachedFeeds.set("a", { feed: [] });
+    dataLayer.cachedFeeds.set("b", { feed: [] });
     await service.refreshFeedFilters("a");
     await flush();
     assert.deepEqual(invocations, ["a"]);
@@ -1405,8 +1409,8 @@ describe("feed filter integration", () => {
         return { [`x-${uri}`]: false };
       },
     );
-    dataLayer.dataStore.$feeds.set("a", { feed: [] });
-    dataLayer.dataStore.$feeds.set("b", { feed: [] });
+    dataLayer.cachedFeeds.set("a", { feed: [] });
+    dataLayer.cachedFeeds.set("b", { feed: [] });
     await service.refreshFeedFilters();
     await flush();
     assert.deepEqual(new Set(invocations), new Set(["a", "b"]));
@@ -1838,12 +1842,8 @@ describe("action host methods", () => {
       unblock: [],
     };
     const dataLayer = Object.assign(new EventEmitter(), {
-      dataStore: {
-        $feeds: {
-          get: (uri) =>
-            uri === feedUri && feedItem ? { feed: [feedItem] } : null,
-        },
-      },
+      getCachedFeed: (uri) =>
+        uri === feedUri && feedItem ? { feed: [feedItem] } : null,
       derived: {
         $feedGenerators: {
           get: (uri) => (uri === feedUri ? feedGenerator : null),

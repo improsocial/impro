@@ -390,13 +390,17 @@ export default async function listDetailView({
 
   async function loadFeed({ reload = false } = {}) {
     await dataLayer.requests.loadNextFeedPage(
-      { type: "list", uri: listUri },
-      { reload, limit: FEED_PAGE_SIZE + 1 },
+      {
+        type: "list",
+        uri: listUri,
+        limit: FEED_PAGE_SIZE + 1,
+      },
+      { reload },
     );
   }
 
   async function loadMembers({ reload = false } = {}) {
-    await dataLayer.requests.loadListMembers(listUri, { reload });
+    await dataLayer.requests.loadListMembers({ listUri }, { reload });
   }
 
   async function loadPageData() {
@@ -424,6 +428,6 @@ export default async function listDetailView({
 
   onPageShow(root, ({ action }) => {
     if (action === "restore") return;
-    loadPageData();
+    loadPageData().catch((error) => console.error(error));
   });
 }

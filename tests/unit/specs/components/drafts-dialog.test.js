@@ -6,6 +6,7 @@ import {
   stubStatusTracked,
 } from "../../testHelpers.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { draftsQueryKey } from "/js/dataLayer/queryKeys.js";
 import "/js/components/drafts-dialog.js";
 
 describe("drafts-dialog", () => {
@@ -37,7 +38,7 @@ describe("drafts-dialog", () => {
     const loadSpy = stubStatusTracked(
       dataLayer.requests,
       "loadDrafts",
-      "loadDrafts",
+      draftsQueryKey(),
       loadDrafts ?? (async () => {}),
     );
     const deleteSpy = mock.method(
@@ -48,7 +49,9 @@ describe("drafts-dialog", () => {
     return {
       dataLayer,
       seedDrafts: (drafts, { cursor = null } = {}) =>
-        dataLayer.dataStore.$drafts.set({ drafts, cursor }),
+        dataLayer.queryStore.set(draftsQueryKey(), {
+          pages: [{ items: drafts, cursor }],
+        }),
       seedMedia: (entries) =>
         dataLayer.draftMediaStore.$media.set({
           ...dataLayer.draftMediaStore.$media.get(),
@@ -110,7 +113,8 @@ describe("drafts-dialog", () => {
       createDialog(dataLayer);
       await flushMicrotasks();
       assert.deepEqual(loadSpy.mock.callCount(), 1);
-      assert.deepEqual(loadSpy.mock.calls[0].arguments[0], { reload: true });
+      assert.deepEqual(loadSpy.mock.calls[0].arguments[0], {});
+      assert.deepEqual(loadSpy.mock.calls[0].arguments[1], { reload: true });
     });
 
     it("should not reload drafts that are already cached", async () => {

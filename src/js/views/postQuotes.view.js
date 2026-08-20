@@ -41,8 +41,7 @@ export default async function postQuotesView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const postQuotes = dataLayer.derived.$hydratedPostQuotes.get(postUri);
     const post = dataLayer.derived.$hydratedPosts.get(postUri);
-    const postQuotesRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get("loadPostQuotes-" + postUri);
+    const quotesError = dataLayer.derived.$postQuotesError.get(postUri);
 
     const subtitle = post?.quoteCount
       ? `${formatLargeNumber(post.quoteCount)} ${
@@ -65,10 +64,8 @@ export default async function postQuotesView({
           subtitle,
         })}
         <main style="position: relative;">
-          ${postQuotesRequestStatus.error
-            ? quotesErrorTemplate({
-                error: postQuotesRequestStatus.error,
-              })
+          ${quotesError
+            ? quotesErrorTemplate({ error: quotesError })
             : postFeedTemplate({
                 feed: postQuotesFeed,
                 currentUser,
@@ -87,14 +84,11 @@ export default async function postQuotesView({
   bindPageTitle(root, () => "Quoted by");
 
   async function loadQuotes({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$hydratedPostQuotes.get(postUri)?.cursor;
-    await dataLayer.requests.loadPostQuotes(postUri, { cursor });
+    await dataLayer.requests.loadPostQuotes({ postUri }, { reload });
   }
 
   function loadPageData() {
-    dataLayer.requests.loadPostThread(postUri);
+    dataLayer.requests.loadPostThread({ uri: postUri });
     loadQuotes({ reload: true });
   }
 

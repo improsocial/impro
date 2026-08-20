@@ -295,14 +295,18 @@ describe("ensureKnownFollowers", () => {
         return callCount > 1 ? knownFollowers : null;
       }),
     };
+    let loadArgs = null;
     const requests = {
-      loadKnownFollowers: async () => {},
+      loadKnownFollowers: async (args) => {
+        loadArgs = args;
+      },
     };
 
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureKnownFollowers(profileDid);
 
     assert.deepEqual(result, knownFollowers);
+    assert.deepEqual(loadArgs, { did: profileDid });
   });
 
   it("should throw when known followers not found after loading", async () => {
@@ -428,30 +432,6 @@ describe("ensurePostThread", () => {
     const result = await declarative.ensurePostThread(postURI);
 
     assert.deepEqual(result, postThread);
-  });
-
-  it("should pass labelers option to loadPostThread", async () => {
-    const postURI = "at://did:test/app.bsky.feed.post/123";
-    const postThread = { post: { uri: postURI }, replies: [] };
-    let passedLabelers = null;
-    let callCount = 0;
-
-    const derived = {
-      $hydratedPostThreads: mapSig(() => {
-        callCount++;
-        return callCount > 1 ? postThread : null;
-      }),
-    };
-    const requests = {
-      loadPostThread: async (uri, options) => {
-        passedLabelers = options.labelers;
-      },
-    };
-
-    const declarative = new Declarative(derived, requests);
-    await declarative.ensurePostThread(postURI, { labelers: ["labeler1"] });
-
-    assert.deepEqual(passedLabelers, ["labeler1"]);
   });
 
   it("should throw when post thread not found after loading", async () => {

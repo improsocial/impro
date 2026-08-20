@@ -1,4 +1,5 @@
 import { effect, untrack } from "/js/signals.js";
+import { notificationsQueryKey, Resources } from "/js/dataLayer/queryKeys.js";
 
 export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   const setDid = (entity) => {
@@ -51,20 +52,29 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
     }
   });
 
+  const seenProfileSearchDids = new Set();
   effect(() => {
-    const profileSearchResults =
-      dataLayer.dataStore.$profileSearchResults.get();
-    if (!profileSearchResults) return;
-    for (const searchResult of profileSearchResults.actors) {
-      setDid(searchResult);
+    for (const queryKey of dataLayer.queryStore.keysForResource(
+      Resources.PROFILE_SEARCH,
+    )) {
+      for (const did of dataLayer.queryStore.getItems(queryKey) ?? []) {
+        if (seenProfileSearchDids.has(did)) continue;
+        seenProfileSearchDids.add(did);
+        setDid(untrack(() => dataLayer.dataStore.$profiles.get(did)));
+      }
     }
   });
 
+  const seenTypeaheadDids = new Set();
   effect(() => {
-    const typeaheadResults = dataLayer.dataStore.$searchTypeaheadResults.get();
-    if (!typeaheadResults) return;
-    for (const searchResult of typeaheadResults.actors) {
-      setDid(searchResult);
+    for (const queryKey of dataLayer.queryStore.keysForResource(
+      Resources.SEARCH_TYPEAHEAD,
+    )) {
+      for (const did of dataLayer.queryStore.getItems(queryKey) ?? []) {
+        if (seenTypeaheadDids.has(did)) continue;
+        seenTypeaheadDids.add(did);
+        setDid(untrack(() => dataLayer.dataStore.$profiles.get(did)));
+      }
     }
   });
 
@@ -82,9 +92,11 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   });
 
   effect(() => {
-    const data = dataLayer.dataStore.$notifications.get();
-    if (!data) return;
-    for (const notification of data.notifications) {
+    const notifications = dataLayer.queryStore.getItems(
+      notificationsQueryKey(),
+    );
+    if (!notifications) return;
+    for (const notification of notifications) {
       try {
         setDid(notification.author);
       } catch (error) {

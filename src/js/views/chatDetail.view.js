@@ -1374,10 +1374,13 @@ export default async function chatDetailView({
   }
 
   async function loadMessages({ reload = false } = {}) {
-    await dataLayer.requests.loadConvoMessages(convoId, {
-      reload,
-      limit: CHAT_MESSAGES_PAGE_SIZE,
-    });
+    await dataLayer.requests.loadConvoMessages(
+      {
+        convoId,
+        limit: CHAT_MESSAGES_PAGE_SIZE,
+      },
+      { reload },
+    );
   }
 
   function getOtherMember(currentUser, convo) {
@@ -1398,14 +1401,9 @@ export default async function chatDetailView({
     const groupDetails = convo ? getGroupConvoDetails(convo) : null;
     const messagesData = dataLayer.derived.$hydratedConvoMessages.get(convoId);
     const messages = messagesData?.messages ?? null;
-    const convoRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadConvo-" + convoId,
-    );
-    const messagesRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadConvoMessages-" + convoId,
-    );
-    const requestError =
-      convoRequestStatus.error || messagesRequestStatus.error;
+    const convoError = dataLayer.derived.$convoError.get(convoId);
+    const messagesError = dataLayer.derived.$convoMessagesError.get(convoId);
+    const requestError = convoError || messagesError;
     const hasMore = !!messagesData?.cursor;
     const isSendingMessage = state.$isSendingMessage.get();
     const isMuteSaving = state.$isMuteSaving.get();

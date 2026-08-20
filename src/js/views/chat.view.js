@@ -5,6 +5,7 @@ import {
   onPageShow,
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { Signal } from "/js/signals.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
@@ -30,6 +31,8 @@ export default async function chatView({
   context: { auth, dataLayer, chatNotificationService, newChatService },
 }) {
   await auth.requireAuth();
+
+  const $isLoadingConvos = new Signal.State(false);
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -212,8 +215,8 @@ export default async function chatView({
   pageEffect(root, () => {
     const currentUser = dataLayer.derived.$currentUser.get();
     const convos = dataLayer.derived.$convoList.get();
-    const convosRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get("loadConvoList");
+    const convosError = dataLayer.derived.$convoListError.get();
+    const isLoadingConvos = $isLoadingConvos.get();
     const cursor = dataLayer.derived.$convoListCursor.get();
     const hasMore = !!cursor;
     const hasUnreadRequests =
@@ -223,7 +226,7 @@ export default async function chatView({
       html`<div id="chat-view">
         ${headerTemplate({
           title: "Chats",
-          showLoadingSpinner: convosRequestStatus.loading && !!convos,
+          showLoadingSpinner: isLoadingConvos && !!convos,
           leftButton: "menu",
           onClickMenuButton: () => handleMenuClick(),
           rightItemTemplate: () => html`
@@ -235,10 +238,8 @@ export default async function chatView({
         })}
         <main class="chat-main">
           ${(() => {
-            if (convosRequestStatus.error) {
-              return convosErrorTemplate({
-                error: convosRequestStatus.error,
-              });
+            if (convosError) {
+              return convosErrorTemplate({ error: convosError });
             } else if (convos && currentUser) {
               const acceptedConvos = convos.filter(
                 (convo) => convo.status === "accepted",
@@ -267,9 +268,11 @@ export default async function chatView({
   });
 
   async function loadConvoList({ reload = false } = {}) {
-    await dataLayer.requests.loadConvoList({
-      reload,
-      limit: 30,
-    });
+    $isLoadingConvos.set(true);
+    try {
+      await dataLayer.requests.loadConvoList({ limit: 30 }, { reload });
+    } finally {
+      $isLoadingConvos.set(false);
+    }
   }
 }

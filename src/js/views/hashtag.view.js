@@ -110,12 +110,12 @@ export default async function hashtagView({
 
   async function loadCurrentFeed({ reload = false } = {}) {
     await dataLayer.requests.loadHashtagFeed(
-      hashtag,
-      state.$currentSort.get(),
       {
-        reload,
+        hashtag,
+        sort: state.$currentSort.get(),
         limit: HASHTAG_FEED_PAGE_SIZE,
       },
+      { reload },
     );
   }
 

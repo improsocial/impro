@@ -40,10 +40,7 @@ export default async function postRepostsView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const postReposts = dataLayer.derived.$postReposts.get(postUri);
     const post = dataLayer.derived.$hydratedPosts.get(postUri);
-    const postRepostsRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get(
-        "loadPostReposts-" + postUri,
-      );
+    const repostsError = dataLayer.derived.$postRepostsError.get(postUri);
     const hasMore = postReposts?.cursor ? true : false;
     const subtitle = post?.repostCount
       ? `${formatLargeNumber(post.repostCount)} ${
@@ -59,10 +56,8 @@ export default async function postRepostsView({
         })}
         <main style="position: relative;">
           ${(() => {
-            if (postRepostsRequestStatus.error) {
-              return repostsErrorTemplate({
-                error: postRepostsRequestStatus.error,
-              });
+            if (repostsError) {
+              return repostsErrorTemplate({ error: repostsError });
             }
             return profileFeedTemplate({
               profiles: postReposts?.repostedBy ?? null,
@@ -85,14 +80,11 @@ export default async function postRepostsView({
   bindPageTitle(root, () => "Reposted by");
 
   async function loadReposts({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$postReposts.get(postUri)?.cursor;
-    await dataLayer.requests.loadPostReposts(postUri, { cursor });
+    await dataLayer.requests.loadPostReposts({ postUri }, { reload });
   }
 
   function loadPageData() {
-    dataLayer.requests.loadPostThread(postUri);
+    dataLayer.requests.loadPostThread({ uri: postUri });
     loadReposts({ reload: true });
   }
 

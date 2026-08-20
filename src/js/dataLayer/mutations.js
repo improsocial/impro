@@ -10,6 +10,31 @@ import {
 import { batch, getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
+import {
+  Resources,
+  actorListsQueryKey,
+  authorFeedQueryKey,
+  convoMessagesQueryKey,
+  draftsQueryKey,
+  listMembersQueryKey,
+  pinnedItemsQueryKey,
+  postThreadQueryKey,
+} from "/js/dataLayer/queryKeys.js";
+
+function updateAuthorFeedItems(queryStore, { did, feedType }, updateItems) {
+  const queryKey = authorFeedQueryKey({ did, feedType });
+  const collection = queryStore.get(queryKey);
+  if (!collection?.pages?.length) {
+    return;
+  }
+  const items = collection.pages.flatMap((page) => page.items);
+  const nextItems = updateItems(items);
+  if (nextItems === items) {
+    return;
+  }
+  const cursor = collection.pages[collection.pages.length - 1].cursor;
+  queryStore.set(queryKey, { pages: [{ items: nextItems, cursor }] });
+}
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -20,9 +45,11 @@ export class Mutations {
     preferencesProvider,
     identityResolver,
     draftMediaStore,
+    queryStore,
   ) {
     this.api = api;
     this.dataStore = dataStore;
+    this.queryStore = queryStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
@@ -47,17 +74,14 @@ export class Mutations {
       // If the "likes" feed is loaded, add the post to it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
-        const feedURI = `${currentUser.did}-likes`;
-        const likedFeed = this.dataStore.$authorFeeds.get(feedURI);
-        if (
-          likedFeed &&
-          !likedFeed.feed.some((feedItem) => feedItem.post?.uri === post.uri)
-        ) {
-          this.dataStore.$authorFeeds.set(feedURI, {
-            feed: [{ post: post }, ...likedFeed.feed],
-            cursor: likedFeed.cursor,
-          });
-        }
+        updateAuthorFeedItems(
+          this.queryStore,
+          { did: currentUser.did, feedType: "likes" },
+          (feedItems) =>
+            feedItems.some((feedItem) => feedItem.post?.uri === post.uri)
+              ? feedItems
+              : [{ post: post }, ...feedItems],
+        );
       }
     } catch (error) {
       console.error(error);
@@ -109,32 +133,34 @@ export class Mutations {
       // If the current user's author feed is loaded, add the repost to it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
-        const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-        if (
-          authorFeed &&
-          !authorFeed.feed.some(
-            (feedItem) =>
-              feedItem.post?.uri === post.uri &&
-              feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
-              feedItem.reason?.by?.did === currentUser.did,
-          )
-        ) {
-          const newFeedItem = {
-            post: post,
-            reason: {
-              $type: "app.bsky.feed.defs#reasonRepost",
-              by: currentUser,
-              uri: repost.uri,
-              cid: repost.cid,
-              indexedAt: new Date().toISOString(),
-            },
-          };
-          this.dataStore.$authorFeeds.set(authorFeedURI, {
-            feed: addFeedItemToFeed(newFeedItem, authorFeed.feed),
-            cursor: authorFeed.cursor,
-          });
-        }
+        updateAuthorFeedItems(
+          this.queryStore,
+          { did: currentUser.did, feedType: "posts" },
+          (feedItems) => {
+            if (
+              feedItems.some(
+                (feedItem) =>
+                  feedItem.post?.uri === post.uri &&
+                  feedItem.reason?.$type ===
+                    "app.bsky.feed.defs#reasonRepost" &&
+                  feedItem.reason?.by?.did === currentUser.did,
+              )
+            ) {
+              return feedItems;
+            }
+            const newFeedItem = {
+              post: post,
+              reason: {
+                $type: "app.bsky.feed.defs#reasonRepost",
+                by: currentUser,
+                uri: repost.uri,
+                cid: repost.cid,
+                indexedAt: new Date().toISOString(),
+              },
+            };
+            return addFeedItemToFeed(newFeedItem, feedItems);
+          },
+        );
       }
     } catch (error) {
       console.error(error);
@@ -162,11 +188,11 @@ export class Mutations {
       // If the current user's author feed is loaded, remove the repost from it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
-        const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-        if (authorFeed) {
-          this.dataStore.$authorFeeds.set(authorFeedURI, {
-            feed: authorFeed.feed.filter((feedItem) => {
+        updateAuthorFeedItems(
+          this.queryStore,
+          { did: currentUser.did, feedType: "posts" },
+          (feedItems) =>
+            feedItems.filter((feedItem) => {
               if (
                 feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
                 feedItem.reason?.uri === post.viewer.repost
@@ -175,9 +201,7 @@ export class Mutations {
               }
               return true;
             }),
-            cursor: authorFeed.cursor,
-          });
-        }
+        );
       }
     } catch (error) {
       console.error(error);
@@ -203,17 +227,8 @@ export class Mutations {
           bookmarkCount: latestPost.bookmarkCount + 1,
         });
       }
-      // If the bookmarks feed is loaded, add the post to it.
-      const bookmarks = this.dataStore.$bookmarks.get();
-      if (
-        bookmarks &&
-        !bookmarks.bookmarks.some((bookmark) => bookmark.item?.uri === post.uri)
-      ) {
-        this.dataStore.$bookmarks.set({
-          bookmarks: [{ item: { ...post } }, ...bookmarks.bookmarks],
-          cursor: bookmarks.cursor,
-        });
-      }
+      // Add the post to every loaded bookmarks query.
+      this.queryStore.prependToResource(Resources.BOOKMARKS, post.uri);
     } catch (error) {
       console.error(error);
       throw error;
@@ -238,16 +253,8 @@ export class Mutations {
           bookmarkCount: latestPost.bookmarkCount - 1,
         });
       }
-      // If the bookmarks feed is loaded, remove the post from it.
-      const bookmarks = this.dataStore.$bookmarks.get();
-      if (bookmarks) {
-        this.dataStore.$bookmarks.set({
-          bookmarks: bookmarks.bookmarks.filter(
-            (bookmark) => bookmark.item?.uri !== post.uri,
-          ),
-          cursor: bookmarks.cursor,
-        });
-      }
+      // Remove the post from every loaded bookmarks query.
+      this.queryStore.removeFromResource(Resources.BOOKMARKS, post.uri);
     } catch (error) {
       console.error(error);
       throw error;
@@ -290,49 +297,21 @@ export class Mutations {
 
   async addProfileToList(profile, list) {
     const result = await this.api.createListItemRecord(list.uri, profile.did);
-    this._patchListMembershipForActor(profile.did, list.uri, {
-      uri: result.uri,
-      subject: profile.did,
-    });
-    // Add to cached list members
-    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
-    if (
-      cachedMembers &&
-      !cachedMembers.items.some((item) => item.subject.did === profile.did)
-    ) {
-      this.dataStore.$listMembers.set(list.uri, {
-        ...cachedMembers,
-        items: [{ uri: result.uri, subject: profile }, ...cachedMembers.items],
-      });
-    }
+    this.dataStore.setProfiles([profile]);
+    this.dataStore.setListItemUri(list.uri, profile.did, result.uri);
+    this.queryStore.prependToQuery(
+      listMembersQueryKey({ listUri: list.uri }),
+      profile.did,
+    );
   }
 
   async removeProfileFromList(profile, list, membershipUri) {
     await this.api.deleteListItemRecord(membershipUri);
-    this._patchListMembershipForActor(profile.did, list.uri, null);
-    // Remove from cached list members
-    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
-    if (cachedMembers) {
-      this.dataStore.$listMembers.set(list.uri, {
-        ...cachedMembers,
-        items: cachedMembers.items.filter(
-          (item) => item.subject.did !== profile.did,
-        ),
-      });
-    }
-  }
-
-  _patchListMembershipForActor(actorDid, listUri, listItem) {
-    const existing = this.dataStore.$listsWithMembershipByActor.get(actorDid);
-    if (!existing) return;
-    this.dataStore.$listsWithMembershipByActor.set(actorDid, {
-      ...existing,
-      listsWithMembership: existing.listsWithMembership.map((entry) =>
-        entry.list.uri === listUri
-          ? { ...entry, listItem: listItem || undefined }
-          : entry,
-      ),
-    });
+    this.dataStore.deleteListItemUri(list.uri, profile.did);
+    this.queryStore.removeFromQuery(
+      listMembersQueryKey({ listUri: list.uri }),
+      profile.did,
+    );
   }
 
   async unfollowProfile(profile) {
@@ -491,7 +470,9 @@ export class Mutations {
     }
 
     // Update pinned items in memory
-    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    const pinnedItems = untrack(() =>
+      this.queryStore.getItems(pinnedItemsQueryKey()),
+    );
     if (pinnedItems) {
       const byValue = new Map(
         pinnedItems.map((item) => [valueForPinnedItem(item), item]),
@@ -693,18 +674,7 @@ export class Mutations {
           },
         };
       });
-      const mutedProfiles = this.dataStore.$mutedProfiles.get();
-      if (mutedProfiles) {
-        const alreadyListed = mutedProfiles.mutes.some(
-          (muted) => muted.did === profile.did,
-        );
-        if (!alreadyListed) {
-          this.dataStore.$mutedProfiles.set({
-            ...mutedProfiles,
-            mutes: [profile, ...mutedProfiles.mutes],
-          });
-        }
-      }
+      this.queryStore.prependToResource(Resources.MUTED_PROFILES, profile.did);
     } catch (error) {
       console.error(error);
       throw error;
@@ -741,15 +711,7 @@ export class Mutations {
           },
         };
       });
-      const mutedProfiles = this.dataStore.$mutedProfiles.get();
-      if (mutedProfiles) {
-        this.dataStore.$mutedProfiles.set({
-          ...mutedProfiles,
-          mutes: mutedProfiles.mutes.filter(
-            (muted) => muted.did !== profile.did,
-          ),
-        });
-      }
+      this.queryStore.removeFromResource(Resources.MUTED_PROFILES, profile.did);
     } catch (error) {
       console.error(error);
       throw error;
@@ -786,18 +748,10 @@ export class Mutations {
           },
         };
       });
-      const blockedProfiles = this.dataStore.$blockedProfiles.get();
-      if (blockedProfiles) {
-        const alreadyListed = blockedProfiles.blocks.some(
-          (blocked) => blocked.did === profile.did,
-        );
-        if (!alreadyListed) {
-          this.dataStore.$blockedProfiles.set({
-            ...blockedProfiles,
-            blocks: [profile, ...blockedProfiles.blocks],
-          });
-        }
-      }
+      this.queryStore.prependToResource(
+        Resources.BLOCKED_PROFILES,
+        profile.did,
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -862,15 +816,10 @@ export class Mutations {
           },
         };
       });
-      const blockedProfiles = this.dataStore.$blockedProfiles.get();
-      if (blockedProfiles) {
-        this.dataStore.$blockedProfiles.set({
-          ...blockedProfiles,
-          blocks: blockedProfiles.blocks.filter(
-            (blocked) => blocked.did !== profile.did,
-          ),
-        });
-      }
+      this.queryStore.removeFromResource(
+        Resources.BLOCKED_PROFILES,
+        profile.did,
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -1052,15 +1001,12 @@ export class Mutations {
       viewer: {},
     };
     this.dataStore.$lists.set(res.uri, listView);
-    const actorLists = untrack(() =>
-      this.dataStore.$actorLists.get(creator.did),
+    untrack(() =>
+      this.queryStore.prependToQuery(
+        actorListsQueryKey({ did: creator.did }),
+        res.uri,
+      ),
     );
-    if (actorLists) {
-      this.dataStore.$actorLists.set(creator.did, {
-        ...actorLists,
-        lists: [listView, ...actorLists.lists],
-      });
-    }
     return listView;
   }
 
@@ -1148,32 +1094,21 @@ export class Mutations {
       await this.api.applyWrites(chunk);
     }
     this.dataStore.$lists.set(list.uri, null);
-    this.dataStore.$listMembers.set(list.uri, null);
+    this.queryStore.set(listMembersQueryKey({ listUri: list.uri }), null);
+    this.dataStore.$listItemUris.set(list.uri, null);
     if (list.creator?.did) {
-      const actorLists = this.dataStore.$actorLists.get(list.creator.did);
-      if (actorLists) {
-        this.dataStore.$actorLists.set(list.creator.did, {
-          ...actorLists,
-          lists: actorLists.lists.filter((entry) => entry.uri !== list.uri),
-        });
-      }
-    }
-    for (const [
-      actorDid,
-      entry,
-    ] of this.dataStore.$listsWithMembershipByActor.entries()) {
-      if (!entry?.listsWithMembership) continue;
-      const filtered = entry.listsWithMembership.filter(
-        (item) => item.list.uri !== list.uri,
+      this.queryStore.removeFromQuery(
+        actorListsQueryKey({ did: list.creator.did }),
+        list.uri,
       );
-      if (filtered.length !== entry.listsWithMembership.length) {
-        this.dataStore.$listsWithMembershipByActor.set(actorDid, {
-          ...entry,
-          listsWithMembership: filtered,
-        });
-      }
     }
-    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    this.queryStore.removeFromResource(
+      Resources.LISTS_WITH_MEMBERSHIP,
+      list.uri,
+    );
+    const pinnedItems = untrack(() =>
+      this.queryStore.getItems(pinnedItemsQueryKey()),
+    );
     if (pinnedItems?.some((item) => item.data?.uri === list.uri)) {
       this.dataStore.setPinnedItems(
         pinnedItems.filter((item) => item.data?.uri !== list.uri),
@@ -1222,13 +1157,11 @@ export class Mutations {
           pinnedPost: pinnedRef,
         });
       }
-      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-      if (existingFeed) {
-        this.dataStore.$authorFeeds.set(authorFeedURI, {
-          feed: pinPostInFeed(existingFeed.feed, post),
-          cursor: existingFeed.cursor,
-        });
-      }
+      updateAuthorFeedItems(
+        this.queryStore,
+        { did: currentUser.did, feedType: "posts" },
+        (feedItems) => pinPostInFeed(feedItems, post),
+      );
     } finally {
       this.patchStore.removeCurrentUserPatch(userPatchId);
       this.patchStore.removeAuthorFeedPatch(authorFeedURI, feedPatchId);
@@ -1264,13 +1197,11 @@ export class Mutations {
         const { pinnedPost: _, ...rest } = latestUser;
         this.dataStore.$currentUser.set(rest);
       }
-      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-      if (existingFeed) {
-        this.dataStore.$authorFeeds.set(authorFeedURI, {
-          feed: unpinPostInFeed(existingFeed.feed, post),
-          cursor: existingFeed.cursor,
-        });
-      }
+      updateAuthorFeedItems(
+        this.queryStore,
+        { did: currentUser.did, feedType: "posts" },
+        (feedItems) => unpinPostInFeed(feedItems, post),
+      );
     } finally {
       this.patchStore.removeCurrentUserPatch(userPatchId);
       this.patchStore.removeAuthorFeedPatch(authorFeedURI, feedPatchId);
@@ -1302,9 +1233,10 @@ export class Mutations {
       const rootPost = hydratedPosts[0];
       // If it's a reply, update the reply post thread in the store
       if (replyTo) {
-        const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
+        const replyThreadKey = postThreadQueryKey({ uri: replyTo.uri });
+        const replyPostThread = this.queryStore.getValue(replyThreadKey);
         if (replyPostThread) {
-          this.dataStore.$postThreads.set(replyTo.uri, {
+          this.queryStore.setValue(replyThreadKey, {
             ...replyPostThread,
             replies: [
               {
@@ -1318,24 +1250,18 @@ export class Mutations {
         }
       }
       const { repo: did } = parseUri(rootPost.uri);
-      const rootFeedURI = replyTo ? `${did}-replies` : `${did}-posts`;
-      const rootFeed = this.dataStore.$authorFeeds.get(rootFeedURI);
-      if (rootFeed) {
-        this.dataStore.$authorFeeds.set(rootFeedURI, {
-          feed: addFeedItemToFeed({ post: rootPost }, rootFeed.feed),
-          cursor: rootFeed.cursor,
-        });
-      }
+      updateAuthorFeedItems(
+        this.queryStore,
+        { did, feedType: replyTo ? "replies" : "posts" },
+        (feedItems) => addFeedItemToFeed({ post: rootPost }, feedItems),
+      );
       // Later thread posts are self-replies, so they go in the replies tab
-      const repliesFeedURI = `${did}-replies`;
       for (const post of hydratedPosts.slice(1)) {
-        const repliesFeed = this.dataStore.$authorFeeds.get(repliesFeedURI);
-        if (repliesFeed) {
-          this.dataStore.$authorFeeds.set(repliesFeedURI, {
-            feed: addFeedItemToFeed({ post }, repliesFeed.feed),
-            cursor: repliesFeed.cursor,
-          });
-        }
+        updateAuthorFeedItems(
+          this.queryStore,
+          { did, feedType: "replies" },
+          (feedItems) => addFeedItemToFeed({ post }, feedItems),
+        );
       }
     }
     return { uris, posts: hydratedPosts };
@@ -1358,14 +1284,8 @@ export class Mutations {
       embed,
     });
     this.dataStore.$messages.set(res.id, res);
-    // Add the new message to the chat messages array in the dataStore
-    const convoMessages = this.dataStore.$convoMessages.get(convoId);
-    if (convoMessages) {
-      this.dataStore.$convoMessages.set(convoId, {
-        messages: [res, ...convoMessages.messages],
-        cursor: convoMessages.cursor,
-      });
-    }
+    // Add the new message to the head of the loaded message list
+    this.queryStore.prependToQuery(convoMessagesQueryKey({ convoId }), res.id);
     // Update the last message in the convo
     const convo = this.dataStore.$convos.get(convoId);
     if (convo) {
@@ -1422,28 +1342,14 @@ export class Mutations {
     const convoId = convo.id;
     await this.api.leaveConvo(convoId);
     this.dataStore.$convos.set(convoId, null);
-    const list = this.dataStore.$convoList.get();
-    if (list) {
-      this.dataStore.$convoList.set({
-        convos: list.convos.filter((listConvo) => listConvo.id !== convoId),
-        cursor: list.cursor,
-      });
-    }
+    this.queryStore.removeFromResource(Resources.CONVO_LIST, convoId);
   }
 
   async rejectConvo(convo) {
     const convoId = convo.id;
     await this.api.leaveConvo(convoId);
     this.dataStore.$convos.set(convoId, null);
-    const requestList = this.dataStore.$convoRequestList.get();
-    if (requestList) {
-      this.dataStore.$convoRequestList.set({
-        convos: requestList.convos.filter(
-          (listConvo) => listConvo.id !== convoId,
-        ),
-        cursor: requestList.cursor,
-      });
-    }
+    this.queryStore.removeFromResource(Resources.CONVO_REQUEST_LIST, convoId);
   }
 
   async setConvoMuted(convo, muted) {
@@ -1583,19 +1489,23 @@ export class Mutations {
 
   // Delete the cached drafts list so the next dialog open refetches it
   _invalidateCachedDrafts() {
-    if (untrack(() => this.dataStore.$drafts.get()) !== null) {
-      this.dataStore.$drafts.set(null);
+    const queryKey = draftsQueryKey();
+    if (untrack(() => this.queryStore.get(queryKey))) {
+      this.queryStore.set(queryKey, null);
     }
   }
 
   async deleteDraft({ draftId, localRefs }) {
     await this.api.deleteDraft(draftId);
     await this._deleteDraftMedia(localRefs);
-    const data = untrack(() => this.dataStore.$drafts.get());
-    if (data) {
-      this.dataStore.$drafts.set({
-        ...data,
-        drafts: data.drafts.filter((draftView) => draftView.id !== draftId),
+    const queryKey = draftsQueryKey();
+    const collection = untrack(() => this.queryStore.get(queryKey));
+    if (collection) {
+      this.queryStore.set(queryKey, {
+        pages: collection.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((draftView) => draftView.id !== draftId),
+        })),
       });
     }
   }

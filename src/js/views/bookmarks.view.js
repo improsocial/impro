@@ -59,10 +59,12 @@ export default async function bookmarksView({
   });
 
   async function loadBookmarks({ reload = false } = {}) {
-    await dataLayer.requests.loadBookmarks({
-      reload,
-      limit: BOOKMARKS_PAGE_SIZE + 1,
-    });
+    await dataLayer.requests.loadBookmarks(
+      {
+        limit: BOOKMARKS_PAGE_SIZE + 1,
+      },
+      { reload },
+    );
   }
 
   function loadPageData() {

@@ -190,16 +190,14 @@ export default async function groupChatDetailsView({
 
   const $requestError = new Signal.Computed(() => {
     return (
-      dataLayer.requests.statusStore.$errors.get("loadConvo-" + convoId) ??
-      dataLayer.requests.statusStore.$errors.get(
-        "loadConvoMembers-" + convoId,
-      ) ??
+      dataLayer.derived.$convoError.get(convoId) ??
+      dataLayer.derived.$groupConvoMemberListError.get(convoId) ??
       null
     );
   });
 
   async function loadMoreMembers() {
-    await dataLayer.requests.loadConvoMembers(convoId);
+    await dataLayer.requests.loadConvoMembers({ convoId });
   }
 
   async function handleToggleMute(convo, muted) {
@@ -319,7 +317,7 @@ export default async function groupChatDetailsView({
       console.error("Failed to load convo", error);
     });
     dataLayer.requests
-      .loadConvoMembers(convoId, { reload: true })
+      .loadConvoMembers({ convoId, reload: true })
       .catch((error) => {
         console.error("Failed to load convo members", error);
       });

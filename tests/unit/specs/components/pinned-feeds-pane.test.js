@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import "/js/components/pinned-feeds-pane.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 import { createFeedGenerator, createList } from "../../../shared/factories.js";
+import { pinnedItemsQueryKey } from "/js/dataLayer/queryKeys.js";
 
 describe("pinned-feeds-pane", () => {
   const feedGenerator = createFeedGenerator({
@@ -76,7 +77,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("renders a row per pinned item plus the More feeds link", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     mount();
     await flushMicrotasks();
 
@@ -90,7 +94,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("renders an icon for the timeline item and avatars for feeds and lists", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     mount();
     await flushMicrotasks();
 
@@ -107,7 +114,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("highlights the selected feed while on the home route", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
@@ -121,7 +131,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("moves the highlight when the selected feed changes", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
@@ -138,7 +151,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("does not highlight any feed when show-selected is absent", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
     mount({ showSelected: false });
     await flushMicrotasks();
@@ -150,7 +166,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("re-renders the highlight when the show-selected attribute changes", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
@@ -173,7 +192,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("highlights the More feeds link when more-feeds-active is set", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     mount({ showSelected: false, moreFeedsActive: true });
     await flushMicrotasks();
 
@@ -182,7 +204,10 @@ describe("pinned-feeds-pane", () => {
   });
 
   it("dispatches home-feed-select without navigating when already on home", async () => {
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     mount();
     await flushMicrotasks();
     const selected = [];
@@ -199,7 +224,10 @@ describe("pinned-feeds-pane", () => {
 
   it("sets the selection before navigating home from another route", async () => {
     window.history.replaceState(null, "", "/notifications");
-    dataLayer.dataStore.$pinnedItems.set(pinnedItems);
+    dataLayer.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     mount({ showSelected: false });
     await flushMicrotasks();
     const selected = [];

@@ -2,6 +2,10 @@ import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { makeTestDataLayer, stubStatusTracked } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
+import {
+  chatRecipientSearchQueryKey,
+  profileFollowsQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 import "/js/components/new-chat-dialog.js";
 
 describe("new-chat-dialog", () => {
@@ -45,7 +49,7 @@ describe("new-chat-dialog", () => {
     const searchSpy = stubStatusTracked(
       dataLayer.requests,
       "loadChatRecipientSearch",
-      "loadChatRecipientSearch",
+      ({ query }) => chatRecipientSearchQueryKey({ query }),
       async () => {
         if (failures.search) throw failures.search;
       },
@@ -54,7 +58,7 @@ describe("new-chat-dialog", () => {
     const followsSpy = stubStatusTracked(
       dataLayer.requests,
       "loadProfileFollows",
-      (did) => `loadProfileFollows-${did}`,
+      ({ did }) => profileFollowsQueryKey({ did }),
       async () => {
         if (failures.follows) throw failures.follows;
       },
@@ -82,14 +86,15 @@ describe("new-chat-dialog", () => {
 
   function seedFollows(dataLayer, follows, did = "did:plc:me") {
     dataLayer.dataStore.setProfiles(follows);
-    dataLayer.dataStore.$profileFollows.set(did, { follows, cursor: null });
+    dataLayer.queryStore.set(profileFollowsQueryKey({ did }), {
+      pages: [{ items: follows.map((profile) => profile.did), cursor: null }],
+    });
   }
 
-  function seedSearchResults(dataLayer, actors) {
+  function seedSearchResults(dataLayer, query, actors) {
     dataLayer.dataStore.setProfiles(actors);
-    dataLayer.dataStore.$chatRecipientSearchResults.set({
-      actors,
-      cursor: null,
+    dataLayer.queryStore.set(chatRecipientSearchQueryKey({ query }), {
+      pages: [{ items: actors.map((actor) => actor.did), cursor: null }],
     });
   }
 
@@ -184,7 +189,9 @@ describe("new-chat-dialog", () => {
       createDialog(dataLayer);
       await flushMicrotasks();
       assert.deepEqual(followsSpy.mock.callCount(), 1);
-      assert.deepEqual(followsSpy.mock.calls[0].arguments[0], "did:plc:me");
+      assert.deepEqual(followsSpy.mock.calls[0].arguments[0], {
+        did: "did:plc:me",
+      });
     });
 
     it("should not reload follows that are already cached", async () => {
@@ -287,7 +294,7 @@ describe("new-chat-dialog", () => {
           allowIncoming: "all",
         }),
       ]);
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "dan", [
         createProfile({
           did: "did:plc:dan",
           handle: "dan.test",
@@ -342,10 +349,7 @@ describe("new-chat-dialog", () => {
         '[data-testid="new-chat-search-input"]',
       );
       assert.deepEqual(input.value, "");
-      assert.deepEqual(
-        searchSpy.mock.calls[searchSpy.mock.calls.length - 1].arguments[0],
-        "",
-      );
+      assert.deepEqual(searchSpy.mock.callCount(), 1);
       assert(
         [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
@@ -364,25 +368,22 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       await typeQuery(element, "  alice ");
       assert.deepEqual(searchSpy.mock.callCount(), 1);
-      assert.deepEqual(searchSpy.mock.calls[0].arguments[0], "alice");
-      assert.deepEqual(searchSpy.mock.calls[0].arguments[1].limit, 12);
+      assert.deepEqual(searchSpy.mock.calls[0].arguments[0], {
+        query: "alice",
+        limit: 12,
+      });
     });
 
-    it("should clear results immediately when the query is emptied", async () => {
+    it("should not call the loader when the query is empty", async () => {
       const { dataLayer, searchSpy } = makeDataLayer();
       const element = createDialog(dataLayer);
       await typeQuery(element, "");
-      assert.deepEqual(searchSpy.mock.callCount(), 1);
-      assert.deepEqual(searchSpy.mock.calls[0].arguments[0], "");
+      assert.deepEqual(searchSpy.mock.callCount(), 0);
     });
 
     it("should show skeletons while loading with no results yet", async () => {
       const { dataLayer } = makeDataLayer();
       const element = createDialog(dataLayer);
-      dataLayer.requests.statusStore.setLoading(
-        "loadChatRecipientSearch",
-        true,
-      );
       await typeQuery(element, "alice");
       assert(element.querySelectorAll(".profile-skeleton").length > 0);
     });
@@ -390,7 +391,7 @@ describe("new-chat-dialog", () => {
     it("should show the empty state when a settled search has no results", async () => {
       const { dataLayer } = makeDataLayer();
       const element = createDialog(dataLayer);
-      seedSearchResults(dataLayer, []);
+      seedSearchResults(dataLayer, "alice", []);
       await typeQuery(element, "alice");
       assert(
         [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
@@ -435,7 +436,7 @@ describe("new-chat-dialog", () => {
       );
     });
 
-    it("should search immediately and end with a clearing call when the query is emptied", async () => {
+    it("should search immediately and stop searching when the query is emptied", async () => {
       const { dataLayer, searchSpy } = makeDataLayer();
       const element = createDialog(dataLayer);
       const input = element.querySelector(
@@ -447,9 +448,11 @@ describe("new-chat-dialog", () => {
       input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
       await nextFrame();
       await nextFrame();
-      assert.deepEqual(searchSpy.mock.callCount(), 2);
-      assert.deepEqual(searchSpy.mock.calls[0].arguments[0], "al");
-      assert.deepEqual(searchSpy.mock.calls[1].arguments[0], "");
+      assert.deepEqual(searchSpy.mock.callCount(), 1);
+      assert.deepEqual(searchSpy.mock.calls[0].arguments[0], {
+        query: "al",
+        limit: 12,
+      });
     });
   });
 
@@ -462,7 +465,7 @@ describe("new-chat-dialog", () => {
         handle: "alice.test",
         allowIncoming: "all",
       });
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "test", [
         alice,
         alice,
         createProfile({ did: "did:plc:me", handle: "me.test" }),
@@ -478,7 +481,7 @@ describe("new-chat-dialog", () => {
     it("should sort messageable profiles first and disable the rest", async () => {
       const { dataLayer } = makeDataLayer();
       const element = createDialog(dataLayer);
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "test", [
         createProfile({
           did: "did:plc:carol",
           handle: "carol.test",
@@ -506,7 +509,7 @@ describe("new-chat-dialog", () => {
     it("should treat a missing allowIncoming declaration as following-only", async () => {
       const { dataLayer } = makeDataLayer();
       const element = createDialog(dataLayer);
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "test", [
         createProfile({
           did: "did:plc:follower",
           handle: "follower.test",
@@ -533,7 +536,7 @@ describe("new-chat-dialog", () => {
       element.addEventListener("dialog-closed", () => {
         closed = true;
       });
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "alice", [
         createProfile({
           did: "did:plc:alice",
           handle: "alice.test",
@@ -562,7 +565,7 @@ describe("new-chat-dialog", () => {
       });
       const element = createDialog(dataLayer);
       element.open();
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "alice", [
         createProfile({
           did: "did:plc:alice",
           handle: "alice.test",
@@ -589,7 +592,7 @@ describe("new-chat-dialog", () => {
       });
       const element = createDialog(dataLayer);
       element.open();
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "alice", [
         createProfile({
           did: "did:plc:alice",
           handle: "alice.test",
@@ -611,7 +614,7 @@ describe("new-chat-dialog", () => {
       });
       const element = createDialog(dataLayer);
       element.open();
-      seedSearchResults(dataLayer, [
+      seedSearchResults(dataLayer, "alice", [
         createProfile({
           did: "did:plc:alice",
           handle: "alice.test",

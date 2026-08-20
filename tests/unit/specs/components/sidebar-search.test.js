@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import "/js/components/sidebar-search.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 import { createProfile } from "../../../shared/factories.js";
+import {
+  searchTypeaheadQueryKey,
+  sidebarSearchTypeaheadQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 
 describe("sidebar-search", () => {
   const alice = createProfile({
@@ -96,19 +100,42 @@ describe("sidebar-search", () => {
 
   it("keeps its results out of the search view's typeahead store", async () => {
     const { element, dataLayer } = await mount();
-    dataLayer.dataStore.$searchTypeaheadResults.set({
-      actors: [{ did: "did:plc:searchview" }],
+    dataLayer.queryStore.set(searchTypeaheadQueryKey({ query: "ali" }), {
+      pages: [{ items: ["did:plc:searchview"], cursor: null }],
     });
 
     await type(element, "ali");
 
     assert.deepEqual(
-      dataLayer.dataStore.$sidebarSearchTypeaheadResults.get().actors[0].did,
-      "did:plc:alice",
+      dataLayer.queryStore.getItems(
+        sidebarSearchTypeaheadQueryKey({ query: "ali" }),
+      ),
+      ["did:plc:alice"],
     );
     assert.deepEqual(
-      dataLayer.dataStore.$searchTypeaheadResults.get().actors[0].did,
-      "did:plc:searchview",
+      dataLayer.queryStore.getItems(searchTypeaheadQueryKey({ query: "ali" })),
+      ["did:plc:searchview"],
+    );
+  });
+
+  it("keeps a separate slot per search term", async () => {
+    const { element, dataLayer, searchProfilesTypeahead } = await mount();
+
+    await type(element, "ali");
+    await type(element, "bob");
+
+    assert.deepEqual(searchProfilesTypeahead.mock.calls.length, 2);
+    assert.deepEqual(
+      dataLayer.queryStore.getItems(
+        sidebarSearchTypeaheadQueryKey({ query: "ali" }),
+      ),
+      ["did:plc:alice"],
+    );
+    assert.deepEqual(
+      dataLayer.queryStore.getItems(
+        sidebarSearchTypeaheadQueryKey({ query: "bob" }),
+      ),
+      ["did:plc:alice"],
     );
   });
 
@@ -138,7 +165,7 @@ describe("sidebar-search", () => {
   });
 
   it("clears and unfocuses the input after committing a search", async () => {
-    const { element, dataLayer } = await mount();
+    const { element } = await mount();
 
     input(element).focus();
     await type(element, "cats");
@@ -147,14 +174,10 @@ describe("sidebar-search", () => {
 
     assert.deepEqual(input(element).value, "");
     assert(document.activeElement !== input(element));
-    assert.deepEqual(
-      dataLayer.dataStore.$sidebarSearchTypeaheadResults.get(),
-      null,
-    );
   });
 
   it("clears and unfocuses the input after selecting a profile", async () => {
-    const { element, dataLayer } = await mount();
+    const { element } = await mount();
 
     input(element).focus();
     await type(element, "ali");
@@ -167,10 +190,6 @@ describe("sidebar-search", () => {
     assert(document.activeElement !== input(element));
     assert.deepEqual(
       element.querySelector("[data-testid='sidebar-search-typeahead']"),
-      null,
-    );
-    assert.deepEqual(
-      dataLayer.dataStore.$sidebarSearchTypeaheadResults.get(),
       null,
     );
   });
@@ -189,7 +208,7 @@ describe("sidebar-search", () => {
   });
 
   it("clears the input and typeahead with the clear button", async () => {
-    const { element, dataLayer } = await mount();
+    const { element } = await mount();
 
     await type(element, "cats");
     element
@@ -200,10 +219,6 @@ describe("sidebar-search", () => {
     assert.deepEqual(input(element).value, "");
     assert.deepEqual(
       element.querySelector("[data-testid='sidebar-search-typeahead']"),
-      null,
-    );
-    assert.deepEqual(
-      dataLayer.dataStore.$sidebarSearchTypeaheadResults.get(),
       null,
     );
   });

@@ -44,19 +44,39 @@ export default async function searchView({
 
   const TAB_LOADERS = {
     profiles: (query) =>
-      dataLayer.requests.loadProfileSearch(query, { limit: 25 }),
-    top: (query) => dataLayer.requests.loadPostSearchTop(query, { limit: 25 }),
+      dataLayer.requests.loadProfileSearch(
+        { query, limit: 25 },
+        { reload: true },
+      ),
+    top: (query) => dataLayer.requests.loadPostSearchTop({ query, limit: 25 }),
     latest: (query) =>
-      dataLayer.requests.loadPostSearchLatest(query, { limit: 25 }),
-    feeds: (query) => dataLayer.requests.loadFeedSearch(query, { limit: 15 }),
+      dataLayer.requests.loadPostSearchLatest({ query, limit: 25 }),
+    feeds: (query) =>
+      dataLayer.requests.loadFeedSearch({ query, limit: 15 }, { reload: true }),
   };
 
-  const TAB_STATUS_PREFIXES = {
-    profiles: "loadProfileSearch-",
-    top: "loadPostSearchTop-",
-    latest: "loadPostSearchLatest-",
-    feeds: "loadFeedSearch-",
+  const TAB_STATUS_SELECTORS = {
+    profiles: (query) => ({
+      loading: dataLayer.derived.$isProfileSearchLoading.get(query),
+      error: dataLayer.derived.$profileSearchError.get(query),
+    }),
+    top: (query) => ({
+      loading: dataLayer.derived.$isPostSearchTopLoading.get(query),
+      error: dataLayer.derived.$postSearchTopError.get(query),
+    }),
+    latest: (query) => ({
+      loading: dataLayer.derived.$isPostSearchLatestLoading.get(query),
+      error: dataLayer.derived.$postSearchLatestError.get(query),
+    }),
+    feeds: (query) => ({
+      loading: !dataLayer.derived.$feedSearchResults.get(query),
+      error: dataLayer.derived.$feedSearchError.get(query),
+    }),
   };
+
+  function getTabStatus(tab, query) {
+    return TAB_STATUS_SELECTORS[tab](query);
+  }
 
   function loadTabIfNeeded(tab) {
     const query = state.$committedQuery.get();
@@ -68,11 +88,7 @@ export default async function searchView({
     loadedTabs.add(tab);
     TAB_LOADERS[tab](query)
       .then(() => {
-        if (
-          dataLayer.requests.statusStore.getError(
-            TAB_STATUS_PREFIXES[tab] + query,
-          )
-        ) {
+        if (getTabStatus(tab, query).error) {
           loadedTabs.delete(tab);
         }
       })
@@ -84,7 +100,7 @@ export default async function searchView({
 
   function loadTypeahead(query) {
     dataLayer.requests
-      .loadSearchTypeahead(query, { limit: 8 })
+      .loadSearchTypeahead({ query, limit: 8 })
       .catch((error) => console.warn("Typeahead search failed", error));
   }
 
@@ -97,13 +113,6 @@ export default async function searchView({
     const url = new URL(window.location);
     url.searchParams.delete("q");
     window.history.replaceState({}, "", url);
-    dataLayer.requests.loadSearchTypeahead("");
-    dataLayer.requests.loadProfileSearch("");
-    if (isAuthenticated) {
-      dataLayer.requests.loadPostSearchTop("");
-      dataLayer.requests.loadPostSearchLatest("");
-      dataLayer.requests.loadFeedSearch("");
-    }
   }
 
   function handleInput(value) {
@@ -175,6 +184,12 @@ export default async function searchView({
   async function hydrateAndPruneRecentProfiles() {
     try {
       if (!isAuthenticated) return;
+      try {
+        await dataLayer.preferencesProvider.requirePreferences();
+      } catch (error) {
+        console.warn("Failed to load preferences", error);
+        return;
+      }
       const entries = dataLayer.derived.$recentSearchProfiles.get() ?? [];
       if (entries.length === 0) return;
       const dids = entries.map((entry) => entry.did);
@@ -237,39 +252,30 @@ export default async function searchView({
   }
 
   async function loadMoreProfiles() {
-    const cursor = dataLayer.derived.$profileSearchCursor.get();
+    const query = state.$committedQuery.get();
+    if (!query) return;
+    const cursor = dataLayer.derived.$profileSearchResults.get(query)?.cursor;
     if (!cursor) return;
-    await dataLayer.requests.loadProfileSearch(state.$committedQuery.get(), {
-      limit: 25,
-      cursor,
-    });
+    await dataLayer.requests.loadProfileSearch({ query, limit: 25 });
   }
 
   async function loadMoreTopPosts() {
-    const cursor = dataLayer.derived.$postSearchCursorTop.get();
-    if (!cursor) return;
-    await dataLayer.requests.loadPostSearchTop(state.$committedQuery.get(), {
-      limit: 25,
-      cursor,
-    });
+    const query = state.$committedQuery.get();
+    if (!query) return;
+    await dataLayer.requests.loadPostSearchTop({ query, limit: 25 });
   }
 
   async function loadMoreLatestPosts() {
-    const cursor = dataLayer.derived.$postSearchCursorLatest.get();
-    if (!cursor) return;
-    await dataLayer.requests.loadPostSearchLatest(state.$committedQuery.get(), {
-      limit: 25,
-      cursor,
-    });
+    const query = state.$committedQuery.get();
+    if (!query) return;
+    await dataLayer.requests.loadPostSearchLatest({ query, limit: 25 });
   }
 
   async function loadMoreFeeds() {
-    const cursor = dataLayer.derived.$feedSearchCursor.get();
-    if (!cursor) return;
-    await dataLayer.requests.loadFeedSearch(state.$committedQuery.get(), {
-      limit: 15,
-      cursor,
-    });
+    const query = state.$committedQuery.get();
+    if (!query) return;
+    if (!dataLayer.derived.$feedSearchCursor.get(query)) return;
+    await dataLayer.requests.loadFeedSearch({ query, limit: 15 });
   }
 
   const {
@@ -492,14 +498,14 @@ export default async function searchView({
     feedSearchHasMore,
     preferences,
   }) {
-    if (!feedSearchResults && status.loading) {
-      return html`<div class="search-status-message">Searching feeds…</div>`;
-    }
     if (status.error) {
       return html`<div class="search-status-message error">
         Failed to search feeds
         ${status.error.message ? html`(${status.error.message})` : ""}.
       </div>`;
+    }
+    if (!feedSearchResults && status.loading) {
+      return html`<div class="search-status-message">Searching feeds…</div>`;
     }
     if (!feedSearchResults || feedSearchResults.length === 0) {
       return html`<div class="search-status-message" data-testid="empty-state">
@@ -582,9 +588,7 @@ export default async function searchView({
   }
 
   function getActivePanelTemplate(activeTab, committedQuery, currentUser) {
-    const status = dataLayer.requests.statusStore.$statuses.get(
-      TAB_STATUS_PREFIXES[activeTab] + committedQuery,
-    );
+    const status = getTabStatus(activeTab, committedQuery);
     switch (activeTab) {
       case "top":
         return html`<div
@@ -592,8 +596,10 @@ export default async function searchView({
         >
           ${postSearchResultsTemplate({
             status,
-            postSearchResults: dataLayer.derived.$postSearchResultsTop.get(),
-            postSearchHasMore: !!dataLayer.derived.$postSearchCursorTop.get(),
+            postSearchResults:
+              dataLayer.derived.$postSearchResultsTop.get(committedQuery),
+            postSearchHasMore:
+              !!dataLayer.derived.$postSearchCursorTop.get(committedQuery),
             onLoadMore: loadMoreTopPosts,
             currentUser,
           })}
@@ -604,9 +610,10 @@ export default async function searchView({
         >
           ${postSearchResultsTemplate({
             status,
-            postSearchResults: dataLayer.derived.$postSearchResultsLatest.get(),
+            postSearchResults:
+              dataLayer.derived.$postSearchResultsLatest.get(committedQuery),
             postSearchHasMore:
-              !!dataLayer.derived.$postSearchCursorLatest.get(),
+              !!dataLayer.derived.$postSearchCursorLatest.get(committedQuery),
             onLoadMore: loadMoreLatestPosts,
             currentUser,
           })}
@@ -615,21 +622,25 @@ export default async function searchView({
         return html`<div class="search-results-panel">
           ${feedSearchResultsTemplate({
             status,
-            feedSearchResults: dataLayer.derived.$feedSearchResults.get(),
-            feedSearchHasMore: !!dataLayer.derived.$feedSearchCursor.get(),
+            feedSearchResults:
+              dataLayer.derived.$feedSearchResults.get(committedQuery),
+            feedSearchHasMore:
+              !!dataLayer.derived.$feedSearchCursor.get(committedQuery),
             preferences: dataLayer.derived.$preferences.get(),
           })}
         </div>`;
-      default:
+      default: {
+        const profileSearch =
+          dataLayer.derived.$profileSearchResults.get(committedQuery);
         return html`<div class="search-results-panel">
           ${profileSearchResultsTemplate({
             status,
-            profileSearchResults: dataLayer.derived.$profileSearchResults.get(),
-            profileSearchHasMore:
-              !!dataLayer.derived.$profileSearchCursor.get(),
+            profileSearchResults: profileSearch?.profiles ?? null,
+            profileSearchHasMore: !!profileSearch?.cursor,
             currentUser,
           })}
         </div>`;
+      }
     }
   }
 
@@ -658,7 +669,7 @@ export default async function searchView({
     if (mode === "typeahead") {
       bodyTemplate = typeaheadTemplate({
         query: trimmedInput,
-        profiles: dataLayer.derived.$searchTypeaheadResults.get(),
+        profiles: dataLayer.derived.$searchTypeaheadResults.get(trimmedInput),
         onCommit: commitSearch,
       });
     } else if (mode === "results") {

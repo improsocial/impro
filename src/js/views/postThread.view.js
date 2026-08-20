@@ -554,17 +554,16 @@ export default async function postThreadView({
   pageEffect(root, () => {
     const postThread = state.$postThread.get();
     const currentUser = dataLayer.derived.$currentUser.get();
-    const postThreadRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get("loadPostThread-" + postUri);
+    const postThreadError = dataLayer.derived.$postThreadError.get(postUri);
 
     render(
       html`<div id="post-detail-view">
         ${headerTemplate({ title: "Post" })}
         <main>
           ${(() => {
-            if (postThreadRequestStatus.error) {
+            if (postThreadError) {
               return postThreadErrorTemplate({
-                error: postThreadRequestStatus.error,
+                error: postThreadError,
               });
             } else if (postThread) {
               return threadTemplate({ postThread, currentUser });
@@ -642,6 +641,6 @@ export default async function postThreadView({
       }
     }
     // Revalidate
-    await dataLayer.requests.loadPostThread(postUri);
+    await dataLayer.requests.loadPostThread({ uri: postUri });
   });
 }

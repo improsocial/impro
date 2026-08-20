@@ -44,9 +44,8 @@ export default async function profileKnownFollowersView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const knownFollowers = dataLayer.derived.$knownFollowers.get(profileDid);
     const profile = dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
-    const requestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadKnownFollowers-" + profileDid,
-    );
+    const knownFollowersError =
+      dataLayer.derived.$knownFollowersError.get(profileDid);
     // Note, the knownFollowers response doesn't actually include a cursor right now
     // but we'll leave this here for future-proofing
     const hasMore = knownFollowers?.cursor ? true : false;
@@ -58,8 +57,8 @@ export default async function profileKnownFollowersView({
         })}
         <main style="position: relative;">
           ${(() => {
-            if (requestStatus.error) {
-              return errorTemplate({ error: requestStatus.error });
+            if (knownFollowersError) {
+              return errorTemplate({ error: knownFollowersError });
             }
             return profileFeedTemplate({
               profiles: knownFollowers?.followers ?? null,
@@ -82,10 +81,10 @@ export default async function profileKnownFollowersView({
   });
 
   async function loadKnownFollowers({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$knownFollowers.get(profileDid)?.cursor;
-    await dataLayer.requests.loadKnownFollowers(profileDid, { cursor });
+    await dataLayer.requests.loadKnownFollowers(
+      { did: profileDid },
+      { reload },
+    );
   }
 
   function loadPageData() {

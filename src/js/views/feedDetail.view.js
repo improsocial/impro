@@ -130,8 +130,12 @@ export default async function feedDetailView({
 
   async function loadFeed({ reload = false } = {}) {
     await dataLayer.requests.loadNextFeedPage(
-      { type: "feed", uri: feedUri },
-      { reload, limit: FEED_PAGE_SIZE + 1 },
+      {
+        type: "feed",
+        uri: feedUri,
+        limit: FEED_PAGE_SIZE + 1,
+      },
+      { reload },
     );
   }
 
@@ -142,6 +146,6 @@ export default async function feedDetailView({
 
   onPageShow(root, ({ action }) => {
     if (action === "restore") return;
-    loadPageData();
+    loadPageData().catch((error) => console.error(error));
   });
 }

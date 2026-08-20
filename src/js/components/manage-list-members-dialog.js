@@ -81,11 +81,14 @@ class ManageListMembersDialog extends Component {
   async _loadAllMembers() {
     const listUri = this.list.uri;
     try {
-      await this.dataLayer.requests.loadListMembers(listUri, { reload: true });
+      await this.dataLayer.requests.loadListMembers(
+        { listUri },
+        { reload: true },
+      );
       for (let i = 1; i < MAX_MEMBER_PAGES; i++) {
-        const data = this.dataLayer.dataStore.$listMembers.get(listUri);
-        if (!data?.cursor) break;
-        await this.dataLayer.requests.loadListMembers(listUri);
+        const cursor = this.dataLayer.derived.$listMembers.get(listUri)?.cursor;
+        if (cursor == null) break;
+        await this.dataLayer.requests.loadListMembers({ listUri });
       }
     } catch (error) {
       console.warn("Failed to load list members", error);
@@ -97,10 +100,8 @@ class ManageListMembersDialog extends Component {
   _onSearchInput(value) {
     this.state.$query.set(value);
     const query = value.trim();
-    if (!query) {
-      this.dataLayer.requests.loadChatRecipientSearch("");
-    } else {
-      this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
+    if (query) {
+      this.dataLayer.requests.loadChatRecipientSearch({ query, limit: 12 });
     }
     const results = this.querySelector(".search-dialog-results");
     if (results) results.scrollTop = 0;
@@ -134,30 +135,21 @@ class ManageListMembersDialog extends Component {
   }
 
   _memberDidToUri() {
-    const data = this.dataLayer.dataStore.$listMembers.get(this.list.uri);
-    const map = new Map();
-    if (!data) return map;
-    for (const item of data.items) {
-      map.set(item.subject.did, item.uri);
-    }
-    return map;
+    return this.dataLayer.derived.$listMemberItemUris.get(this.list.uri);
   }
 
   render() {
     const query = this.state.$query.get().trim();
     const currentUserDid = this.dataLayer.derived.$currentUser.get()?.did;
     const searchResults =
-      this.dataLayer.derived.$chatRecipientSearchResults.get();
-    const searchStatus = this.dataLayer.requests.statusStore.$statuses.get(
-      "loadChatRecipientSearch",
-    );
+      this.dataLayer.derived.$chatRecipientSearchResults.get(query);
+    const searchError =
+      this.dataLayer.derived.$chatRecipientSearchError.get(query);
     const profileFollows = currentUserDid
       ? this.dataLayer.derived.$profileFollows.get(currentUserDid)?.follows
       : null;
-    const profileFollowsStatus = currentUserDid
-      ? this.dataLayer.requests.statusStore.$statuses.get(
-          `loadProfileFollows-${currentUserDid}`,
-        )
+    const profileFollowsError = currentUserDid
+      ? this.dataLayer.derived.$profileFollowsError.get(currentUserDid)
       : null;
     const memberDidToUri = this._memberDidToUri();
     const membersLoaded = this.state.$membersLoaded.get();
@@ -235,7 +227,7 @@ class ManageListMembersDialog extends Component {
             <div class="search-dialog-results">
               ${(() => {
                 if (query) {
-                  if (searchStatus?.error) {
+                  if (searchError) {
                     return html`<div
                       class="search-dialog-message"
                       data-testid="manage-list-members-error"
@@ -250,7 +242,7 @@ class ManageListMembersDialog extends Component {
                   });
                 }
                 let suggestedProfiles = null;
-                if (profileFollowsStatus?.error) {
+                if (profileFollowsError) {
                   suggestedProfiles = [];
                 } else if (profileFollows) {
                   suggestedProfiles = profileFollows;

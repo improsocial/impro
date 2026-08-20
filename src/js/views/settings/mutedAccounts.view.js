@@ -13,10 +13,7 @@ export default async function settingsMutedAccountsView({
   await auth.requireAuth();
 
   async function loadMutedAccounts({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$mutedProfiles.get()?.cursor;
-    await dataLayer.requests.loadMutedProfiles({ cursor });
+    await dataLayer.requests.loadMutedProfiles({}, { reload });
   }
 
   function loadPageData() {
@@ -37,8 +34,7 @@ export default async function settingsMutedAccountsView({
 
   pageEffect(root, () => {
     const mutedProfiles = dataLayer.derived.$mutedProfiles.get();
-    const status =
-      dataLayer.requests.statusStore.$statuses.get("loadMutedProfiles");
+    const error = dataLayer.derived.$mutedProfilesError.get();
     const hasMore = mutedProfiles?.cursor ? true : false;
 
     render(
@@ -53,8 +49,8 @@ export default async function settingsMutedAccountsView({
             notifications. Mutes are completely private.
           </p>
           ${(() => {
-            if (status.error) {
-              return errorTemplate({ error: status.error });
+            if (error) {
+              return errorTemplate({ error });
             }
             return profileFeedTemplate({
               profiles: mutedProfiles?.mutes ?? null,

@@ -13,10 +13,7 @@ export default async function settingsBlockedAccountsView({
   await auth.requireAuth();
 
   async function loadBlockedAccounts({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$blockedProfiles.get()?.cursor;
-    await dataLayer.requests.loadBlockedProfiles({ cursor });
+    await dataLayer.requests.loadBlockedProfiles({}, { reload });
   }
 
   function loadPageData() {
@@ -37,9 +34,7 @@ export default async function settingsBlockedAccountsView({
 
   pageEffect(root, () => {
     const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
-    const status = dataLayer.requests.statusStore.$statuses.get(
-      "loadBlockedProfiles",
-    );
+    const error = dataLayer.derived.$blockedProfilesError.get();
     const hasMore = blockedProfiles?.cursor ? true : false;
 
     render(
@@ -54,8 +49,8 @@ export default async function settingsBlockedAccountsView({
             interact with you. You won't see their content.
           </p>
           ${(() => {
-            if (status.error) {
-              return errorTemplate({ error: status.error });
+            if (error) {
+              return errorTemplate({ error });
             }
             return profileFeedTemplate({
               profiles: blockedProfiles?.blocks ?? null,

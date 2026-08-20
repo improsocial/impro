@@ -1,72 +1,32 @@
 import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
+import { pinnedItemsQueryKey, Resources } from "/js/dataLayer/queryKeys.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.
 export class DataStore extends ReactiveStore {
-  constructor(sessionState) {
+  constructor(sessionState, queryStore) {
     super("dataStore");
     this.sessionState = sessionState;
+    this.queryStore = queryStore;
     // Single-value signals
     this.$currentUser = new Signal.State(null);
-    this.$profileSearchResults = new Signal.State(null);
-    this.$chatRecipientSearchResults = new Signal.State(null);
-    this.$searchTypeaheadResults = new Signal.State(null);
-    this.$sidebarSearchTypeaheadResults = new Signal.State(null);
-    this.$feedSearchResults = new Signal.State(null);
-    this.$notifications = new Signal.State(null);
-    this.$mentionNotifications = new Signal.State(null);
     this.$notificationsLastSeenAt = new Signal.State(null);
-    this.$pinnedItems = new Signal.State(null);
     this.$selectedFeedUri = this.sessionState.$selectedFeedUri;
-    this.$bookmarks = new Signal.State(null);
-    this.$drafts = new Signal.State(null);
-    this.$convoList = new Signal.State(null);
-    this.$convoRequestList = new Signal.State(null);
-    this.$blockedProfiles = new Signal.State(null);
-    this.$mutedProfiles = new Signal.State(null);
-    this.$latestProfileSearchRequestTime = new Signal.State(null);
-    this.$latestChatRecipientSearchRequestTime = new Signal.State(null);
-    this.$latestSearchTypeaheadRequestTime = new Signal.State(null);
-    this.$latestSidebarSearchTypeaheadRequestTime = new Signal.State(null);
-    this.$latestFeedSearchRequestTime = new Signal.State(null);
-    this.$trends = new Signal.State(null);
-    this.$postSearchResultsTop = new Signal.State(null);
-    this.$postSearchResultsLatest = new Signal.State(null);
-    this.$latestPostSearchRequestTimeTop = new Signal.State(null);
-    this.$latestPostSearchRequestTimeLatest = new Signal.State(null);
-    this.$gifResults = new Signal.State(null);
-    this.$latestGifRequestTime = new Signal.State(null);
     // Keyed signals
     this.$showLessInteractions = new SignalMap();
     this.$showMoreInteractions = new SignalMap();
-    this.$feeds = new SignalMap();
     this.$posts = new SignalMap();
     this.$embeddedPosts = new SignalMap();
-    this.$postThreads = new SignalMap();
-    this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
     this.$detailedProfiles = new SignalMap();
-    this.$authorFeeds = new SignalMap();
     this.$unavailablePosts = new SignalMap();
     this.$reposts = new SignalMap();
     this.$convos = new SignalMap();
-    this.$convoMemberLists = new SignalMap();
-    this.$convoMessages = new SignalMap();
     this.$messages = new SignalMap();
-    this.$postLikes = new SignalMap();
-    this.$postQuotes = new SignalMap();
-    this.$postReposts = new SignalMap();
     this.$feedGenerators = new SignalMap();
     this.$lists = new SignalMap();
     this.$starterPacks = new SignalMap();
-    this.$listMembers = new SignalMap();
-    this.$actorFeeds = new SignalMap();
-    this.$actorLists = new SignalMap();
-    this.$listsWithMembershipByActor = new SignalMap();
-    this.$hashtagFeeds = new SignalMap();
-    this.$profileFollowers = new SignalMap();
-    this.$profileFollows = new SignalMap();
-    this.$knownFollowers = new SignalMap();
+    this.$listItemUris = new SignalMap();
     this.$profileChatStatus = new SignalMap();
     this.$labelerInfo = new SignalMap();
     this.$joinLinkPreviewsByCode = new SignalMap();
@@ -98,6 +58,29 @@ export class DataStore extends ReactiveStore {
     }
   }
 
+  // map of dids -> listitem uris per list
+  setListItemUris(listUri, items) {
+    const map = new Map(this.$listItemUris.get(listUri));
+    for (const item of items) {
+      map.set(item.subject.did, item.uri);
+    }
+    this.$listItemUris.set(listUri, map);
+  }
+
+  setListItemUri(listUri, did, uri) {
+    const map = new Map(this.$listItemUris.get(listUri));
+    map.set(did, uri);
+    this.$listItemUris.set(listUri, map);
+  }
+
+  deleteListItemUri(listUri, did) {
+    const existing = this.$listItemUris.get(listUri);
+    if (!existing) return;
+    const map = new Map(existing);
+    map.delete(did);
+    this.$listItemUris.set(listUri, map);
+  }
+
   setProfiles(profiles) {
     for (const profile of profiles) {
       this.$profiles.set(profile.did, profile);
@@ -108,44 +91,22 @@ export class DataStore extends ReactiveStore {
   setConvo(convo) {
     this.$convos.set(convo.id, convo);
     const isRequest = convo.status === "request";
-    const destinationSignal = isRequest
-      ? this.$convoRequestList
-      : this.$convoList;
-    const destinationList = destinationSignal.get();
-    if (destinationList) {
-      const inList = destinationList.convos.some(
-        (listConvo) => listConvo.id === convo.id,
-      );
-      destinationSignal.set({
-        convos: inList
-          ? destinationList.convos.map((listConvo) =>
-              listConvo.id === convo.id ? convo : listConvo,
-            )
-          : [convo, ...destinationList.convos],
-        cursor: destinationList.cursor,
-      });
+    if (isRequest) {
+      this.queryStore.prependToResource(Resources.CONVO_REQUEST_LIST, convo.id);
+      return;
     }
+    this.queryStore.prependToResource(Resources.CONVO_LIST, convo.id);
     // Remove accepted convo from the request list if it's there
-    if (!isRequest) {
-      const requestList = this.$convoRequestList.get();
-      if (
-        requestList &&
-        requestList.convos.some((listConvo) => listConvo.id === convo.id)
-      ) {
-        this.$convoRequestList.set({
-          convos: requestList.convos.filter(
-            (listConvo) => listConvo.id !== convo.id,
-          ),
-          cursor: requestList.cursor,
-        });
-      }
-    }
+    this.queryStore.removeFromResource(Resources.CONVO_REQUEST_LIST, convo.id);
   }
 
   // All pinned item writes go through here so the selected feed can't dangle:
   // a selection that's no longer pinned falls back to the first pinned item.
   setPinnedItems(pinnedItems) {
-    this.$pinnedItems.set(pinnedItems);
+    this.queryStore.replacePages(pinnedItemsQueryKey(), {
+      items: pinnedItems,
+      cursor: null,
+    });
     const selectedFeedUri = this.$selectedFeedUri.get();
     if (!selectedFeedUri) {
       return;

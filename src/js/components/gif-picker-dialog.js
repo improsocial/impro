@@ -310,9 +310,11 @@ class GifPickerDialog extends Component {
     if (effectiveQuery === this._lastLoadedQuery) return;
     this._lastLoadedQuery = effectiveQuery;
     this._resetScroll();
-    this.dataLayer.requests.loadGifs(effectiveQuery).catch((error) => {
-      console.warn("Failed to load GIFs", error);
-    });
+    this.dataLayer.requests
+      .loadGifs({ query: effectiveQuery })
+      .catch((error) => {
+        console.warn("Failed to load GIFs", error);
+      });
   }
 
   _resetScroll() {
@@ -352,26 +354,36 @@ class GifPickerDialog extends Component {
   }
 
   _onRetry() {
-    this._lastLoadedQuery = null;
-    this._loadForCurrentState();
+    const { isRecentsMode, effectiveQuery } = this._getEffectiveState();
+    if (isRecentsMode) return;
+    this._lastLoadedQuery = effectiveQuery;
+    this._resetScroll();
+    this.dataLayer.requests
+      .loadGifs({ query: effectiveQuery, reload: true })
+      .catch((error) => {
+        console.warn("Failed to load GIFs", error);
+      });
   }
 
   _onLoadMore(resume) {
     const { isRecentsMode, effectiveQuery } = this._getEffectiveState();
-    const cursor = untrack(() => this.dataLayer.derived.$gifCursor.get());
-    const status = untrack(() =>
-      this.dataLayer.requests.statusStore.$statuses.get(
-        `loadGifs-${effectiveQuery}`,
-      ),
+    const cursor = untrack(() =>
+      this.dataLayer.derived.$gifCursor.get(effectiveQuery),
     );
-    if (isRecentsMode || !cursor || status?.loading || status?.error) {
+    const loading = untrack(() =>
+      this.dataLayer.derived.$isGifsLoading.get(effectiveQuery),
+    );
+    const error = untrack(() =>
+      this.dataLayer.derived.$gifsError.get(effectiveQuery),
+    );
+    if (isRecentsMode || !cursor || loading || error) {
       resume();
       return;
     }
     this.dataLayer.requests
-      .loadGifs(effectiveQuery, { cursor })
-      .catch((error) => {
-        console.warn("Failed to load more GIFs", error);
+      .loadGifs({ query: effectiveQuery })
+      .catch((loadError) => {
+        console.warn("Failed to load more GIFs", loadError);
       })
       .finally(() => resume());
   }
@@ -391,15 +403,18 @@ class GifPickerDialog extends Component {
     const debouncedQuery = this.state.$debouncedQuery.get();
     const activeCategory = this.state.$activeCategory.get();
     const recentGifs = this.dataLayer?.derived.$recentGifs.get() ?? [];
-    const gifResults = this.dataLayer?.derived.$gifResults.get() ?? null;
-    const gifCursor = this.dataLayer?.derived.$gifCursor.get() ?? null;
     const isRecentsMode = !debouncedQuery && activeCategory === "recents";
     const effectiveQuery = debouncedQuery
       ? debouncedQuery
       : (getCategory(activeCategory)?.searchTerm ?? "");
-    const status = this.dataLayer?.requests.statusStore.$statuses.get(
-      `loadGifs-${effectiveQuery}`,
-    );
+    const gifResults =
+      this.dataLayer?.derived.$gifResults.get(effectiveQuery) ?? null;
+    const gifCursor =
+      this.dataLayer?.derived.$gifCursor.get(effectiveQuery) ?? null;
+    const loading =
+      this.dataLayer?.derived.$isGifsLoading.get(effectiveQuery) ?? false;
+    const error =
+      this.dataLayer?.derived.$gifsError.get(effectiveQuery) ?? null;
 
     render(
       html`
@@ -446,8 +461,8 @@ class GifPickerDialog extends Component {
                 : gifResultsBodyTemplate({
                     gifResults,
                     cursor: gifCursor,
-                    loading: status?.loading ?? false,
-                    error: status?.error ?? null,
+                    loading,
+                    error,
                     typedQuery: debouncedQuery,
                     onSelect: (gif) => this._onSelectGif(gif),
                     onLoadMore: (resume) => this._onLoadMore(resume),

@@ -132,8 +132,9 @@ class SidebarSearch extends Component {
   render() {
     const inputValue = this.$inputValue.get();
     const showTypeahead = this.$showTypeahead.get();
+    const query = inputValue.trim();
     const profiles = showTypeahead
-      ? this.dataLayer.derived.$sidebarSearchTypeaheadResults.get()
+      ? this.dataLayer.derived.$sidebarSearchTypeaheadResults.get(query)
       : null;
     render(
       sidebarSearchTemplate({
@@ -154,7 +155,7 @@ class SidebarSearch extends Component {
 
   loadTypeahead(query) {
     this.dataLayer.requests
-      .loadSidebarSearchTypeahead(query, { limit: TYPEAHEAD_LIMIT })
+      .loadSidebarSearchTypeahead({ query, limit: TYPEAHEAD_LIMIT })
       .catch((error) => console.warn("Typeahead search failed", error));
   }
 
@@ -163,7 +164,6 @@ class SidebarSearch extends Component {
     const trimmed = value.trim();
     if (!trimmed) {
       this.$showTypeahead.set(false);
-      this.loadTypeahead("");
       return;
     }
     this.$showTypeahead.set(true);
@@ -190,7 +190,6 @@ class SidebarSearch extends Component {
   reset() {
     this.$inputValue.set("");
     this.$showTypeahead.set(false);
-    this.loadTypeahead("");
   }
 
   handleClear() {

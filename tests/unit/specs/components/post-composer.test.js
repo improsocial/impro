@@ -10,6 +10,7 @@ import {
 } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { draftsQueryKey } from "/js/dataLayer/queryKeys.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { createGif } from "../../../shared/factories.js";
 import "/js/components/post-composer.js";
@@ -3364,7 +3365,9 @@ describe("post-composer", () => {
   describe("PostComposer - drafts dialog wiring", () => {
     function makeDraftsDataLayer() {
       const dataLayer = makeTestDataLayer();
-      dataLayer.dataStore.$drafts.set({ drafts: [], cursor: null });
+      dataLayer.queryStore.set(draftsQueryKey(), {
+        pages: [{ items: [], cursor: null }],
+      });
       return dataLayer;
     }
 

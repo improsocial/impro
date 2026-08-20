@@ -47,7 +47,7 @@ export class Declarative {
   async ensureKnownFollowers(profileDid) {
     let knownFollowers = this.derived.$knownFollowers.get(profileDid);
     if (!knownFollowers) {
-      await this.requests.loadKnownFollowers(profileDid);
+      await this.requests.loadKnownFollowers({ did: profileDid });
       knownFollowers = this.derived.$knownFollowers.get(profileDid);
     }
     if (!knownFollowers) {
@@ -59,7 +59,7 @@ export class Declarative {
   async ensureProfileFollows(profileDid) {
     let profileFollows = this.derived.$profileFollows.get(profileDid);
     if (!profileFollows) {
-      await this.requests.loadProfileFollows(profileDid);
+      await this.requests.loadProfileFollows({ did: profileDid });
       profileFollows = this.derived.$profileFollows.get(profileDid);
     }
     if (!profileFollows) {
@@ -89,10 +89,10 @@ export class Declarative {
     return profileDids.map((did) => getProfile(did) ?? null);
   }
 
-  async ensurePostThread(postURI, { labelers = [] } = {}) {
+  async ensurePostThread(postURI) {
     let postThread = this.derived.$hydratedPostThreads.get(postURI);
     if (!postThread) {
-      await this.requests.loadPostThread(postURI, { labelers });
+      await this.requests.loadPostThread({ uri: postURI });
       postThread = this.derived.$hydratedPostThreads.get(postURI);
     }
     if (!postThread) {

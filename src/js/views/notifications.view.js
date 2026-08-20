@@ -742,15 +742,14 @@ export default async function notificationsView({
     const activeTab = state.$activeTab.get();
     const currentUser = dataLayer.derived.$currentUser.get();
     const notifications = dataLayer.derived.$notifications.get();
-    const notificationsRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get("loadNotifications");
+    const notificationsError = dataLayer.derived.$notificationsError.get();
     const groupedNotifications = groupNotificationsByType(notifications);
     const cursor = dataLayer.derived.$notificationCursor.get();
     const hasMore = !!cursor;
 
     const mentionNotifications = dataLayer.derived.$mentionNotifications.get();
-    const mentionNotificationsRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get("loadMentionNotifications");
+    const mentionNotificationsError =
+      dataLayer.derived.$mentionNotificationsError.get();
     const groupedMentionNotifications =
       groupNotificationsByType(mentionNotifications);
     const mentionCursor = dataLayer.derived.$mentionNotificationCursor.get();
@@ -758,11 +757,8 @@ export default async function notificationsView({
 
     const isLoading =
       activeTab === "all"
-        ? notificationsRequestStatus.loading &&
-          state.$isReloadingNotifications.get() &&
-          !!notifications
-        : mentionNotificationsRequestStatus.loading &&
-          state.$isReloadingMentionNotifications.get() &&
+        ? state.$isReloadingNotifications.get() && !!notifications
+        : state.$isReloadingMentionNotifications.get() &&
           !!mentionNotifications;
 
     render(
@@ -787,9 +783,9 @@ export default async function notificationsView({
         <main>
           <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
             ${(() => {
-              if (notificationsRequestStatus.error) {
+              if (notificationsError) {
                 return notificationsErrorTemplate({
-                  error: notificationsRequestStatus.error,
+                  error: notificationsError,
                 });
               } else if (groupedNotifications) {
                 return notificationsTemplate({
@@ -805,9 +801,9 @@ export default async function notificationsView({
           </div>
           <div class="notifications-feed" ?hidden=${activeTab !== "mentions"}>
             ${(() => {
-              if (mentionNotificationsRequestStatus.error) {
+              if (mentionNotificationsError) {
                 return notificationsErrorTemplate({
-                  error: mentionNotificationsRequestStatus.error,
+                  error: mentionNotificationsError,
                 });
               } else if (groupedMentionNotifications) {
                 return notificationsTemplate({
@@ -835,19 +831,23 @@ export default async function notificationsView({
   });
 
   async function loadNotifications({ reload = false } = {}) {
-    await dataLayer.requests.loadNotifications({
-      reload,
-      limit: NOTIFICATIONS_PAGE_SIZE,
-    });
+    await dataLayer.requests.loadNotifications(
+      {
+        limit: NOTIFICATIONS_PAGE_SIZE,
+      },
+      { reload },
+    );
     // can be called async
     notificationService.markNotificationsAsRead();
   }
 
   async function loadMentionNotifications({ reload = false } = {}) {
-    await dataLayer.requests.loadMentionNotifications({
-      reload,
-      limit: NOTIFICATIONS_PAGE_SIZE,
-    });
+    await dataLayer.requests.loadMentionNotifications(
+      {
+        limit: NOTIFICATIONS_PAGE_SIZE,
+      },
+      { reload },
+    );
   }
 
   onPageShow(root, async ({ scrollY }) => {

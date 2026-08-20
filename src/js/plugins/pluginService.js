@@ -643,7 +643,7 @@ export class PluginService extends ReactiveStore {
   }
 
   _resolveFeedAttribution(postUri, feedUri) {
-    const feed = this._dataLayer.dataStore.$feeds.get(feedUri);
+    const feed = this._dataLayer.getCachedFeed(feedUri);
     const feedItem = feed?.feed.find((item) => item.post.uri === postUri);
     const feedGenerator = this._dataLayer.derived.$feedGenerators.get(feedUri);
     return {
@@ -1230,12 +1230,11 @@ export class PluginService extends ReactiveStore {
   }
 
   async refreshFeedFilters(feedURI = null) {
-    const feedURIs = feedURI
-      ? [feedURI]
-      : Array.from(this._dataLayer.dataStore.$feeds.keys());
+    const cachedFeeds = feedURI
+      ? [{ uri: feedURI, feed: this._dataLayer.getCachedFeed(feedURI) }]
+      : this._dataLayer.getCachedFeeds();
     await Promise.all(
-      feedURIs.map(async (uri) => {
-        const feed = this._dataLayer.dataStore.$feeds.get(uri);
+      cachedFeeds.map(async ({ uri, feed }) => {
         if (!feed) return;
         const overrides = await this.getFilteredFeedItems(uri, feed);
         this._hiddenFeedItemsStore.replace(uri, overrides);

@@ -5,6 +5,23 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { StatusStore } from "/js/dataLayer/requests.js";
+import { QueryStore } from "/js/dataLayer/queryStore.js";
+import {
+  actorListsQueryKey,
+  authorFeedQueryKey,
+  blockedProfilesQueryKey,
+  bookmarksQueryKey,
+  convoListQueryKey,
+  convoMessagesQueryKey,
+  convoRequestListQueryKey,
+  listMembersQueryKey,
+  listsWithMembershipQueryKey,
+  mutedProfilesQueryKey,
+  pinnedItemsQueryKey,
+  postThreadOtherQueryKey,
+  postThreadQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
@@ -19,7 +36,17 @@ const mockIdentityResolver = {
   resolveHandle: async () => null,
 };
 
-function makeMutations(api, dataStore, patchStore, preferencesProvider) {
+function seedPinnedItems(queryStore, items) {
+  queryStore.replacePages(pinnedItemsQueryKey(), { items, cursor: null });
+}
+
+function makeMutations(
+  api,
+  dataStore,
+  patchStore,
+  preferencesProvider,
+  queryStore = new QueryStore(),
+) {
   return new Mutations(
     api,
     dataStore,
@@ -27,6 +54,7 @@ function makeMutations(api, dataStore, patchStore, preferencesProvider) {
     preferencesProvider,
     mockIdentityResolver,
     new DraftMediaStore("test-media"),
+    queryStore,
   );
 }
 
@@ -42,6 +70,7 @@ function makeDerived(
   patchStore,
   preferencesProvider,
   isAuthenticated = true,
+  queryStore = new QueryStore(),
 ) {
   // Derived' $preferences computed reads `preferencesProvider.$preferences.get()`.
   // If the provider doesn't supply that signal, give it a passthrough.
@@ -62,6 +91,8 @@ function makeDerived(
     new HiddenFeedItemsStore(),
     isAuthenticated,
     new DraftMediaStore("test-media"),
+    new StatusStore(),
+    queryStore,
   );
 }
 
@@ -1087,24 +1118,36 @@ describe("pinPost", () => {
   function setup(mockApi, { pinnedPost = null, authorFeed = null } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
+    const queryStore = new QueryStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$currentUser.set({ ...testUser, pinnedPost });
     if (authorFeed) {
-      dataStore.$authorFeeds.set(`${testUser.did}-posts`, authorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: testUser.did, feedType: "posts" }),
+        { pages: [{ items: authorFeed.feed, cursor: authorFeed.cursor }] },
+      );
     }
-    const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
+    const derived = makeDerived(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      true,
+      queryStore,
+    );
     return {
       mutations: makeMutations(
         mockApi,
         dataStore,
         patchStore,
         mockPreferencesProvider,
+        queryStore,
       ),
       dataStore,
       patchStore,
       derived,
+      queryStore,
     };
   }
 
@@ -1141,13 +1184,15 @@ describe("pinPost", () => {
       getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
       putProfileRecord: async () => ({}),
     };
-    const { mutations, dataStore } = setup(mockApi, {
+    const { mutations, queryStore } = setup(mockApi, {
       authorFeed: { feed: [otherItem, targetItem], cursor: "" },
     });
 
     await mutations.pinPost(testPost);
 
-    const feed = dataStore.$authorFeeds.get(`${testUser.did}-posts`).feed;
+    const feed = queryStore.getItems(
+      authorFeedQueryKey({ did: testUser.did, feedType: "posts" }),
+    );
     assert.deepEqual(feed[0].post.uri, testPost.uri);
     assert.deepEqual(feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
     assert.deepEqual(feed.length, 2);
@@ -1261,12 +1306,16 @@ describe("unpinPost", () => {
   function setup(mockApi, { pinnedPost, authorFeed = null } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
+    const queryStore = new QueryStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$currentUser.set({ ...testUser, pinnedPost });
     if (authorFeed) {
-      dataStore.$authorFeeds.set(`${testUser.did}-posts`, authorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: testUser.did, feedType: "posts" }),
+        { pages: [{ items: authorFeed.feed, cursor: authorFeed.cursor }] },
+      );
     }
     return {
       mutations: makeMutations(
@@ -1274,8 +1323,10 @@ describe("unpinPost", () => {
         dataStore,
         patchStore,
         mockPreferencesProvider,
+        queryStore,
       ),
       dataStore,
+      queryStore,
     };
   }
 
@@ -1362,34 +1413,40 @@ describe("muteProfile", () => {
 
   it("should prepend muted profile to the cached list", async () => {
     const { mutations, dataStore } = setup();
-    const existing = { did: "did:plc:other", viewer: { muted: true } };
-    dataStore.$mutedProfiles.set({ mutes: [existing], cursor: "abc" });
-
-    await mutations.muteProfile(profile);
-
-    const stored = dataStore.$mutedProfiles.get();
-    assert.deepEqual(stored.mutes.length, 2);
-    assert.deepEqual(stored.mutes[0].did, profile.did);
-    assert.deepEqual(stored.mutes[1].did, existing.did);
-    assert.deepEqual(stored.cursor, "abc");
-  });
-
-  it("should not duplicate when already present in the cached list", async () => {
-    const { mutations, dataStore } = setup();
-    dataStore.$mutedProfiles.set({
-      mutes: [{ ...profile, viewer: { muted: true } }],
-      cursor: null,
+    const existingDid = "did:plc:other";
+    mutations.queryStore.set(mutedProfilesQueryKey(), {
+      pages: [{ items: [existingDid], cursor: "abc" }],
     });
 
     await mutations.muteProfile(profile);
 
-    assert.deepEqual(dataStore.$mutedProfiles.get().mutes.length, 1);
+    assert.deepEqual(mutations.queryStore.getItems(mutedProfilesQueryKey()), [
+      profile.did,
+      existingDid,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(mutedProfilesQueryKey()),
+      "abc",
+    );
+  });
+
+  it("should not duplicate when already present in the cached list", async () => {
+    const { mutations, dataStore } = setup();
+    mutations.queryStore.set(mutedProfilesQueryKey(), {
+      pages: [{ items: [profile.did], cursor: null }],
+    });
+
+    await mutations.muteProfile(profile);
+
+    assert.deepEqual(mutations.queryStore.getItems(mutedProfilesQueryKey()), [
+      profile.did,
+    ]);
   });
 
   it("should not initialize the cached list if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.muteProfile(profile);
-    assert.deepEqual(dataStore.$mutedProfiles.get(), null);
+    assert.deepEqual(mutations.queryStore.get(mutedProfilesQueryKey()), null);
   });
 });
 
@@ -1423,28 +1480,34 @@ describe("unmuteProfile", () => {
 
   it("should remove profile from the cached list", async () => {
     const { mutations, dataStore } = setup();
-    const other = { did: "did:plc:other", viewer: { muted: true } };
-    dataStore.$mutedProfiles.set({
-      mutes: [profile, other],
-      cursor: "abc",
+    const otherDid = "did:plc:other";
+    mutations.queryStore.set(mutedProfilesQueryKey(), {
+      pages: [{ items: [profile.did, otherDid], cursor: "abc" }],
     });
 
     await mutations.unmuteProfile(profile);
 
-    const stored = dataStore.$mutedProfiles.get();
-    assert.deepEqual(stored.mutes.length, 1);
-    assert.deepEqual(stored.mutes[0].did, other.did);
-    assert.deepEqual(stored.cursor, "abc");
+    assert.deepEqual(mutations.queryStore.getItems(mutedProfilesQueryKey()), [
+      otherDid,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(mutedProfilesQueryKey()),
+      "abc",
+    );
   });
 
   it("should be a no-op on the cached list when not present", async () => {
     const { mutations, dataStore } = setup();
-    const other = { did: "did:plc:other", viewer: { muted: true } };
-    dataStore.$mutedProfiles.set({ mutes: [other], cursor: null });
+    const otherDid = "did:plc:other";
+    mutations.queryStore.set(mutedProfilesQueryKey(), {
+      pages: [{ items: [otherDid], cursor: null }],
+    });
 
     await mutations.unmuteProfile(profile);
 
-    assert.deepEqual(dataStore.$mutedProfiles.get().mutes.length, 1);
+    assert.deepEqual(mutations.queryStore.getItems(mutedProfilesQueryKey()), [
+      otherDid,
+    ]);
   });
 });
 
@@ -1482,37 +1545,40 @@ describe("blockProfile", () => {
 
   it("should prepend blocked profile to the cached list", async () => {
     const { mutations, dataStore } = setup();
-    const existing = {
-      did: "did:plc:other",
-      viewer: { blocking: "at://existing-block" },
-    };
-    dataStore.$blockedProfiles.set({ blocks: [existing], cursor: "abc" });
-
-    await mutations.blockProfile(profile);
-
-    const stored = dataStore.$blockedProfiles.get();
-    assert.deepEqual(stored.blocks.length, 2);
-    assert.deepEqual(stored.blocks[0].did, profile.did);
-    assert.deepEqual(stored.blocks[1].did, existing.did);
-    assert.deepEqual(stored.cursor, "abc");
-  });
-
-  it("should not duplicate when already present in the cached list", async () => {
-    const { mutations, dataStore } = setup();
-    dataStore.$blockedProfiles.set({
-      blocks: [{ ...profile, viewer: { blocking: blockUri } }],
-      cursor: null,
+    const existingDid = "did:plc:other";
+    mutations.queryStore.set(blockedProfilesQueryKey(), {
+      pages: [{ items: [existingDid], cursor: "abc" }],
     });
 
     await mutations.blockProfile(profile);
 
-    assert.deepEqual(dataStore.$blockedProfiles.get().blocks.length, 1);
+    assert.deepEqual(mutations.queryStore.getItems(blockedProfilesQueryKey()), [
+      profile.did,
+      existingDid,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(blockedProfilesQueryKey()),
+      "abc",
+    );
+  });
+
+  it("should not duplicate when already present in the cached list", async () => {
+    const { mutations, dataStore } = setup();
+    mutations.queryStore.set(blockedProfilesQueryKey(), {
+      pages: [{ items: [profile.did], cursor: null }],
+    });
+
+    await mutations.blockProfile(profile);
+
+    assert.deepEqual(mutations.queryStore.getItems(blockedProfilesQueryKey()), [
+      profile.did,
+    ]);
   });
 
   it("should not initialize the cached list if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.blockProfile(profile);
-    assert.deepEqual(dataStore.$blockedProfiles.get(), null);
+    assert.deepEqual(mutations.queryStore.get(blockedProfilesQueryKey()), null);
   });
 
   it("should update author viewer.blocking on cached posts by that author", async () => {
@@ -1574,34 +1640,34 @@ describe("unblockProfile", () => {
 
   it("should remove profile from the cached list", async () => {
     const { mutations, dataStore } = setup();
-    const other = {
-      did: "did:plc:other",
-      viewer: { blocking: "at://other-block" },
-    };
-    dataStore.$blockedProfiles.set({
-      blocks: [profile, other],
-      cursor: "abc",
+    const otherDid = "did:plc:other";
+    mutations.queryStore.set(blockedProfilesQueryKey(), {
+      pages: [{ items: [profile.did, otherDid], cursor: "abc" }],
     });
 
     await mutations.unblockProfile(profile);
 
-    const stored = dataStore.$blockedProfiles.get();
-    assert.deepEqual(stored.blocks.length, 1);
-    assert.deepEqual(stored.blocks[0].did, other.did);
-    assert.deepEqual(stored.cursor, "abc");
+    assert.deepEqual(mutations.queryStore.getItems(blockedProfilesQueryKey()), [
+      otherDid,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(blockedProfilesQueryKey()),
+      "abc",
+    );
   });
 
   it("should be a no-op on the cached list when not present", async () => {
     const { mutations, dataStore } = setup();
-    const other = {
-      did: "did:plc:other",
-      viewer: { blocking: "at://other-block" },
-    };
-    dataStore.$blockedProfiles.set({ blocks: [other], cursor: null });
+    const otherDid = "did:plc:other";
+    mutations.queryStore.set(blockedProfilesQueryKey(), {
+      pages: [{ items: [otherDid], cursor: null }],
+    });
 
     await mutations.unblockProfile(profile);
 
-    assert.deepEqual(dataStore.$blockedProfiles.get().blocks.length, 1);
+    assert.deepEqual(mutations.queryStore.getItems(blockedProfilesQueryKey()), [
+      otherDid,
+    ]);
   });
 
   it("should clear author viewer.blocking on cached posts by that author", async () => {
@@ -1664,24 +1730,27 @@ describe("addBookmark", () => {
 
   it("should prepend post to the cached bookmarks feed", async () => {
     const { mutations, dataStore } = setup();
-    const existingItem = {
-      item: { uri: "at://did:test/app.bsky.feed.post/other" },
-    };
-    dataStore.$bookmarks.set({ bookmarks: [existingItem], cursor: "abc" });
+    const existingUri = "at://did:test/app.bsky.feed.post/other";
+    mutations.queryStore.set(bookmarksQueryKey(), {
+      pages: [{ items: [existingUri], cursor: "abc" }],
+    });
 
     await mutations.addBookmark(testPost);
 
-    const stored = dataStore.$bookmarks.get();
-    assert.deepEqual(stored.bookmarks.length, 2);
-    assert.deepEqual(stored.bookmarks[0].item.uri, testPost.uri);
-    assert.deepEqual(stored.bookmarks[1].item.uri, existingItem.item.uri);
-    assert.deepEqual(stored.cursor, "abc");
+    assert.deepEqual(mutations.queryStore.getItems(bookmarksQueryKey()), [
+      testPost.uri,
+      existingUri,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(bookmarksQueryKey()),
+      "abc",
+    );
   });
 
   it("should not initialize the bookmarks feed if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.addBookmark(testPost);
-    assert.deepEqual(dataStore.$bookmarks.get(), null);
+    assert.deepEqual(mutations.queryStore.get(bookmarksQueryKey()), null);
   });
 });
 
@@ -1728,20 +1797,20 @@ describe("removeBookmark", () => {
 
   it("should remove post from the cached bookmarks feed", async () => {
     const { mutations, dataStore } = setup();
-    const otherItem = {
-      item: { uri: "at://did:test/app.bsky.feed.post/other" },
-    };
-    dataStore.$bookmarks.set({
-      bookmarks: [{ item: testPost }, otherItem],
-      cursor: "abc",
+    const otherUri = "at://did:test/app.bsky.feed.post/other";
+    mutations.queryStore.set(bookmarksQueryKey(), {
+      pages: [{ items: [testPost.uri, otherUri], cursor: "abc" }],
     });
 
     await mutations.removeBookmark(testPost);
 
-    const stored = dataStore.$bookmarks.get();
-    assert.deepEqual(stored.bookmarks.length, 1);
-    assert.deepEqual(stored.bookmarks[0].item.uri, otherItem.item.uri);
-    assert.deepEqual(stored.cursor, "abc");
+    assert.deepEqual(mutations.queryStore.getItems(bookmarksQueryKey()), [
+      otherUri,
+    ]);
+    assert.deepEqual(
+      mutations.queryStore.getNextCursor(bookmarksQueryKey()),
+      "abc",
+    );
   });
 });
 
@@ -1762,12 +1831,16 @@ describe("createRepost", () => {
   function setup(mockApi = {}, { authorFeed } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
+    const queryStore = new QueryStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$currentUser.set(currentUser);
     if (authorFeed) {
-      dataStore.$authorFeeds.set(`${currentUser.did}-posts`, authorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: currentUser.did, feedType: "posts" }),
+        { pages: [{ items: authorFeed.feed, cursor: authorFeed.cursor }] },
+      );
     }
     const mutations = makeMutations(
       {
@@ -1780,8 +1853,9 @@ describe("createRepost", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
-    return { mutations, dataStore, patchStore };
+    return { mutations, dataStore, patchStore, queryStore };
   }
 
   it("should add optimistic patch immediately", () => {
@@ -1809,24 +1883,28 @@ describe("createRepost", () => {
   });
 
   it("should add a reasonRepost feed item to the current user's author feed", async () => {
-    const { mutations, dataStore } = setup(
+    const { mutations, queryStore } = setup(
       {},
       { authorFeed: { feed: [], cursor: "c1" } },
     );
     await mutations.createRepost(testPost);
-    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0].post.uri, testPost.uri);
+    const queryKey = authorFeedQueryKey({
+      did: currentUser.did,
+      feedType: "posts",
+    });
+    const feedItems = queryStore.getItems(queryKey);
+    assert.deepEqual(feedItems.length, 1);
+    assert.deepEqual(feedItems[0].post.uri, testPost.uri);
     assert.deepEqual(
-      feed.feed[0].reason.$type,
+      feedItems[0].reason.$type,
       "app.bsky.feed.defs#reasonRepost",
     );
-    assert.deepEqual(feed.feed[0].reason.by.did, currentUser.did);
+    assert.deepEqual(feedItems[0].reason.by.did, currentUser.did);
     assert.deepEqual(
-      feed.feed[0].reason.uri,
+      feedItems[0].reason.uri,
       "at://did:plc:me/app.bsky.feed.repost/abc",
     );
-    assert.deepEqual(feed.cursor, "c1");
+    assert.deepEqual(queryStore.getNextCursor(queryKey), "c1");
   });
 
   it("should not add a duplicate feed item when the feed already has the repost", async () => {
@@ -1839,14 +1917,16 @@ describe("createRepost", () => {
         indexedAt: "2024-01-01T00:00:00.000Z",
       },
     };
-    const { mutations, dataStore } = setup(
+    const { mutations, queryStore } = setup(
       {},
       { authorFeed: { feed: [existingItem], cursor: "c1" } },
     );
     await mutations.createRepost(testPost);
-    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0], existingItem);
+    const feedItems = queryStore.getItems(
+      authorFeedQueryKey({ did: currentUser.did, feedType: "posts" }),
+    );
+    assert.deepEqual(feedItems.length, 1);
+    assert.deepEqual(feedItems[0], existingItem);
   });
 });
 
@@ -1868,20 +1948,25 @@ describe("deleteRepost", () => {
   function setup(mockApi = {}, { authorFeed } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore(dataStore);
+    const queryStore = new QueryStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$currentUser.set(currentUser);
     if (authorFeed) {
-      dataStore.$authorFeeds.set(`${currentUser.did}-posts`, authorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: currentUser.did, feedType: "posts" }),
+        { pages: [{ items: authorFeed.feed, cursor: authorFeed.cursor }] },
+      );
     }
     const mutations = makeMutations(
       { deleteRepostRecord: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
-    return { mutations, dataStore, patchStore };
+    return { mutations, dataStore, patchStore, queryStore };
   }
 
   it("should add optimistic patch immediately", () => {
@@ -1916,17 +2001,21 @@ describe("deleteRepost", () => {
         uri: "at://did:plc:other/app.bsky.feed.post/2",
       },
     };
-    const { mutations, dataStore } = setup(
+    const { mutations, queryStore } = setup(
       {},
       { authorFeed: { feed: [matchingItem, otherItem], cursor: "c1" } },
     );
 
     await mutations.deleteRepost(testPost);
 
-    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0].post.uri, otherItem.post.uri);
-    assert.deepEqual(feed.cursor, "c1");
+    const queryKey = authorFeedQueryKey({
+      did: currentUser.did,
+      feedType: "posts",
+    });
+    const feedItems = queryStore.getItems(queryKey);
+    assert.deepEqual(feedItems.length, 1);
+    assert.deepEqual(feedItems[0].post.uri, otherItem.post.uri);
+    assert.deepEqual(queryStore.getNextCursor(queryKey), "c1");
   });
 });
 
@@ -2137,9 +2226,10 @@ describe("setPinnedItems", () => {
         await updatePromise;
       },
     };
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     if (preloadPinnedItems) {
-      dataStore.$pinnedItems.set([
+      seedPinnedItems(queryStore, [
         { type: "timeline", data: { uri: "following" } },
         { type: "feed", data: { uri: feedA } },
         { type: "list", data: { uri: listA } },
@@ -2151,6 +2241,7 @@ describe("setPinnedItems", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
     return {
       mutations,
@@ -2163,18 +2254,18 @@ describe("setPinnedItems", () => {
 
   it("does not touch $pinnedItems until the network round-trip resolves", async () => {
     const { mutations, dataStore, resolveUpdate } = setup();
-    const before = dataStore.$pinnedItems
-      .get()
+    const before = mutations.queryStore
+      .getItems(pinnedItemsQueryKey())
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
     const promise = mutations.setPinnedItems([listA, "following", feedA]);
-    const during = dataStore.$pinnedItems
-      .get()
+    const during = mutations.queryStore
+      .getItems(pinnedItemsQueryKey())
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
     assert.deepEqual(during, before);
     resolveUpdate();
     await promise;
-    const after = dataStore.$pinnedItems
-      .get()
+    const after = mutations.queryStore
+      .getItems(pinnedItemsQueryKey())
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
     assert.deepEqual(after, [listA, "following", feedA]);
   });
@@ -2211,8 +2302,9 @@ describe("setPinnedItems", () => {
         throw error;
       },
     };
-    const dataStore = new DataStore(createSessionState(null));
-    dataStore.$pinnedItems.set([
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
+    seedPinnedItems(queryStore, [
       { type: "feed", data: { uri: feedA } },
       { type: "list", data: { uri: listA } },
     ]);
@@ -2222,6 +2314,7 @@ describe("setPinnedItems", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
     const originalConsoleError = console.error;
     console.error = () => {};
@@ -2233,7 +2326,9 @@ describe("setPinnedItems", () => {
     } finally {
       console.error = originalConsoleError;
     }
-    const after = dataStore.$pinnedItems.get().map((it) => it.data.uri);
+    const after = queryStore
+      .getItems(pinnedItemsQueryKey())
+      .map((it) => it.data.uri);
     assert.deepEqual(after, [feedA, listA]);
   });
 });
@@ -2420,11 +2515,13 @@ describe("createThread", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    const queryStore = new QueryStore();
     const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
     const fullPost = {
       uri: newPostUri,
@@ -2440,15 +2537,28 @@ describe("createThread", () => {
       }),
     };
     if (replyPostThread) {
-      dataStore.$postThreads.set(replyPostThread.post.uri, replyPostThread);
+      mutations.queryStore.setValue(
+        postThreadQueryKey({ uri: replyPostThread.post.uri }),
+        replyPostThread,
+      );
     }
     if (authorFeed) {
-      dataStore.$authorFeeds.set(`${currentUserDid}-posts`, authorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: currentUserDid, feedType: "posts" }),
+        { pages: [{ items: authorFeed.feed, cursor: authorFeed.cursor }] },
+      );
     }
     if (replyAuthorFeed) {
-      dataStore.$authorFeeds.set(`${currentUserDid}-replies`, replyAuthorFeed);
+      queryStore.set(
+        authorFeedQueryKey({ did: currentUserDid, feedType: "replies" }),
+        {
+          pages: [
+            { items: replyAuthorFeed.feed, cursor: replyAuthorFeed.cursor },
+          ],
+        },
+      );
     }
-    return { mutations, dataStore, fullPost };
+    return { mutations, dataStore, fullPost, queryStore };
   }
 
   it("should store the new post and mark priorityReply", async () => {
@@ -2463,14 +2573,18 @@ describe("createThread", () => {
   });
 
   it("should add the new post to the author posts feed when loaded", async () => {
-    const { mutations, dataStore } = setup({
+    const { mutations, queryStore } = setup({
       authorFeed: { feed: [], cursor: "c1" },
     });
     await mutations.createThread({ posts: [{ postText: "hello" }] });
-    const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0].post.uri, newPostUri);
-    assert.deepEqual(feed.cursor, "c1");
+    const queryKey = authorFeedQueryKey({
+      did: currentUserDid,
+      feedType: "posts",
+    });
+    const feedItems = queryStore.getItems(queryKey);
+    assert.deepEqual(feedItems.length, 1);
+    assert.deepEqual(feedItems[0].post.uri, newPostUri);
+    assert.deepEqual(queryStore.getNextCursor(queryKey), "c1");
   });
 
   it("should prepend the reply to the parent's post thread when present", async () => {
@@ -2489,7 +2603,7 @@ describe("createThread", () => {
         },
       ],
     };
-    const { mutations, dataStore } = setup({
+    const { mutations, dataStore, queryStore } = setup({
       replyPostThread,
       replyAuthorFeed: { feed: [], cursor: "c1" },
     });
@@ -2500,16 +2614,20 @@ describe("createThread", () => {
       replyRoot,
     });
 
-    const updatedThread = dataStore.$postThreads.get(replyTo.uri);
+    const updatedThread = mutations.queryStore.getValue(
+      postThreadQueryKey({ uri: replyTo.uri }),
+    );
     assert.deepEqual(updatedThread.replies.length, 2);
     assert.deepEqual(updatedThread.replies[0].post.uri, newPostUri);
-    const repliesFeed = dataStore.$authorFeeds.get(`${currentUserDid}-replies`);
-    assert.deepEqual(repliesFeed.feed.length, 1);
-    assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
+    const repliesFeedItems = queryStore.getItems(
+      authorFeedQueryKey({ did: currentUserDid, feedType: "replies" }),
+    );
+    assert.deepEqual(repliesFeedItems.length, 1);
+    assert.deepEqual(repliesFeedItems[0].post.uri, newPostUri);
   });
 
   it("still resolves with uris when the app view fetch fails, without mutating stores", async () => {
-    const { mutations, dataStore } = setup({
+    const { mutations, dataStore, queryStore } = setup({
       authorFeed: { feed: [], cursor: "c1" },
     });
     mutations.postCreator = {
@@ -2526,8 +2644,10 @@ describe("createThread", () => {
     assert.deepEqual(result.uris, [newPostUri]);
     assert.deepEqual(result.posts, null);
     assert.deepEqual(dataStore.$posts.get(newPostUri), null);
-    const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
-    assert.deepEqual(feed.feed.length, 0);
+    const feedItems = queryStore.getItems(
+      authorFeedQueryKey({ did: currentUserDid, feedType: "posts" }),
+    );
+    assert.deepEqual(feedItems.length, 0);
   });
 });
 
@@ -2573,13 +2693,21 @@ describe("createMessage", () => {
   };
 
   function setup({ convoMessages, convo } = {}) {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     if (convoMessages) {
-      dataStore.$convoMessages.set(convoId, convoMessages);
+      queryStore.set(convoMessagesQueryKey({ convoId }), {
+        pages: [
+          {
+            items: convoMessages.messages.map((message) => message.id),
+            cursor: convoMessages.cursor,
+          },
+        ],
+      });
     }
     if (convo) {
       dataStore.$convos.set(convoId, convo);
@@ -2589,8 +2717,9 @@ describe("createMessage", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
-    return { mutations, dataStore };
+    return { mutations, dataStore, queryStore };
   }
 
   it("should store the new message and return it", async () => {
@@ -2602,15 +2731,16 @@ describe("createMessage", () => {
 
   it("should prepend the message to the cached convo messages", async () => {
     const existingMessage = { id: "msg-old", text: "earlier" };
-    const { mutations, dataStore } = setup({
+    const { mutations, queryStore } = setup({
       convoMessages: { messages: [existingMessage], cursor: "c1" },
     });
     await mutations.createMessage(convoId, { text: "hello" });
-    const stored = dataStore.$convoMessages.get(convoId);
-    assert.deepEqual(stored.messages.length, 2);
-    assert.deepEqual(stored.messages[0].id, sentMessage.id);
-    assert.deepEqual(stored.messages[1].id, existingMessage.id);
-    assert.deepEqual(stored.cursor, "c1");
+    const key = convoMessagesQueryKey({ convoId });
+    assert.deepEqual(queryStore.getItems(key), [
+      sentMessage.id,
+      existingMessage.id,
+    ]);
+    assert.deepEqual(queryStore.getNextCursor(key), "c1");
   });
 
   it("should update the convo's lastMessage", async () => {
@@ -2706,18 +2836,30 @@ describe("acceptConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 
   function setup({ convoList, convoRequestList } = {}) {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     if (convoList) {
-      dataStore.$convoList.set({ convos: convoList, cursor: "list-cursor" });
+      queryStore.set(convoListQueryKey(), {
+        pages: [
+          {
+            items: convoList.map((listConvo) => listConvo.id),
+            cursor: "list-cursor",
+          },
+        ],
+      });
     }
     if (convoRequestList) {
-      dataStore.$convoRequestList.set({
-        convos: convoRequestList,
-        cursor: "request-cursor",
+      queryStore.set(convoRequestListQueryKey(), {
+        pages: [
+          {
+            items: convoRequestList.map((listConvo) => listConvo.id),
+            cursor: "request-cursor",
+          },
+        ],
       });
     }
     let acceptCalledWith = null;
@@ -2730,8 +2872,14 @@ describe("acceptConvo", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
-    return { mutations, dataStore, getAcceptArg: () => acceptCalledWith };
+    return {
+      mutations,
+      dataStore,
+      queryStore,
+      getAcceptArg: () => acceptCalledWith,
+    };
   }
 
   it("should set the convo status to accepted in the store", async () => {
@@ -2744,47 +2892,48 @@ describe("acceptConvo", () => {
 
   it("should update the matching convo in the convo list", async () => {
     const otherConvo = { id: "convo-2", status: "accepted" };
-    const { mutations, dataStore } = setup({
+    const { mutations, dataStore, queryStore } = setup({
       convoList: [convo, otherConvo],
     });
+    dataStore.$convos.set(otherConvo.id, otherConvo);
     await mutations.acceptConvo(convo);
-    const list = dataStore.$convoList.get();
-    assert.deepEqual(list.convos.length, 2);
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), [
+      convo.id,
+      otherConvo.id,
+    ]);
+    assert.deepEqual(dataStore.$convos.get(convo.id).status, "accepted");
     assert.deepEqual(
-      list.convos.find((c) => c.id === convo.id).status,
-      "accepted",
+      queryStore.getNextCursor(convoListQueryKey()),
+      "list-cursor",
     );
-    assert.deepEqual(
-      list.convos.find((c) => c.id === otherConvo.id).status,
-      "accepted",
-    );
-    assert.deepEqual(list.cursor, "list-cursor");
   });
 
   it("should remove the convo from the request list", async () => {
     const otherRequest = { id: "convo-3", status: "request" };
-    const { mutations, dataStore } = setup({
+    const { mutations, queryStore } = setup({
       convoRequestList: [convo, otherRequest],
     });
     await mutations.acceptConvo(convo);
-    const requestList = dataStore.$convoRequestList.get();
-    assert.deepEqual(requestList.convos.length, 1);
-    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
-    assert.deepEqual(requestList.cursor, "request-cursor");
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), [
+      otherRequest.id,
+    ]);
+    assert.deepEqual(
+      queryStore.getNextCursor(convoRequestListQueryKey()),
+      "request-cursor",
+    );
   });
 
   it("should add the convo to the convo list when not already present", async () => {
     const otherConvo = { id: "convo-2", status: "accepted" };
-    const { mutations, dataStore } = setup({
+    const { mutations, dataStore, queryStore } = setup({
       convoList: [otherConvo],
     });
     await mutations.acceptConvo(convo);
-    const list = dataStore.$convoList.get();
-    assert.deepEqual(list.convos.length, 2);
-    assert.deepEqual(
-      list.convos.find((c) => c.id === convo.id).status,
-      "accepted",
-    );
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), [
+      convo.id,
+      otherConvo.id,
+    ]);
+    assert.deepEqual(dataStore.$convos.get(convo.id).status, "accepted");
   });
 });
 
@@ -2794,19 +2943,18 @@ describe("rejectConvo", () => {
   it("should clear the convo, call api.leaveConvo, and remove it from the request list only", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
-    dataStore.$convoList.set({
-      convos: [otherAccepted],
-      cursor: "list-cursor",
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: [otherAccepted.id], cursor: "list-cursor" }],
     });
-    dataStore.$convoRequestList.set({
-      convos: [convo, otherRequest],
-      cursor: "request-cursor",
+    queryStore.set(convoRequestListQueryKey(), {
+      pages: [{ items: [convo.id, otherRequest.id], cursor: "request-cursor" }],
     });
     let leaveCalledWith = null;
     const mutations = makeMutations(
@@ -2818,21 +2966,28 @@ describe("rejectConvo", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
 
     await mutations.rejectConvo(convo);
 
     assert.deepEqual(leaveCalledWith, convo.id);
     assert.deepEqual(dataStore.$convos.get(convo.id), null);
-    const requestList = dataStore.$convoRequestList.get();
-    assert.deepEqual(requestList.convos.length, 1);
-    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
-    assert.deepEqual(requestList.cursor, "request-cursor");
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), [
+      otherRequest.id,
+    ]);
+    assert.deepEqual(
+      queryStore.getNextCursor(convoRequestListQueryKey()),
+      "request-cursor",
+    );
     // Accepted list must not be touched by rejectConvo.
-    const acceptedList = dataStore.$convoList.get();
-    assert.deepEqual(acceptedList.convos.length, 1);
-    assert.deepEqual(acceptedList.convos[0].id, otherAccepted.id);
-    assert.deepEqual(acceptedList.cursor, "list-cursor");
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), [
+      otherAccepted.id,
+    ]);
+    assert.deepEqual(
+      queryStore.getNextCursor(convoListQueryKey()),
+      "list-cursor",
+    );
   });
 });
 
@@ -2842,19 +2997,18 @@ describe("leaveConvo", () => {
   it("should clear the convo, call api.leaveConvo, and remove it from the accepted list only", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
-    dataStore.$convoList.set({
-      convos: [convo, otherAccepted],
-      cursor: "list-cursor",
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: [convo.id, otherAccepted.id], cursor: "list-cursor" }],
     });
-    dataStore.$convoRequestList.set({
-      convos: [otherRequest],
-      cursor: "request-cursor",
+    queryStore.set(convoRequestListQueryKey(), {
+      pages: [{ items: [otherRequest.id], cursor: "request-cursor" }],
     });
     let leaveCalledWith = null;
     const mutations = makeMutations(
@@ -2866,34 +3020,41 @@ describe("leaveConvo", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
 
     await mutations.leaveConvo(convo);
 
     assert.deepEqual(leaveCalledWith, convo.id);
     assert.deepEqual(dataStore.$convos.get(convo.id), null);
-    const acceptedList = dataStore.$convoList.get();
-    assert.deepEqual(acceptedList.convos.length, 1);
-    assert.deepEqual(acceptedList.convos[0].id, otherAccepted.id);
-    assert.deepEqual(acceptedList.cursor, "list-cursor");
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), [
+      otherAccepted.id,
+    ]);
+    assert.deepEqual(
+      queryStore.getNextCursor(convoListQueryKey()),
+      "list-cursor",
+    );
     // Request list must not be touched by leaveConvo.
-    const requestList = dataStore.$convoRequestList.get();
-    assert.deepEqual(requestList.convos.length, 1);
-    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
-    assert.deepEqual(requestList.cursor, "request-cursor");
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), [
+      otherRequest.id,
+    ]);
+    assert.deepEqual(
+      queryStore.getNextCursor(convoRequestListQueryKey()),
+      "request-cursor",
+    );
   });
 
   it("should leave the store unchanged when api.leaveConvo throws", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
-    dataStore.$convoList.set({
-      convos: [convo, otherAccepted],
-      cursor: "list-cursor",
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: [convo.id, otherAccepted.id], cursor: "list-cursor" }],
     });
     const mutations = makeMutations(
       {
@@ -2904,14 +3065,16 @@ describe("leaveConvo", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
 
     await assert.rejects(() => mutations.leaveConvo(convo));
 
     assert.deepEqual(dataStore.$convos.get(convo.id), convo);
-    const acceptedList = dataStore.$convoList.get();
-    assert.deepEqual(acceptedList.convos.length, 2);
-    assert.deepEqual(acceptedList.convos[0].id, convo.id);
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), [
+      convo.id,
+      otherAccepted.id,
+    ]);
   });
 });
 
@@ -3642,30 +3805,20 @@ describe("addProfileToList", () => {
       mockPreferencesProvider,
     );
 
-    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      listsWithMembership: [{ list: testList }],
-      cursor: null,
-    });
-
     await mutations.addProfileToList(testProfile, testList);
 
-    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assert.deepEqual(entry.listsWithMembership.length, 1);
     assert.deepEqual(
-      entry.listsWithMembership[0].listItem.uri,
+      dataStore.$listItemUris.get(testList.uri).get(testProfile.did),
       "listitem-real-uri",
-    );
-    assert.deepEqual(
-      entry.listsWithMembership[0].listItem.subject,
-      testProfile.did,
     );
   });
 
-  it("should leave the membership map untouched when no entry is cached for the actor", async () => {
+  it("should leave the lists-with-membership query untouched when it is not loaded", async () => {
     const mockApi = {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
     const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3675,12 +3828,15 @@ describe("addProfileToList", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
 
     await mutations.addProfileToList(testProfile, testList);
 
     assert.deepEqual(
-      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
+      queryStore.getItems(
+        listsWithMembershipQueryKey({ did: testProfile.did }),
+      ),
       null,
     );
   });
@@ -3690,14 +3846,9 @@ describe("addProfileToList", () => {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$listMembers.set(testList.uri, {
-      items: [
-        {
-          uri: "listitem-other-uri",
-          subject: { did: "did:test:other", handle: "other.user" },
-        },
-      ],
-      cursor: null,
+    const queryStore = new QueryStore();
+    queryStore.set(listMembersQueryKey({ listUri: testList.uri }), {
+      pages: [{ items: ["did:test:other"], cursor: null }],
     });
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
@@ -3708,14 +3859,19 @@ describe("addProfileToList", () => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      queryStore,
     );
 
     await mutations.addProfileToList(testProfile, testList);
 
-    const cached = dataStore.$listMembers.get(testList.uri);
-    assert.deepEqual(cached.items.length, 2);
-    assert.deepEqual(cached.items[0].uri, "listitem-real-uri");
-    assert.deepEqual(cached.items[0].subject.did, testProfile.did);
+    assert.deepEqual(
+      queryStore.getItems(listMembersQueryKey({ listUri: testList.uri })),
+      [testProfile.did, "did:test:other"],
+    );
+    assert.deepEqual(
+      dataStore.$listItemUris.get(testList.uri).get(testProfile.did),
+      "listitem-real-uri",
+    );
   });
 
   it("should not touch state when the API call fails", async () => {
@@ -3743,10 +3899,7 @@ describe("addProfileToList", () => {
       caught = error;
     }
     assert.deepEqual(caught.message, "nope");
-    assert.deepEqual(
-      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
-      null,
-    );
+    assert.deepEqual(dataStore.$listItemUris.get(testList.uri) ?? null, null);
   });
 });
 
@@ -3766,37 +3919,7 @@ describe("removeProfileFromList", () => {
       deleteListItemRecord: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      listsWithMembership: [
-        {
-          list: testList,
-          listItem: { uri: membershipUri, subject: testProfile.did },
-        },
-      ],
-      cursor: null,
-    });
-    const patchStore = new PatchStore(dataStore);
-    const mockPreferencesProvider = {
-      requirePreferences: () => Preferences.createLoggedOutPreferences(),
-    };
-    const mutations = makeMutations(
-      mockApi,
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
-
-    await mutations.removeProfileFromList(testProfile, testList, membershipUri);
-
-    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assert.deepEqual(entry.listsWithMembership[0].listItem ?? null, null);
-  });
-
-  it("should leave the membership map untouched when no entry is cached for the actor", async () => {
-    const mockApi = {
-      deleteListItemRecord: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
+    dataStore.setListItemUri(testList.uri, testProfile.did, membershipUri);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3811,38 +3934,16 @@ describe("removeProfileFromList", () => {
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
     assert.deepEqual(
-      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
-      null,
+      dataStore.$listItemUris.get(testList.uri).has(testProfile.did),
+      false,
     );
   });
 
-  it("should remove the profile from a cached list-members entry", async () => {
+  it("should leave the membership map untouched when nothing is cached for the list", async () => {
     const mockApi = {
       deleteListItemRecord: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      listsWithMembership: [
-        {
-          list: testList,
-          listItem: { uri: membershipUri, subject: testProfile.did },
-        },
-      ],
-      cursor: null,
-    });
-    dataStore.$listMembers.set(testList.uri, {
-      items: [
-        {
-          uri: membershipUri,
-          subject: { did: testProfile.did, handle: testProfile.handle },
-        },
-        {
-          uri: "listitem-other-uri",
-          subject: { did: "did:test:other", handle: "other.user" },
-        },
-      ],
-      cursor: null,
-    });
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3856,9 +3957,46 @@ describe("removeProfileFromList", () => {
 
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
-    const cached = dataStore.$listMembers.get(testList.uri);
-    assert.deepEqual(cached.items.length, 1);
-    assert.deepEqual(cached.items[0].subject.did, "did:test:other");
+    assert.deepEqual(dataStore.$listItemUris.get(testList.uri) ?? null, null);
+  });
+
+  it("should remove the profile from a cached list-members entry", async () => {
+    const mockApi = {
+      deleteListItemRecord: async () => {},
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    queryStore.set(listMembersQueryKey({ listUri: testList.uri }), {
+      pages: [{ items: [testProfile.did, "did:test:other"], cursor: null }],
+    });
+    dataStore.setListItemUris(testList.uri, [
+      { uri: membershipUri, subject: { did: testProfile.did } },
+      { uri: "listitem-other-uri", subject: { did: "did:test:other" } },
+    ]);
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      queryStore,
+    );
+
+    await mutations.removeProfileFromList(testProfile, testList, membershipUri);
+
+    assert.deepEqual(
+      mutations.queryStore.getItems(
+        listMembersQueryKey({ listUri: testList.uri }),
+      ),
+      ["did:test:other"],
+    );
+    assert.deepEqual(
+      dataStore.$listItemUris.get(testList.uri).has(testProfile.did),
+      false,
+    );
   });
 
   it("should leave state unchanged when the API call fails", async () => {
@@ -3868,11 +4006,7 @@ describe("removeProfileFromList", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const initialListItem = { uri: membershipUri, subject: testProfile.did };
-    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      listsWithMembership: [{ list: testList, listItem: initialListItem }],
-      cursor: null,
-    });
+    dataStore.setListItemUri(testList.uri, testProfile.did, membershipUri);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3895,9 +4029,10 @@ describe("removeProfileFromList", () => {
       caught = error;
     }
     assert.deepEqual(caught.message, "boom");
-    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assert.deepEqual(entry.listsWithMembership.length, 1);
-    assert.deepEqual(entry.listsWithMembership[0].listItem.uri, membershipUri);
+    assert.deepEqual(
+      dataStore.$listItemUris.get(testList.uri).get(testProfile.did),
+      membershipUri,
+    );
   });
 });
 
@@ -4345,7 +4480,8 @@ describe("deleteList", () => {
   };
 
   function setup({ listItems = [], overrides = {} } = {}) {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     const patchStore = new PatchStore(dataStore);
     const preferences = Preferences.createLoggedOutPreferences();
     const preferencesProvider = {
@@ -4362,7 +4498,13 @@ describe("deleteList", () => {
       api,
       dataStore,
       preferencesProvider,
-      mutations: makeMutations(api, dataStore, patchStore, preferencesProvider),
+      mutations: makeMutations(
+        api,
+        dataStore,
+        patchStore,
+        preferencesProvider,
+        queryStore,
+      ),
     };
   }
 
@@ -4456,68 +4598,59 @@ describe("deleteList", () => {
 
   it("clears cached list members for the deleted list", async () => {
     const { mutations, dataStore } = setup();
-    dataStore.$listMembers.set(listUri, {
-      items: [{ uri: "at://x", subject: { did: "did:plc:m1" } }],
-      cursor: "",
+    mutations.queryStore.set(listMembersQueryKey({ listUri }), {
+      pages: [{ items: ["did:plc:m1"], cursor: null }],
     });
+    dataStore.setListItemUris(listUri, [
+      { uri: "at://x", subject: { did: "did:plc:m1" } },
+    ]);
 
     await mutations.deleteList(testList);
 
-    assert.equal(dataStore.$listMembers.get(listUri), null);
-  });
-
-  it("removes the list from $actorLists for the creator", async () => {
-    const { mutations, dataStore } = setup();
-    const otherList = { uri: otherListUri, name: "Other" };
-    dataStore.$actorLists.set(testList.creator.did, {
-      lists: [testList, otherList],
-      cursor: "",
-    });
-
-    await mutations.deleteList(testList);
-
-    const remaining = dataStore.$actorLists.get(testList.creator.did);
-    assert.deepEqual(
-      remaining.lists.map((entry) => entry.uri),
-      [otherListUri],
-    );
-  });
-
-  it("removes the list from cached $listsWithMembershipByActor entries", async () => {
-    const { mutations, dataStore } = setup();
-    dataStore.$listsWithMembershipByActor.set("did:plc:member1", {
-      listsWithMembership: [
-        { list: { uri: listUri }, listItem: { uri: "at://li1" } },
-        { list: { uri: otherListUri }, listItem: { uri: "at://li2" } },
-      ],
-      cursor: "",
-    });
-    dataStore.$listsWithMembershipByActor.set("did:plc:untouched", {
-      listsWithMembership: [
-        { list: { uri: otherListUri }, listItem: { uri: "at://li3" } },
-      ],
-      cursor: "",
-    });
-
-    await mutations.deleteList(testList);
-
-    assert.deepEqual(
-      dataStore.$listsWithMembershipByActor
-        .get("did:plc:member1")
-        .listsWithMembership.map((entry) => entry.list.uri),
-      [otherListUri],
-    );
-    // Unrelated entries are untouched.
     assert.equal(
-      dataStore.$listsWithMembershipByActor.get("did:plc:untouched")
-        .listsWithMembership.length,
-      1,
+      mutations.queryStore.getItems(listMembersQueryKey({ listUri })),
+      null,
     );
+    assert.equal(dataStore.$listItemUris.get(listUri), null);
+  });
+
+  it("removes the list from the creator's actor lists query", async () => {
+    const { mutations } = setup();
+    const queryKey = actorListsQueryKey({ did: testList.creator.did });
+    mutations.queryStore.set(queryKey, {
+      pages: [{ items: [listUri, otherListUri], cursor: null }],
+    });
+
+    await mutations.deleteList(testList);
+
+    assert.deepEqual(mutations.queryStore.getItems(queryKey), [otherListUri]);
+  });
+
+  it("removes the list from every loaded lists-with-membership query", async () => {
+    const { mutations } = setup();
+    const memberKey = listsWithMembershipQueryKey({ did: "did:plc:member1" });
+    const untouchedKey = listsWithMembershipQueryKey({
+      did: "did:plc:untouched",
+    });
+    mutations.queryStore.set(memberKey, {
+      pages: [{ items: [listUri, otherListUri], cursor: null }],
+    });
+    mutations.queryStore.set(untouchedKey, {
+      pages: [{ items: [otherListUri], cursor: null }],
+    });
+
+    await mutations.deleteList(testList);
+
+    assert.deepEqual(mutations.queryStore.getItems(memberKey), [otherListUri]);
+    // Unrelated entries are untouched.
+    assert.deepEqual(mutations.queryStore.getItems(untouchedKey), [
+      otherListUri,
+    ]);
   });
 
   it("removes the list from $pinnedItems if present", async () => {
     const { mutations, dataStore } = setup();
-    dataStore.$pinnedItems.set([
+    seedPinnedItems(mutations.queryStore, [
       { type: "timeline", data: { uri: "following" } },
       { type: "list", data: { uri: listUri, displayName: "My List" } },
       { type: "list", data: { uri: otherListUri, displayName: "Other" } },
@@ -4526,7 +4659,9 @@ describe("deleteList", () => {
     await mutations.deleteList(testList);
 
     assert.deepEqual(
-      dataStore.$pinnedItems.get().map((item) => item.data.uri),
+      mutations.queryStore
+        .getItems(pinnedItemsQueryKey())
+        .map((item) => item.data.uri),
       ["following", otherListUri],
     );
   });

@@ -2,6 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
+import { QueryStore } from "/js/dataLayer/queryStore.js";
+import {
+  convoListQueryKey,
+  convoRequestListQueryKey,
+  pinnedItemsQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 
 describe("setPosts", () => {
   it("should insert multiple posts", () => {
@@ -136,25 +142,25 @@ describe("setPosts", () => {
 
 describe("setConvo", () => {
   it("should save the convo and prepend it to the loaded convo list", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: ["c1"], cursor: "page2" }],
+    });
     const convo = { id: "c2", status: "accepted" };
 
     dataStore.setConvo(convo);
 
     assert.deepEqual(dataStore.$convos.get("c2"), convo);
-    assert.deepEqual(
-      dataStore.$convoList.get().convos.map((listConvo) => listConvo.id),
-      ["c2", "c1"],
-    );
-    assert.deepEqual(dataStore.$convoList.get().cursor, "page2");
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), ["c2", "c1"]);
+    assert.deepEqual(queryStore.getNextCursor(convoListQueryKey()), "page2");
   });
 
-  it("should replace an existing list entry instead of duplicating it", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    dataStore.$convoList.set({
-      convos: [{ id: "c1", unreadCount: 0 }],
-      cursor: null,
+  it("should update an existing convo without duplicating its list entry", () => {
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: ["c1"], cursor: null }],
     });
 
     dataStore.setConvo({
@@ -163,50 +169,51 @@ describe("setConvo", () => {
       unreadCount: 2,
     });
 
-    const list = dataStore.$convoList.get();
-    assert.deepEqual(list.convos.length, 1);
-    assert.deepEqual(list.convos[0].unreadCount, 2);
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), ["c1"]);
+    assert.deepEqual(dataStore.$convos.get("c1").unreadCount, 2);
   });
 
   it("should leave unloaded lists null", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
 
     dataStore.setConvo({ id: "c1", status: "accepted" });
 
     assert.deepEqual(dataStore.$convos.get("c1").id, "c1");
-    assert.deepEqual(dataStore.$convoList.get(), null);
-    assert.deepEqual(dataStore.$convoRequestList.get(), null);
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), null);
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), null);
   });
 
   it("should route request convos to the request list", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    dataStore.$convoList.set({ convos: [], cursor: null });
-    dataStore.$convoRequestList.set({ convos: [], cursor: null });
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: [], cursor: null }],
+    });
+    queryStore.set(convoRequestListQueryKey(), {
+      pages: [{ items: [], cursor: null }],
+    });
 
     dataStore.setConvo({ id: "c1", status: "request" });
 
-    assert.deepEqual(dataStore.$convoList.get().convos, []);
-    assert.deepEqual(
-      dataStore.$convoRequestList.get().convos.map((listConvo) => listConvo.id),
-      ["c1"],
-    );
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), []);
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), ["c1"]);
   });
 
   it("should move an accepted convo out of the request list", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    dataStore.$convoList.set({ convos: [], cursor: null });
-    dataStore.$convoRequestList.set({
-      convos: [{ id: "c1", status: "request" }],
-      cursor: null,
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
+    queryStore.set(convoListQueryKey(), {
+      pages: [{ items: [], cursor: null }],
+    });
+    queryStore.set(convoRequestListQueryKey(), {
+      pages: [{ items: ["c1"], cursor: null }],
     });
 
     dataStore.setConvo({ id: "c1", status: "accepted" });
 
-    assert.deepEqual(
-      dataStore.$convoList.get().convos.map((listConvo) => listConvo.id),
-      ["c1"],
-    );
-    assert.deepEqual(dataStore.$convoRequestList.get().convos, []);
+    assert.deepEqual(queryStore.getItems(convoListQueryKey()), ["c1"]);
+    assert.deepEqual(queryStore.getItems(convoRequestListQueryKey()), []);
   });
 });
 
@@ -221,33 +228,41 @@ describe("setPinnedItems", () => {
   };
 
   it("should save the pinned items", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     dataStore.setPinnedItems([followingItem, feedItem]);
-    assert.deepEqual(dataStore.$pinnedItems.get(), [followingItem, feedItem]);
+    assert.deepEqual(queryStore.getItems(pinnedItemsQueryKey()), [
+      followingItem,
+      feedItem,
+    ]);
   });
 
   it("should keep a selected feed that is still pinned", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     dataStore.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([followingItem, feedItem]);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), feedItem.data.uri);
   });
 
   it("should reset a no-longer-pinned selected feed to the first pinned item", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     dataStore.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([followingItem]);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
   });
 
   it("should leave a null selected feed alone", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     dataStore.setPinnedItems([followingItem]);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
   });
 
   it("should clear the selected feed when nothing is pinned", () => {
-    const dataStore = new DataStore(createSessionState(null));
+    const queryStore = new QueryStore();
+    const dataStore = new DataStore(createSessionState(null), queryStore);
     dataStore.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([]);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), null);

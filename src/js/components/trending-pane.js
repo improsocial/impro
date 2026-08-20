@@ -134,7 +134,12 @@ class TrendingPane extends Component {
 
   async load() {
     try {
-      await this.dataLayer.requests.loadTrends({ limit: TREND_LIMIT });
+      await this.dataLayer.requests.loadTrends(
+        {
+          limit: TREND_LIMIT,
+        },
+        { reload: true },
+      );
     } catch (error) {
       console.warn("Could not load trends", error);
     }

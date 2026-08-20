@@ -40,9 +40,7 @@ export default async function postLikesView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const postLikes = dataLayer.derived.$postLikes.get(postUri);
     const post = dataLayer.derived.$hydratedPosts.get(postUri);
-    const postLikesRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadPostLikes-" + postUri,
-    );
+    const postLikesError = dataLayer.derived.$postLikesError.get(postUri);
     const hasMore = postLikes?.cursor ? true : false;
 
     const subtitle = post?.likeCount
@@ -59,10 +57,8 @@ export default async function postLikesView({
         })}
         <main style="position: relative;">
           ${(() => {
-            if (postLikesRequestStatus.error) {
-              return likesErrorTemplate({
-                error: postLikesRequestStatus.error,
-              });
+            if (postLikesError) {
+              return likesErrorTemplate({ error: postLikesError });
             }
             return profileFeedTemplate({
               profiles: postLikes?.likes?.map((like) => like.actor) ?? null,
@@ -85,14 +81,11 @@ export default async function postLikesView({
   bindPageTitle(root, () => "Liked by");
 
   async function loadLikes({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$postLikes.get(postUri)?.cursor;
-    await dataLayer.requests.loadPostLikes(postUri, { cursor });
+    await dataLayer.requests.loadPostLikes({ postUri }, { reload });
   }
 
   function loadPageData() {
-    dataLayer.requests.loadPostThread(postUri);
+    dataLayer.requests.loadPostThread({ uri: postUri });
     loadLikes({ reload: true });
   }
 

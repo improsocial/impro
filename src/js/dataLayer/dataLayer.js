@@ -1,4 +1,11 @@
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { QueryStore } from "/js/dataLayer/queryStore.js";
+import {
+  Resources,
+  authorFeedQueryKey,
+  feedQueryKey,
+  parseFeedQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
@@ -24,7 +31,8 @@ export class DataLayer extends EventEmitter {
     this.sessionState = createSessionState(
       api.isAuthenticated ? api.session : null,
     );
-    this.dataStore = new DataStore(this.sessionState);
+    this.queryStore = new QueryStore();
+    this.dataStore = new DataStore(this.sessionState, this.queryStore);
     this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -35,6 +43,7 @@ export class DataLayer extends EventEmitter {
       this.draftMediaStore,
       this,
       constellation,
+      this.queryStore,
     );
     this.mutations = new Mutations(
       this.api,
@@ -43,6 +52,7 @@ export class DataLayer extends EventEmitter {
       this.preferencesProvider,
       this.identityResolver,
       this.draftMediaStore,
+      this.queryStore,
     );
     this.derived = new Derived(
       this.dataStore,
@@ -51,17 +61,31 @@ export class DataLayer extends EventEmitter {
       this.hiddenFeedItemsStore,
       this.isAuthenticated,
       this.draftMediaStore,
+      this.requests.statusStore,
+      this.queryStore,
     );
     this.declarative = new Declarative(this.derived, this.requests);
     this.subscribers = [];
   }
 
   hasCachedFeed(feedURI) {
-    return this.dataStore.$feeds.get(feedURI) !== null;
+    return this.queryStore.get(feedQueryKey({ uri: feedURI })) !== null;
+  }
+
+  getCachedFeed(feedURI) {
+    const items = this.queryStore.getItems(feedQueryKey({ uri: feedURI }));
+    return items ? { feed: items } : null;
+  }
+
+  getCachedFeeds() {
+    return this.queryStore.keysForResource(Resources.FEED).map((queryKey) => ({
+      uri: parseFeedQueryKey(queryKey),
+      feed: { feed: this.queryStore.getItems(queryKey) ?? [] },
+    }));
   }
 
   hasCachedAuthorFeed(profileDid, feedType) {
-    const feedURI = `${profileDid}-${feedType}`;
-    return this.dataStore.$authorFeeds.get(feedURI) !== null;
+    const queryKey = authorFeedQueryKey({ did: profileDid, feedType });
+    return this.queryStore.get(queryKey) !== null;
   }
 }

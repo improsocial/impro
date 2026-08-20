@@ -62,11 +62,12 @@ export default async function listsView({
   });
 
   async function loadLists({ reload = false } = {}) {
-    await dataLayer.requests.loadCurrentUserLists({ reload });
+    await dataLayer.declarative.ensureCurrentUser();
+    await dataLayer.requests.loadCurrentUserLists({}, { reload });
   }
 
   function loadPageData() {
-    loadLists({ reload: true });
+    loadLists({ reload: true }).catch((error) => console.error(error));
   }
 
   async function handleClickNew({ currentUser }) {

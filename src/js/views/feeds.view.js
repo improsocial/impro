@@ -306,7 +306,7 @@ export default async function feedsView({
   onPageHide(root, resetEditingState);
 
   function loadPageData() {
-    dataLayer.requests.loadPinnedItems();
+    dataLayer.requests.loadPinnedItems().catch((error) => console.error(error));
   }
 
   onPageShow(root, ({ action }) => {

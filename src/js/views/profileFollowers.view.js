@@ -49,10 +49,8 @@ export default async function profileFollowersView({
     const profileFollowers =
       dataLayer.derived.$profileFollowers.get(profileDid);
     const profile = dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
-    const profileFollowersRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get(
-        "loadProfileFollowers-" + profileDid,
-      );
+    const followersError =
+      dataLayer.derived.$profileFollowersError.get(profileDid);
     const hasMore = profileFollowers?.cursor ? true : false;
 
     const subtitle = profile?.followersCount
@@ -69,10 +67,8 @@ export default async function profileFollowersView({
         })}
         <main style="position: relative;">
           ${(() => {
-            if (profileFollowersRequestStatus.error) {
-              return followersErrorTemplate({
-                error: profileFollowersRequestStatus.error,
-              });
+            if (followersError) {
+              return followersErrorTemplate({ error: followersError });
             }
             return profileFeedTemplate({
               profiles: profileFollowers?.followers ?? null,
@@ -93,10 +89,10 @@ export default async function profileFollowersView({
   });
 
   async function loadFollowers({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$profileFollowers.get(profileDid)?.cursor;
-    await dataLayer.requests.loadProfileFollowers(profileDid, { cursor });
+    await dataLayer.requests.loadProfileFollowers(
+      { did: profileDid },
+      { reload },
+    );
   }
 
   function loadPageData() {

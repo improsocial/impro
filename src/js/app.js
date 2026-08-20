@@ -34,6 +34,7 @@ import feedDetailView from "/js/views/feedDetail.view.js";
 import listDetailView from "/js/views/listDetail.view.js";
 import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
+import { notificationsQueryKey } from "/js/dataLayer/queryKeys.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { IdentityResolver } from "/js/atproto.js";
@@ -262,13 +263,15 @@ export async function main() {
       // visited), preload new notifications.
       if (router.getScrollYForPath("/notifications") > 0) return;
       const { loading: notificationsLoading } = untrack(() =>
-        dataLayer.requests.statusStore.$statuses.get("loadNotifications"),
+        dataLayer.requests.statusStore.$statuses.get(notificationsQueryKey()),
       );
       if (notificationsLoading) return;
-      dataLayer.requests.loadNotifications({
-        limit: NOTIFICATIONS_PAGE_SIZE,
-        reload: true,
-      });
+      dataLayer.requests.loadNotifications(
+        {
+          limit: NOTIFICATIONS_PAGE_SIZE,
+        },
+        { reload: true },
+      );
     });
   }
 

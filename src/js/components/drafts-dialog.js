@@ -163,7 +163,7 @@ class DraftsDialog extends Component {
       return;
     }
     try {
-      await this.dataLayer.requests.loadDrafts({ reload: true });
+      await this.dataLayer.requests.loadDrafts({}, { reload: true });
     } catch (error) {
       console.error("Failed to load drafts", error);
       this.state.$loadError.set(true);

@@ -48,10 +48,8 @@ export default async function profileFollowingView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const profileFollowing = dataLayer.derived.$profileFollows.get(profileDid);
     const profile = dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
-    const profileFollowingRequestStatus =
-      dataLayer.requests.statusStore.$statuses.get(
-        "loadProfileFollows-" + profileDid,
-      );
+    const followingError =
+      dataLayer.derived.$profileFollowsError.get(profileDid);
     const hasMore = profileFollowing?.cursor ? true : false;
 
     const subtitle = profile?.followsCount
@@ -66,10 +64,8 @@ export default async function profileFollowingView({
         })}
         <main style="position: relative;">
           ${(() => {
-            if (profileFollowingRequestStatus.error) {
-              return followingErrorTemplate({
-                error: profileFollowingRequestStatus.error,
-              });
+            if (followingError) {
+              return followingErrorTemplate({ error: followingError });
             }
             return profileFeedTemplate({
               profiles: profileFollowing?.follows ?? null,
@@ -90,10 +86,10 @@ export default async function profileFollowingView({
   });
 
   async function loadFollowing({ reload = false } = {}) {
-    const cursor = reload
-      ? undefined
-      : dataLayer.derived.$profileFollows.get(profileDid)?.cursor;
-    await dataLayer.requests.loadProfileFollows(profileDid, { cursor });
+    await dataLayer.requests.loadProfileFollows(
+      { did: profileDid },
+      { reload },
+    );
   }
 
   function loadPageData() {

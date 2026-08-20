@@ -1,3 +1,42 @@
+import { Requests } from "/js/dataLayer/requests.js";
+import {
+  actorFeedsQueryKey,
+  actorListsQueryKey,
+  authorFeedQueryKey,
+  blockedProfilesQueryKey,
+  bookmarksQueryKey,
+  chatRecipientSearchQueryKey,
+  convoListQueryKey,
+  convoMembersQueryKey,
+  convoMessagesQueryKey,
+  convoRequestListQueryKey,
+  detailedProfileRequestKey,
+  draftsQueryKey,
+  feedQueryKey,
+  feedSearchQueryKey,
+  gifSearchQueryKey,
+  hashtagFeedQueryKey,
+  knownFollowersQueryKey,
+  listMembersQueryKey,
+  listsWithMembershipQueryKey,
+  mentionNotificationsQueryKey,
+  mutedProfilesQueryKey,
+  notificationsQueryKey,
+  pinnedItemsQueryKey,
+  postLikesQueryKey,
+  postQuotesQueryKey,
+  postRepostsQueryKey,
+  postSearchLatestQueryKey,
+  postSearchTopQueryKey,
+  postThreadOtherQueryKey,
+  postThreadQueryKey,
+  profileFollowersQueryKey,
+  profileFollowsQueryKey,
+  profileSearchQueryKey,
+  searchTypeaheadQueryKey,
+  sidebarSearchTypeaheadQueryKey,
+  trendsQueryKey,
+} from "/js/dataLayer/queryKeys.js";
 import {
   filterFollowingFeed,
   filterAlgorithmicFeed,
@@ -123,9 +162,13 @@ export class Derived extends ReactiveStore {
     hiddenFeedItemsStore,
     isAuthenticated,
     draftMediaStore,
+    statusStore,
+    queryStore,
   ) {
     super("derived");
     this.dataStore = dataStore;
+    this.queryStore = queryStore;
+    this.statusStore = statusStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -163,12 +206,13 @@ export class Derived extends ReactiveStore {
       return this.hydratePost(post, preferences);
     });
     this.$hydratedFeeds = new ComputedMap((feedURI) => {
-      const feed = this.dataStore.$feeds.get(feedURI);
-      if (!feed) {
+      const queryKey = feedQueryKey({ uri: feedURI });
+      const feedItems = this.queryStore.getItems(queryKey);
+      if (!feedItems) {
         return null;
       }
       const hydratedFeedItems = [];
-      for (const feedItem of feed.feed) {
+      for (const feedItem of feedItems) {
         const hydratedFeedItem = {
           feedContext: feedItem.feedContext,
           post: this.$hydratedPosts.get(feedItem.post.uri),
@@ -192,7 +236,7 @@ export class Derived extends ReactiveStore {
       }
       const hydratedFeed = {
         feed: hydratedFeedItems,
-        cursor: feed.cursor,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
       const pluginFilteredFeedItems =
         this.hiddenFeedItemsStore.$items.get(feedURI) ?? {};
@@ -213,6 +257,14 @@ export class Derived extends ReactiveStore {
         );
       }
     });
+    this.$feedError = new ComputedMap(
+      (feedURI) =>
+        this.statusStore.$errors.get(feedQueryKey({ uri: feedURI })) ?? null,
+    );
+    this.$isFeedLoading = new ComputedMap(
+      (feedURI) =>
+        this.statusStore.$loading.get(feedQueryKey({ uri: feedURI })) ?? false,
+    );
     this.$currentUser = new Signal.Computed(() => {
       const user = this.dataStore.$currentUser.get();
       const patches = this.patchStore.$currentUserPatches.get();
@@ -225,22 +277,28 @@ export class Derived extends ReactiveStore {
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
     this.$notifications = new Signal.Computed(() => {
-      const data = this.dataStore.$notifications.get();
-      if (!data) return null;
-      return data.notifications
+      const notifications = this.queryStore.getItems(notificationsQueryKey());
+      if (!notifications) return null;
+      return notifications
         .map((notification) => this.hydrateNotification(notification))
         .filter((notification) => !shouldHideNotification(notification));
     });
     this.$mentionNotifications = new Signal.Computed(() => {
-      const data = this.dataStore.$mentionNotifications.get();
-      if (!data) return null;
-      return data.notifications
+      const notifications = this.queryStore.getItems(
+        mentionNotificationsQueryKey(),
+      );
+      if (!notifications) return null;
+      return notifications
         .map((notification) => this.hydrateNotification(notification))
         .filter((notification) => !shouldHideNotification(notification));
     });
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
-      const postThread = this.dataStore.$postThreads.get(postURI);
-      const postThreadOther = this.dataStore.$postThreadOthers.get(postURI);
+      const postThread = this.queryStore.getValue(
+        postThreadQueryKey({ uri: postURI }),
+      );
+      const postThreadOther = this.queryStore.getValue(
+        postThreadOtherQueryKey({ uri: postURI }),
+      );
       if (!postThread || !postThreadOther) {
         return null;
       }
@@ -257,14 +315,20 @@ export class Derived extends ReactiveStore {
       }
       return hydrated;
     });
+    // Keyed by `${hashtag}-${sort}`; sort never contains a hyphen, so the last
+    // one separates the two.
     this.$hydratedHashtagFeeds = new ComputedMap((hashtagKey) => {
-      const data = this.dataStore.$hashtagFeeds.get(hashtagKey);
-      if (!data) {
+      const separatorIndex = hashtagKey.lastIndexOf("-");
+      const hashtag = hashtagKey.slice(0, separatorIndex);
+      const sort = hashtagKey.slice(separatorIndex + 1);
+      const queryKey = hashtagFeedQueryKey({ hashtag, sort });
+      const postUris = this.queryStore.getItems(queryKey);
+      if (!postUris) {
         return null;
       }
       const hydratedFeedItems = [];
-      for (const searchPost of data.posts) {
-        const post = this.$hydratedPosts.get(searchPost.uri);
+      for (const postUri of postUris) {
+        const post = this.$hydratedPosts.get(postUri);
         if (!post) continue;
         hydratedFeedItems.push({
           post: this.attachParentAuthor(post),
@@ -272,7 +336,7 @@ export class Derived extends ReactiveStore {
       }
       return {
         feed: hydratedFeedItems,
-        cursor: data.cursor,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
     this.$feedGenerators = new ComputedMap((feedUri) =>
@@ -285,37 +349,58 @@ export class Derived extends ReactiveStore {
       this.dataStore.$starterPacks.get(starterPackUri),
     );
     this.$listMembers = new ComputedMap((listUri) => {
-      const data = this.dataStore.$listMembers.get(listUri);
-      if (!data) return data;
+      const queryKey = listMembersQueryKey({ listUri });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        members: data.items.map((item) =>
-          this.$hydratedProfiles.get(item.subject.did),
-        ),
-        cursor: data.cursor,
+        members: dids.map((did) => this.$hydratedProfiles.get(did)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
-    this.$profileSearchResults = new Signal.Computed(() => {
-      const data = this.dataStore.$profileSearchResults.get();
-      if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
-    });
-    this.$profileSearchCursor = new Signal.Computed(
-      () => this.dataStore.$profileSearchResults.get()?.cursor ?? null,
+    this.$listMemberItemUris = new ComputedMap(
+      (listUri) => this.dataStore.$listItemUris.get(listUri) ?? new Map(),
     );
-    this.$chatRecipientSearchResults = new Signal.Computed(() => {
-      const data = this.dataStore.$chatRecipientSearchResults.get();
-      if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    this.$profileSearchResults = new ComputedMap((query) => {
+      const queryKey = profileSearchQueryKey({ query });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
+      return {
+        profiles: dids.map((did) => this.$hydratedProfiles.get(did)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
     });
-    this.$searchTypeaheadResults = new Signal.Computed(() => {
-      const data = this.dataStore.$searchTypeaheadResults.get();
-      if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    this.$profileSearchError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(profileSearchQueryKey({ query })) ?? null,
+    );
+    this.$isProfileSearchLoading = new ComputedMap(
+      (query) =>
+        this.statusStore.$loading.get(profileSearchQueryKey({ query })) ??
+        false,
+    );
+    this.$chatRecipientSearchResults = new ComputedMap((query) => {
+      const dids = this.queryStore.getItems(
+        chatRecipientSearchQueryKey({ query }),
+      );
+      if (!dids) return null;
+      return dids.map((did) => this.$hydratedProfiles.get(did));
     });
-    this.$sidebarSearchTypeaheadResults = new Signal.Computed(() => {
-      const data = this.dataStore.$sidebarSearchTypeaheadResults.get();
-      if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    this.$chatRecipientSearchError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(chatRecipientSearchQueryKey({ query })) ??
+        null,
+    );
+    this.$searchTypeaheadResults = new ComputedMap((query) => {
+      const dids = this.queryStore.getItems(searchTypeaheadQueryKey({ query }));
+      if (!dids) return null;
+      return dids.map((did) => this.$hydratedProfiles.get(did));
+    });
+    this.$sidebarSearchTypeaheadResults = new ComputedMap((query) => {
+      const dids = this.queryStore.getItems(
+        sidebarSearchTypeaheadQueryKey({ query }),
+      );
+      if (!dids) return null;
+      return dids.map((did) => this.$hydratedProfiles.get(did));
     });
     this.$recentSearchTerms = new Signal.Computed(() => {
       const preferences = this.$preferences.get();
@@ -333,59 +418,124 @@ export class Derived extends ReactiveStore {
           null,
       }));
     });
-    this.$feedSearchResults = new Signal.Computed(() => {
-      const data = this.dataStore.$feedSearchResults.get();
-      if (!data) return null;
-      return data.feeds;
+    this.$feedSearchResults = new ComputedMap((query) => {
+      const feedUris = this.queryStore.getItems(feedSearchQueryKey({ query }));
+      if (!feedUris) return null;
+      return feedUris.map((feedUri) => this.$feedGenerators.get(feedUri));
     });
-    this.$feedSearchCursor = new Signal.Computed(
-      () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
+    this.$feedSearchCursor = new ComputedMap(
+      (query) =>
+        this.queryStore.getNextCursor(feedSearchQueryKey({ query })) || null,
     );
-    this.$gifResults = new Signal.Computed(
-      () => this.dataStore.$gifResults.get()?.gifs ?? null,
+    this.$feedSearchError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(feedSearchQueryKey({ query })) ?? null,
     );
-    this.$gifCursor = new Signal.Computed(
-      () => this.dataStore.$gifResults.get()?.cursor ?? null,
+    this.$gifResults = new ComputedMap((query) =>
+      this.queryStore.getItems(gifSearchQueryKey({ query })),
+    );
+    this.$gifCursor = new ComputedMap(
+      (query) =>
+        this.queryStore.getNextCursor(gifSearchQueryKey({ query })) || null,
+    );
+    this.$isGifsLoading = new ComputedMap(
+      (query) =>
+        this.statusStore.$loading.get(gifSearchQueryKey({ query })) ?? false,
+    );
+    this.$gifsError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(gifSearchQueryKey({ query })) ?? null,
     );
     this.$recentGifs = new Signal.Computed(() => {
       const preferences = this.$preferences.get();
       if (!preferences) return [];
       return preferences.getRecentGifs();
     });
-    this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
+    this.$trends = new Signal.Computed(() =>
+      this.queryStore.getItems(trendsQueryKey()),
+    );
     this.$selectedFeedUri = new Signal.Computed(() =>
       this.dataStore.$selectedFeedUri.get(),
     );
-    this.$postSearchResultsTop = new Signal.Computed(() =>
-      this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
+    this.$postSearchResultsTop = new ComputedMap((query) => {
+      const queryKey = postSearchTopQueryKey({ query });
+      const postUris = this.queryStore.getItems(queryKey);
+      if (!postUris) {
+        return null;
+      }
+      const hydratedSearchResults = [];
+      for (const postUri of postUris) {
+        const post = this.$hydratedPosts.get(postUri);
+        if (!post) continue;
+        hydratedSearchResults.push(this.attachParentAuthor(post));
+      }
+      return hydratedSearchResults;
+    });
+    this.$postSearchResultsLatest = new ComputedMap((query) => {
+      const queryKey = postSearchLatestQueryKey({ query });
+      const postUris = this.queryStore.getItems(queryKey);
+      if (!postUris) {
+        return null;
+      }
+      const hydratedSearchResults = [];
+      for (const postUri of postUris) {
+        const post = this.$hydratedPosts.get(postUri);
+        if (!post) continue;
+        hydratedSearchResults.push(this.attachParentAuthor(post));
+      }
+      return hydratedSearchResults;
+    });
+    this.$postSearchCursorTop = new ComputedMap(
+      (query) =>
+        this.queryStore.getNextCursor(postSearchTopQueryKey({ query })) || null,
     );
-    this.$postSearchResultsLatest = new Signal.Computed(() =>
-      this.hydratePostSearchResults(this.dataStore.$postSearchResultsLatest),
+    this.$postSearchTopError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(postSearchTopQueryKey({ query })) ?? null,
     );
-    this.$postSearchCursorTop = new Signal.Computed(
-      () => this.dataStore.$postSearchResultsTop.get()?.cursor ?? null,
+    this.$isPostSearchTopLoading = new ComputedMap(
+      (query) =>
+        this.statusStore.$loading.get(postSearchTopQueryKey({ query })) ??
+        false,
     );
-    this.$postSearchCursorLatest = new Signal.Computed(
-      () => this.dataStore.$postSearchResultsLatest.get()?.cursor ?? null,
+    this.$postSearchCursorLatest = new ComputedMap(
+      (query) =>
+        this.queryStore.getNextCursor(postSearchLatestQueryKey({ query })) ||
+        null,
+    );
+    this.$postSearchLatestError = new ComputedMap(
+      (query) =>
+        this.statusStore.$errors.get(postSearchLatestQueryKey({ query })) ??
+        null,
+    );
+    this.$isPostSearchLatestLoading = new ComputedMap(
+      (query) =>
+        this.statusStore.$loading.get(postSearchLatestQueryKey({ query })) ??
+        false,
     );
     this.$hydratedPostQuotes = new ComputedMap((postUri) => {
-      const quotes = this.dataStore.$postQuotes.get(postUri);
-      if (!quotes) {
+      const queryKey = postQuotesQueryKey({ postUri });
+      const uris = this.queryStore.getItems(queryKey);
+      if (!uris) {
         return null;
       }
       const hydratedPosts = [];
-      for (const quote of quotes.posts) {
-        const post = this.$hydratedPosts.get(quote.uri);
+      for (const uri of uris) {
+        const post = this.$hydratedPosts.get(uri);
         if (!post) continue;
         hydratedPosts.push(this.attachParentAuthor(post));
       }
       return {
         posts: hydratedPosts,
-        cursor: quotes.cursor,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$postQuotesError = new ComputedMap(
+      (postUri) =>
+        this.statusStore.$errors.get(postQuotesQueryKey({ postUri })) ?? null,
+    );
     this.$hydratedPinnedItems = new Signal.Computed(() => {
-      const pinnedItems = this.dataStore.$pinnedItems.get();
+      const pinnedItems = this.queryStore.getItems(pinnedItemsQueryKey());
       if (!pinnedItems) return null;
       return pinnedItems.map((item) => {
         if (item.type === "timeline") {
@@ -428,12 +578,19 @@ export class Derived extends ReactiveStore {
       return this.hydrateProfileLabels(profile, preferences);
     });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
-      const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
-      if (!rawFeed) {
+      const dashIndex = feedURI.lastIndexOf("-");
+      const did = dashIndex >= 0 ? feedURI.slice(0, dashIndex) : feedURI;
+      const feedType = dashIndex >= 0 ? feedURI.slice(dashIndex + 1) : "";
+      const queryKey = authorFeedQueryKey({ did, feedType });
+      const feedItems = this.queryStore.getItems(queryKey);
+      if (!feedItems) {
         return null;
       }
       const patches = this.patchStore.$authorFeedPatches.get(feedURI) || [];
-      let feed = { feed: [...rawFeed.feed], cursor: rawFeed.cursor };
+      let feed = {
+        feed: feedItems,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
       for (const patch of patches) {
         feed = this.patchStore.applyAuthorFeedPatch(feed, patch.body);
       }
@@ -458,34 +615,59 @@ export class Derived extends ReactiveStore {
         }
         hydratedFeedItems.push(hydratedFeedItem);
       }
-      let hydratedFeed = {
-        feed: hydratedFeedItems,
-        cursor: feed.cursor,
-      };
-      const dashIndex = feedURI.lastIndexOf("-");
-      const feedType = dashIndex >= 0 ? feedURI.slice(dashIndex + 1) : "";
+      let hydratedFeed = { feed: hydratedFeedItems, cursor: feed.cursor };
       if (feedType === "replies") {
-        const filteredFeedItems = [];
-        for (const feedItem of hydratedFeed.feed) {
-          if (feedItem.reply && !feedItem.reason) {
-            filteredFeedItems.push(feedItem);
-          }
-        }
         hydratedFeed = {
-          feed: filteredFeedItems,
+          feed: hydratedFeed.feed.filter(
+            (feedItem) => feedItem.reply && !feedItem.reason,
+          ),
           cursor: hydratedFeed.cursor,
         };
       }
       return filterAuthorFeed(hydratedFeed, this.isAuthenticated);
     });
-    this.$actorFeeds = new ComputedMap((did) =>
-      this.dataStore.$actorFeeds.get(did),
-    );
-    this.$actorLists = new ComputedMap((did) =>
-      this.dataStore.$actorLists.get(did),
-    );
-    this.$listsWithMembershipByActor = new ComputedMap((did) =>
-      this.dataStore.$listsWithMembershipByActor.get(did),
+    this.$actorFeeds = new ComputedMap((did) => {
+      const queryKey = actorFeedsQueryKey({ did });
+      const feedUris = this.queryStore.getItems(queryKey);
+      if (!feedUris) return null;
+      return {
+        feeds: feedUris.map((feedUri) => this.$feedGenerators.get(feedUri)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
+    });
+    this.$actorLists = new ComputedMap((did) => {
+      const queryKey = actorListsQueryKey({ did });
+      const uris = this.queryStore.getItems(queryKey);
+      if (!uris) return null;
+      return {
+        lists: uris.map((uri) => this.$lists.get(uri)).filter(Boolean),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
+    });
+    this.$listsWithMembershipByActor = new ComputedMap((did) => {
+      const queryKey = listsWithMembershipQueryKey({ did });
+      const listUris = this.queryStore.getItems(queryKey);
+      if (!listUris) return null;
+      const listsWithMembership = [];
+      for (const listUri of listUris) {
+        const list = this.$lists.get(listUri);
+        if (!list) continue;
+        const listItemUri = this.$listMemberItemUris.get(listUri).get(did);
+        listsWithMembership.push(
+          listItemUri
+            ? { list, listItem: { uri: listItemUri, subject: did } }
+            : { list },
+        );
+      }
+      return {
+        listsWithMembership,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
+    });
+    this.$listsWithMembershipError = new ComputedMap(
+      (did) =>
+        this.statusStore.$errors.get(listsWithMembershipQueryKey({ did })) ??
+        null,
     );
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
@@ -494,34 +676,34 @@ export class Derived extends ReactiveStore {
       this.dataStore.$labelerInfo.get(did),
     );
     this.$hydratedBookmarks = new Signal.Computed(() => {
-      const data = this.dataStore.$bookmarks.get();
-      if (!data) {
+      const queryKey = bookmarksQueryKey();
+      const uris = this.queryStore.getItems(queryKey);
+      if (!uris) {
         return null;
       }
-      const hydratedFeed = [];
-      for (const bookmark of data.bookmarks) {
-        const post = this.$hydratedPosts.get(bookmark.item.uri);
-        hydratedFeed.push({ post: this.attachParentAuthor(post) });
-      }
+      const feed = uris.map((uri) => ({
+        post: this.attachParentAuthor(this.$hydratedPosts.get(uri)),
+      }));
       return filterBookmarksFeed({
-        feed: hydratedFeed,
-        cursor: data.cursor,
+        feed,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       });
     });
     this.$hydratedDrafts = new Signal.Computed(() => {
-      const data = this.dataStore.$drafts.get();
-      if (!data) {
+      const queryKey = draftsQueryKey();
+      const draftViews = this.queryStore.getItems(queryKey);
+      if (!draftViews) {
         return null;
       }
       const media = this.draftMediaStore.$media.get();
       return {
-        drafts: data.drafts.map((draftView) => ({
+        drafts: draftViews.map((draftView) => ({
           ...draftView,
           posts: (draftView.draft.posts ?? []).map((draftPost) =>
             this.hydrateDraftPost(draftPost, media),
           ),
         })),
-        cursor: data.cursor,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
     this.$labelerSettings = new ComputedMap((labelerDid) => {
@@ -533,9 +715,11 @@ export class Derived extends ReactiveStore {
       this.patchStore.$patchedConvos.get(convoId),
     );
     this.$convoList = new Signal.Computed(() => {
-      const data = this.dataStore.$convoList.get();
-      if (!data) return null;
-      const hydrated = data.convos.map((convo) => this.$convos.get(convo.id));
+      const convoIds = this.queryStore.getItems(convoListQueryKey());
+      if (!convoIds) return null;
+      const hydrated = convoIds
+        .map((convoId) => this.$convos.get(convoId))
+        .filter(Boolean);
       return sortBy(
         hydrated,
         (convo) => new Date(getLastInteractionTimestamp(convo)),
@@ -543,13 +727,16 @@ export class Derived extends ReactiveStore {
       );
     });
     this.$convoListCursor = new Signal.Computed(
-      () => this.dataStore.$convoList.get()?.cursor ?? null,
+      () => this.queryStore.getNextCursor(convoListQueryKey()) || null,
+    );
+    this.$convoListError = new Signal.Computed(
+      () => this.statusStore.$errors.get(convoListQueryKey()) ?? null,
     );
     this.$convoRequestList = new Signal.Computed(() => {
-      const data = this.dataStore.$convoRequestList.get();
-      if (!data) return null;
-      const hydrated = data.convos
-        .map((convo) => this.$convos.get(convo.id))
+      const convoIds = this.queryStore.getItems(convoRequestListQueryKey());
+      if (!convoIds) return null;
+      const hydrated = convoIds
+        .map((convoId) => this.$convos.get(convoId))
         .filter(Boolean);
       return sortBy(
         hydrated,
@@ -558,19 +745,23 @@ export class Derived extends ReactiveStore {
       );
     });
     this.$convoRequestListCursor = new Signal.Computed(
-      () => this.dataStore.$convoRequestList.get()?.cursor ?? null,
+      () => this.queryStore.getNextCursor(convoRequestListQueryKey()) || null,
+    );
+    this.$convoRequestListError = new Signal.Computed(
+      () => this.statusStore.$errors.get(convoRequestListQueryKey()) ?? null,
     );
     // The convo's members plus the hydrated profiles its interactions
     // reference (group convo member lists are partial)
     this.$convoProfiles = new ComputedMap((convoId) => {
       const convo = this.dataStore.$convos.get(convoId);
       if (!convo) return [];
-      const messages = this.dataStore.$convoMessages.get(convoId);
+      const messageIds =
+        this.queryStore.getItems(convoMessagesQueryKey({ convoId })) ?? [];
       const interactions = [
         convo.lastMessage,
         convo.lastReaction,
-        ...(messages?.messages ?? []),
-      ];
+        ...messageIds.map((id) => this.dataStore.$messages.get(id)),
+      ].filter(Boolean);
       const referencedDids = new Set(
         interactions.flatMap((interaction) =>
           getInteractionProfileDids(interaction),
@@ -607,15 +798,26 @@ export class Derived extends ReactiveStore {
       return this.dataStore.$convos.get(convoId)?.members ?? null;
     });
     this.$groupConvoMemberList = new ComputedMap((convoId) => {
-      return this.dataStore.$convoMemberLists.get(convoId);
+      const queryKey = convoMembersQueryKey({ convoId });
+      const members = this.queryStore.getItems(queryKey);
+      if (!members) return null;
+      return {
+        members,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
+      };
     });
+    this.$groupConvoMemberListError = new ComputedMap(
+      (convoId) =>
+        this.statusStore.$errors.get(convoMembersQueryKey({ convoId })) ?? null,
+    );
     this.$convoMessages = new ComputedMap((convoId) => {
-      const messages = this.dataStore.$convoMessages.get(convoId);
-      if (!messages) return null;
+      const queryKey = convoMessagesQueryKey({ convoId });
+      const messageIds = this.queryStore.getItems(queryKey);
+      if (!messageIds) return null;
       const members = this.$convoMembers.get(convoId) ?? [];
       return {
-        messages: messages.messages.map((message) => {
-          const patched = this.patchStore.$patchedMessages.get(message.id);
+        messages: messageIds.map((messageId) => {
+          const patched = this.patchStore.$patchedMessages.get(messageId);
           const hydrated = this.attachJoinLinkPreview(patched);
           if (!hydrated.reactions) return hydrated;
           return {
@@ -623,88 +825,137 @@ export class Derived extends ReactiveStore {
             reactions: filterBlockedReactions(hydrated.reactions, members),
           };
         }),
-        cursor: messages.cursor,
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$convoError = new ComputedMap(
+      (convoId) =>
+        this.statusStore.$errors.get(Requests.convoRequestKey({ convoId })) ??
+        null,
+    );
+    this.$detailedProfileError = new ComputedMap(
+      (did) =>
+        this.statusStore.$errors.get(detailedProfileRequestKey({ did })) ??
+        null,
+    );
+    this.$postThreadError = new ComputedMap(
+      (uri) =>
+        this.statusStore.$errors.get(postThreadQueryKey({ uri })) ?? null,
+    );
+    this.$convoMessagesError = new ComputedMap(
+      (convoId) =>
+        this.statusStore.$errors.get(convoMessagesQueryKey({ convoId })) ??
+        null,
+    );
     this.$hydratedConvoMessages = new ComputedMap((convoId) => {
       return this.$convoMessages.get(convoId);
     });
     this.$postLikes = new ComputedMap((postUri) => {
-      const data = this.dataStore.$postLikes.get(postUri);
-      if (!data) return data;
+      const queryKey = postLikesQueryKey({ postUri });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        likes: data.likes.map((like) => ({
-          ...like,
-          actor: this.$hydratedProfiles.get(like.actor.did),
-        })),
+        likes: dids.map((did) => ({ actor: this.$hydratedProfiles.get(did) })),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$postLikesError = new ComputedMap(
+      (postUri) =>
+        this.statusStore.$errors.get(postLikesQueryKey({ postUri })) ?? null,
+    );
     this.$postReposts = new ComputedMap((postUri) => {
-      const data = this.dataStore.$postReposts.get(postUri);
-      if (!data) return data;
+      const queryKey = postRepostsQueryKey({ postUri });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        repostedBy: data.repostedBy.map((actor) =>
-          this.$hydratedProfiles.get(actor.did),
-        ),
+        repostedBy: dids.map((did) => this.$hydratedProfiles.get(did)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$postRepostsError = new ComputedMap(
+      (postUri) =>
+        this.statusStore.$errors.get(postRepostsQueryKey({ postUri })) ?? null,
+    );
     this.$profileFollows = new ComputedMap((did) => {
-      const data = this.dataStore.$profileFollows.get(did);
-      if (!data) return data;
+      const queryKey = profileFollowsQueryKey({ did });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        follows: data.follows.map((actor) =>
-          this.$hydratedProfiles.get(actor.did),
-        ),
+        follows: dids.map((followDid) => this.$hydratedProfiles.get(followDid)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$profileFollowsError = new ComputedMap(
+      (did) =>
+        this.statusStore.$errors.get(profileFollowsQueryKey({ did })) ?? null,
+    );
     this.$profileFollowers = new ComputedMap((did) => {
-      const data = this.dataStore.$profileFollowers.get(did);
-      if (!data) return data;
+      const queryKey = profileFollowersQueryKey({ did });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        followers: data.followers.map((actor) =>
-          this.$hydratedProfiles.get(actor.did),
+        followers: dids.map((followerDid) =>
+          this.$hydratedProfiles.get(followerDid),
         ),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$profileFollowersError = new ComputedMap(
+      (did) =>
+        this.statusStore.$errors.get(profileFollowersQueryKey({ did })) ?? null,
+    );
     this.$knownFollowers = new ComputedMap((did) => {
-      const data = this.dataStore.$knownFollowers.get(did);
-      if (!data) return data;
+      const queryKey = knownFollowersQueryKey({ did });
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        followers: data.followers.map((actor) =>
-          this.$hydratedProfiles.get(actor.did),
+        followers: dids.map((followerDid) =>
+          this.$hydratedProfiles.get(followerDid),
         ),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$knownFollowersError = new ComputedMap(
+      (did) =>
+        this.statusStore.$errors.get(knownFollowersQueryKey({ did })) ?? null,
+    );
     this.$mutedProfiles = new Signal.Computed(() => {
-      const data = this.dataStore.$mutedProfiles.get();
-      if (!data) return data;
+      const queryKey = mutedProfilesQueryKey();
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        mutes: data.mutes.map((profile) =>
-          this.$hydratedProfiles.get(profile.did),
-        ),
+        mutes: dids.map((did) => this.$hydratedProfiles.get(did)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
     this.$blockedProfiles = new Signal.Computed(() => {
-      const data = this.dataStore.$blockedProfiles.get();
-      if (!data) return data;
+      const queryKey = blockedProfilesQueryKey();
+      const dids = this.queryStore.getItems(queryKey);
+      if (!dids) return null;
       return {
-        ...data,
-        blocks: data.blocks.map((profile) =>
-          this.$hydratedProfiles.get(profile.did),
-        ),
+        blocks: dids.map((did) => this.$hydratedProfiles.get(did)),
+        cursor: this.queryStore.getNextCursor(queryKey) || null,
       };
     });
+    this.$mutedProfilesError = new Signal.Computed(
+      () => this.statusStore.$errors.get(mutedProfilesQueryKey()) ?? null,
+    );
+    this.$blockedProfilesError = new Signal.Computed(
+      () => this.statusStore.$errors.get(blockedProfilesQueryKey()) ?? null,
+    );
     this.$notificationCursor = new Signal.Computed(
-      () => this.dataStore.$notifications.get()?.cursor ?? null,
+      () => this.queryStore.getNextCursor(notificationsQueryKey()) || null,
+    );
+    this.$notificationsError = new Signal.Computed(
+      () => this.statusStore.$errors.get(notificationsQueryKey()) ?? null,
     );
     this.$mentionNotificationCursor = new Signal.Computed(
-      () => this.dataStore.$mentionNotifications.get()?.cursor ?? null,
+      () =>
+        this.queryStore.getNextCursor(mentionNotificationsQueryKey()) || null,
+    );
+    this.$mentionNotificationsError = new Signal.Computed(
+      () =>
+        this.statusStore.$errors.get(mentionNotificationsQueryKey()) ?? null,
     );
   }
 
@@ -827,18 +1078,6 @@ export class Derived extends ReactiveStore {
         },
       },
     };
-  }
-
-  hydratePostSearchResults($storedResults) {
-    const data = $storedResults.get();
-    if (!data) return null;
-    const hydratedSearchResults = [];
-    for (const result of data.posts) {
-      const post = this.$hydratedPosts.get(result.uri);
-      if (!post) continue;
-      hydratedSearchResults.push(this.attachParentAuthor(post));
-    }
-    return hydratedSearchResults;
   }
 
   hydrateNotification(rawNotification) {

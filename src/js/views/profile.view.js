@@ -364,42 +364,43 @@ export default async function profileView({
                   : null}
                 ${authorFeedsToShow.map((feedInfo) => {
                   if (feedInfo.feedType === "feeds") {
-                    const actorFeeds =
+                    const actorFeedsData =
                       dataLayer.derived.$actorFeeds.get(profileDid);
                     return html`<div
                       class="feed-container"
                       ?hidden=${activeTab !== "feeds"}
                     >
                       ${actorFeedsTemplate({
-                        actorFeeds,
+                        actorFeeds: actorFeedsData,
                         onLoadMore: () => loadActorFeeds(),
                         currentUserDid: currentUser?.did,
                       })}
                     </div>`;
                   }
                   if (feedInfo.feedType === "lists") {
-                    const actorLists =
+                    const actorListsData =
                       dataLayer.derived.$actorLists.get(profileDid);
                     return html`<div
                       class="feed-container"
                       ?hidden=${activeTab !== "lists"}
                     >
                       ${listFeedTemplate({
-                        lists: actorLists?.lists,
-                        cursor: actorLists?.cursor,
+                        lists: actorListsData?.lists,
+                        cursor: actorListsData?.cursor,
                         onLoadMore: () => loadActorLists(),
                       })}
                     </div>`;
                   }
-                  const feedURI = `${profileDid}-${feedInfo.feedType}`;
-                  const authorFeed =
-                    dataLayer.derived.$hydratedAuthorFeeds.get(feedURI);
+                  const authorFeedData =
+                    dataLayer.derived.$hydratedAuthorFeeds.get(
+                      `${profileDid}-${feedInfo.feedType}`,
+                    );
                   return html`<div
                     class="feed-container"
                     ?hidden=${activeTab !== feedInfo.feedType}
                   >
                     ${postFeedTemplate({
-                      feed: authorFeed,
+                      feed: authorFeedData,
                       currentUser,
                       isAuthenticated,
                       postInteractionHandler,
@@ -438,10 +439,10 @@ export default async function profileView({
 
   pageEffect(root, () => {
     const profile = dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
+    const profileError =
+      dataLayer.derived.$detailedProfileError.get(profileDid);
     const currentUser = dataLayer.derived.$currentUser.get();
-    const profileRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadDetailedProfile-" + profileDid,
-    );
+
     const isLabeler = profile && isLabelerProfile(profile);
     const labelerInfo = isLabeler
       ? dataLayer.derived.$labelerInfo.get(profile.did)
@@ -456,9 +457,9 @@ export default async function profileView({
             ${arrowLeftIconTemplate()}
           </button>
           ${(() => {
-            if (profileRequestStatus.error) {
+            if (profileError) {
               return profileErrorTemplate({
-                error: profileRequestStatus.error,
+                error: profileError,
               });
             } else if (isLoaded) {
               return profileTemplate({
@@ -492,14 +493,18 @@ export default async function profileView({
     ) {
       return;
     }
-    await dataLayer.requests.loadNextAuthorFeedPage(profileDid, activeTab, {
-      reload,
-      limit: AUTHOR_FEED_PAGE_SIZE + 1,
-    });
+    await dataLayer.requests.loadNextAuthorFeedPage(
+      {
+        did: profileDid,
+        feedType: activeTab,
+        limit: AUTHOR_FEED_PAGE_SIZE + 1,
+      },
+      { reload },
+    );
   }
 
   async function loadActorFeeds({ reload = false } = {}) {
-    await dataLayer.requests.loadActorFeeds(profileDid, { reload });
+    await dataLayer.requests.loadActorFeeds({ did: profileDid }, { reload });
   }
 
   async function scrollAndReloadActorFeeds() {
@@ -510,7 +515,7 @@ export default async function profileView({
   }
 
   async function loadActorLists({ reload = false } = {}) {
-    await dataLayer.requests.loadActorLists(profileDid, { reload });
+    await dataLayer.requests.loadActorLists({ did: profileDid }, { reload });
   }
 
   async function scrollAndReloadActorLists() {
@@ -527,13 +532,11 @@ export default async function profileView({
       isLabeler,
     }).filter((feed) => feed.feedType !== activeTab);
     for (const feed of feedsToPreload) {
-      await dataLayer.requests.loadNextAuthorFeedPage(
-        profileDid,
-        feed.feedType,
-        {
-          limit: AUTHOR_FEED_PAGE_SIZE + 1,
-        },
-      );
+      await dataLayer.requests.loadNextAuthorFeedPage({
+        did: profileDid,
+        feedType: feed.feedType,
+        limit: AUTHOR_FEED_PAGE_SIZE + 1,
+      });
     }
   }
 
@@ -550,7 +553,9 @@ export default async function profileView({
     const isLabeler = isLabelerProfile(profile);
     if (isLabelerProfile(profile)) {
       state.$activeTab.set("labeler-settings");
-      dataLayer.requests.loadLabelerInfo(profile.did);
+      dataLayer.requests
+        .loadLabelerInfo(profile.did)
+        .catch((error) => console.warn("Could not load labeler info", error));
     }
     if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
       const isCurrentUser =
@@ -563,7 +568,9 @@ export default async function profileView({
       isAuthenticated &&
       profile.did !== dataLayer.derived.$currentUser.get()?.did
     ) {
-      dataLayer.requests.loadProfileChatStatus(profile.did);
+      dataLayer.requests
+        .loadProfileChatStatus(profile.did)
+        .catch((error) => console.warn("Could not load chat status", error));
     }
   }
 

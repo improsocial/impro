@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
+import { SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
@@ -17,7 +17,6 @@ class AddToListsDialog extends Component {
     this.scrollLock = null;
     this.state = new ReactiveStore("add-to-lists-dialog");
     this.state.$pendingByListUri = new SignalSet();
-    this.state.$loadError = new Signal.State(null);
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
       this.render();
@@ -34,12 +33,13 @@ class AddToListsDialog extends Component {
   async _load() {
     try {
       await this.dataLayer.requests.loadListsWithMembershipForActor(
-        this.profile.did,
+        {
+          did: this.profile.did,
+        },
         { reload: true },
       );
     } catch (error) {
       console.error(error);
-      this.state.$loadError.set(error.message || "Could not load your lists.");
     }
   }
 
@@ -57,9 +57,9 @@ class AddToListsDialog extends Component {
 
   async _loadMore() {
     try {
-      await this.dataLayer.requests.loadListsWithMembershipForActor(
-        this.profile.did,
-      );
+      await this.dataLayer.requests.loadListsWithMembershipForActor({
+        did: this.profile.did,
+      });
     } catch (error) {
       console.error(error);
     }
@@ -96,7 +96,9 @@ class AddToListsDialog extends Component {
       : null;
     const hasMore = !!listsWithMembership?.cursor;
     const isLoading = entries === null;
-    const loadError = this.state.$loadError.get();
+    const loadError = this.dataLayer.derived.$listsWithMembershipError.get(
+      this.profile.did,
+    );
     render(
       html`
         <dialog
@@ -134,7 +136,7 @@ class AddToListsDialog extends Component {
               </div>
               ${loadError
                 ? html`<div class="add-to-lists-dialog-error">
-                    ${loadError}
+                    ${loadError.message || "Could not load your lists."}
                   </div>`
                 : isLoading
                   ? html`<div

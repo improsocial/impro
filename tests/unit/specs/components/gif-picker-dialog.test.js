@@ -135,7 +135,12 @@ describe("gif-picker-dialog", () => {
     await flushMicrotasks();
     await nextFrame();
     assert.deepEqual(searchGifs.mock.callCount(), 1);
-    assert.deepEqual(getFeaturedGifs.mock.callCount(), 2);
+    // The featured slot is already loaded, so returning to it serves the cache
+    assert.deepEqual(getFeaturedGifs.mock.callCount(), 1);
+    assert.deepEqual(
+      dialog.querySelectorAll('[data-testid="gif-picker-tile"]').length,
+      1,
+    );
     // Pills are visible again once the query is empty
     assert(dialog.querySelector('[data-testid="gif-picker-pills"]'));
   });
@@ -253,13 +258,33 @@ describe("gif-picker-dialog", () => {
       next: cursor ? "60" : "30",
       results: [gif],
     });
-    await dataLayer.requests.loadGifs("");
-    await dataLayer.requests.loadGifs("", { cursor: "30" });
+    await dataLayer.requests.loadGifs({ query: "" });
+    await dataLayer.requests.loadGifs({ query: "" });
     assert.deepEqual(
-      dataLayer.derived.$gifResults.get().map((entry) => entry.id),
+      dataLayer.derived.$gifResults.get("").map((entry) => entry.id),
       ["dup"],
     );
-    assert.deepEqual(dataLayer.derived.$gifCursor.get(), null);
+    assert.deepEqual(dataLayer.derived.$gifCursor.get(""), null);
+  });
+
+  it("keeps results for each search term in its own slot", async () => {
+    const { dataLayer } = makeDialog({
+      searchResults: {
+        cats: [createGif({ id: "cat-1" })],
+        dogs: [createGif({ id: "dog-1" })],
+      },
+    });
+    await dataLayer.requests.loadGifs({ query: "cats" });
+    await dataLayer.requests.loadGifs({ query: "dogs" });
+    assert.deepEqual(
+      dataLayer.derived.$gifResults.get("cats").map((entry) => entry.id),
+      ["cat-1"],
+    );
+    assert.deepEqual(
+      dataLayer.derived.$gifResults.get("dogs").map((entry) => entry.id),
+      ["dog-1"],
+    );
+    assert.deepEqual(dataLayer.derived.$gifResults.get("birds"), null);
   });
 
   it("clears the debounce timer on disconnect", async () => {
