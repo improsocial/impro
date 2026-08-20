@@ -34,16 +34,9 @@ from the browser.
 
 ## User identity resolution
 
-A service resolves user DIDs in two places this document requires: the
+A service resolves user DIDs in two places: the
 service-auth `iss` on device registration, and `login_hint` in the auth
 handoff. Both MUST accept `did:plc` and `did:web`.
-
-`did:web` user DIDs are hostname-only — no path segments, and ports
-only for `localhost` in development — and resolve from
-`https://<hostname>/.well-known/did.json`, not from the PLC directory.
-A service that resolves every DID through the PLC directory does not
-degrade for self-hosted accounts; it excludes them, since both the
-registration signature check and the handoff's PDS lookup fail.
 
 ## Config document
 
@@ -89,8 +82,7 @@ browser to it and receives it back:
 1. The client navigates to `authUrl` with query parameters:
    - `login_hint` — the user's handle or DID. A service that accepts
      a handle MUST resolve it to a DID, and MUST verify the resolved
-     document's `alsoKnownAs` claims that handle, before treating it
-     as the hinted DID in step 3.
+     document's `alsoKnownAs` claims that handle.
    - `return_url` — where to redirect when done
    - `chat_previews` — `1` or `0`; whether the grant should include
      the message-content scope (see "Grant tiers")
@@ -230,7 +222,7 @@ notifications can trigger browsers' abusive-notification checks.
 - Verify `sub` against `login_hint` in the auth callback.
 - The service-auth `iss` and the handoff's `login_hint` are both
   caller-controlled and unauthenticated — `iss` selects the key before
-  any signature is checked. A service MUST NOT let either direct a
+  any signature is checked. A service MUST NOT let either value direct a
   document fetch at a private address: reject IP literals and reserved
   names, and do not follow redirects when fetching a `did:web`
   document.
