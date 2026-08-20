@@ -184,86 +184,94 @@ export class Requests {
     this.draftMediaStore = draftMediaStore;
     this.constellation = constellation;
     this.statusStore = new StatusStore();
-    // Enable status tracking
-    this.enableStatus(
+    this._inFlightRequests = new Map();
+    // Register the loaders
+    this.registerLoader(
       this.loadPostThread,
       (postUri) => "loadPostThread-" + postUri,
+      { dedupe: true },
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadNextFeedPage,
       ({ uri }) => "loadNextFeedPage-" + uri,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadDetailedProfile,
       (did) => "loadDetailedProfile-" + did,
+      { dedupe: true },
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadProfileSearch,
       (query) => "loadProfileSearch-" + query,
     );
-    this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
-    this.enableStatus(this.loadSearchTypeahead, "loadSearchTypeahead");
-    this.enableStatus(
+    this.registerLoader(
+      this.loadChatRecipientSearch,
+      "loadChatRecipientSearch",
+    );
+    this.registerLoader(this.loadSearchTypeahead, "loadSearchTypeahead");
+    this.registerLoader(
       this.loadSidebarSearchTypeahead,
       "loadSidebarSearchTypeahead",
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadPostSearchTop,
       (query) => "loadPostSearchTop-" + query,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadPostSearchLatest,
       (query) => "loadPostSearchLatest-" + query,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadFeedSearch,
       (query) => "loadFeedSearch-" + query,
     );
-    this.enableStatus(this.loadTrends, "loadTrends");
-    this.enableStatus(this.loadNotifications, "loadNotifications");
-    this.enableStatus(
+    this.registerLoader(this.loadTrends, "loadTrends", { dedupe: true });
+    this.registerLoader(this.loadNotifications, "loadNotifications");
+    this.registerLoader(
       this.loadMentionNotifications,
       "loadMentionNotifications",
     );
-    this.enableStatus(this.loadConvoList, "loadConvoList");
-    this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
-    this.enableStatus(this.loadConvo, (convoId) => "loadConvo-" + convoId);
-    this.enableStatus(
+    this.registerLoader(this.loadConvoList, "loadConvoList");
+    this.registerLoader(this.loadConvoRequestList, "loadConvoRequestList");
+    this.registerLoader(this.loadConvo, (convoId) => "loadConvo-" + convoId, {
+      dedupe: true,
+    });
+    this.registerLoader(
       this.loadConvoMembers,
       (convoId) => "loadConvoMembers-" + convoId,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadPostLikes,
       (postUri) => "loadPostLikes-" + postUri,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadPostQuotes,
       (postUri) => "loadPostQuotes-" + postUri,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadPostReposts,
       (postUri) => "loadPostReposts-" + postUri,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadProfileFollowers,
       (profileDid) => "loadProfileFollowers-" + profileDid,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadProfileFollows,
       (profileDid) => "loadProfileFollows-" + profileDid,
     );
-    this.enableStatus(
+    this.registerLoader(
       this.loadKnownFollowers,
       (profileDid) => "loadKnownFollowers-" + profileDid,
     );
-    this.enableStatus(this.loadGifs, (query) => "loadGifs-" + query);
-    this.enableStatus(this.loadDrafts, "loadDrafts");
-    this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
-    this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
+    this.registerLoader(this.loadGifs, (query) => "loadGifs-" + query);
+    this.registerLoader(this.loadDrafts, "loadDrafts");
+    this.registerLoader(this.loadBlockedProfiles, "loadBlockedProfiles");
+    this.registerLoader(this.loadMutedProfiles, "loadMutedProfiles");
   }
 
   async requireLabelers() {
@@ -1205,28 +1213,53 @@ export class Requests {
     });
   }
 
-  // Decorate a request method with status tracking
-  enableStatus(requestMethod, requestIdOrFn) {
+  // Wraps a loader so its loading/error state is tracked under `requestId`.
+  // `dedupe: true` additionally coalesces calls that arrive while an identical
+  // request is in flight — only safe when the requestId captures everything
+  // about the arguments that changes what the request does, which rules out
+  // loaders taking `reload`/`cursor`/`limit` options the id omits.
+  registerLoader(requestMethod, requestIdOrFn, { dedupe = false } = {}) {
     async function wrappedRequestMethod(...args) {
       const requestId =
         typeof requestIdOrFn === "function"
           ? requestIdOrFn(...args)
           : requestIdOrFn;
-      this.statusStore.setLoading(requestId, true);
-      try {
-        const result = await requestMethod.apply(this, args);
-        // Clear any errors from previous requests
-        this.statusStore.setError(requestId, null);
-        return result;
-      } catch (error) {
-        // Record every failure so views can render error states, but only
-        // swallow ApiErrors
-        this.statusStore.setError(requestId, error);
-        if (!(error instanceof ApiError)) {
-          throw error;
+
+      if (dedupe) {
+        const inFlight = this._inFlightRequests.get(requestId);
+        if (inFlight) {
+          return inFlight;
         }
+      }
+
+      const promise = (async () => {
+        this.statusStore.setLoading(requestId, true);
+        try {
+          const result = await requestMethod.apply(this, args);
+          // Clear any errors from previous requests
+          this.statusStore.setError(requestId, null);
+          return result;
+        } catch (error) {
+          // Record every failure so views can render error states, but only
+          // swallow ApiErrors
+          this.statusStore.setError(requestId, error);
+          if (!(error instanceof ApiError)) {
+            throw error;
+          }
+        } finally {
+          this.statusStore.setLoading(requestId, false);
+        }
+      })();
+
+      if (!dedupe) {
+        return promise;
+      }
+
+      this._inFlightRequests.set(requestId, promise);
+      try {
+        return await promise;
       } finally {
-        this.statusStore.setLoading(requestId, false);
+        this._inFlightRequests.delete(requestId);
       }
     }
     this[requestMethod.name] = wrappedRequestMethod.bind(this);

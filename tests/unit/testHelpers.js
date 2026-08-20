@@ -93,13 +93,13 @@ export function stubRecordLinkResolution(dataLayer, overrides = {}) {
 }
 
 // Replace a status-tracked loader on `requests` with a mock impl, keeping the
-// real enableStatus wrapper so the statusStore populates like in production.
+// real registerLoader wrapper so the statusStore populates like in production.
 // Pre-handles rejections since some loaders are fired without awaiting;
 // awaiters still observe the rejection.
 export function stubStatusTracked(requests, methodName, requestIdOrFn, impl) {
   const spy = mock.fn(impl);
   Object.defineProperty(spy, "name", { value: methodName });
-  requests.enableStatus(spy, requestIdOrFn);
+  requests.registerLoader(spy, requestIdOrFn);
   const wrapped = requests[methodName];
   requests[methodName] = (...args) => {
     const p = wrapped(...args);

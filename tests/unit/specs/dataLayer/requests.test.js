@@ -3158,7 +3158,7 @@ describe("loadPinnedItems", () => {
   });
 });
 
-describe("enableStatus / getStatus", () => {
+describe("registerLoader / getStatus", () => {
   it("should track loading start, end, and clear errors on success", async () => {
     const mockApi = { getMutes: async () => ({ mutes: [], cursor: null }) };
     const dataStore = new DataStore(createSessionState(null));
@@ -3271,6 +3271,150 @@ describe("enableStatus / getStatus", () => {
       requests.getStatus("loadDetailedProfile-did:plc:b").loading,
       false,
     );
+  });
+});
+
+describe("in-flight request dedupe", () => {
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it("should coalesce concurrent calls with the same request id", async () => {
+    const pending = deferred();
+    let callCount = 0;
+    const mockApi = {
+      getProfile: async (did) => {
+        callCount += 1;
+        await pending.promise;
+        return { did, handle: "alice.test" };
+      },
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    const first = requests.loadDetailedProfile("did:plc:a");
+    const second = requests.loadDetailedProfile("did:plc:a");
+    pending.resolve();
+    await Promise.all([first, second]);
+
+    assert.deepEqual(callCount, 1);
+    assert.deepEqual(
+      dataStore.$detailedProfiles.get("did:plc:a").handle,
+      "alice.test",
+    );
+  });
+
+  it("should keep loading true until the shared request settles", async () => {
+    const pending = deferred();
+    const mockApi = {
+      getProfile: async (did) => {
+        await pending.promise;
+        return { did, handle: "alice.test" };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    const first = requests.loadDetailedProfile("did:plc:a");
+    const second = requests.loadDetailedProfile("did:plc:a");
+    assert.deepEqual(
+      requests.getStatus("loadDetailedProfile-did:plc:a").loading,
+      true,
+    );
+
+    pending.resolve();
+    await Promise.all([first, second]);
+    assert.deepEqual(
+      requests.getStatus("loadDetailedProfile-did:plc:a").loading,
+      false,
+    );
+  });
+
+  it("should not coalesce calls with different request ids", async () => {
+    const pending = deferred();
+    let callCount = 0;
+    const mockApi = {
+      getProfile: async (did) => {
+        callCount += 1;
+        await pending.promise;
+        return { did, handle: "x" };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    const first = requests.loadDetailedProfile("did:plc:a");
+    const second = requests.loadDetailedProfile("did:plc:b");
+    pending.resolve();
+    await Promise.all([first, second]);
+
+    assert.deepEqual(callCount, 2);
+  });
+
+  it("should not cache across sequential calls", async () => {
+    let callCount = 0;
+    const mockApi = {
+      getProfile: async (did) => {
+        callCount += 1;
+        return { did, handle: "x" };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    await requests.loadDetailedProfile("did:plc:a");
+    await requests.loadDetailedProfile("did:plc:a");
+
+    assert.deepEqual(callCount, 2);
+  });
+
+  it("should share a rejection with every concurrent caller and allow a retry", async () => {
+    const networkError = new TypeError("Failed to fetch");
+    let callCount = 0;
+    let shouldFail = true;
+    const mockApi = {
+      getProfile: async (did) => {
+        callCount += 1;
+        if (shouldFail) {
+          throw networkError;
+        }
+        return { did, handle: "x" };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    const first = requests.loadDetailedProfile("did:plc:a");
+    const second = requests.loadDetailedProfile("did:plc:a");
+    await assert.rejects(first, /Failed to fetch/);
+    await assert.rejects(second, /Failed to fetch/);
+    assert.deepEqual(callCount, 1);
+
+    shouldFail = false;
+    await requests.loadDetailedProfile("did:plc:a");
+    assert.deepEqual(callCount, 2);
+  });
+
+  it("should leave loaders without dedupe enabled untouched", async () => {
+    const pending = deferred();
+    let callCount = 0;
+    const mockApi = {
+      getMutes: async () => {
+        callCount += 1;
+        await pending.promise;
+        return { mutes: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    const first = requests.loadMutedProfiles();
+    const second = requests.loadMutedProfiles();
+    pending.resolve();
+    await Promise.all([first, second]);
+
+    assert.deepEqual(callCount, 2);
   });
 });
 
