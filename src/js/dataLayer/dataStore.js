@@ -22,6 +22,7 @@ export class DataStore extends ReactiveStore {
     this.$drafts = new Signal.State(null);
     this.$convoList = new Signal.State(null);
     this.$convoRequestList = new Signal.State(null);
+    this.$chatActorStatus = new Signal.State(null);
     this.$blockedProfiles = new Signal.State(null);
     this.$mutedProfiles = new Signal.State(null);
     this.$latestProfileSearchRequestTime = new Signal.State(null);

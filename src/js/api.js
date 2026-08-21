@@ -943,6 +943,27 @@ export class Api {
     return res.data;
   }
 
+  async createGroupChat(name, memberDids, { labelers = [] } = {}) {
+    const res = await this.request("chat.bsky.group.createGroup", {
+      method: "POST",
+      body: { name, members: memberDids },
+      headers: {
+        "atproto-accept-labelers": Api.buildAcceptLabelersHeader(labelers),
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async getChatActorStatus() {
+    const res = await this.request("chat.bsky.actor.getStatus", {
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getConvoForMembers(memberDids, { labelers = [] } = {}) {
     const res = await this.request("chat.bsky.convo.getConvoForMembers", {
       query: { members: memberDids },

@@ -225,6 +225,7 @@ export class Requests {
       this.loadMentionNotifications,
       "loadMentionNotifications",
     );
+    this.enableStatus(this.loadChatActorStatus, "loadChatActorStatus");
     this.enableStatus(this.loadConvoList, "loadConvoList");
     this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
     this.enableStatus(this.loadConvo, (convoId) => "loadConvo-" + convoId);
@@ -1540,6 +1541,11 @@ export class Requests {
       requestCursor: cursor ?? "",
       overwrite: !cursor,
     });
+  }
+
+  async loadChatActorStatus() {
+    const res = await this.api.getChatActorStatus();
+    this.dataStore.$chatActorStatus.set(res);
   }
 
   async loadProfileChatStatus(profileDid) {

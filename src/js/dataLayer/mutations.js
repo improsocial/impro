@@ -1380,6 +1380,15 @@ export class Mutations {
     return res;
   }
 
+  async createGroupChat(name, memberDids) {
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const res = await this.api.createGroupChat(name, memberDids, {
+      labelers: preferences.getLabelerDids(),
+    });
+    this.dataStore.setConvo(res.convo);
+    return res.convo;
+  }
+
   async requestJoinGroupChat(code) {
     const res = await this.api.requestJoinGroupChat(code);
     const preview = this.dataStore.$joinLinkPreviewsByCode.get(code);

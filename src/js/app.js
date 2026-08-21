@@ -159,7 +159,13 @@ export async function main() {
         draftsEnabled: await checkDraftsEnabled(auth),
       })
     : null;
-  const newChatService = session ? new NewChatService(dataLayer) : null;
+  const newChatService = session
+    ? new NewChatService(dataLayer, {
+        groupChatsEnabled: await auth.hasScope(
+          "rpc:chat.bsky.group.createGroup",
+        ),
+      })
+    : null;
   const accountSwitcherService = session
     ? new AccountSwitcherService(dataLayer, auth)
     : null;

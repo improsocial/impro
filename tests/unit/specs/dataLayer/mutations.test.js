@@ -2788,6 +2788,78 @@ describe("acceptConvo", () => {
   });
 });
 
+describe("createGroupChat", () => {
+  function setup({ convoList, apiFailure } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    if (convoList) {
+      dataStore.$convoList.set({ convos: convoList, cursor: "list-cursor" });
+    }
+    const groupConvo = {
+      id: "convo-group-1",
+      status: "accepted",
+      kind: { $type: "chat.bsky.convo.defs#groupConvo", name: "Trip" },
+    };
+    const calls = [];
+    const mutations = makeMutations(
+      {
+        createGroupChat: async (name, memberDids, options) => {
+          calls.push({ name, memberDids, options });
+          if (apiFailure) throw apiFailure;
+          return { convo: groupConvo };
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, calls, groupConvo };
+  }
+
+  it("should call the api and return the created convo", async () => {
+    const { mutations, calls, groupConvo } = setup();
+    const result = await mutations.createGroupChat("Trip", [
+      "did:plc:alice",
+      "did:plc:bob",
+    ]);
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].name, "Trip");
+    assert.deepEqual(calls[0].memberDids, ["did:plc:alice", "did:plc:bob"]);
+    assert.deepEqual(result, groupConvo);
+  });
+
+  it("should save the convo and add it to the convo list", async () => {
+    const otherConvo = { id: "convo-2", status: "accepted" };
+    const { mutations, dataStore, groupConvo } = setup({
+      convoList: [otherConvo],
+    });
+    await mutations.createGroupChat("Trip", ["did:plc:alice"]);
+    assert.deepEqual(dataStore.$convos.get(groupConvo.id), groupConvo);
+    const list = dataStore.$convoList.get();
+    assert.deepEqual(
+      list.convos.map((convo) => convo.id),
+      [groupConvo.id, otherConvo.id],
+    );
+    assert.deepEqual(list.cursor, "list-cursor");
+  });
+
+  it("should rethrow api failures without touching the store", async () => {
+    const failure = new Error("BlockedActor");
+    const { mutations, dataStore } = setup({
+      convoList: [],
+      apiFailure: failure,
+    });
+    await assert.rejects(
+      () => mutations.createGroupChat("Trip", ["did:plc:alice"]),
+      failure,
+    );
+    assert.deepEqual(dataStore.$convoList.get().convos, []);
+  });
+});
+
 describe("rejectConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 

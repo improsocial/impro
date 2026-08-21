@@ -34,6 +34,13 @@ export class MockServer {
     this.sendMessageFailure = null;
     this.createRecordFailures = new Map();
     this.convoForMembersError = null;
+    this.chatActorStatus = {
+      chatDisabled: false,
+      canCreateGroups: true,
+      groupMemberLimit: 100,
+    };
+    this.createGroupError = null;
+    this.createGroupRequests = [];
     this.leaveConvoError = null;
     this.typeaheadProfiles = [];
     this.typeaheadDelayMs = 0;
@@ -300,6 +307,14 @@ export class MockServer {
 
   setConvoForMembersError(errorName) {
     this.convoForMembersError = errorName;
+  }
+
+  setChatActorStatus(overrides) {
+    this.chatActorStatus = { ...this.chatActorStatus, ...overrides };
+  }
+
+  setCreateGroupError(errorName) {
+    this.createGroupError = errorName;
   }
 
   setExternalLinkCard(url, meta) {
@@ -1322,6 +1337,64 @@ export class MockServer {
             ? { status: "joined", convo: joinedConvo }
             : { status: "pending" },
         ),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.actor.getStatus*", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(this.chatActorStatus),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.group.createGroup*", (route) => {
+      const body = route.request().postDataJSON();
+      this.createGroupRequests.push(body);
+      if (this.createGroupError) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: this.createGroupError,
+            message: this.createGroupError,
+          }),
+        });
+      }
+      const memberDids = body?.members ?? [];
+      const id = `convo-group-${++this.messageCounter}`;
+      const memberKind = (role) => ({
+        $type: "chat.bsky.actor.defs#groupConvoMember",
+        role,
+      });
+      const convo = {
+        id,
+        rev: `rev-${id}`,
+        members: [
+          { ...userProfile, kind: memberKind("owner") },
+          ...memberDids.map((did) => ({
+            ...(this.profiles.get(did) || { did }),
+            kind: memberKind("standard"),
+          })),
+        ],
+        status: "accepted",
+        unreadCount: 0,
+        muted: false,
+        kind: {
+          $type: "chat.bsky.convo.defs#groupConvo",
+          name: body?.name,
+          memberCount: memberDids.length + 1,
+          memberLimit: this.chatActorStatus.groupMemberLimit ?? 100,
+          lockStatus: "unlocked",
+          createdAt: new Date().toISOString(),
+        },
+      };
+      this.convos.push(convo);
+      this.convoMessages.set(convo.id, []);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ convo }),
       });
     });
 
