@@ -5,6 +5,11 @@ import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { PLUGIN_PREVIEW_QUERY_PARAM } from "/js/plugins/pluginService.js";
+import { Layout } from "/js/router.js";
+import "/js/components/animated-sidebar.js";
+import "/js/components/trending-pane.js";
+import "/js/components/sidebar-search.js";
+import "/js/components/pinned-feeds-pane.js";
 
 function exitPluginPreview() {
   const url = new URL(window.location.href);
@@ -49,11 +54,6 @@ function pluginPreviewBannerTemplate({ plugins }) {
     </div>
   `;
 }
-import { Layout } from "/js/router.js";
-import "/js/components/animated-sidebar.js";
-import "/js/components/trending-pane.js";
-import "/js/components/sidebar-search.js";
-import "/js/components/pinned-feeds-pane.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -102,7 +102,7 @@ export function mainLayoutTemplate({
         </div>
         <div class="view-column-right">
           ${activeNavItem === "search"
-            ? ""
+            ? html`<div class="sidebar-search-placeholder"></div>`
             : html`<sidebar-search
                 .dataLayer=${dataLayer}
                 .isAuthenticated=${isAuthenticated}

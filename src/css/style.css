@@ -6226,6 +6226,10 @@ sidebar-search {
   border-bottom: none;
 }
 
+.sidebar-search-placeholder {
+  height: 16px;
+}
+
 .feeds-list {
   display: flex;
   flex-direction: column;
