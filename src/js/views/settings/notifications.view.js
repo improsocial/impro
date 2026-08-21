@@ -5,6 +5,7 @@ import { classnames } from "/js/utils.js";
 import { choiceModal } from "/js/modals/choice.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
+import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import "/js/components/toggle-switch.js";
 
 function consumePushNotificationServiceCallbackParams() {
@@ -72,6 +73,10 @@ export default async function settingsNotificationsView({
       }
       return;
     }
+    await startPushEnableFlow();
+  }
+
+  async function startPushEnableFlow() {
     let permission = null;
     const choice = await choiceModal(
       "You'll be sent to the notification service to authorize push notifications. Message previews require additional read-only access to chat messages.",
@@ -168,6 +173,9 @@ export default async function settingsNotificationsView({
       pushNotificationService?.requiresInstall ?? false;
     const serviceDid = pushNotificationService?.serviceDid ?? null;
     const hasService = serviceDid !== null;
+    const pushNeedsReauth = pushNotificationService?.needsReauth ?? false;
+    const showReauthWarning =
+      pushSupported && hasService && pushEnabled && pushNeedsReauth;
 
     const systemRowDisabled = !isSupported || isDenied;
     const pushRowDisabled = !pushSupported || !hasService || pushBusy;
@@ -233,6 +241,16 @@ export default async function settingsNotificationsView({
                 @change=${(event) => handlePushToggle(event.detail.checked)}
               ></toggle-switch>
             </div>
+            ${showReauthWarning
+              ? html`
+                  <div class="warning-area" data-testid="push-reauth-warning">
+                    <h4>${alertIconTemplate()} Authorization needed</h4>
+                    The notification service no longer accepts this device's
+                    registration, so push notifications aren't being delivered.
+                    Disable and reenable the setting to re-authorize.
+                  </div>
+                `
+              : null}
           </section>
         </main>
       </div>`,

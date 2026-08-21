@@ -9252,6 +9252,10 @@ moderation-warning .toggle-content {
   height: 18px;
 }
 
+.warning-area .button-group {
+  margin-top: 12px;
+}
+
 @media (min-width: 800px) {
   #login-form .form-title {
     display: none;

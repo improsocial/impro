@@ -4,6 +4,8 @@ import { DesktopNotificationService } from "/js/desktopNotificationService.js";
 import { AppBadgeService } from "/js/appBadgeService.js";
 import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
+import { showToast } from "/js/toasts.js";
+import { html } from "/js/lib/lit-html.js";
 
 export class NotificationServiceManager {
   constructor({ session, api, auth, router }) {
@@ -43,9 +45,23 @@ export class NotificationServiceManager {
       this.appBadgeService?.start(),
     ].filter(Boolean);
 
-    this.pushNotificationService?.reassertIfEnabled().catch((error) => {
-      console.error("Failed to re-assert push registration", error);
-    });
+    this.pushNotificationService
+      ?.reassertIfEnabled()
+      .then(({ newlyRevoked }) => {
+        if (!newlyRevoked) return;
+        showToast(
+          html`<div class="toast-with-link">
+            Push notifications need to be re-authorized.<a
+              href="/settings/notifications"
+              >Settings</a
+            >
+          </div>`,
+          { style: "warning", timeout: 8000 },
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to re-assert push registration", error);
+      });
 
     return () => {
       for (const cleanup of cleanups) {

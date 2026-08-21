@@ -1,10 +1,11 @@
 import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
 import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
-import { Api } from "/js/api.js";
+import { Api, ApiError } from "/js/api.js";
 
 const STORAGE_KEY = "push-notifications-enabled";
 const SERVICE_STORAGE_KEY = "push-notification-service";
+const NEEDS_REAUTH_STORAGE_KEY = "push-notifications-needs-reauth";
 const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
@@ -57,6 +58,9 @@ export class PushNotificationService {
     this.$deviceServiceDid = new Signal.State(
       localStorage.getItem(SERVICE_STORAGE_KEY),
     );
+    this.$needsReauth = new Signal.State(
+      localStorage.getItem(NEEDS_REAUTH_STORAGE_KEY) === "true",
+    );
   }
 
   get isSupported() {
@@ -87,6 +91,10 @@ export class PushNotificationService {
     return this.serviceDid !== null;
   }
 
+  get needsReauth() {
+    return this.$needsReauth.get();
+  }
+
   _setDeviceServiceDid(did) {
     if (did === null) {
       localStorage.removeItem(SERVICE_STORAGE_KEY);
@@ -105,6 +113,15 @@ export class PushNotificationService {
     this.$enabled.set(enabled);
   }
 
+  _setNeedsReauth(needsReauth) {
+    if (needsReauth) {
+      localStorage.setItem(NEEDS_REAUTH_STORAGE_KEY, "true");
+    } else {
+      localStorage.removeItem(NEEDS_REAUTH_STORAGE_KEY);
+    }
+    this.$needsReauth.set(needsReauth);
+  }
+
   async previewService(did) {
     const config = await this._loadServiceConfig(did);
     return { did, name: config.name ?? did, authUrl: config.authUrl ?? null };
@@ -116,6 +133,7 @@ export class PushNotificationService {
       await this.disable();
     }
     this._forgetConfig();
+    this._setNeedsReauth(false);
     this._setDeviceServiceDid(did);
   }
 
@@ -125,6 +143,7 @@ export class PushNotificationService {
       await this.disable();
     }
     this._forgetConfig();
+    this._setNeedsReauth(false);
     this._setDeviceServiceDid(null);
   }
 
@@ -208,21 +227,33 @@ export class PushNotificationService {
       appId: APP_ID,
     });
     this._setEnabled(true);
+    this._setNeedsReauth(false);
   }
 
   async reassertIfEnabled() {
-    if (!this.$enabled.get() || !this.isSupported || !this.hasService) return;
+    if (!this.$enabled.get() || !this.isSupported || !this.hasService) {
+      return { enabled: this.isEnabled };
+    }
     if (Notification.permission !== "granted") {
       // Permission was revoked out-of-band (browser site settings).
       this._setEnabled(false);
-      return;
+      return { enabled: false };
     }
     try {
       const config = await this.fetchServiceConfig();
       await this._subscribeAndRegister(config);
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        const alreadyKnown = this.$needsReauth.get();
+        this._setNeedsReauth(true);
+        return { enabled: true, newlyRevoked: !alreadyKnown };
+      }
       console.error("Failed to re-assert push registration", error);
     }
+    return { enabled: true };
   }
 
   async _apiForAccount(did) {
@@ -286,6 +317,7 @@ export class PushNotificationService {
 
   async disable() {
     this._setEnabled(false);
+    this._setNeedsReauth(false);
     const subscription = await this._getSubscription();
     if (!subscription) return;
     await this._unregisterDevice(subscription);

@@ -118,6 +118,7 @@ export class MockServer {
     this.notificationServiceDid = null;
     this.registerPushCalls = [];
     this.unregisterPushCalls = [];
+    this.registerPushStatus = 200;
     this.slingshotUnreachable = false;
     this.pdsEndpoint = "http://localhost:8081";
   }
@@ -179,6 +180,12 @@ export class MockServer {
   // previous launch had left it there. Call before setup().
   setNotificationServiceDid(did) {
     this.notificationServiceDid = did;
+  }
+
+  // The notification service no longer accepts this user's registrations, as
+  // if the authorization was revoked server-side. Call before setup().
+  failRegisterPushWithAuthError() {
+    this.registerPushStatus = 401;
   }
 
   setSearchHistory({ searches = [], profiles = [] } = {}) {
@@ -1074,7 +1081,7 @@ export class MockServer {
     await page.route("**/xrpc/app.bsky.notification.registerPush*", (route) => {
       this.registerPushCalls.push(route.request().postDataJSON());
       return route.fulfill({
-        status: 200,
+        status: this.registerPushStatus,
         contentType: "text/plain",
         body: "",
       });
