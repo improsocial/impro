@@ -184,7 +184,7 @@ describe("NotificationService", () => {
     });
   });
 
-  describe("startPolling", () => {
+  describe("start", () => {
     it("keeps polling after a poll throws", async (t) => {
       t.mock.method(console, "error", () => {});
       const api = createMockApi();
@@ -198,7 +198,7 @@ describe("NotificationService", () => {
       };
       const service = new NotificationService(api);
 
-      const stopPolling = service.startPolling();
+      const stopPolling = service.start();
       t.after(stopPolling);
 
       await waitFor(() => service.$numNotifications.get() === 3);
@@ -226,7 +226,7 @@ describe("NotificationService", () => {
       it("fetches when the document becomes visible", async (t) => {
         const counter = { calls: 0 };
         const service = new NotificationService(createCountingApi(counter));
-        t.after(service.startPolling());
+        t.after(service.start());
         await flushMicrotasks();
         assert.deepEqual(counter.calls, 1);
 

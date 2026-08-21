@@ -102,7 +102,7 @@ describe("fetchNumNotifications", () => {
   });
 });
 
-describe("startPolling", () => {
+describe("start", () => {
   const originalSetTimeout = globalThis.setTimeout;
   beforeEach(() => {
     globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
@@ -125,7 +125,7 @@ describe("startPolling", () => {
     };
     const service = new ChatNotificationService(api);
 
-    const stopPolling = service.startPolling();
+    const stopPolling = service.start();
     t.after(stopPolling);
 
     await waitFor(() => service.$numNotifications.get() === 3);
@@ -152,7 +152,7 @@ describe("refresh on becoming visible", () => {
       },
     };
     const service = new ChatNotificationService(api);
-    t.after(service.startPolling());
+    t.after(service.start());
     await flushMicrotasks();
     assert.deepEqual(calls, 1);
 

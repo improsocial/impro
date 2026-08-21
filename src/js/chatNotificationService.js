@@ -16,7 +16,7 @@ export class ChatNotificationService {
     );
   }
 
-  startPolling() {
+  start() {
     this.poller.start();
     // Restart the poller on page visible to fetch notifications immediately
     const handleVisibilityChange = () => {
