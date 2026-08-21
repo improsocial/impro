@@ -9,6 +9,15 @@
  *   Paginated response from `getKnownFollowers`: `{ followers, cursor }`.
  * @typedef {Record<string, unknown>} RepoRecord
  *   A raw repo record: `{ uri, cid, value }`.
+ * @typedef {Record<string, unknown>} PostThreadView
+ *   Hydrated thread for a post: the post plus `parent`/`replies`.
+ * @typedef {Record<string, unknown>} ListView
+ *   An `app.bsky.graph.defs#listView` shape.
+ * @typedef {Record<string, unknown>} FeedGeneratorView
+ *   An `app.bsky.feed.defs#generatorView` shape.
+ * @typedef {{ ok: boolean, status: number, data: unknown }} XrpcQueryResponse
+ *   Raw XRPC response: on failure `data` is the error body
+ *   (`{ error, message }`) when the service provided one.
  * @typedef {{ did: string, collection: string, rkey: string }} BacklinkRecord
  *   A record that links to a queried subject.
  * @typedef {Record<string, unknown>} FeedItem
@@ -355,6 +364,67 @@ export class PluginData {
   getBacklinks({ subject, source, limit = 100 }) {
     return /** @type {Promise<BacklinkRecord[]>} */ (
       hostCall("getBacklinks", { subject, source, limit })
+    );
+  }
+  /**
+   * Fetch the hydrated thread around a post (the post, its parents, and
+   * replies), as the host renders it.
+   * @param {string} uri
+   * @returns {Promise<PostThreadView | null>}
+   */
+  getPostThread(uri) {
+    return /** @type {Promise<PostThreadView | null>} */ (
+      hostCall("getPostThread", { uri })
+    );
+  }
+  /**
+   * Fetch a list's metadata view by AT-URI.
+   * @param {string} uri
+   * @returns {Promise<ListView | null>}
+   */
+  getList(uri) {
+    return /** @type {Promise<ListView | null>} */ (
+      hostCall("getList", { uri })
+    );
+  }
+  /**
+   * Fetch a feed generator view by AT-URI.
+   * @param {string} uri
+   * @returns {Promise<FeedGeneratorView | null>}
+   */
+  getFeedGenerator(uri) {
+    return /** @type {Promise<FeedGeneratorView | null>} */ (
+      hostCall("getFeedGenerator", { uri })
+    );
+  }
+  /**
+   * The current user's full hydrated profile (unlike `app.currentUser`,
+   * which carries only `did` and `handle`). `null` when signed out.
+   * @returns {Promise<DetailedProfileView | null>}
+   */
+  getCurrentUserProfile() {
+    return /** @type {Promise<DetailedProfileView | null>} */ (
+      hostCall("getCurrentUserProfile", {})
+    );
+  }
+  /**
+   * Call a read-only AppView query endpoint through the current user's
+   * session and get the raw XRPC response back.
+   *
+   * Only an allowlisted set of `app.bsky.*` query NSIDs is accepted;
+   * viewer-private queries (mutes, bookmarks, notifications, preferences,
+   * timeline, ...) additionally require the `"privateData"` action
+   * permission. Unlike the curated methods above, responses are canonical
+   * server state — they may briefly disagree with what the host UI shows
+   * while an optimistic update is in flight, and results are not cached.
+   *
+   * @param {string} nsid e.g. `"app.bsky.feed.getQuotes"`
+   * @param {Record<string, string | number | boolean | string[]>} [params]
+   * @returns {Promise<XrpcQueryResponse>}
+   */
+  xrpcQuery(nsid, params = {}) {
+    return /** @type {Promise<XrpcQueryResponse>} */ (
+      hostCall("xrpcQuery", { nsid, params })
     );
   }
 }

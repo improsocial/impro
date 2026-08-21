@@ -4214,7 +4214,7 @@ describe("loadActorLists", () => {
 });
 
 describe("loadCurrentUserLists", () => {
-  it("should do nothing when there is no current user", async () => {
+  it("should do nothing when not authenticated", async () => {
     let called = false;
     const mockApi = {
       getActorLists: async () => {
@@ -4232,11 +4232,12 @@ describe("loadCurrentUserLists", () => {
     assert.deepEqual(called, false);
   });
 
-  it("should load the current user's lists", async () => {
+  it("should load the session user's lists without waiting for the current user profile", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$currentUser.set({ did: "did:plc:me" });
     let requestedDid = null;
     const mockApi = {
+      isAuthenticated: true,
+      session: { did: "did:plc:me" },
       getActorLists: async (did) => {
         requestedDid = did;
         return { lists: [{ uri: "l1" }], cursor: null };

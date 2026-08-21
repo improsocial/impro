@@ -1,15 +1,21 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  parsePermissions,
-  diffPermissions,
-  isEmptyPermissions,
-  isFetchAllowed,
-  isActionAllowed,
-  isUserFetchAllowed,
-  normalizeFetchOrigin,
-  parseUserGrantedFetchOrigins,
-} from "/js/plugins/pluginPermissions.js";
+import { Permissions } from "/js/plugins/pluginPermissions.js";
+
+const normalizeFetchOrigin = Permissions.normalizeFetchOrigin;
+
+// The historical free-function surface, expressed through the Permissions
+// class so every case exercises the public API.
+const parsePermissions = (raw) => Permissions.parse(raw).toJSON();
+const isActionAllowed = (action, permissions) =>
+  Permissions.parse(permissions).allowsAction(action);
+const diffPermissions = (current, next) =>
+  Permissions.parse(current).diff(Permissions.parse(next));
+const isEmptyPermissions = (obj) => Permissions.parse(obj).isEmpty();
+const isUserFetchAllowed = (permissions) =>
+  Permissions.parse(permissions).allowsUserFetch();
+const isFetchAllowed = (url, permissions) =>
+  Permissions.parse(permissions).allowsFetch(url);
 
 describe("parsePermissions", () => {
   it("returns an empty object when fetch is missing", () => {
@@ -52,6 +58,12 @@ describe("parsePermissions", () => {
       }),
       { actions: ["mute", "block", "feedFeedback"] },
     );
+  });
+
+  it("accepts the privateData action scope", () => {
+    assert.deepEqual(parsePermissions({ actions: ["privateData"] }), {
+      actions: ["privateData"],
+    });
   });
 
   it("wraps a string actions value into an array", () => {
@@ -220,40 +232,6 @@ describe("isUserFetchAllowed", () => {
   });
 });
 
-describe("parseUserGrantedFetchOrigins", () => {
-  it("normalizes and de-duplicates stored origins", () => {
-    assert.deepEqual(
-      parseUserGrantedFetchOrigins([
-        "https://api.example.com/v1",
-        "https://api.example.com/v2",
-        "http://localhost:11434/api",
-      ]),
-      ["https://api.example.com/*", "http://localhost:11434/*"],
-    );
-  });
-
-  // The preferences record is writable by anything holding the account's
-  // credentials, so stored values are untrusted input
-  it("drops anything that isn't a normalizable origin", () => {
-    assert.deepEqual(
-      parseUserGrantedFetchOrigins([
-        "https://*/*",
-        "http://evil.example.com/*",
-        "not a url",
-        42,
-        null,
-      ]),
-      [],
-    );
-  });
-
-  it("returns an empty array for a non-array value", () => {
-    assert.deepEqual(parseUserGrantedFetchOrigins(undefined), []);
-    assert.deepEqual(parseUserGrantedFetchOrigins("https://a.com/*"), []);
-    assert.deepEqual(parseUserGrantedFetchOrigins(null), []);
-  });
-});
-
 describe("normalizeFetchOrigin", () => {
   it("discards the path and keeps the origin", () => {
     assert.equal(
@@ -407,5 +385,74 @@ describe("isFetchAllowed", () => {
 
   it("denies everything when the fetch key is missing", () => {
     assert(!isFetchAllowed("https://example.com/", {}));
+  });
+});
+
+describe("Permissions", () => {
+  it("parse is idempotent over its own output", () => {
+    const parsed = Permissions.parse({
+      fetch: ["https://a.com/*"],
+      userFetch: true,
+      actions: ["mute"],
+    });
+    assert.deepEqual(
+      Permissions.parse(parsed.toJSON()).toJSON(),
+      parsed.toJSON(),
+    );
+  });
+
+  it("fromManifest reads the manifest permissions key", () => {
+    const permissions = Permissions.fromManifest({
+      name: "x",
+      permissions: { actions: ["block"] },
+    });
+    assert.deepEqual(permissions.toJSON(), { actions: ["block"] });
+    assert.deepEqual(Permissions.fromManifest({}).toJSON(), {});
+  });
+
+  it("exposes the parsed keys as properties for templates", () => {
+    const permissions = Permissions.parse({
+      fetch: ["https://a.com/*"],
+      userFetch: true,
+      actions: ["mute"],
+    });
+    assert.deepEqual(permissions.fetch, ["https://a.com/*"]);
+    assert.deepEqual(permissions.userFetch, true);
+    assert.deepEqual(permissions.actions, ["mute"]);
+  });
+
+  it("serializes to the canonical plain shape via JSON.stringify", () => {
+    const permissions = Permissions.parse({ actions: ["mute"] });
+    assert.deepEqual(JSON.parse(JSON.stringify(permissions)), {
+      actions: ["mute"],
+    });
+  });
+
+  it("withFetchOrigins returns a new grant with the origins appended", () => {
+    const permissions = Permissions.parse({
+      userFetch: true,
+      fetch: ["https://a.com/*"],
+    });
+    const merged = permissions.withFetchOrigins(["https://granted.example/*"]);
+    assert.deepEqual(merged.fetch, [
+      "https://a.com/*",
+      "https://granted.example/*",
+    ]);
+    assert.deepEqual(permissions.fetch, ["https://a.com/*"]);
+    assert.deepEqual(permissions.withFetchOrigins([]), permissions);
+  });
+
+  it("allowsAction throws on an unknown action scope", () => {
+    const permissions = Permissions.parse({ actions: ["mute"] });
+    assert.throws(
+      () => permissions.allowsAction("privatedata"),
+      /unknown action scope "privatedata"/,
+    );
+  });
+
+  it("hasFetchPattern checks for an exact stored pattern", () => {
+    const permissions = Permissions.parse({ fetch: ["https://a.com/*"] });
+    assert(permissions.hasFetchPattern("https://a.com/*"));
+    assert(!permissions.hasFetchPattern("https://a.com/x"));
   });
 });

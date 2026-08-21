@@ -56,10 +56,6 @@ export class DataLayer extends EventEmitter {
     this.subscribers = [];
   }
 
-  async initializePreferences() {
-    return this.preferencesProvider.fetchPreferences();
-  }
-
   hasCachedFeed(feedURI) {
     return this.dataStore.$feeds.get(feedURI) !== null;
   }

@@ -1,9 +1,18 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { pluginFetch, MAX_RESPONSE_BYTES } from "/js/plugins/pluginRequests.js";
+import {
+  PluginRequests,
+  MAX_RESPONSE_BYTES,
+} from "/js/plugins/pluginRequests.js";
+import { ApiError } from "/js/api.js";
+import { Permissions } from "/js/plugins/pluginPermissions.js";
+
+function pluginFetch(permissions, url, init, fetchImpl) {
+  return new PluginRequests({ fetchImpl }).pluginFetch(permissions, url, init);
+}
 
 function makePermissions(patterns) {
-  return { fetch: patterns };
+  return Permissions.parse({ fetch: patterns });
 }
 
 function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
@@ -27,6 +36,48 @@ function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
 // decode it back rather than comparing against a string.
 function decodeBody(bodyBuffer) {
   return new TextDecoder().decode(bodyBuffer);
+}
+
+const queryTestPlugin = { pluginId: "test-plugin" };
+
+function makeXrpcPluginRequests({
+  request = async () => ({ status: 200, data: {} }),
+  labelers = ["did:plc:labeler"],
+  session = { did: "did:plc:me", handle: "me.test" },
+  requireActionPermission = () => {},
+} = {}) {
+  const requestCalls = [];
+  const permissionCalls = [];
+  const dataLayer = {
+    api: {
+      bskyAppViewServiceDid: "did:web:appview.test#bsky_appview",
+      request: async (path, options) => {
+        requestCalls.push({ path, options });
+        return request(path, options);
+      },
+    },
+    requests: {
+      requireLabelers: () => {
+        if (labelers instanceof Error) throw labelers;
+        return labelers;
+      },
+    },
+  };
+  const permissionsManager = {
+    requireActionPermission: (plugin, action) => {
+      permissionCalls.push({ plugin, action });
+      return requireActionPermission(plugin, action);
+    },
+  };
+  return {
+    pluginRequests: new PluginRequests({
+      dataLayer,
+      session,
+      permissionsManager,
+    }),
+    requestCalls,
+    permissionCalls,
+  };
 }
 
 async function expectRejection(fn, includes) {
@@ -193,7 +244,12 @@ describe("allowlist - path matching", () => {
   it("rejects when the granted permissions have no fetch patterns", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await expectRejection(() =>
-      pluginFetch({}, "https://api.example.com/x", {}, fakeFetch),
+      pluginFetch(
+        Permissions.parse({}),
+        "https://api.example.com/x",
+        {},
+        fakeFetch,
+      ),
     );
     assert.deepEqual(calls.length, 0);
   });
@@ -372,6 +428,326 @@ describe("response size", () => {
           fakeFetch,
         ),
       "too large",
+    );
+  });
+});
+
+describe("pluginXrpcRequest", () => {
+  const queryPlugin = { pluginId: "test-plugin" };
+
+  it("rejects a query that is not allowlisted without making a request", async () => {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(
+        queryPlugin,
+        "chat.bsky.convo.getMessages",
+        {},
+      ),
+      /not an allowed query/,
+    );
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(
+        queryPlugin,
+        "com.atproto.repo.deleteRecord",
+        {},
+      ),
+      /not an allowed query/,
+    );
+    assert.deepEqual(requestCalls, []);
+  });
+
+  it("performs an allowlisted public query with params and labelers, without a permission check", async () => {
+    const data = { posts: [{ uri: "at://quote/1" }] };
+    const { pluginRequests, requestCalls, permissionCalls } =
+      makeXrpcPluginRequests({
+        request: async () => ({ status: 200, data }),
+      });
+    const result = await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.feed.getQuotes",
+      { uri: "at://example/post/1", limit: 25 },
+    );
+    assert.deepEqual(result, { ok: true, status: 200, data });
+    assert.deepEqual(requestCalls.length, 1);
+    assert.deepEqual(requestCalls[0].path, "app.bsky.feed.getQuotes");
+    assert.deepEqual(requestCalls[0].options.query, {
+      uri: "at://example/post/1",
+      limit: 25,
+    });
+    assert.deepEqual(
+      requestCalls[0].options.headers["atproto-accept-labelers"],
+      "did:plc:labeler",
+    );
+    assert.deepEqual(
+      requestCalls[0].options.headers["atproto-proxy"],
+      "did:web:appview.test#bsky_appview",
+    );
+    assert.deepEqual(permissionCalls, []);
+  });
+
+  it("requires the privateData permission for private queries", async () => {
+    const { pluginRequests, requestCalls, permissionCalls } =
+      makeXrpcPluginRequests({
+        requireActionPermission: () => {
+          throw new Error(
+            '"test-plugin" does not have "privateData" action permission',
+          );
+        },
+      });
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(
+        queryPlugin,
+        "app.bsky.graph.getMutes",
+        {},
+      ),
+      /"privateData" action permission/,
+    );
+    assert.deepEqual(permissionCalls, [
+      { plugin: queryPlugin, action: "privateData" },
+    ]);
+    assert.deepEqual(requestCalls, []);
+  });
+
+  it("performs a private query when the permission is granted", async () => {
+    const data = { mutes: [] };
+    const { pluginRequests, requestCalls, permissionCalls } =
+      makeXrpcPluginRequests({
+        request: async () => ({ status: 200, data }),
+      });
+    const result = await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.graph.getMutes",
+      {},
+    );
+    assert.deepEqual(result, { ok: true, status: 200, data });
+    assert.deepEqual(permissionCalls, [
+      { plugin: queryPlugin, action: "privateData" },
+    ]);
+    assert.deepEqual(requestCalls.length, 1);
+  });
+
+  it("rejects private queries when signed out", async () => {
+    const { pluginRequests, requestCalls, permissionCalls } =
+      makeXrpcPluginRequests({ session: null });
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(
+        queryPlugin,
+        "app.bsky.graph.getMutes",
+        {},
+      ),
+      /Not signed in/,
+    );
+    assert.deepEqual(permissionCalls, []);
+    assert.deepEqual(requestCalls, []);
+  });
+
+  it("sends an empty labelers header when preferences are unavailable", async () => {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests({
+      labelers: new Error("Preferences not loaded"),
+    });
+    await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.feed.getQuotes",
+      {},
+    );
+    assert.deepEqual(
+      requestCalls[0].options.headers["atproto-accept-labelers"],
+      "",
+    );
+  });
+
+  it("returns ok:false with the error body on an ApiError", async () => {
+    const { pluginRequests } = makeXrpcPluginRequests({
+      request: async () => {
+        throw new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: { error: "InvalidRequest", message: "bad uri" },
+          headers: null,
+          url: "",
+        });
+      },
+    });
+    const result = await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.feed.getQuotes",
+      { uri: "nope" },
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      status: 400,
+      data: { error: "InvalidRequest", message: "bad uri" },
+    });
+  });
+
+  it("rejects with a sanitized error on non-API failures", async () => {
+    const { pluginRequests } = makeXrpcPluginRequests({
+      request: async () => {
+        throw new TypeError("secret internal detail");
+      },
+    });
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(
+        queryPlugin,
+        "app.bsky.feed.getQuotes",
+        {},
+      ),
+      (error) => {
+        assert(!error.message.includes("secret internal detail"));
+        assert(
+          /request to "app\.bsky\.feed\.getQuotes" failed/.test(error.message),
+        );
+        return true;
+      },
+    );
+  });
+
+  it("rejects unsupported param values before making a request", async () => {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryPlugin, "app.bsky.feed.getQuotes", {
+        uri: { toString: () => "sneaky" },
+      }),
+      /unsupported type/,
+    );
+    assert.deepEqual(requestCalls, []);
+  });
+});
+
+describe("xrpc query allowlist (via pluginXrpcRequest)", () => {
+  it("classifies public queries as callable without a permission check", async () => {
+    for (const nsid of [
+      "app.bsky.feed.getQuotes",
+      "app.bsky.graph.getLists",
+      "app.bsky.actor.getProfile",
+    ]) {
+      const { pluginRequests, requestCalls, permissionCalls } =
+        makeXrpcPluginRequests();
+      await pluginRequests.pluginXrpcRequest(queryTestPlugin, nsid, {});
+      assert.deepEqual(requestCalls.length, 1, nsid);
+      assert.deepEqual(permissionCalls, [], nsid);
+    }
+  });
+
+  it("classifies private queries as permission-gated", async () => {
+    for (const nsid of [
+      "app.bsky.graph.getMutes",
+      "app.bsky.notification.listNotifications",
+      "app.bsky.feed.getTimeline",
+    ]) {
+      const { pluginRequests, requestCalls, permissionCalls } =
+        makeXrpcPluginRequests();
+      await pluginRequests.pluginXrpcRequest(queryTestPlugin, nsid, {});
+      assert.deepEqual(requestCalls.length, 1, nsid);
+      assert.deepEqual(
+        permissionCalls,
+        [{ plugin: queryTestPlugin, action: "privateData" }],
+        nsid,
+      );
+    }
+  });
+
+  it("refuses everything not allowlisted", async () => {
+    for (const nsid of [
+      "chat.bsky.convo.getMessages",
+      "chat.bsky.convo.listConvos",
+      "app.bsky.draft.getDrafts",
+      "com.atproto.repo.createRecord",
+      "app.bsky.feed.sendInteractions",
+      // Would let the AppView forward the user's service auth to a
+      // plugin-chosen feed generator
+      "app.bsky.feed.getFeed",
+      "",
+    ]) {
+      const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+      await assert.rejects(
+        pluginRequests.pluginXrpcRequest(queryTestPlugin, nsid, {}),
+        /not an allowed query/,
+        nsid,
+      );
+      assert.deepEqual(requestCalls, [], nsid);
+    }
+  });
+});
+
+describe("xrpc param sanitization (via pluginXrpcRequest)", () => {
+  const NSID = "app.bsky.feed.getQuotes";
+
+  async function queryWith(params) {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+    await pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, params);
+    return requestCalls[0].options.query;
+  }
+
+  it("passes through scalar and string-array values", async () => {
+    assert.deepEqual(
+      await queryWith({
+        uri: "at://example/post/1",
+        limit: 25,
+        includePins: true,
+        uris: ["at://a", "at://b"],
+      }),
+      {
+        uri: "at://example/post/1",
+        limit: 25,
+        includePins: true,
+        uris: ["at://a", "at://b"],
+      },
+    );
+  });
+
+  it("sends an empty query for missing params", async () => {
+    assert.deepEqual(await queryWith(null), {});
+    assert.deepEqual(await queryWith(undefined), {});
+  });
+
+  it("drops null and undefined values", async () => {
+    assert.deepEqual(await queryWith({ cursor: null, limit: 5 }), { limit: 5 });
+  });
+
+  it("rejects non-object params", async () => {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, "uri=x"),
+      /must be an object/,
+    );
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, ["uri"]),
+      /must be an object/,
+    );
+    assert.deepEqual(requestCalls, []);
+  });
+
+  it("rejects object and function values", async () => {
+    const { pluginRequests } = makeXrpcPluginRequests();
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, {
+        uri: { toString: () => "x" },
+      }),
+      /unsupported type/,
+    );
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, {
+        uris: [() => "x"],
+      }),
+      /unsupported type/,
+    );
+  });
+
+  it("rejects oversized values", async () => {
+    const { pluginRequests } = makeXrpcPluginRequests();
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, {
+        q: "x".repeat(2001),
+      }),
+      /too long/,
+    );
+    const tooMany = Object.fromEntries(
+      Array.from({ length: 21 }, (_, index) => [`p${index}`, "x"]),
+    );
+    await assert.rejects(
+      pluginRequests.pluginXrpcRequest(queryTestPlugin, NSID, tooMany),
+      /too many params/,
     );
   });
 });

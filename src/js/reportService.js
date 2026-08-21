@@ -12,6 +12,7 @@ export class ReportService {
       console.warn("Report dialog already open");
       return;
     }
+    await this.dataLayer.preferencesProvider.requirePreferences();
     return new Promise((resolve, reject) => {
       this.currentReportDialog = document.createElement("report-dialog");
       const preferences = this.dataLayer.derived.$preferences.get();

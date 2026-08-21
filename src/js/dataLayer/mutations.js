@@ -416,7 +416,7 @@ export class Mutations {
       feedUri,
       entryType: "feed",
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.pinFeed(feedUri, "feed");
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -434,7 +434,7 @@ export class Mutations {
       feedUri: listUri,
       entryType: "list",
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.pinFeed(listUri, "list");
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -451,7 +451,7 @@ export class Mutations {
       type: "unpinFeed",
       feedUri,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.unpinFeed(feedUri);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -468,7 +468,7 @@ export class Mutations {
       type: "unpinFeed",
       feedUri: listUri,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.unpinFeed(listUri);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -481,7 +481,7 @@ export class Mutations {
   }
 
   async setPinnedItems(values) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.setPinnedItems(values);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -509,7 +509,7 @@ export class Mutations {
     const patchId = this.patchStore.addPostPatch(post.uri, {
       type: "hidePost",
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.hidePost(post.uri);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -523,7 +523,7 @@ export class Mutations {
   }
 
   async addRecentSearch(q) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addRecentSearch(q);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
@@ -533,7 +533,7 @@ export class Mutations {
       type: "removeRecentSearch",
       q,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeRecentSearch(q);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -546,13 +546,13 @@ export class Mutations {
   }
 
   async addRecentGif(gif) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addRecentGif(gif);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
 
   async addRecentSearchProfile(did) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addRecentSearchProfile(did);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
@@ -562,7 +562,7 @@ export class Mutations {
       type: "removeRecentSearchProfile",
       did,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeRecentSearchProfile(did);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -575,13 +575,13 @@ export class Mutations {
   }
 
   async removeRecentSearchProfiles(dids) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeRecentSearchProfiles(dids);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
 
   async addMutedWord({ value, targets, actorTarget, expiresAt }) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addMutedWord({
       value,
       targets,
@@ -592,13 +592,13 @@ export class Mutations {
   }
 
   async removeMutedWord(wordId) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeMutedWord(wordId);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
 
   async updateMutedWord(wordId, updatedFields) {
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.updateMutedWord(wordId, updatedFields);
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
@@ -609,7 +609,7 @@ export class Mutations {
       did: profile.did,
       labelerInfo,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.subscribeLabeler(
       profile.did,
       labelerInfo,
@@ -630,7 +630,7 @@ export class Mutations {
       type: "unsubscribeLabeler",
       did: profile.did,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.unsubscribeLabeler(profile.did);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
@@ -649,7 +649,7 @@ export class Mutations {
       visibility,
       labelerDid,
     });
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.setContentLabelPref({
       label,
       visibility,
@@ -1179,7 +1179,7 @@ export class Mutations {
         pinnedItems.filter((item) => item.data?.uri !== list.uri),
       );
     }
-    const preferences = this.preferencesProvider.requirePreferences();
+    const preferences = await this.preferencesProvider.requirePreferences();
     if (preferences.isFeedPinned(list.uri)) {
       const newPreferences = preferences.unpinFeed(list.uri);
       try {

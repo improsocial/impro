@@ -1157,3 +1157,9 @@ export function enableReorder(
   container.__reorderEnabled = { cleanup };
   return { cleanup };
 }
+
+export function requireArg(method, name, value) {
+  if (!value) {
+    throw new Error(`${method} requires a ${name}`);
+  }
+}

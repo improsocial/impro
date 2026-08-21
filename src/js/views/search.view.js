@@ -175,6 +175,12 @@ export default async function searchView({
   async function hydrateAndPruneRecentProfiles() {
     try {
       if (!isAuthenticated) return;
+      try {
+        await dataLayer.preferencesProvider.requirePreferences();
+      } catch (error) {
+        console.warn("Failed to load recent search profiles", error);
+        return;
+      }
       const entries = dataLayer.derived.$recentSearchProfiles.get() ?? [];
       if (entries.length === 0) return;
       const dids = entries.map((entry) => entry.did);

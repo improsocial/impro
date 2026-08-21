@@ -122,7 +122,9 @@ export default async function pluginSettingsView({
               </p>`;
             }
             const grantedOrigins =
-              pluginService.getUserGrantedFetchOrigins(pluginId);
+              pluginService.permissionsManager.getUserGrantedFetchOrigins(
+                pluginId,
+              );
             if (!settingTab) {
               if (pluginLoading) {
                 return html`<div class="plugins-loading-state">
@@ -145,7 +147,7 @@ export default async function pluginSettingsView({
               ? systemSettingsTemplate({
                   origins: grantedOrigins,
                   onRevoke: (origin) =>
-                    pluginService
+                    pluginService.permissionsManager
                       .revokeUserGrantedFetchOrigin(pluginId, origin)
                       .catch((e) => {
                         console.error(e);

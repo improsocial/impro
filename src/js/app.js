@@ -56,12 +56,11 @@ import { GroupChatLinkService } from "/js/groupChatLinkService.js";
 import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
-import { isNative, wait } from "/js/utils.js";
+import { isNative } from "/js/utils.js";
 import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE, IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
-import { showToast } from "/js/toasts.js";
 import {
   getAppViewConfig,
   handleAppViewResetQueryParam,
@@ -126,8 +125,6 @@ export async function main() {
     constellation,
     identityResolver,
   );
-  // put dataLayer on window for easy access in dev tools
-  window.dataLayer = dataLayer;
   const notificationService = session ? new NotificationService(api) : null;
   const chatNotificationService = session
     ? new ChatNotificationService(api)
@@ -196,29 +193,10 @@ export async function main() {
     });
   }
 
-  // Preload preferences - sometimes this fails, so try it twice.
-  try {
-    await dataLayer.initializePreferences();
-  } catch (error) {
-    console.error("Error initializing preferences:", error);
-    await wait(1000);
-    try {
-      await dataLayer.initializePreferences();
-    } catch (retryError) {
-      console.error("Error initializing preferences:", retryError);
-      throw retryError;
-    }
-  }
-
-  if (preferencesProvider.$labelerDefsUnavailable.get()) {
-    showToast(
-      "Failed to fetch moderation labels - unmoderated content may be visible",
-      {
-        style: "warning",
-        timeout: 6000,
-      },
-    );
-  }
+  // Preload preferences
+  preferencesProvider.requirePreferences().catch((error) => {
+    console.warn("Error preloading preferences:", error);
+  });
 
   pluginService.loadEnabledPlugins().catch((error) => {
     console.error("Error loading plugins", error);

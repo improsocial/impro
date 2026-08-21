@@ -1,118 +1,148 @@
 import { unique } from "/js/utils.js";
 
-const ACTION_SCOPES = ["mute", "block", "feedFeedback"];
+const ACTION_SCOPES = ["mute", "block", "feedFeedback", "privateData"];
 
-export function getPermissionsFromManifest(manifest) {
-  return parsePermissions(manifest.permissions ?? {});
-}
+// Wrapper class for permissions object
+export class Permissions {
+  #obj;
 
-export function parsePermissions(permissions) {
-  const parsed = {};
-  if (permissions.fetch) {
-    const fetchArray = Array.isArray(permissions.fetch)
-      ? permissions.fetch
-      : [permissions.fetch];
-    const fetchPatterns = unique(
-      fetchArray.filter((entry) => typeof entry === "string"),
-    );
-    if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
+  constructor(obj) {
+    this.#obj = obj;
   }
-  if (permissions.userFetch === true) parsed.userFetch = true;
-  if (permissions.actions) {
-    const actionsArray = Array.isArray(permissions.actions)
-      ? permissions.actions
-      : [permissions.actions];
-    const actionScopes = unique(
-      actionsArray.filter((entry) => ACTION_SCOPES.includes(entry)),
-    );
-    if (actionScopes.length > 0) parsed.actions = actionScopes;
+
+  static parse(raw) {
+    const permissions = raw ?? {};
+    const parsed = {};
+    if (permissions.fetch) {
+      const fetchArray = Array.isArray(permissions.fetch)
+        ? permissions.fetch
+        : [permissions.fetch];
+      const fetchPatterns = unique(
+        fetchArray.filter((entry) => typeof entry === "string"),
+      );
+      if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
+    }
+    if (permissions.userFetch === true) parsed.userFetch = true;
+    if (permissions.actions) {
+      const actionsArray = Array.isArray(permissions.actions)
+        ? permissions.actions
+        : [permissions.actions];
+      const actionScopes = unique(
+        actionsArray.filter((entry) => ACTION_SCOPES.includes(entry)),
+      );
+      if (actionScopes.length > 0) parsed.actions = actionScopes;
+    }
+    return new Permissions(parsed);
   }
-  return parsed;
-}
 
-// action is one of "mute", "block", "feedFeedback" (the "show fewer/more
-// like this" feed-interaction signal)
-export function isActionAllowed(action, permissions) {
-  return (permissions.actions ?? []).includes(action);
-}
+  static fromManifest(manifest) {
+    return Permissions.parse(manifest.permissions ?? {});
+  }
 
-export function diffPermissions(current, next) {
-  const diff = {};
-  let hasAny = false;
-  for (const key of Object.keys(next)) {
-    const nextValue = next[key];
-    // Scope flags (userFetch) are booleans, not pattern lists
-    if (!Array.isArray(nextValue)) {
-      if (nextValue && !current[key]) {
-        diff[key] = nextValue;
+  // Discards path, keeps port
+  static normalizeFetchOrigin(url) {
+    let parsedUrl = null;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return null;
+    }
+    if (parsedUrl.username || parsedUrl.password) return null;
+    const host = parsedUrl.hostname.toLowerCase();
+    if (!host || host.includes("*")) return null;
+    if (parsedUrl.protocol === "http:") {
+      if (!isLoopbackHost(host)) return null;
+    } else if (parsedUrl.protocol !== "https:") {
+      return null;
+    }
+    const port = parsedUrl.port ? `:${parsedUrl.port}` : "";
+    return `${parsedUrl.protocol}//${host}${port}/*`;
+  }
+
+  get fetch() {
+    return this.#obj.fetch;
+  }
+
+  get userFetch() {
+    return this.#obj.userFetch;
+  }
+
+  get actions() {
+    return this.#obj.actions;
+  }
+
+  toJSON() {
+    return { ...this.#obj };
+  }
+
+  isEmpty() {
+    return Object.values(this.#obj).every((value) =>
+      Array.isArray(value) ? value.length === 0 : !value,
+    );
+  }
+
+  allowsAction(action) {
+    if (!ACTION_SCOPES.includes(action)) {
+      throw new Error(`unknown action scope "${action}"`);
+    }
+    return (this.#obj.actions ?? []).includes(action);
+  }
+
+  allowsUserFetch() {
+    return this.#obj.userFetch === true;
+  }
+
+  hasFetchPattern(pattern) {
+    return (this.#obj.fetch ?? []).includes(pattern);
+  }
+
+  allowsFetch(url) {
+    let parsedUrl = null;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return false;
+    }
+    if (parsedUrl.protocol !== "https:") {
+      if (parsedUrl.protocol !== "http:") return false;
+      if (!isLoopbackHost(parsedUrl.hostname)) return false;
+    }
+    return (this.#obj.fetch ?? []).some((pattern) =>
+      matchesPattern(parsedUrl, pattern),
+    );
+  }
+
+  withFetchOrigins(origins) {
+    if (origins.length === 0) return this;
+    return new Permissions({
+      ...this.#obj,
+      fetch: [...(this.#obj.fetch ?? []), ...origins],
+    });
+  }
+
+  diff(next) {
+    const nextObj = next.toJSON();
+    const diff = {};
+    let hasAny = false;
+    for (const key of Object.keys(nextObj)) {
+      const nextValue = nextObj[key];
+      // Scope flags (userFetch) are booleans, not pattern lists
+      if (!Array.isArray(nextValue)) {
+        if (nextValue && !this.#obj[key]) {
+          diff[key] = nextValue;
+          hasAny = true;
+        }
+        continue;
+      }
+      const have = new Set(Array.isArray(this.#obj[key]) ? this.#obj[key] : []);
+      const added = nextValue.filter((entry) => !have.has(entry));
+      if (added.length > 0) {
+        diff[key] = added;
         hasAny = true;
       }
-      continue;
     }
-    const have = new Set(Array.isArray(current[key]) ? current[key] : []);
-    const added = nextValue.filter((entry) => !have.has(entry));
-    if (added.length > 0) {
-      diff[key] = added;
-      hasAny = true;
-    }
+    return hasAny ? diff : null;
   }
-  return hasAny ? diff : null;
-}
-
-export function isEmptyPermissions(obj) {
-  return Object.values(obj).every((value) =>
-    Array.isArray(value) ? value.length === 0 : !value,
-  );
-}
-
-export function isUserFetchAllowed(permissions) {
-  return permissions.userFetch === true;
-}
-
-// Canonicalizes a plugin-supplied URL into an origin-scoped fetch pattern,
-// or null if it can't be one. User grants cover a whole origin: path is
-// discarded, port kept.
-export function normalizeFetchOrigin(url) {
-  let parsedUrl = null;
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsedUrl.username || parsedUrl.password) return null;
-  const host = parsedUrl.hostname.toLowerCase();
-  if (!host || host.includes("*")) return null;
-  if (parsedUrl.protocol === "http:") {
-    if (!isLoopbackHost(host)) return null;
-  } else if (parsedUrl.protocol !== "https:") {
-    return null;
-  }
-  const port = parsedUrl.port ? `:${parsedUrl.port}` : "";
-  return `${parsedUrl.protocol}//${host}${port}/*`;
-}
-
-// Sanitizes stored user-granted origins into canonical fetch patterns. The
-// installed-plugins list lives in the user's preferences record, we need to
-// sanitize before using it.
-export function parseUserGrantedFetchOrigins(origins) {
-  if (!Array.isArray(origins)) return [];
-  return unique(origins.map(normalizeFetchOrigin).filter(Boolean));
-}
-
-export function isFetchAllowed(url, permissions) {
-  let parsedUrl = null;
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    return false;
-  }
-  if (parsedUrl.protocol !== "https:") {
-    if (parsedUrl.protocol !== "http:") return false;
-    if (!isLoopbackHost(parsedUrl.hostname)) return false;
-  }
-  return (permissions.fetch ?? []).some((pattern) =>
-    matchesPattern(parsedUrl, pattern),
-  );
 }
 
 // Permission pattern matching:

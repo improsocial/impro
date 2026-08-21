@@ -116,6 +116,8 @@ const ACTION_LABELS = {
   block: "Block and unblock accounts on your behalf",
   feedFeedback:
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
+  privateData:
+    "Read private data from your account (mutes, blocks, bookmarks, notifications, preferences) via authenticated requests",
 };
 
 function permissionsSectionTemplate({ title, items = [] }) {
