@@ -43,11 +43,7 @@ import { installIOSFixedLayerResync } from "/js/iosFixedLayerResync.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { Api } from "/js/api.js";
 import { createAuth } from "/js/auth.js";
-import { NotificationService } from "/js/notificationService.js";
-import { ChatNotificationService } from "/js/chatNotificationService.js";
-import { DesktopNotificationService } from "/js/desktopNotificationService.js";
-import { startActiveTabMonitor } from "/js/activeTabMonitor.js";
-import { PushNotificationService } from "/js/push/pushNotificationService.js";
+import { NotificationServiceManager } from "/js/notificationServiceManager.js";
 import { PostComposerService } from "/js/postComposerService.js";
 import { NewChatService } from "/js/newChatService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
@@ -125,41 +121,31 @@ export async function main() {
     constellation,
     identityResolver,
   );
-  const notificationService = session ? new NotificationService(api) : null;
-  const chatNotificationService = session
-    ? new ChatNotificationService(api)
-    : null;
-  const activeTabMonitor = startActiveTabMonitor();
-  const desktopNotificationService =
-    notificationService && chatNotificationService
-      ? new DesktopNotificationService(
-          notificationService,
-          chatNotificationService,
-          router,
-          activeTabMonitor,
-        )
-      : null;
-  const pushNotificationService = session
-    ? new PushNotificationService(api, auth)
-    : null;
-
-  // The service worker skips the notification when a focused window exists and
-  // sends a message instead, so refresh the counts immediately.
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data?.type === "push-received") {
-        notificationService?.fetchNumNotifications().catch(console.error);
-        chatNotificationService?.fetchNumNotifications().catch(console.error);
-      }
-    });
-  }
+  const notificationServiceManager = new NotificationServiceManager({
+    session,
+    api,
+    auth,
+    router,
+  });
+  const {
+    notificationService,
+    chatNotificationService,
+    desktopNotificationService,
+    pushNotificationService,
+  } = notificationServiceManager;
 
   const postComposerService = session
     ? new PostComposerService(dataLayer, identityResolver, pluginService, {
         draftsEnabled: await checkDraftsEnabled(auth),
       })
     : null;
-  const newChatService = session ? new NewChatService(dataLayer) : null;
+  const newChatService = session
+    ? new NewChatService(dataLayer, {
+        groupChatsEnabled: await auth.hasScope(
+          "rpc:chat.bsky.group.createGroup",
+        ),
+      })
+    : null;
   const accountSwitcherService = session
     ? new AccountSwitcherService(dataLayer, auth)
     : null;
@@ -202,23 +188,7 @@ export async function main() {
     console.error("Error loading plugins", error);
   });
 
-  if (notificationService) {
-    notificationService.startPolling();
-  }
-
-  if (chatNotificationService) {
-    chatNotificationService.startPolling();
-  }
-
-  if (desktopNotificationService) {
-    desktopNotificationService.start();
-  }
-
-  if (pushNotificationService) {
-    pushNotificationService.reassertIfEnabled().catch((error) => {
-      console.error("Failed to re-assert push registration", error);
-    });
-  }
+  notificationServiceManager.startAll();
 
   const context = {
     isAuthenticated: !!session,

@@ -353,6 +353,9 @@ export class Derived extends ReactiveStore {
       return preferences.getRecentGifs();
     });
     this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
+    this.$chatActorStatus = new Signal.Computed(() =>
+      this.dataStore.$chatActorStatus.get(),
+    );
     this.$selectedFeedUri = new Signal.Computed(() =>
       this.dataStore.$selectedFeedUri.get(),
     );

@@ -286,8 +286,11 @@ export class Router extends EventEmitter {
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
-      outgoingPage.classList.remove("page-visible");
-      outgoingPage.classList.add("page-hidden");
+      // A same-path load reuses the outgoing page, which must stay visible
+      if (outgoingPage !== page) {
+        outgoingPage.classList.remove("page-visible");
+        outgoingPage.classList.add("page-hidden");
+      }
       // Scroll before dispatching so a "manual" view's own scroll wins
       const scrollRestore = routeInfo.options.scrollRestore ?? "back";
       switch (scrollRestore) {
@@ -367,6 +370,10 @@ export class Router extends EventEmitter {
   async go(path, { replace = false } = {}) {
     if (this._shouldOpenInNewTab()) {
       window.open(path, "_blank", "noopener");
+      return;
+    }
+    if (path === this.currentPath) {
+      window.scrollTo(0, 0);
       return;
     }
     if (replace) {

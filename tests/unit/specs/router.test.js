@@ -346,6 +346,24 @@ describe("popstate", () => {
 });
 
 describe("load", () => {
+  // Reached without go()'s same-path guard when popstate lands on the URL
+  // the app is already showing.
+  it("keeps the page visible when re-loading the current path", async () => {
+    const router = new Router();
+    mountRouter(router);
+    router.addRoute("/load-same-test", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+
+    await router.load("/load-same-test");
+    const page = router.currentPage;
+
+    await router.load("/load-same-test");
+
+    assert.deepEqual(router.currentPage, page);
+    assert(page.classList.contains("page-visible"));
+    assert(!page.classList.contains("page-hidden"));
+  });
+
   it("should load route and render view", async () => {
     const router = new Router();
     const { defaultContainer } = mountRouter(router);
@@ -468,6 +486,29 @@ describe("go", () => {
       assert.deepEqual(window.location.pathname, "/go-replace-test");
       assert.deepEqual(window.history.length, lengthBefore);
       assert.deepEqual(window.history.state?.previousRoute, undefined);
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should treat navigation to the current path as a no-op", async () => {
+    const router = new Router();
+    mountRouter(router);
+    router.addRoute("/go-same-test", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+
+    try {
+      await router.go("/go-same-test");
+      const page = router.currentPage;
+      const stateBefore = window.history.state;
+
+      await router.go("/go-same-test");
+
+      assert.deepEqual(router.currentPage, page);
+      assert(page.classList.contains("page-visible"));
+      assert(!page.classList.contains("page-hidden"));
+      // No duplicate history entry pointing back at the same path.
+      assert.deepEqual(window.history.state, stateBefore);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }

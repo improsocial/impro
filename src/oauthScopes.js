@@ -153,6 +153,7 @@ const OPTIONAL_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.draft.createDraft",
   "rpc:app.bsky.draft.updateDraft",
   "rpc:app.bsky.draft.deleteDraft",
+  "rpc:chat.bsky.group.createGroup",
 ];
 
 function expandScope(scope) {

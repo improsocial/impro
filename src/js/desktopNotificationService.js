@@ -54,15 +54,7 @@ export class DesktopNotificationService {
 
       this._lastSeenActivityCount = activityCount;
       this._lastSeenChatCount = chatCount;
-      this._syncAppBadge(activityCount + chatCount);
     });
-  }
-
-  _syncAppBadge(total) {
-    if (!("setAppBadge" in navigator)) return;
-    const applied =
-      total > 0 ? navigator.setAppBadge(total) : navigator.clearAppBadge();
-    applied?.catch?.(() => {});
   }
 
   get isSupported() {

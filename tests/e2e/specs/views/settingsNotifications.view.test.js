@@ -404,6 +404,81 @@ test.describe("Settings > Notifications view", () => {
         .toBeNull();
     });
 
+    test("a stale authorization shows the re-auth warning with the toggle still on", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      mockServer.failRegisterPushWithAuthError();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("push-notifications-enabled", "true");
+        localStorage.setItem("push-notifications-needs-reauth", "true");
+      });
+      await page.goto("/settings/notifications");
+
+      const warning = page.locator('[data-testid="push-reauth-warning"]');
+      await expect(warning).toBeVisible({ timeout: 10000 });
+      // Only the authorization is stale — the user's choice stays on.
+      await expect(
+        page.locator('[data-testid="push-notifications-toggle"]'),
+      ).toHaveAttribute("checked", "");
+    });
+
+    test("the re-authorize button restarts the enable flow", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      mockServer.failRegisterPushWithAuthError();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("push-notifications-enabled", "true");
+        localStorage.setItem("push-notifications-needs-reauth", "true");
+      });
+      await page.goto("/settings/notifications");
+
+      await page
+        .locator('[data-testid="push-reauth-button"]')
+        .click({ timeout: 10000 });
+      await page
+        .locator(
+          '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
+        )
+        .click();
+
+      await expect(page).toHaveURL(
+        new RegExp(
+          notificationService.authUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        ),
+      );
+    });
+
+    test("no re-auth warning while the authorization is good", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("push-notifications-enabled", "true");
+      });
+      await page.goto("/settings/notifications");
+
+      await expect(
+        page.locator('[data-testid="push-notifications-toggle"]'),
+      ).toHaveAttribute("checked", "", { timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="push-reauth-warning"]'),
+      ).toHaveCount(0);
+    });
+
     test("with a service named, the toggle is usable", async ({ page }) => {
       const mockServer = new MockServer();
       mockServer.setNotificationServiceDid(notificationService.did);

@@ -1,6 +1,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
+import { ApiError } from "/js/api.js";
 import { Signal, effect } from "/js/signals.js";
 
 const SUBSCRIPTION = {
@@ -206,7 +207,7 @@ describe("PushNotificationService registration", () => {
   it("clears the stored flag when permission was revoked out-of-band", async () => {
     setupDom({ granted: false });
     const { service, registerPush } = createService("did:web:notifs.example");
-    await service.reassertIfEnabled();
+    assert.deepEqual(await service.reassertIfEnabled(), { enabled: false });
     assert.equal(registerPush.mock.calls.length, 0);
     assert.equal(service.$enabled.get(), false);
   });
@@ -654,5 +655,175 @@ describe("PushNotificationService service selection", () => {
       fetchCalls.length > before,
       "the new service must be resolved, not served from the old cache",
     );
+  });
+});
+
+describe("PushNotificationService re-authorization", () => {
+  let originals;
+
+  const CONFIG = { name: "Example Notifs", vapidPublicKey: "k", authUrl: "u" };
+
+  function authError(status) {
+    return new ApiError({
+      status,
+      statusText: "Unauthorized",
+      data: null,
+      headers: null,
+      url: "https://pds.example/xrpc/app.bsky.notification.registerPush",
+    });
+  }
+
+  beforeEach(() => {
+    originals = {
+      localStorage: globalThis.localStorage,
+      notification: globalThis.Notification,
+      document: globalThis.document,
+      navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
+      pushManager: globalThis.window.PushManager,
+      matchMedia: globalThis.window.matchMedia,
+      fetch: globalThis.fetch,
+      consoleError: console.error,
+    };
+    setupDom();
+    globalThis.fetch = async (url) => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        String(url).includes("notif-service.json")
+          ? CONFIG
+          : {
+              service: [
+                {
+                  id: "#bsky_notif",
+                  type: "BskyNotificationService",
+                  serviceEndpoint: "https://notifs.example",
+                },
+              ],
+            },
+    });
+  });
+
+  afterEach(() => {
+    globalThis.localStorage = originals.localStorage;
+    globalThis.Notification = originals.notification;
+    globalThis.document = originals.document;
+    globalThis.window.matchMedia = originals.matchMedia;
+    Object.defineProperty(globalThis, "navigator", originals.navigator);
+    globalThis.fetch = originals.fetch;
+    console.error = originals.consoleError;
+    if (originals.pushManager === undefined) {
+      delete globalThis.window.PushManager;
+    } else {
+      globalThis.window.PushManager = originals.pushManager;
+    }
+  });
+
+  it("flags a 401 registration rejection and reports the first detection", async () => {
+    const { service, registerPush } = createService("did:web:notifs.example");
+    registerPush.mock.mockImplementation(async () => {
+      throw authError(401);
+    });
+
+    const result = await service.reassertIfEnabled();
+
+    assert.deepEqual(result, { enabled: true, newlyRevoked: true });
+    assert.equal(service.needsReauth, true);
+    assert.equal(
+      globalThis.localStorage.getItem("push-notifications-needs-reauth"),
+      "true",
+    );
+    // The user keeps push notifications on; only the authorization is stale.
+    assert.equal(service.isEnabled, true);
+  });
+
+  it("reports an already-known rejection as not new", async () => {
+    const { service, registerPush } = createService("did:web:notifs.example");
+    registerPush.mock.mockImplementation(async () => {
+      throw authError(403);
+    });
+
+    assert.deepEqual(await service.reassertIfEnabled(), {
+      enabled: true,
+      newlyRevoked: true,
+    });
+    assert.deepEqual(await service.reassertIfEnabled(), {
+      enabled: true,
+      newlyRevoked: false,
+    });
+    assert.equal(service.needsReauth, true);
+  });
+
+  it("does not flag transient registration failures", async () => {
+    const { service, registerPush } = createService("did:web:notifs.example");
+    console.error = () => {};
+    for (const failure of [authError(500), new TypeError("Failed to fetch")]) {
+      registerPush.mock.mockImplementation(async () => {
+        throw failure;
+      });
+      assert.deepEqual(await service.reassertIfEnabled(), { enabled: true });
+      assert.equal(service.needsReauth, false);
+    }
+    assert.equal(
+      globalThis.localStorage.getItem("push-notifications-needs-reauth"),
+      null,
+    );
+  });
+
+  it("clears the flag once a registration succeeds again", async () => {
+    globalThis.localStorage.setItem("push-notifications-needs-reauth", "true");
+    const { service } = createService("did:web:notifs.example");
+    assert.equal(service.needsReauth, true);
+
+    assert.deepEqual(await service.reassertIfEnabled(), { enabled: true });
+
+    assert.equal(service.needsReauth, false);
+    assert.equal(
+      globalThis.localStorage.getItem("push-notifications-needs-reauth"),
+      null,
+    );
+  });
+
+  it("disable() clears the flag", async () => {
+    globalThis.localStorage.setItem("push-notifications-needs-reauth", "true");
+    const { service } = createService("did:web:notifs.example");
+    service.api.unregisterPush = mock.fn(async () => {});
+
+    await service.disable();
+
+    assert.equal(service.needsReauth, false);
+    assert.equal(
+      globalThis.localStorage.getItem("push-notifications-needs-reauth"),
+      null,
+    );
+  });
+
+  it("switching services clears the flag", async () => {
+    globalThis.localStorage.setItem("push-notifications-needs-reauth", "true");
+    globalThis.localStorage.removeItem("push-notifications-enabled");
+    const { service } = createService("did:web:notifs.example");
+
+    await service.selectService("did:web:elsewhere.example");
+
+    assert.equal(service.needsReauth, false);
+  });
+
+  it("notifies reactive readers when the flag changes", async () => {
+    const { service, registerPush } = createService("did:web:notifs.example");
+    registerPush.mock.mockImplementation(async () => {
+      throw authError(401);
+    });
+    const seen = [];
+    // Effects flush on an animation frame, so each change needs one to land.
+    const flush = () =>
+      new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    const dispose = effect(() => {
+      seen.push(service.needsReauth);
+    });
+
+    await service.reassertIfEnabled();
+    await flush();
+
+    assert.deepEqual(seen, [false, true]);
+    dispose();
   });
 });
