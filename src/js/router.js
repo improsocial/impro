@@ -373,7 +373,6 @@ export class Router extends EventEmitter {
       return;
     }
     if (path === this.currentPath) {
-      window.scrollTo(0, 0);
       return;
     }
     if (replace) {
