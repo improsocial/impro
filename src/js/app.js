@@ -221,7 +221,7 @@ export async function main() {
   };
 
   scrollLocks.setContainerProvider(() => router.currentPage);
-  installIOSFixedLayerResync();
+  // installIOSFixedLayerResync();
 
   if (notificationService) {
     effect(() => {
