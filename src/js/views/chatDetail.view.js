@@ -1,6 +1,7 @@
 import {
   pageEffect,
   bindPageTitle,
+  bindToPage,
   onPageShow,
   onPageHide,
 } from "/js/router.js";
@@ -56,6 +57,7 @@ import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
 import "/js/components/reactions-dialog.js";
+import "/js/components/reaction-palette.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -505,33 +507,38 @@ export default async function chatDetailView({
       clearMessageSelection();
     } else {
       state.$activeMessageId.set(messageId);
-      state.$paletteMessageId.set(null);
     }
   }
 
-  function handleEmojiTriggerClick(messageId) {
+  // Clear the active message when the click lands outside any message wrapper
+  function handleActiveOutsideClick(event) {
+    if (state.$activeMessageId.get() === null) return;
+    if (event.target.closest(".message-wrapper")) return;
+    state.$activeMessageId.set(null);
+  }
+
+  let paletteTriggerEl = null;
+
+  function handleEmojiTriggerClick(event, messageId) {
     const current = state.$paletteMessageId.get();
     state.$activeMessageId.set(messageId);
-    state.$paletteMessageId.set(current === messageId ? null : messageId);
+    const next = current === messageId ? null : messageId;
+    state.$paletteMessageId.set(next);
+    paletteTriggerEl = next === null ? null : event.currentTarget;
   }
 
-  // Clear active message / palette on outside click
-  function handleRootClick(event) {
-    if (
-      state.$activeMessageId.get() === null &&
-      state.$paletteMessageId.get() === null
-    ) {
+  function closePalette(reason) {
+    if (reason === "escape") {
+      const toRestore = paletteTriggerEl;
+      paletteTriggerEl = null;
+      clearMessageSelection();
+      if (toRestore && document.contains(toRestore)) {
+        toRestore.focus({ preventScroll: true });
+      }
       return;
     }
-    if (
-      event.target.closest(".message") ||
-      event.target.closest(".reaction-palette") ||
-      event.target.closest(".message-emoji-trigger") ||
-      event.target.closest(".message-more-trigger")
-    ) {
-      return;
-    }
-    clearMessageSelection();
+    paletteTriggerEl = null;
+    state.$paletteMessageId.set(null);
   }
 
   async function handleSendMessage(messageText, onSuccess) {
@@ -802,68 +809,20 @@ export default async function chatDetailView({
   }
 
   function reactionPaletteTemplate({ message, currentUserDid }) {
-    const emojis = ["❤️", "👍", "😆", "👀", "😢"];
-    const limitReached = hasReachedReactionLimit(message, currentUserDid);
+    const ownReactions = [
+      ...getUserDistinctReactionValues(message, currentUserDid),
+    ];
     return html`
-      <div
-        class="reaction-palette"
-        data-testid="reaction-palette"
-        @click=${(e) => e.stopPropagation()}
-      >
-        ${emojis.map((emoji) => {
-          const isActive = hasAlreadyReacted(message, currentUserDid, emoji);
-          const isDisabled = limitReached && !isActive;
-          return html`
-            <button
-              class="reaction-palette-button ${isActive
-                ? "reaction-palette-button-active"
-                : ""}"
-              data-testid="reaction-palette-button"
-              data-teststate=${isActive
-                ? "active"
-                : isDisabled
-                  ? "disabled"
-                  : "default"}
-              ?disabled=${isDisabled}
-              aria-pressed=${isActive ? "true" : "false"}
-              aria-label=${isActive
-                ? `Remove ${emoji} reaction`
-                : `React with ${emoji}`}
-              @click=${(e) => {
-                e.stopPropagation();
-                if (isActive) {
-                  handleReactionRemove(emoji, message.id, currentUserDid);
-                  clearMessageSelection();
-                } else {
-                  handleEmojiSelect(emoji, message.id, currentUserDid);
-                }
-              }}
-            >
-              <span class="reaction-palette-button-inner">${emoji}</span>
-            </button>
-          `;
-        })}
-        <button
-          class="reaction-palette-button reaction-palette-button-more"
-          data-testid="reaction-palette-more"
-          aria-label="Open emoji picker"
-          @click=${(e) => {
-            const dialog = e.currentTarget.nextElementSibling;
-            if (dialog.isOpen) {
-              dialog.close();
-            } else {
-              dialog.open(e.currentTarget);
-            }
-          }}
-        >
-          <span class="reaction-palette-button-inner">...</span>
-        </button>
-        <emoji-picker-dialog
-          @select=${(e) => {
-            handleEmojiSelect(e.detail.emoji, message.id, currentUserDid);
-          }}
-        ></emoji-picker-dialog>
-      </div>
+      <reaction-palette
+        .ownReactions=${ownReactions}
+        @select=${(event) =>
+          handleEmojiSelect(event.detail.emoji, message.id, currentUserDid)}
+        @remove-reaction=${(event) => {
+          handleReactionRemove(event.detail.emoji, message.id, currentUserDid);
+          clearMessageSelection();
+        }}
+        @close=${(event) => closePalette(event.detail.reason)}
+      ></reaction-palette>
     `;
   }
 
@@ -1041,7 +1000,7 @@ export default async function chatDetailView({
                   data-testid="message-emoji-trigger"
                   @click=${(e) => {
                     e.stopPropagation();
-                    handleEmojiTriggerClick(message.id);
+                    handleEmojiTriggerClick(e, message.id);
                   }}
                 >
                   ${emojiIconTemplate()}
@@ -1694,8 +1653,6 @@ export default async function chatDetailView({
     });
   });
 
-  root.addEventListener("click", handleRootClick);
-
   async function loadPageData() {
     await dataLayer.declarative.ensureConvo(convoId);
     await loadMessages({ reload: true });
@@ -1715,4 +1672,6 @@ export default async function chatDetailView({
   onPageHide(root, () => {
     messageFetcher.stop();
   });
+
+  bindToPage(root, document, "click", handleActiveOutsideClick);
 }

@@ -1465,6 +1465,101 @@ test.describe("Chat detail view", () => {
     await expect(chatDetailView.locator(".reaction-emoji")).toContainText("🎉");
   });
 
+  test("should close the reaction palette when clicking outside the chat view", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({ id: "convo-1", otherMember: alice });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await chatDetailView.locator(".message-bubble").first().click();
+    await chatDetailView
+      .locator('[data-testid="message-emoji-trigger"]')
+      .first()
+      .click();
+
+    const palette = chatDetailView.locator(".reaction-palette");
+    await expect(palette).toBeVisible({ timeout: 5000 });
+
+    // Click on the page header (outside #chat-detail-view). The palette should
+    // still close — the outside-click listener lives on document.
+    await page.locator('[data-testid="header-title"]').click({ force: true });
+    await expect(palette).toHaveCount(0);
+  });
+
+  test("should close the reaction palette on Escape and restore focus to the emoji trigger", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({ id: "convo-1", otherMember: alice });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await chatDetailView.locator(".message-bubble").first().click();
+    const trigger = chatDetailView
+      .locator('[data-testid="message-emoji-trigger"]')
+      .first();
+    await trigger.click();
+
+    const palette = chatDetailView.locator(".reaction-palette");
+    await expect(palette).toBeVisible({ timeout: 5000 });
+
+    // Focus is inside the palette (on the first button) after opening.
+    await expect(
+      palette.locator(".reaction-palette-button").first(),
+    ).toBeFocused();
+
+    // Escape closes the palette and returns focus to the emoji trigger.
+    await page.keyboard.press("Escape");
+    await expect(palette).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
   test("should close the emoji picker when the backdrop is clicked", async ({
     page,
   }) => {
