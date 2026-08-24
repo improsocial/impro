@@ -355,11 +355,11 @@ video {
 
 @media (max-width: 799px) {
   .view-column-center main {
-    padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+    margin-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
   }
 
   .view-column-center main.chat-detail-main {
-    padding-bottom: 0;
+    margin-bottom: 0;
   }
 }
 
