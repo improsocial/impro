@@ -427,7 +427,7 @@ test.describe("Settings > Notifications view", () => {
       ).toHaveAttribute("checked", "");
     });
 
-    test("the re-authorize button restarts the enable flow", async ({
+    test("disabling and reenabling restarts the enable flow", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -442,9 +442,15 @@ test.describe("Settings > Notifications view", () => {
       });
       await page.goto("/settings/notifications");
 
-      await page
-        .locator('[data-testid="push-reauth-button"]')
-        .click({ timeout: 10000 });
+      await expect(
+        page.locator('[data-testid="push-reauth-warning"]'),
+      ).toBeVisible({ timeout: 10000 });
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await toggle.click();
+      await expect(toggle).not.toHaveAttribute("checked", "");
+
+      await toggle.click();
       await page
         .locator(
           '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
