@@ -3789,6 +3789,12 @@ image-carousel {
   font-weight: 600;
 }
 
+@media (hover: hover) {
+  .notification-profile-link:hover {
+    text-decoration: underline;
+  }
+}
+
 .chat-main {
   padding: 0;
 }

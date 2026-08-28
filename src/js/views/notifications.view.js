@@ -273,7 +273,11 @@ export default async function notificationsView({
     const displayName = getDisplayName(firstNotif.author);
     const otherCount = notifications.length - 1;
     return html`<span
-      ><strong>${displayName}</strong>${verificationBadgeTemplate({
+      ><a
+        class="notification-profile-link"
+        href="${linkToProfile(firstNotif.author)}"
+        >${displayName}</a
+      >${verificationBadgeTemplate({
         profile: firstNotif.author,
       })}${automatedAccountBadgeTemplate({
         profile: firstNotif.author,

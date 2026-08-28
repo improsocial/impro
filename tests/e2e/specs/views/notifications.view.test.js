@@ -733,6 +733,43 @@ test.describe("Notifications view", () => {
     });
   });
 
+  test("should navigate to profile when clicking the profile name in a like notification", async ({
+    page,
+  }) => {
+    const likedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/navlike2",
+      text: "Post that was liked",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([likedPost]);
+    mockServer.addProfile(alice);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "like",
+        author: alice,
+        reasonSubject: likedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.locator(".notification-profile-link").click();
+
+    await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/);
+    await expect(page.locator("#profile-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
   test("should navigate to post thread when clicking repost notification", async ({
     page,
   }) => {
