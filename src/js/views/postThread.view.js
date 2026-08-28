@@ -6,6 +6,7 @@ import {
   pageEffect,
   bindPageTitle,
   onPageShow,
+  onPageHide,
 } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -53,7 +54,36 @@ export default async function postThreadView({
   }
   const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
-  const { postInteractionHandler } = interactionHandlers;
+  const { postInteractionHandler, profileInteractionHandler } =
+    interactionHandlers;
+
+  // Mirrors social-app: the follow button only shows for authors the viewer
+  // isn't following, but stays visible (as "Following") after an in-view
+  // follow so it can be undone.
+  function doShowFollowButton(
+    author,
+    rootPost,
+    currentUser,
+    hasFollowedInView,
+  ) {
+    if (!isAuthenticated || !currentUser || !author?.did) {
+      return false;
+    }
+    if (author.did === currentUser.did) {
+      return false;
+    }
+    const isRootAuthor = rootPost?.author?.did === author.did;
+    const onlyFollowersCanReply = !!rootPost?.threadgate?.record?.allow?.some(
+      (rule) => rule.$type === "app.bsky.feed.threadgate#followerRule",
+    );
+    if (isRootAuthor && onlyFollowersCanReply) {
+      return false;
+    }
+    if (author.viewer?.blocking || author.viewer?.blockedBy) {
+      return false;
+    }
+    return !author.viewer?.following || hasFollowedInView;
+  }
 
   function postThreadErrorTemplate({ error }) {
     if (
@@ -63,7 +93,10 @@ export default async function postThreadView({
     ) {
       return html`<div class="error-state" data-testid="post-not-found">
         <div>Post not found</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
+        <button
+          class="rounded-button rounded-button-secondary-inverted"
+          @click=${() => window.location.reload()}
+        >
           Try again
         </button>
       </div>`;
@@ -71,7 +104,10 @@ export default async function postThreadView({
       console.error(error);
       return html`<div class="error-state" data-testid="thread-error">
         <div>Error loading thread</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
+        <button
+          class="rounded-button rounded-button-secondary-inverted"
+          @click=${() => window.location.reload()}
+        >
           Try again
         </button>
       </div>`;
@@ -345,7 +381,7 @@ export default async function postThreadView({
     </div>`;
   }
 
-  function threadTemplate({ postThread, currentUser }) {
+  function threadTemplate({ postThread, currentUser, hasFollowedInView }) {
     try {
       const mainPost = isEmptyPost(postThread) ? postThread : postThread.post;
       const parents = flattenParents(postThread);
@@ -357,6 +393,8 @@ export default async function postThreadView({
       const hasBrokenReplyRef =
         hasParent && !postThread.__isPrefill && parents.length === 0;
       const root = getReplyRootFromPost(mainPost);
+      const rootCandidate = parents.length ? parents[0].post : mainPost;
+      const rootPost = rootCandidate?.uri === root?.uri ? rootCandidate : null;
       const replies = postThread.replies;
       const postAuthor = mainPost?.author;
       const hiddenUnauthenticated =
@@ -421,6 +459,21 @@ export default async function postThreadView({
                   pluginService,
                   isUserPost: currentUser?.did === mainPost?.author?.did,
                   postInteractionHandler,
+                  showFollowButton: doShowFollowButton(
+                    postAuthor,
+                    rootPost,
+                    currentUser,
+                    hasFollowedInView,
+                  ),
+                  isFollowPending: postAuthor?.did
+                    ? dataLayer.derived.$isFollowPending.get(postAuthor.did)
+                    : false,
+                  onClickFollow: (profile, doFollow) => {
+                    if (doFollow) {
+                      state.$hasFollowedInView.set(true);
+                    }
+                    profileInteractionHandler.handleFollow(profile, doFollow);
+                  },
                   afterHide: () => {
                     // if the main post is hidden, go back to the previous page
                     router.back();
@@ -502,6 +555,8 @@ export default async function postThreadView({
 
   const state = new ReactiveStore("postThreadView");
 
+  state.$hasFollowedInView = new Signal.State(false);
+
   state.$postThread = new Signal.Computed(() => {
     const hydratedPostThread =
       dataLayer.derived.$hydratedPostThreads.get(postUri);
@@ -556,6 +611,7 @@ export default async function postThreadView({
     const currentUser = dataLayer.derived.$currentUser.get();
     const postThreadRequestStatus =
       dataLayer.requests.statusStore.$statuses.get("loadPostThread-" + postUri);
+    const hasFollowedInView = state.$hasFollowedInView.get();
 
     render(
       html`<div id="post-detail-view">
@@ -567,7 +623,11 @@ export default async function postThreadView({
                 error: postThreadRequestStatus.error,
               });
             } else if (postThread) {
-              return threadTemplate({ postThread, currentUser });
+              return threadTemplate({
+                postThread,
+                currentUser,
+                hasFollowedInView,
+              });
             } else {
               return threadSkeletonTemplate();
             }
@@ -643,5 +703,9 @@ export default async function postThreadView({
     }
     // Revalidate
     await dataLayer.requests.loadPostThread(postUri);
+  });
+
+  onPageHide(root, () => {
+    state.$hasFollowedInView.set(false);
   });
 }

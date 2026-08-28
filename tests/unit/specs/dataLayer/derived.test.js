@@ -18,7 +18,7 @@ import {
 } from "../../../shared/factories.js";
 
 function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
-  const patchStore = new PatchStore(dataStore);
+  const patchStore = new PatchStore();
   const prefs = preferences ?? Preferences.createLoggedOutPreferences();
   const preferencesProvider = {
     requirePreferences: () => prefs,
@@ -2457,5 +2457,143 @@ describe("$isFollowPending / $isBlockPending / $isMutePending", () => {
     patchStore.addProfilePatch(did, { type: "followProfile" });
     assert.deepEqual(derived.$isFollowPending.get(did), true);
     assert.deepEqual(derived.$isFollowPending.get("did:test:other"), false);
+  });
+});
+
+describe("patched overlays ($patchedPosts / $patchedProfiles / $patchedConvos / $patchedMessages)", () => {
+  it("$patchedPosts overlays post + author profile patches without mutating the store", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore);
+    const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+    dataStore.setPosts([
+      {
+        uri: postURI,
+        likeCount: 3,
+        viewer: { like: null },
+        author: {
+          did: "did:plc:author",
+          handle: "author.test",
+          viewer: { following: null },
+          followersCount: 10,
+        },
+      },
+    ]);
+
+    patchStore.addPostPatch(postURI, { type: "addLike" });
+    patchStore.addProfilePatch("did:plc:author", { type: "followProfile" });
+
+    const patched = derived.$patchedPosts.get(postURI);
+    assert.deepEqual(patched.viewer.like, "fake like");
+    assert.deepEqual(patched.likeCount, 4);
+    assert.deepEqual(dataStore.$posts.get(postURI).likeCount, 3);
+
+    // Author profile patches apply through the author substitution in hydratePost.
+    const hydratedAuthor = derived.$hydratedPosts.get(postURI).author;
+    assert.deepEqual(hydratedAuthor.viewer.following, "fake following");
+    assert.deepEqual(hydratedAuthor.followersCount, 11);
+    assert.deepEqual(
+      dataStore.$profiles.get("did:plc:author").followersCount,
+      10,
+    );
+  });
+
+  it("patched overlays return the store object by reference when no patches exist", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+    const post = { uri: postURI, likeCount: 3, viewer: { like: null } };
+    dataStore.$posts.set(postURI, post);
+    const profile = { did: "did:plc:x", handle: "x.test", viewer: {} };
+    dataStore.$profiles.set(profile.did, profile);
+    const convo = { id: "convo-1", muted: false };
+    dataStore.$convos.set(convo.id, convo);
+
+    assert(derived.$patchedPosts.get(postURI) === post);
+    assert(derived.$patchedProfiles.get(profile.did) === profile);
+    assert(derived.$patchedConvos.get(convo.id) === convo);
+  });
+
+  it("$patchedPosts returns null when the underlying post is absent", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$patchedPosts.get("missing"), null);
+  });
+
+  it("$patchedProfiles overlays profile patches on $profiles reads", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore);
+    const did = "did:plc:x";
+    dataStore.$profiles.set(did, {
+      did,
+      followersCount: 4,
+      viewer: { following: null },
+    });
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    const patched = derived.$patchedProfiles.get(did);
+    assert.deepEqual(patched.viewer.following, "fake following");
+    assert.deepEqual(patched.followersCount, 5);
+    assert.deepEqual(dataStore.$profiles.get(did).followersCount, 4);
+  });
+
+  it("$patchedDetailedProfiles overlays profile patches on $detailedProfiles reads", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore);
+    const did = "did:plc:x";
+    dataStore.$detailedProfiles.set(did, {
+      did,
+      followersCount: 4,
+      viewer: { following: null },
+      description: "hello",
+    });
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    const patched = derived.$patchedDetailedProfiles.get(did);
+    assert.deepEqual(patched.viewer.following, "fake following");
+    assert.deepEqual(patched.description, "hello");
+  });
+
+  it("patched profile overlays return null when the underlying profile is absent", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$patchedProfiles.get("missing"), null);
+    assert.deepEqual(derived.$patchedDetailedProfiles.get("missing"), null);
+  });
+
+  it("$patchedConvos overlays the patch and isolates convos", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore);
+    dataStore.$convos.set("convo-1", {
+      id: "convo-1",
+      muted: false,
+      rev: "rev-1",
+    });
+    dataStore.$convos.set("convo-2", { id: "convo-2", muted: false });
+
+    patchStore.addConvoPatch("convo-1", { type: "setConvoMuted", muted: true });
+
+    const patched = derived.$patchedConvos.get("convo-1");
+    assert.deepEqual(patched.muted, true);
+    assert.deepEqual(patched.rev, "rev-1");
+    assert.deepEqual(derived.$patchedConvos.get("convo-2").muted, false);
+    assert.deepEqual(derived.$patchedConvos.get("nope"), null);
+    assert.deepEqual(dataStore.$convos.get("convo-1").muted, false);
+  });
+
+  it("$patchedMessages overlays reaction patches without mutating the store", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore);
+    const messageId = "msg-1";
+    dataStore.$messages.set(messageId, { id: messageId, reactions: [] });
+
+    assert.deepEqual(derived.$patchedMessages.get(messageId).reactions, []);
+
+    patchStore.addMessagePatch(messageId, {
+      type: "addReaction",
+      reaction: { sender: { did: "did:plc:me" }, value: "🎉" },
+    });
+    const patched = derived.$patchedMessages.get(messageId);
+    assert.deepEqual(patched.reactions.length, 1);
+    assert.deepEqual(patched.reactions[0].value, "🎉");
+    assert.deepEqual(dataStore.$messages.get(messageId).reactions, []);
+    assert.deepEqual(derived.$patchedMessages.get("missing"), null);
   });
 });

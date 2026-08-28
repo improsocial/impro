@@ -203,7 +203,10 @@ export default async function chatRequestsView({
     console.error(error);
     return html`<div class="error-state">
       <div>There was an error loading chat requests.</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
+      <button
+        class="rounded-button rounded-button-secondary-inverted"
+        @click=${() => window.location.reload()}
+      >
         Try again
       </button>
     </div>`;

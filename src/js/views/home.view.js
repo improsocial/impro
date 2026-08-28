@@ -185,7 +185,10 @@ export default async function homeView({
               >View profile</a
             ><br />`
         : ""}
-      <button class="rounded-button" @click=${() => window.location.reload()}>
+      <button
+        class="rounded-button rounded-button-secondary-inverted"
+        @click=${() => window.location.reload()}
+      >
         Try again
       </button>
     </div>`;

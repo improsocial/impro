@@ -176,7 +176,7 @@ export default async function communityPluginListingView({
               return html`<div class="error-state">
                 <div>Failed to load plugin</div>
                 <button
-                  class="rounded-button"
+                  class="rounded-button rounded-button-secondary-inverted"
                   @click=${() => window.location.reload()}
                 >
                   Try again

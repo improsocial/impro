@@ -156,7 +156,10 @@ function detailsErrorTemplate({ error }) {
     return html`<div class="error-state" data-testid="convo-not-found">
       <h3>Not Found</h3>
       <div>Conversation not found</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
+      <button
+        class="rounded-button rounded-button-secondary-inverted"
+        @click=${() => window.location.reload()}
+      >
         Try again
       </button>
     </div>`;
@@ -164,7 +167,10 @@ function detailsErrorTemplate({ error }) {
   console.error(error);
   return html`<div class="error-state" data-testid="group-details-error">
     <div>There was an error loading the group chat.</div>
-    <button class="rounded-button" @click=${() => window.location.reload()}>
+    <button
+      class="rounded-button rounded-button-secondary-inverted"
+      @click=${() => window.location.reload()}
+    >
       Try again
     </button>
   </div>`;

@@ -1,5 +1,11 @@
 import { html } from "/js/lib/lit-html.js";
-import { noop, formatFullTimestamp, formatLargeNumber } from "/js/utils.js";
+import {
+  noop,
+  classnames,
+  formatFullTimestamp,
+  formatLargeNumber,
+} from "/js/utils.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import {
   isBlockedPost,
   isNotFoundPost,
@@ -38,6 +44,33 @@ function mutedWarningTemplate({ post, children }) {
     > `;
   }
   return children;
+}
+
+function followButtonTemplate({ profile, isFollowPending, onClick }) {
+  const isFollowing = !!profile.viewer?.following;
+  const isFollowedBy = !!profile.viewer?.followedBy;
+  return html`<button
+    @click=${() => onClick(profile, !isFollowing)}
+    class=${classnames(
+      "rounded-button profile-following-button large-post-follow-button",
+      {
+        "rounded-button-secondary-inverted": !isFollowing,
+      },
+    )}
+    data-testid="follow-button"
+    data-teststate=${isFollowing
+      ? "following"
+      : isFollowedBy
+        ? "follow-back"
+        : "follow"}
+    ?disabled=${isFollowPending}
+  >
+    ${isFollowing
+      ? "Following"
+      : isFollowedBy
+        ? html`${plusIconTemplate()} Follow back`
+        : html`${plusIconTemplate()} Follow`}
+  </button>`;
 }
 
 function postActionCountsTemplate({
@@ -108,6 +141,9 @@ export function largePostTemplate({
   afterDelete = null,
   afterHide = null,
   afterBlock = null,
+  showFollowButton = false,
+  isFollowPending = false,
+  onClickFollow = noop,
   pluginService,
 }) {
   if (isBlockedPost(post)) {
@@ -147,6 +183,13 @@ export function largePostTemplate({
             includeTime: false,
           })}
         </div>
+        ${showFollowButton && post.author
+          ? followButtonTemplate({
+              profile: post.author,
+              isFollowPending,
+              onClick: (profile, doFollow) => onClickFollow(profile, doFollow),
+            })
+          : ""}
       </div>
       ${authorBadgesTemplate({
         badgeLabels,

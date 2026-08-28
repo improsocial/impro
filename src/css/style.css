@@ -718,6 +718,15 @@ plugin-slot:empty {
   border-top-color: var(--primary-button-text-color);
 }
 
+.rounded-button.rounded-button-secondary-inverted {
+  background-color: var(--text-color);
+  color: var(--background-color);
+}
+
+.rounded-button.rounded-button-secondary-inverted .loading-spinner {
+  border-top-color: var(--background-color);
+}
+
 @media (hover: hover) {
   .rounded-button:not(:disabled):hover {
     background-color: var(--secondary-button-hover-color);
@@ -725,6 +734,14 @@ plugin-slot:empty {
 
   .rounded-button.rounded-button-primary:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
+  }
+
+  .rounded-button.rounded-button-secondary-inverted:not(:disabled):hover {
+    background-color: color-mix(
+      in srgb,
+      var(--text-color) 85%,
+      var(--background-color)
+    );
   }
 }
 
@@ -1970,7 +1987,7 @@ container-link {
 }
 
 .post-content-bottom {
-  margin-top: 8px;
+  margin-top: 14px;
 }
 
 .post-content-left {
@@ -2107,6 +2124,13 @@ container-link {
 
 .large-post-header-text .post-username {
   width: 100%;
+}
+
+.large-post-follow-button {
+  margin-left: auto;
+  align-self: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .label-badge {
@@ -2646,6 +2670,10 @@ animated-button {
 .post-action-count-text {
   font-size: 14px;
   color: var(--text-color-muted);
+}
+
+.large-post .post-embed > * {
+  margin-top: 12px;
 }
 
 .post-embed > * {

@@ -152,8 +152,43 @@ export class Derived extends ReactiveStore {
         "unmuteProfile",
       ]),
     );
+    this.$patchedPosts = new ComputedMap((uri) => {
+      const post = this.dataStore.$posts.get(uri);
+      if (!post) return null;
+      const patches = this.patchStore.$postPatches.get(uri);
+      if (!patches?.length) return post;
+      return this.patchStore.applyPostPatches(post, patches);
+    });
+    this.$patchedProfiles = new ComputedMap((did) => {
+      const profile = this.dataStore.$profiles.get(did);
+      if (!profile) return null;
+      const patches = this.patchStore.$profilePatches.get(did);
+      if (!patches?.length) return profile;
+      return this.patchStore.applyProfilePatches(profile, patches);
+    });
+    this.$patchedDetailedProfiles = new ComputedMap((did) => {
+      const profile = this.dataStore.$detailedProfiles.get(did);
+      if (!profile) return null;
+      const patches = this.patchStore.$profilePatches.get(did);
+      if (!patches?.length) return profile;
+      return this.patchStore.applyProfilePatches(profile, patches);
+    });
+    this.$patchedMessages = new ComputedMap((messageId) => {
+      const message = this.dataStore.$messages.get(messageId);
+      if (!message) return null;
+      const patches = this.patchStore.$messagePatches.get(messageId);
+      if (!patches?.length) return message;
+      return this.patchStore.applyMessagePatches(message, patches);
+    });
+    this.$patchedConvos = new ComputedMap((convoId) => {
+      const convo = this.dataStore.$convos.get(convoId);
+      if (!convo) return null;
+      const patches = this.patchStore.$convoPatches.get(convoId);
+      if (!patches?.length) return convo;
+      return this.patchStore.applyConvoPatches(convo, patches);
+    });
     this.$hydratedPosts = new ComputedMap((uri) => {
-      const post = this.patchStore.$patchedPosts.get(uri);
+      const post = this.$patchedPosts.get(uri);
       const preferences = this.$preferences.get();
       return this.hydratePost(post, preferences);
     });
@@ -417,14 +452,14 @@ export class Derived extends ReactiveStore {
       });
     });
     this.$hydratedProfiles = new ComputedMap((did) => {
-      const profile = this.patchStore.$patchedProfiles.get(did);
+      const profile = this.$patchedProfiles.get(did);
       if (!profile) return profile;
       const preferences = this.$preferences.get();
       if (!preferences) return profile;
       return this.hydrateProfileLabels(profile, preferences);
     });
     this.$hydratedDetailedProfiles = new ComputedMap((did) => {
-      const profile = this.patchStore.$patchedDetailedProfiles.get(did);
+      const profile = this.$patchedDetailedProfiles.get(did);
       if (!profile) return null;
       const preferences = this.$preferences.get();
       if (!preferences) return profile;
@@ -533,7 +568,7 @@ export class Derived extends ReactiveStore {
       return preferences.getLabelerSettings(labelerDid);
     });
     this.$convos = new ComputedMap((convoId) =>
-      this.patchStore.$patchedConvos.get(convoId),
+      this.$patchedConvos.get(convoId),
     );
     this.$convoList = new Signal.Computed(() => {
       const data = this.dataStore.$convoList.get();
@@ -618,7 +653,7 @@ export class Derived extends ReactiveStore {
       const members = this.$convoMembers.get(convoId) ?? [];
       return {
         messages: messages.messages.map((message) => {
-          const patched = this.patchStore.$patchedMessages.get(message.id);
+          const patched = this.$patchedMessages.get(message.id);
           const hydrated = this.attachJoinLinkPreview(patched);
           if (!hydrated.reactions) return hydrated;
           return {
@@ -778,6 +813,12 @@ export class Derived extends ReactiveStore {
   hydratePost(post, preferences) {
     if (!post || !preferences) {
       return null;
+    }
+    const storedAuthor = post.author?.did
+      ? this.$patchedProfiles.get(post.author.did)
+      : null;
+    if (storedAuthor) {
+      post = { ...post, author: storedAuthor };
     }
     if (!isBlockedPost(post) && isBlockedByViewer(post)) {
       // Create synthetic blocked post if the user has blocked the author

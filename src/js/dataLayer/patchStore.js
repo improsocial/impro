@@ -1,55 +1,17 @@
 import { deepClone, SimpleUUID } from "/js/utils.js";
 import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
-import { Signal, SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
+import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 
 // The store saves patch data for optimistic updates.
 // Patches are convergent - if the target has already
 // been updated they have no effect.
 export class PatchStore extends ReactiveStore {
-  constructor(dataStore) {
+  constructor() {
     super("patchStore");
-    this.dataStore = dataStore;
     this.$postPatches = new SignalMap();
-
-    this.$patchedPosts = new ComputedMap((postURI) => {
-      const post = this.dataStore.$posts.get(postURI);
-      if (!post) return null;
-      const patches = this.$postPatches.get(postURI) || [];
-      return this.applyPostPatches(post, patches);
-    });
-
     this.$profilePatches = new SignalMap();
-    this.$patchedProfiles = new ComputedMap((did) => {
-      const profile = this.dataStore.$profiles.get(did);
-      if (!profile) return null;
-      const patches = this.$profilePatches.get(did) || [];
-      return this.applyProfilePatches(profile, patches);
-    });
-    this.$patchedDetailedProfiles = new ComputedMap((did) => {
-      const profile = this.dataStore.$detailedProfiles.get(did);
-      if (!profile) return null;
-      const patches = this.$profilePatches.get(did) || [];
-      return this.applyProfilePatches(profile, patches);
-    });
-
     this.$messagePatches = new SignalMap();
-    this.$patchedMessages = new ComputedMap((messageId) => {
-      const message = this.dataStore.$messages.get(messageId);
-      if (!message) return null;
-      const patches = this.$messagePatches.get(messageId) || [];
-      let patchedMessage = message;
-      for (const patch of patches) {
-        patchedMessage = this.applyMessagePatch(patchedMessage, patch.body);
-      }
-      return patchedMessage;
-    });
     this.$convoPatches = new SignalMap();
-    this.$patchedConvos = new ComputedMap((convoId) => {
-      const convo = this.dataStore.$convos.get(convoId);
-      if (!convo) return convo ?? null;
-      const patches = this.$convoPatches.get(convoId) || [];
-      return this.applyConvoPatches(convo, patches);
-    });
     this.$preferencePatches = new Signal.State([]);
     this.$currentUserPatches = new Signal.State([]);
     this.$authorFeedPatches = new SignalMap();
@@ -82,12 +44,6 @@ export class PatchStore extends ReactiveStore {
     let patchedPost = deepClone(post);
     for (const patch of patches) {
       patchedPost = this.applyPostPatch(patchedPost, patch.body);
-    }
-    if (patchedPost.author) {
-      patchedPost = {
-        ...patchedPost,
-        author: this.applyProfilePatches(patchedPost.author),
-      };
     }
     return patchedPost;
   }
@@ -196,9 +152,8 @@ export class PatchStore extends ReactiveStore {
   }
 
   applyProfilePatches(profile, patches) {
-    const profilePatches = patches ?? this._getProfilePatches(profile.did);
     let patchedProfile = deepClone(profile);
-    for (const patch of profilePatches) {
+    for (const patch of patches) {
       patchedProfile = this.applyProfilePatch(patchedProfile, patch.body);
     }
     return patchedProfile;
@@ -295,10 +250,9 @@ export class PatchStore extends ReactiveStore {
     );
   }
 
-  applyMessagePatches(message) {
-    const messagePatches = this._getMessagePatches(message.id);
+  applyMessagePatches(message, patches) {
     let patchedMessage = deepClone(message);
-    for (const patch of messagePatches) {
+    for (const patch of patches) {
       patchedMessage = this.applyMessagePatch(patchedMessage, patch.body);
     }
     return patchedMessage;
@@ -359,9 +313,8 @@ export class PatchStore extends ReactiveStore {
   }
 
   applyConvoPatches(convo, patches) {
-    const convoPatches = patches ?? this._getConvoPatches(convo.id);
     let patchedConvo = convo;
-    for (const patch of convoPatches) {
+    for (const patch of patches) {
       patchedConvo = this.applyConvoPatch(patchedConvo, patch.body);
     }
     return patchedConvo;
@@ -391,9 +344,8 @@ export class PatchStore extends ReactiveStore {
   }
 
   applyPreferencePatches(preferences, patches) {
-    const preferencePatches = patches ?? this.$preferencePatches.get();
     let patchedPreferences = preferences.clone();
-    for (const patch of preferencePatches) {
+    for (const patch of patches) {
       patchedPreferences = this.applyPreferencePatch(
         patchedPreferences,
         patch.body,
@@ -449,9 +401,8 @@ export class PatchStore extends ReactiveStore {
 
   applyCurrentUserPatches(user, patches) {
     if (!user) return user;
-    const currentUserPatches = patches ?? this.$currentUserPatches.get();
     let patched = deepClone(user);
-    for (const patch of currentUserPatches) {
+    for (const patch of patches) {
       patched = this.applyCurrentUserPatch(patched, patch.body);
     }
     return patched;

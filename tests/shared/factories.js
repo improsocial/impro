@@ -364,6 +364,7 @@ export function createPost({
   recordEmbed,
   labels,
   viewer,
+  authorViewer,
   loggedOut = false,
   threadgate,
 }) {
@@ -376,7 +377,9 @@ export function createPost({
       handle: authorHandle,
       displayName: authorDisplayName,
       avatar: authorAvatar || "",
-      ...(loggedOut ? {} : { viewer: { muted: false, blockedBy: false } }),
+      ...(loggedOut
+        ? {}
+        : { viewer: { muted: false, blockedBy: false, ...authorViewer } }),
       labels: [],
       createdAt: "2025-01-01T00:00:00.000Z",
     },

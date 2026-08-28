@@ -25,7 +25,7 @@ export class DataLayer extends EventEmitter {
       api.isAuthenticated ? api.session : null,
     );
     this.dataStore = new DataStore(this.sessionState);
-    this.patchStore = new PatchStore(this.dataStore);
+    this.patchStore = new PatchStore();
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.requests = new Requests(

@@ -1,14 +1,41 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
-import { DataStore } from "/js/dataLayer/dataStore.js";
-import { createSessionState } from "/js/dataLayer/sessionState.js";
 
-// applyPostPatches now requires the patches array explicitly. This helper
-// fetches the current patches for a post URI and applies them.
+// The appliers require the patches array explicitly. These helpers fetch the
+// current patches for a key and apply them.
 function applyPostPatches(patchStore, post) {
   const patches = patchStore.$postPatches.get(post.uri) || [];
   return patchStore.applyPostPatches(post, patches);
+}
+
+function applyProfilePatchesForDid(patchStore, profile) {
+  const patches = patchStore.$profilePatches.get(profile.did) || [];
+  return patchStore.applyProfilePatches(profile, patches);
+}
+
+function applyMessagePatchesForId(patchStore, message) {
+  const patches = patchStore.$messagePatches.get(message.id) || [];
+  return patchStore.applyMessagePatches(message, patches);
+}
+
+function applyConvoPatchesForId(patchStore, convo) {
+  const patches = patchStore.$convoPatches.get(convo.id) || [];
+  return patchStore.applyConvoPatches(convo, patches);
+}
+
+function applyPreferencePatchesAll(patchStore, preferences) {
+  return patchStore.applyPreferencePatches(
+    preferences,
+    patchStore.$preferencePatches.get(),
+  );
+}
+
+function applyCurrentUserPatchesAll(patchStore, user) {
+  return patchStore.applyCurrentUserPatches(
+    user,
+    patchStore.$currentUserPatches.get(),
+  );
 }
 
 describe("Post Patches - Patch Management", () => {
@@ -163,14 +190,14 @@ describe("Profile Patches - Patch Management", () => {
     });
 
     // Verify patch exists
-    const patchedProfile = patchStore.applyProfilePatches(baseProfile);
+    const patchedProfile = applyProfilePatchesForDid(patchStore, baseProfile);
     assert.deepEqual(patchedProfile.viewer.following, "fake following");
 
     // Remove patch
     patchStore.removeProfilePatch(profileDID, patchId);
 
     // Verify patch is removed
-    const unpatchedProfile = patchStore.applyProfilePatches(baseProfile);
+    const unpatchedProfile = applyProfilePatchesForDid(patchStore, baseProfile);
     assert.deepEqual(unpatchedProfile.viewer.following, null);
   });
 });
@@ -185,7 +212,7 @@ describe("Profile Patches - Follow Patches", () => {
   it("should apply followProfile patch correctly", () => {
     const patchStore = new PatchStore();
     patchStore.addProfilePatch(profileDID, { type: "followProfile" });
-    const result = patchStore.applyProfilePatches(baseProfile);
+    const result = applyProfilePatchesForDid(patchStore, baseProfile);
 
     assert.deepEqual(result.viewer.following, "fake following");
     assert.deepEqual(result.did, profileDID);
@@ -199,7 +226,7 @@ describe("Profile Patches - Follow Patches", () => {
     };
 
     patchStore.addProfilePatch(profileDID, { type: "unfollowProfile" });
-    const result = patchStore.applyProfilePatches(followedProfile);
+    const result = applyProfilePatchesForDid(patchStore, followedProfile);
 
     assert.deepEqual(result.viewer.following, null);
   });
@@ -210,7 +237,7 @@ describe("Profile Patches - Follow Patches", () => {
     patchStore.addProfilePatch(profileDID, { type: "followProfile" });
     patchStore.addProfilePatch(profileDID, { type: "unfollowProfile" });
 
-    const result = patchStore.applyProfilePatches(baseProfile);
+    const result = applyProfilePatchesForDid(patchStore, baseProfile);
     assert.deepEqual(result.viewer.following, null);
   });
 });
@@ -292,7 +319,7 @@ describe("Profile Patches - Error Handling", () => {
     let errorThrown = false;
     let errorMessage = "";
     try {
-      patchStore.applyProfilePatches(baseProfile);
+      applyProfilePatchesForDid(patchStore, baseProfile);
     } catch (e) {
       errorThrown = true;
       errorMessage = e.message;
@@ -342,8 +369,8 @@ describe("Patch Isolation", () => {
 
     patchStore.addProfilePatch(profile1URI, { type: "followProfile" });
 
-    const result1 = patchStore.applyProfilePatches(baseProfile1);
-    const result2 = patchStore.applyProfilePatches(baseProfile2);
+    const result1 = applyProfilePatchesForDid(patchStore, baseProfile1);
+    const result2 = applyProfilePatchesForDid(patchStore, baseProfile2);
 
     assert.deepEqual(result1.viewer.following, "fake following");
     assert.deepEqual(result2.viewer.following, null); // Unchanged
@@ -374,7 +401,7 @@ describe("Preference Patches - Labeler Patches", () => {
       did: labelerDid,
       labelerInfo,
     });
-    const result = patchStore.applyPreferencePatches(mockPreferences);
+    const result = applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(result._subscribedLabeler, labelerDid);
     assert.deepEqual(result._labelerInfo, labelerInfo);
@@ -397,7 +424,7 @@ describe("Preference Patches - Labeler Patches", () => {
       type: "unsubscribeLabeler",
       did: labelerDid,
     });
-    const result = patchStore.applyPreferencePatches(mockPreferences);
+    const result = applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(result._unsubscribedLabeler, labelerDid);
   });
@@ -444,7 +471,7 @@ describe("Preference Patches - Labeler Patches", () => {
       did: labelerDid1,
     });
 
-    patchStore.applyPreferencePatches(mockPreferences);
+    applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(calls.length, 3);
     assert.deepEqual(calls[0].type, "subscribe");
@@ -472,7 +499,7 @@ describe("Preference Patches - Pin Feed Patches", () => {
       feedUri: "at://did:test/app.bsky.graph.list/abc",
       entryType: "list",
     });
-    patchStore.applyPreferencePatches(mockPreferences);
+    applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(calls.length, 1);
     assert.deepEqual(calls[0].feedUri, "at://did:test/app.bsky.graph.list/abc");
@@ -494,7 +521,7 @@ describe("Preference Patches - Pin Feed Patches", () => {
       type: "pinFeed",
       feedUri: "at://did:test/app.bsky.feed.generator/xyz",
     });
-    patchStore.applyPreferencePatches(mockPreferences);
+    applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(calls.length, 1);
     assert.deepEqual(calls[0].type, undefined);
@@ -565,7 +592,7 @@ describe("Preference Patches - Content Label Patches", () => {
       visibility,
       labelerDid,
     });
-    const result = patchStore.applyPreferencePatches(mockPreferences);
+    const result = applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(result._contentLabelPref.label, label);
     assert.deepEqual(result._contentLabelPref.visibility, visibility);
@@ -599,7 +626,7 @@ describe("Preference Patches - Content Label Patches", () => {
       labelerDid,
     });
 
-    patchStore.applyPreferencePatches(mockPreferences);
+    applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(calls.length, 2);
     assert.deepEqual(calls[0].label, "nsfw");
@@ -641,7 +668,7 @@ describe("Preference Patches - Content Label Patches", () => {
       labelerDid,
     });
 
-    patchStore.applyPreferencePatches(mockPreferences);
+    applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(calls.length, 2);
     assert.deepEqual(calls[0].type, "subscribe");
@@ -660,7 +687,7 @@ describe("Current User Patches", () => {
       type: "setPinnedPost",
       pinnedPost: { uri: "at://x/y/1", cid: "c1" },
     });
-    const patched = patchStore.applyCurrentUserPatches(baseUser);
+    const patched = applyCurrentUserPatchesAll(patchStore, baseUser);
     assert.deepEqual(patched.pinnedPost.uri, "at://x/y/1");
   });
 
@@ -668,14 +695,14 @@ describe("Current User Patches", () => {
     const patchStore = new PatchStore();
     patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
     const user = { ...baseUser, pinnedPost: { uri: "at://x/y/1", cid: "c1" } };
-    const patched = patchStore.applyCurrentUserPatches(user);
+    const patched = applyCurrentUserPatchesAll(patchStore, user);
     assert.deepEqual(patched.pinnedPost, undefined);
   });
 
   it("should return null user unchanged", () => {
     const patchStore = new PatchStore();
     patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
-    assert.deepEqual(patchStore.applyCurrentUserPatches(null), null);
+    assert.deepEqual(applyCurrentUserPatchesAll(patchStore, null), null);
   });
 
   it("should drop the patch after remove", () => {
@@ -685,7 +712,7 @@ describe("Current User Patches", () => {
       pinnedPost: { uri: "at://x/y/1", cid: "c1" },
     });
     patchStore.removeCurrentUserPatch(id);
-    const patched = patchStore.applyCurrentUserPatches(baseUser);
+    const patched = applyCurrentUserPatchesAll(patchStore, baseUser);
     assert.deepEqual(patched.pinnedPost, undefined);
   });
 });
@@ -794,12 +821,12 @@ describe("Convo Patches - Patch Management", () => {
       muted: true,
     });
 
-    const patched = patchStore.applyConvoPatches(baseConvo);
+    const patched = applyConvoPatchesForId(patchStore, baseConvo);
     assert.deepEqual(patched.muted, true);
 
     patchStore.removeConvoPatch(convoId, patchId);
 
-    const unpatched = patchStore.applyConvoPatches(baseConvo);
+    const unpatched = applyConvoPatchesForId(patchStore, baseConvo);
     assert.deepEqual(unpatched.muted, false);
   });
 
@@ -822,7 +849,10 @@ describe("Convo Patches - setConvoMuted", () => {
   it("should apply setConvoMuted(true) to a previously unmuted convo", () => {
     const patchStore = new PatchStore();
     patchStore.addConvoPatch(convoId, { type: "setConvoMuted", muted: true });
-    const patched = patchStore.applyConvoPatches({ id: convoId, muted: false });
+    const patched = applyConvoPatchesForId(patchStore, {
+      id: convoId,
+      muted: false,
+    });
     assert.deepEqual(patched.muted, true);
     assert.deepEqual(patched.id, convoId);
   });
@@ -830,7 +860,10 @@ describe("Convo Patches - setConvoMuted", () => {
   it("should apply setConvoMuted(false) to a previously muted convo", () => {
     const patchStore = new PatchStore();
     patchStore.addConvoPatch(convoId, { type: "setConvoMuted", muted: false });
-    const patched = patchStore.applyConvoPatches({ id: convoId, muted: true });
+    const patched = applyConvoPatchesForId(patchStore, {
+      id: convoId,
+      muted: true,
+    });
     assert.deepEqual(patched.muted, false);
   });
 
@@ -838,14 +871,17 @@ describe("Convo Patches - setConvoMuted", () => {
     const patchStore = new PatchStore();
     patchStore.addConvoPatch(convoId, { type: "setConvoMuted", muted: true });
     patchStore.addConvoPatch(convoId, { type: "setConvoMuted", muted: false });
-    const patched = patchStore.applyConvoPatches({ id: convoId, muted: false });
+    const patched = applyConvoPatchesForId(patchStore, {
+      id: convoId,
+      muted: false,
+    });
     assert.deepEqual(patched.muted, false);
   });
 
   it("should preserve unrelated convo fields", () => {
     const patchStore = new PatchStore();
     patchStore.addConvoPatch(convoId, { type: "setConvoMuted", muted: true });
-    const patched = patchStore.applyConvoPatches({
+    const patched = applyConvoPatchesForId(patchStore, {
       id: convoId,
       muted: false,
       rev: "rev-1",
@@ -860,7 +896,7 @@ describe("Convo Patches - setConvoMuted", () => {
   it("should return the convo unchanged when no patches exist", () => {
     const patchStore = new PatchStore();
     const convo = { id: convoId, muted: false };
-    const patched = patchStore.applyConvoPatches(convo);
+    const patched = applyConvoPatchesForId(patchStore, convo);
     assert.deepEqual(patched, convo);
   });
 });
@@ -870,7 +906,7 @@ describe("Convo Patches - Error Handling", () => {
     const patchStore = new PatchStore();
     patchStore.addConvoPatch("convo-1", { type: "unknownConvoPatch" });
     assert.throws(() =>
-      patchStore.applyConvoPatches({ id: "convo-1", muted: false }),
+      applyConvoPatchesForId(patchStore, { id: "convo-1", muted: false }),
     );
   });
 });
@@ -924,10 +960,6 @@ describe("Post Patches - Reposts, Bookmarks, HidePost", () => {
     assert.deepEqual(result.viewer.isHidden, true);
   });
 });
-
-function applyProfilePatchesForDid(patchStore, profile) {
-  return patchStore.applyProfilePatches(profile);
-}
 
 describe("Profile Patches - Mute/Block/NotificationSubscription", () => {
   const did = "did:plc:test";
@@ -1003,12 +1035,12 @@ describe("Message Patches", () => {
     });
     assert.deepEqual(typeof patchId, "number");
 
-    let patched = patchStore.applyMessagePatches(baseMessage);
+    let patched = applyMessagePatchesForId(patchStore, baseMessage);
     assert.deepEqual(patched.reactions.length, 1);
     assert.deepEqual(patched.reactions[0].value, "👍");
 
     patchStore.removeMessagePatch(messageId, patchId);
-    patched = patchStore.applyMessagePatches(baseMessage);
+    patched = applyMessagePatchesForId(patchStore, baseMessage);
     assert.deepEqual(patched.reactions.length, 0);
   });
 
@@ -1023,7 +1055,7 @@ describe("Message Patches", () => {
       currentUserDid,
       value: "👍",
     });
-    const patched = patchStore.applyMessagePatches(messageWithReaction);
+    const patched = applyMessagePatchesForId(patchStore, messageWithReaction);
     assert.deepEqual(patched.reactions.length, 0);
   });
 
@@ -1042,7 +1074,7 @@ describe("Message Patches", () => {
       currentUserDid,
       value: "👍",
     });
-    const patched = patchStore.applyMessagePatches(messageWithReactions);
+    const patched = applyMessagePatchesForId(patchStore, messageWithReactions);
     const surviving = patched.reactions.map(
       (reaction) => `${reaction.sender.did}:${reaction.value}`,
     );
@@ -1052,31 +1084,18 @@ describe("Message Patches", () => {
   it("should throw for an unknown message patch type", () => {
     const patchStore = new PatchStore();
     patchStore.addMessagePatch(messageId, { type: "nope" });
-    assert.throws(() => patchStore.applyMessagePatches(baseMessage));
+    assert.throws(() => applyMessagePatchesForId(patchStore, baseMessage));
   });
 
-  it("should expose the overlay via $patchedMessages", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    dataStore.$messages.set(messageId, baseMessage);
-
-    assert.deepEqual(patchStore.$patchedMessages.get(messageId).reactions, []);
-
+  it("should not mutate the input message", () => {
+    const patchStore = new PatchStore();
     patchStore.addMessagePatch(messageId, {
       type: "addReaction",
       reaction: { sender: { did: currentUserDid }, value: "🎉" },
     });
-    const patched = patchStore.$patchedMessages.get(messageId);
+    const patched = applyMessagePatchesForId(patchStore, baseMessage);
     assert.deepEqual(patched.reactions.length, 1);
-    assert.deepEqual(patched.reactions[0].value, "🎉");
-    // Underlying store should not be mutated by the overlay.
-    assert.deepEqual(dataStore.$messages.get(messageId).reactions, []);
-  });
-
-  it("should return null from $patchedMessages when the underlying message is absent", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    assert.deepEqual(patchStore.$patchedMessages.get("missing"), null);
+    assert.deepEqual(baseMessage.reactions, []);
   });
 });
 
@@ -1095,7 +1114,7 @@ describe("Preference Patches - unpinFeed", () => {
       type: "unpinFeed",
       feedUri: "at://feed/1",
     });
-    const result = patchStore.applyPreferencePatches(mockPreferences);
+    const result = applyPreferencePatchesAll(patchStore, mockPreferences);
     assert.deepEqual(seen, ["at://feed/1"]);
     assert.deepEqual(result, { after: "at://feed/1" });
   });
@@ -1126,85 +1145,6 @@ describe("Author Feed Patches - pinPost apply", () => {
     assert.deepEqual(patched.feed.length, 2);
     assert.deepEqual(patched.feed[1].post.uri, otherPost.uri);
     assert.deepEqual(patched.cursor, "c");
-  });
-});
-
-describe("Post Patches - $patchedPosts overlay", () => {
-  it("should overlay post + author profile patches", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    const postURI = "at://did:plc:author/app.bsky.feed.post/1";
-    const post = {
-      uri: postURI,
-      likeCount: 3,
-      viewer: { like: null },
-      author: {
-        did: "did:plc:author",
-        viewer: { following: null },
-        followersCount: 10,
-      },
-    };
-    dataStore.$posts.set(postURI, post);
-
-    patchStore.addPostPatch(postURI, { type: "addLike" });
-    patchStore.addProfilePatch("did:plc:author", { type: "followProfile" });
-
-    const patched = patchStore.$patchedPosts.get(postURI);
-    assert.deepEqual(patched.viewer.like, "fake like");
-    assert.deepEqual(patched.likeCount, 4);
-    assert.deepEqual(patched.author.viewer.following, "fake following");
-    assert.deepEqual(patched.author.followersCount, 11);
-    // Underlying store isn't mutated.
-    assert.deepEqual(dataStore.$posts.get(postURI).likeCount, 3);
-    assert.deepEqual(dataStore.$posts.get(postURI).author.followersCount, 10);
-  });
-
-  it("should return null when the underlying post is absent", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    assert.deepEqual(patchStore.$patchedPosts.get("missing"), null);
-  });
-});
-
-describe("Profile Patches - $patchedProfiles / $patchedDetailedProfiles overlays", () => {
-  const did = "did:plc:x";
-
-  it("should overlay profile patches on $profiles reads", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    dataStore.$profiles.set(did, {
-      did,
-      followersCount: 4,
-      viewer: { following: null },
-    });
-    patchStore.addProfilePatch(did, { type: "followProfile" });
-    const patched = patchStore.$patchedProfiles.get(did);
-    assert.deepEqual(patched.viewer.following, "fake following");
-    assert.deepEqual(patched.followersCount, 5);
-    // Underlying store unchanged.
-    assert.deepEqual(dataStore.$profiles.get(did).followersCount, 4);
-  });
-
-  it("should overlay profile patches on $detailedProfiles reads", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    dataStore.$detailedProfiles.set(did, {
-      did,
-      followersCount: 4,
-      viewer: { following: null },
-      description: "hello",
-    });
-    patchStore.addProfilePatch(did, { type: "followProfile" });
-    const patched = patchStore.$patchedDetailedProfiles.get(did);
-    assert.deepEqual(patched.viewer.following, "fake following");
-    assert.deepEqual(patched.description, "hello");
-  });
-
-  it("should return null when the underlying profile is absent", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    assert.deepEqual(patchStore.$patchedProfiles.get("missing"), null);
-    assert.deepEqual(patchStore.$patchedDetailedProfiles.get("missing"), null);
   });
 });
 
@@ -1277,23 +1217,18 @@ describe("Post Patches - convergence", () => {
   });
 
   it("should not double-apply when a canonical refresh lands while the patch is installed", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    dataStore.$posts.set(postURI, {
-      uri: postURI,
-      likeCount: 5,
-      viewer: { like: null },
-    });
+    const patchStore = new PatchStore();
     patchStore.addPostPatch(postURI, { type: "addLike" });
-    assert.deepEqual(patchStore.$patchedPosts.get(postURI).likeCount, 6);
+    const stalePost = { uri: postURI, likeCount: 5, viewer: { like: null } };
+    assert.deepEqual(applyPostPatches(patchStore, stalePost).likeCount, 6);
 
     // Refresh delivers the server state with the like already applied.
-    dataStore.$posts.set(postURI, {
+    const refreshedPost = {
       uri: postURI,
       likeCount: 6,
       viewer: { like: "server-like-uri" },
-    });
-    const patched = patchStore.$patchedPosts.get(postURI);
+    };
+    const patched = applyPostPatches(patchStore, refreshedPost);
     assert.deepEqual(patched.likeCount, 6);
     assert.deepEqual(patched.viewer.like, "server-like-uri");
   });
@@ -1310,7 +1245,7 @@ describe("Profile Patches - convergence", () => {
       viewer: { following: "server-follow-uri" },
     };
     patchStore.addProfilePatch(did, { type: "followProfile" });
-    const result = patchStore.applyProfilePatches(followedProfile);
+    const result = applyProfilePatchesForDid(patchStore, followedProfile);
     assert.deepEqual(result.followersCount, 11);
     assert.deepEqual(result.viewer.following, "server-follow-uri");
   });
@@ -1319,7 +1254,7 @@ describe("Profile Patches - convergence", () => {
     const patchStore = new PatchStore();
     const profile = { did, followersCount: 10, viewer: { following: null } };
     patchStore.addProfilePatch(did, { type: "unfollowProfile" });
-    const result = patchStore.applyProfilePatches(profile);
+    const result = applyProfilePatchesForDid(patchStore, profile);
     assert.deepEqual(result.followersCount, 10);
   });
 
@@ -1330,13 +1265,13 @@ describe("Profile Patches - convergence", () => {
       viewer: { blocking: "server-block-uri" },
     };
     patchStore.addProfilePatch(did, { type: "blockProfile" });
-    let result = patchStore.applyProfilePatches(blockedProfile);
+    let result = applyProfilePatchesForDid(patchStore, blockedProfile);
     assert.deepEqual(result.viewer.blocking, "server-block-uri");
 
     const patchStore2 = new PatchStore();
     const plainProfile = { did, viewer: { blocking: null } };
     patchStore2.addProfilePatch(did, { type: "unblockProfile" });
-    result = patchStore2.applyProfilePatches(plainProfile);
+    result = applyProfilePatchesForDid(patchStore2, plainProfile);
     assert.deepEqual(result.viewer.blocking, null);
   });
 });
@@ -1362,7 +1297,7 @@ describe("Message Patches - convergence", () => {
       type: "addReaction",
       reaction: { sender: { did: currentUserDid }, value: "👍" },
     });
-    const patched = patchStore.applyMessagePatches(messageWithReaction);
+    const patched = applyMessagePatchesForId(patchStore, messageWithReaction);
     assert.deepEqual(patched.reactions.length, 1);
     assert.deepEqual(patched.reactions[0].sender.handle, "me.test");
   });
@@ -1381,49 +1316,7 @@ describe("Message Patches - convergence", () => {
       type: "addReaction",
       reaction: { sender: { did: currentUserDid }, value: "❤️" },
     });
-    const patched = patchStore.applyMessagePatches(messageWithReaction);
+    const patched = applyMessagePatchesForId(patchStore, messageWithReaction);
     assert.deepEqual(patched.reactions.length, 3);
-  });
-});
-
-describe("Convo Patches - $patchedConvos", () => {
-  it("should overlay the patch on top of the dataStore convo", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    const convo = { id: "convo-1", muted: false, rev: "rev-1" };
-    dataStore.$convos.set("convo-1", convo);
-
-    assert.deepEqual(patchStore.$patchedConvos.get("convo-1").muted, false);
-
-    patchStore.addConvoPatch("convo-1", {
-      type: "setConvoMuted",
-      muted: true,
-    });
-    const patched = patchStore.$patchedConvos.get("convo-1");
-    assert.deepEqual(patched.muted, true);
-    assert.deepEqual(patched.rev, "rev-1");
-    // Underlying store is not mutated by the patch overlay.
-    assert.deepEqual(dataStore.$convos.get("convo-1").muted, false);
-  });
-
-  it("should return null when the underlying convo is absent", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    assert.deepEqual(patchStore.$patchedConvos.get("nope"), null);
-  });
-
-  it("should isolate patches between different convos", () => {
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
-    dataStore.$convos.set("convo-1", { id: "convo-1", muted: false });
-    dataStore.$convos.set("convo-2", { id: "convo-2", muted: false });
-
-    patchStore.addConvoPatch("convo-1", {
-      type: "setConvoMuted",
-      muted: true,
-    });
-
-    assert.deepEqual(patchStore.$patchedConvos.get("convo-1").muted, true);
-    assert.deepEqual(patchStore.$patchedConvos.get("convo-2").muted, false);
   });
 });

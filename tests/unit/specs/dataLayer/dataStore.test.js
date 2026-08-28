@@ -132,6 +132,95 @@ describe("setPosts", () => {
     assert.deepEqual(dataStore.$embeddedPosts.get(quotedUri), null);
     assert.deepEqual(dataStore.$posts.get(quotedUri), fullPost);
   });
+
+  it("should normalize post authors into $profiles", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const author = {
+      did: "did:test:author",
+      handle: "author.test",
+      displayName: "Author",
+      viewer: { following: null },
+    };
+    dataStore.setPosts([
+      {
+        uri: "at://did:test:author/app.bsky.feed.post/1",
+        record: { text: "one" },
+        author,
+      },
+    ]);
+    assert.deepEqual(dataStore.$profiles.get("did:test:author"), author);
+  });
+
+  it("should normalize quoted post authors into $profiles", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const quotedAuthor = { did: "did:test:quoted", handle: "quoted.test" };
+    dataStore.setPosts([
+      {
+        uri: "at://did:test:author/app.bsky.feed.post/1",
+        record: { text: "root" },
+        author: { did: "did:test:author", handle: "author.test" },
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            uri: "at://did:test:quoted/app.bsky.feed.post/2",
+            cid: "quoted-cid",
+            author: quotedAuthor,
+            value: { text: "quoted" },
+            indexedAt: "2026-07-19T00:00:00Z",
+          },
+        },
+      },
+    ]);
+    assert.deepEqual(dataStore.$profiles.get("did:test:quoted"), quotedAuthor);
+  });
+});
+
+describe("mergeProfile", () => {
+  it("should keep fields the new fragment does not carry", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.mergeProfile({
+      did: "did:test:a",
+      handle: "a.test",
+      description: "richer profile view",
+      viewer: { following: null },
+    });
+    dataStore.mergeProfile({
+      did: "did:test:a",
+      handle: "a.test",
+      displayName: "A",
+      viewer: { following: "at://follow-uri" },
+    });
+    assert.deepEqual(dataStore.$profiles.get("did:test:a"), {
+      did: "did:test:a",
+      handle: "a.test",
+      description: "richer profile view",
+      displayName: "A",
+      viewer: { following: "at://follow-uri" },
+    });
+  });
+
+  it("should not merge tombstone authors without a handle", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.mergeProfile({
+      did: "did:test:blocked",
+      viewer: { blockedBy: true },
+    });
+    assert.deepEqual(dataStore.$profiles.get("did:test:blocked"), null);
+  });
+
+  it("should not dirty the entry when nothing changed", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const profile = {
+      did: "did:test:a",
+      handle: "a.test",
+      viewer: { following: null },
+    };
+    dataStore.mergeProfile(profile);
+    const stored = dataStore.$profiles.get("did:test:a");
+    dataStore.mergeProfile({ ...profile, viewer: { following: null } });
+    assert(dataStore.$profiles.get("did:test:a") === stored);
+  });
 });
 
 describe("setConvo", () => {

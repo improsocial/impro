@@ -68,7 +68,10 @@ export default async function communityPluginsView({
           ${error
             ? html`<div class="error-state">
                 <div>Failed to load plugins</div>
-                <button class="rounded-button" @click=${() => loadListings()}>
+                <button
+                  class="rounded-button rounded-button-secondary-inverted"
+                  @click=${() => loadListings()}
+                >
                   Try again
                 </button>
               </div>`

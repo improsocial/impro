@@ -39,7 +39,12 @@ function trendingErrorTemplate({ onRetry }) {
     data-testid="trending-error"
   >
     <div>Error loading trends</div>
-    <button class="rounded-button" @click=${onRetry}>Try again</button>
+    <button
+      class="rounded-button rounded-button-secondary-inverted"
+      @click=${onRetry}
+    >
+      Try again
+    </button>
   </div>`;
 }
 

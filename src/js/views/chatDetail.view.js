@@ -1318,7 +1318,10 @@ export default async function chatDetailView({
       return html`<div class="error-state" data-testid="convo-not-found">
         <h3>Not Found</h3>
         <div>Conversation not found</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
+        <button
+          class="rounded-button rounded-button-secondary-inverted"
+          @click=${() => window.location.reload()}
+        >
           Try again
         </button>
       </div>`;
@@ -1326,7 +1329,10 @@ export default async function chatDetailView({
     console.error(error);
     return html`<div class="error-state" data-testid="messages-error">
       <div>There was an error loading messages.</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
+      <button
+        class="rounded-button rounded-button-secondary-inverted"
+        @click=${() => window.location.reload()}
+      >
         Try again
       </button>
     </div>`;

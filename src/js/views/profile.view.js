@@ -192,7 +192,10 @@ export default async function profileView({
       return html`<div class="error-state">
         <h3>Not Found</h3>
         <div>${message}</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
+        <button
+          class="rounded-button rounded-button-secondary-inverted"
+          @click=${() => window.location.reload()}
+        >
           Try again
         </button>
       </div>`;
@@ -200,7 +203,10 @@ export default async function profileView({
     console.error(error);
     return html`<div class="error-state">
       <div>There was an error loading the profile.</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
+      <button
+        class="rounded-button rounded-button-secondary-inverted"
+        @click=${() => window.location.reload()}
+      >
         Try again
       </button>
     </div>`;
@@ -213,7 +219,10 @@ export default async function profileView({
         <p>
           This account has requested that users sign in to view their profile.
         </p>
-        <button class="rounded-button" @click=${() => window.router.back()}>
+        <button
+          class="rounded-button rounded-button-secondary-inverted"
+          @click=${() => window.router.back()}
+        >
           Go back
         </button>
       </div>
