@@ -445,6 +445,17 @@ export class MockServer {
     this.joinLinkJoinedConvos.set(code, convo);
   }
 
+  // Simulate flaky delivery of the app's entry module (e.g. a CDN error
+  // serving /js/app.js): failAppScript aborts the request, delayAppScript
+  // stalls it before letting it through.
+  failAppScript() {
+    this.appScriptFailure = true;
+  }
+
+  delayAppScript(delayMs) {
+    this.appScriptDelayMs = delayMs;
+  }
+
   // Abort all subsequent document navigations (reloads, redirects) so the
   // page stays on the current document. UI states that only exist until a
   // navigation completes (e.g. an in-progress spinner) stay observable.
@@ -3043,6 +3054,20 @@ export class MockServer {
         });
       },
     );
+
+    // Registered last so it wins over any broader route (later routes match
+    // first). The app's entry module is content-hashed to /js/app.<hash>.js.
+    if (this.appScriptFailure || this.appScriptDelayMs) {
+      await page.route("**/js/app.*.js", async (route) => {
+        if (this.appScriptFailure) {
+          return route.abort();
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.appScriptDelayMs),
+        );
+        return route.fallback();
+      });
+    }
   }
 }
 

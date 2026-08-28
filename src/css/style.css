@@ -9368,6 +9368,13 @@ moderation-warning .toggle-content {
   min-height: 30vh;
 }
 
+.boot-state-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--background-color);
+}
+
 .app-error-state {
   min-height: 100dvh;
   justify-content: center;
