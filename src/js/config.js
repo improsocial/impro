@@ -40,7 +40,6 @@ export const IN_APP_LINK_DOMAINS = [
   "bsky.app",
   "impro.social",
   "dev.impro.social",
-  "localhost",
 ];
 
 export const AppViewConfig = {

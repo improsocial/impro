@@ -997,6 +997,13 @@ export function transformNestedQuotes(post, transform) {
   });
 }
 
+export function isInAppLinkHostname(hostname) {
+  return (
+    hostname === window.location.hostname ||
+    IN_APP_LINK_DOMAINS.includes(hostname)
+  );
+}
+
 const CHAT_INVITE_PATH_REGEX = /^\/chat\/([a-zA-Z0-9]{7,10})$/;
 
 export function getInviteCodeFromUrl(url) {
@@ -1006,11 +1013,7 @@ export function getInviteCodeFromUrl(url) {
     const parsed = new URL(
       url.startsWith("/") ? `https://bsky.app${url}` : url,
     );
-    if (
-      !url.startsWith("/") &&
-      parsed.hostname !== window.location.hostname &&
-      !IN_APP_LINK_DOMAINS.includes(parsed.hostname)
-    ) {
+    if (!url.startsWith("/") && !isInAppLinkHostname(parsed.hostname)) {
       return null;
     }
     pathname = parsed.pathname;

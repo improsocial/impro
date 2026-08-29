@@ -55,7 +55,8 @@ import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative } from "/js/utils.js";
 import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
-import { NOTIFICATIONS_PAGE_SIZE, IN_APP_LINK_DOMAINS } from "/js/config.js";
+import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
+import { isInAppLinkHostname } from "/js/dataHelpers.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import {
   getAppViewConfig,
@@ -438,17 +439,13 @@ export async function main() {
       return router.go(anchor.href);
     }
     const parsedUrl = new URL(anchor.href);
-    const currentHostname = window.location.hostname;
     // Handle direct .bsky.social links
     if (parsedUrl.hostname.endsWith(".bsky.social")) {
       const handle = parsedUrl.hostname;
       e.preventDefault();
       return router.go(`/profile/${handle}`);
     }
-    if (
-      currentHostname === parsedUrl.hostname ||
-      IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
-    ) {
+    if (isInAppLinkHostname(parsedUrl.hostname)) {
       const relativePath = parsedUrl.pathname;
       // Only intercept in-app links if there's a match in the router
       if (

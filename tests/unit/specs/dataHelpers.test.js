@@ -42,6 +42,7 @@ import {
   groupReactions,
   isGroupConvo,
   isInviteLinkUrl,
+  isInAppLinkHostname,
   getInviteCodeFromUrl,
   isVideoLink,
   isAvailableJoinLinkPreview,
@@ -1892,6 +1893,26 @@ describe("groupReactions", () => {
   });
 });
 
+describe("isInAppLinkHostname", () => {
+  it("accepts the static in-app domains", () => {
+    assert.deepEqual(isInAppLinkHostname("bsky.app"), true);
+    assert.deepEqual(isInAppLinkHostname("impro.social"), true);
+    assert.deepEqual(isInAppLinkHostname("dev.impro.social"), true);
+  });
+
+  it("accepts the current hostname even when it's not in the static domain list", () => {
+    // window.location.hostname is "localhost" in tests, which is not in
+    // IN_APP_LINK_DOMAINS -- this exercises the same-origin fallback.
+    assert(!IN_APP_LINK_DOMAINS.includes("localhost"));
+    assert.deepEqual(isInAppLinkHostname("localhost"), true);
+  });
+
+  it("rejects other hostnames", () => {
+    assert.deepEqual(isInAppLinkHostname("example.com"), false);
+    assert.deepEqual(isInAppLinkHostname("evil-impro.social"), false);
+  });
+});
+
 describe("getInviteCodeFromUrl", () => {
   it("extracts code from absolute bsky.app URL", () => {
     assert.deepEqual(
@@ -1930,19 +1951,13 @@ describe("getInviteCodeFromUrl", () => {
   });
 
   it("accepts a link to the current origin even when it's not in the static domain list", () => {
-    // window.location.hostname is "localhost" in tests, which happens to
-    // already be in IN_APP_LINK_DOMAINS -- remove it so this actually
-    // exercises the same-origin fallback rather than the static list.
-    const index = IN_APP_LINK_DOMAINS.indexOf("localhost");
-    IN_APP_LINK_DOMAINS.splice(index, 1);
-    try {
-      assert.deepEqual(
-        getInviteCodeFromUrl("http://localhost/chat/abcd1234"),
-        "abcd1234",
-      );
-    } finally {
-      IN_APP_LINK_DOMAINS.splice(index, 0, "localhost");
-    }
+    // window.location.hostname is "localhost" in tests, which is not in
+    // IN_APP_LINK_DOMAINS -- this exercises the same-origin fallback.
+    assert(!IN_APP_LINK_DOMAINS.includes("localhost"));
+    assert.deepEqual(
+      getInviteCodeFromUrl("http://localhost/chat/abcd1234"),
+      "abcd1234",
+    );
   });
 
   it("rejects malformed codes", () => {
