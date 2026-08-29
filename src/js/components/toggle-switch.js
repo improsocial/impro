@@ -3,14 +3,35 @@ import { Component } from "/js/components/component.js";
 import { classnames } from "/js/utils.js";
 
 class ToggleSwitch extends Component {
+  // formAssociated makes the element labelable, so a wrapping <label> (or
+  // for/id) forwards clicks to it like a native checkbox.
+  static formAssociated = true;
+
   static get observedAttributes() {
-    return ["checked", "disabled"];
+    return ["checked", "disabled", "label"];
   }
 
   connectedCallback() {
     if (this.initialized) {
       return;
     }
+    this.setAttribute("role", "switch");
+    this.addEventListener("click", () => {
+      if (this.disabled) return;
+      this.dispatchEvent(
+        new CustomEvent("change", {
+          detail: { checked: !this.checked },
+          bubbles: true,
+        }),
+      );
+    });
+    this.addEventListener("keydown", (event) => {
+      if (this.disabled) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        this.click();
+      }
+    });
     this.render();
     this.initialized = true;
   }
@@ -46,7 +67,10 @@ class ToggleSwitch extends Component {
   }
 
   render() {
-    const label = this.getAttribute("label") ?? "";
+    this.tabIndex = this.disabled ? -1 : 0;
+    this.setAttribute("aria-checked", String(this.checked));
+    this.setAttribute("aria-disabled", String(this.disabled));
+    this.setAttribute("aria-label", this.getAttribute("label") ?? "");
     render(
       html`
         <div
@@ -54,27 +78,6 @@ class ToggleSwitch extends Component {
             checked: this.checked,
             disabled: this.disabled,
           })}
-          role="switch"
-          tabindex=${this.disabled ? "-1" : "0"}
-          aria-checked=${this.checked}
-          aria-disabled=${this.disabled}
-          aria-label=${label}
-          @click=${() => {
-            if (this.disabled) return;
-            this.dispatchEvent(
-              new CustomEvent("change", {
-                detail: { checked: !this.checked },
-                bubbles: true,
-              }),
-            );
-          }}
-          @keydown=${(event) => {
-            if (this.disabled) return;
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              event.target.click();
-            }
-          }}
         >
           <div class="toggle-switch-knob"></div>
         </div>

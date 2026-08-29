@@ -326,6 +326,20 @@ describe("post-interaction-settings-dialog", () => {
     assert.deepEqual(detail, null);
   });
 
+  it("toggles quotes when the row is clicked, without double-toggling from the switch", async () => {
+    const element = await createDialog({});
+    const row = element.querySelector(".interaction-settings-quote-row");
+    row.click();
+    await flushRender();
+    assert(!quoteToggle(element).hasAttribute("checked"));
+    row.click();
+    await flushRender();
+    assert(quoteToggle(element).hasAttribute("checked"));
+    clickQuoteToggle(element);
+    await flushRender();
+    assert(!quoteToggle(element).hasAttribute("checked"));
+  });
+
   it("seeds the quote toggle from postgateEmbeddingRules and emits changes", async () => {
     const element = await createDialog({
       postgateEmbeddingRules: [{ $type: "app.bsky.feed.postgate#disableRule" }],

@@ -160,11 +160,11 @@ function listsSectionTemplate({
 
 function quotePostsRowTemplate({ quotesEnabled, isSaving, onToggleQuotes }) {
   return html`
-    <div class="interaction-settings-quote-row">
-      <label class="interaction-settings-quote-label">
+    <label class="interaction-settings-quote-row">
+      <span class="interaction-settings-quote-label">
         <app-icon icon="quote-line"></app-icon>
         Allow quote posts
-      </label>
+      </span>
       <toggle-switch
         label="Allow quote posts"
         data-testid="interaction-settings-quote-posts"
@@ -172,7 +172,7 @@ function quotePostsRowTemplate({ quotesEnabled, isSaving, onToggleQuotes }) {
         ?disabled=${isSaving}
         @change=${(event) => onToggleQuotes(event.detail.checked)}
       ></toggle-switch>
-    </div>
+    </label>
   `;
 }
 

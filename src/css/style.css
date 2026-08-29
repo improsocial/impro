@@ -9843,6 +9843,14 @@ toggle-switch {
   display: inline-block;
 }
 
+label:has(toggle-switch) {
+  cursor: pointer;
+}
+
+label:has(toggle-switch[disabled]) {
+  cursor: not-allowed;
+}
+
 .toggle-switch-track {
   width: 44px;
   height: 26px;
