@@ -481,7 +481,7 @@ test.describe("Chat view", () => {
     await expect(dialog).not.toBeVisible();
   });
 
-  test("should open the new chat dialog from the sidebar new chat button", async ({
+  test("should open the post composer from the sidebar compose button", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -490,16 +490,13 @@ test.describe("Chat view", () => {
     await login(page);
     await page.goto("/messages");
 
-    const newChatButton = page.locator(
-      '[data-testid="sidebar-new-chat-button"]',
+    const composeButton = page.locator(
+      '[data-testid="sidebar-compose-button"]',
     );
-    await expect(newChatButton).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.locator('[data-testid="sidebar-compose-button"]'),
-    ).toBeHidden();
-    await newChatButton.click();
+    await expect(composeButton).toBeVisible({ timeout: 10000 });
+    await composeButton.click();
 
-    await expect(page.locator('[data-testid="new-chat-dialog"]')).toBeVisible({
+    await expect(page.locator("post-composer .post-composer")).toBeVisible({
       timeout: 10000,
     });
   });

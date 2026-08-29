@@ -1411,10 +1411,6 @@ tab-bar:not([full-width]) {
     display: none !important;
   }
 
-  .sidebar-nav-item {
-    justify-content: flex-end;
-  }
-
   .sidebar-nav-label {
     display: none;
   }
@@ -1544,7 +1540,7 @@ tab-bar:not([full-width]) {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 4px 14px;
+  padding: 3px 14px;
   margin-right: 8px;
   color: var(--text-color);
   text-decoration: none;
@@ -1575,8 +1571,8 @@ tab-bar:not([full-width]) {
 }
 
 .sidebar-nav-icon .icon {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
 }
 
 .sidebar-nav-icon .icon path {
@@ -1650,9 +1646,25 @@ plugin-blob-image .blob-image-fallback {
   margin-right: 6px;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 800px) {
   .sidebar-compose-button {
     display: flex;
+  }
+}
+
+@media (min-width: 800px) and (max-width: 1199px) {
+  .sidebar-compose-button {
+    align-self: center;
+    margin-left: 0;
+    margin-right: 8px;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: var(--circular-button-border-radius);
+  }
+
+  .sidebar-compose-button span {
+    display: none;
   }
 }
 
@@ -6725,7 +6737,7 @@ sidebar-search {
     right: auto;
     bottom: auto;
     height: auto;
-    max-height: 80vh;
+    max-height: 90vh;
     border-bottom: var(--hair) solid var(--post-border-color);
     border-radius: var(--dialog-border-radius);
     box-shadow: none;
@@ -6963,7 +6975,7 @@ sidebar-search {
   justify-content: space-between;
   align-items: center;
   padding-right: 16px;
-  padding-left: 16px;
+  padding-left: 10px;
   position: relative;
   padding-top: 8px;
 }
@@ -6991,13 +7003,6 @@ sidebar-search {
   background-color: var(--post-border-color);
   transform: scaleY(0.5);
   transform-origin: top;
-}
-
-@media (min-width: 800px) {
-  .post-composer-bottom-bar {
-    padding: 8px 10px;
-    position: relative;
-  }
 }
 
 .post-composer-bottom-bar-left {
@@ -7252,7 +7257,7 @@ sidebar-search {
   transform: scale(0.95);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 800px) {
   .fab {
     display: none;
   }
@@ -7261,17 +7266,6 @@ sidebar-search {
 .floating-compose-button .icon {
   width: 24px;
   height: 24px;
-}
-
-@media (min-width: 800px) {
-  .fab {
-    right: 50px;
-  }
-
-  .floating-compose-button .icon {
-    width: 30px;
-    height: 30px;
-  }
 }
 
 .mention-typeahead-host,
@@ -10186,7 +10180,10 @@ label:has(toggle-switch[disabled]) {
 .post-interaction-settings-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+}
+
+.post-interaction-settings-dialog-body > * + * {
+  margin-top: 16px;
 }
 
 .post-interaction-settings-dialog-header {
@@ -10269,6 +10266,7 @@ label:has(toggle-switch[disabled]) {
   background: var(--post-hover-color);
   font-size: 14px;
   font-weight: 500;
+  margin-top: 8px;
 }
 
 .interaction-settings-quote-label {

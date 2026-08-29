@@ -33,6 +33,7 @@ class ReactionPalette extends Component {
 
   _onDocumentClick = (event) => {
     if (this.contains(event.target)) return;
+    if (event.target.closest?.("emoji-picker")) return;
     this.dispatchEvent(
       new CustomEvent("close", { detail: { reason: "outside" } }),
     );
