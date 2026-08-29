@@ -68,8 +68,10 @@ function postContextMenuTemplate({
   onClickReport,
   onClickDelete,
   onClickPin,
+  onClickEditInteractionSettings,
 }) {
   const canPin = isUserPost && !post.record?.reply;
+  const canEditInteractionSettings = isUserPost && !post.record?.reply;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
     ${isAuthenticated && canPin
@@ -202,6 +204,17 @@ function postContextMenuTemplate({
           ${isUserPost
             ? html`
                 <context-menu-item-group>
+                  ${canEditInteractionSettings
+                    ? html`
+                        <context-menu-item
+                          data-testid="menu-action-interaction-settings"
+                          icon="settings-cog-line"
+                          @click=${() => onClickEditInteractionSettings(post)}
+                        >
+                          Edit interaction settings
+                        </context-menu-item>
+                      `
+                    : null}
                   <context-menu-item
                     data-testid="menu-action-post-delete"
                     icon="delete-bin-line"
@@ -345,6 +358,7 @@ export function postActionBarTemplate({
   onClickDelete = noop,
   onClickReport = noop,
   onClickPin = noop,
+  onClickEditInteractionSettings = noop,
   enableFeedFeedback = false,
   pluginService,
 }) {
@@ -500,6 +514,7 @@ export function postActionBarTemplate({
                 onClickReport,
                 onClickDelete,
                 onClickPin,
+                onClickEditInteractionSettings,
               });
             }}
           >

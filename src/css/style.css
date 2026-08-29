@@ -2093,6 +2093,10 @@ container-link {
   }
 }
 
+.who-can-reply-badge-link {
+  color: var(--highlight-color);
+}
+
 .post-text {
   line-height: 1.3125;
   margin-top: -4px;
@@ -6953,21 +6957,43 @@ sidebar-search {
 
 .post-composer-bottom-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   flex-shrink: 0;
   margin-top: 16px;
-  padding: 8px 16px calc(var(--safe-area-inset-bottom) + 8px);
+  padding: 8px 0 calc(var(--safe-area-inset-bottom) + 8px);
   position: sticky;
   bottom: 0;
   background-color: light-dark(var(--white), var(--mid-gray));
 }
 
+.post-composer-bottom-bar-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 16px;
+  padding-left: 16px;
+}
+
+.interaction-settings-section .pill-radio-group label,
+.interaction-settings-section .interaction-settings-row {
+  min-height: 48px;
+}
+
+.post-composer-interaction-settings-row {
+  display: flex;
+  padding-bottom: 12px;
+  padding-right: 16px;
+  padding-left: 16px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
 /* workaround for iOS Safari subpixel rounding */
-.post-composer-bottom-bar::before {
+.post-composer-interaction-settings-row::after {
   content: "";
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   height: 1px;
@@ -6986,6 +7012,11 @@ sidebar-search {
 .post-composer-bottom-bar-left {
   display: flex;
   align-items: center;
+}
+
+.composer-interaction-settings-button .icon {
+  width: 15px;
+  height: 15px;
 }
 
 .post-composer-post {
@@ -8390,7 +8421,7 @@ context-menu-item-group > context-menu-item > button {
   margin: 0;
 }
 
-.muted-word-checkbox-row {
+.checkbox-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -8404,11 +8435,11 @@ context-menu-item-group > context-menu-item > button {
   font-weight: 500;
 }
 
-.muted-word-checkbox-row:has(input:checked) {
+.checkbox-row:has(input:checked) {
   background: color-mix(in srgb, var(--highlight-color) 15%, transparent);
 }
 
-.muted-word-checkbox-row input[type="checkbox"] {
+.checkbox-row input[type="checkbox"] {
   accent-color: var(--highlight-color);
   background-color: transparent;
   margin: 0;
@@ -10080,6 +10111,204 @@ toggle-switch {
 .add-to-lists-dialog-loading-more .loading-spinner {
   height: 20px;
   width: 20px;
+}
+
+/* Post Interaction Settings Dialog */
+
+.post-interaction-settings-dialog::before {
+  z-index: 1;
+}
+
+.post-interaction-settings-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 799px) {
+  .post-interaction-settings-dialog {
+    max-height: calc(100dvh - var(--sheet-top));
+  }
+}
+
+@media (min-width: 800px) {
+  .post-interaction-settings-dialog {
+    max-width: 440px;
+  }
+}
+
+.post-interaction-settings-dialog-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 24px 20px;
+  padding-top: 28px;
+  position: relative;
+}
+
+@media (min-width: 800px) {
+  .post-interaction-settings-dialog-content {
+    padding-top: 24px;
+  }
+}
+
+.post-interaction-settings-dialog-close {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 4px 8px;
+  opacity: 0.6;
+}
+
+@media (min-width: 800px) {
+  .post-interaction-settings-dialog-close {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (hover: hover) {
+  .post-interaction-settings-dialog-close:hover {
+    opacity: 1;
+  }
+}
+
+.post-interaction-settings-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-interaction-settings-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.post-interaction-settings-dialog-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.post-interaction-settings-dialog-subtitle {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.95rem;
+}
+
+.interaction-settings-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.interaction-settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.interaction-settings-row {
+  margin-bottom: 8px;
+}
+
+.interaction-settings-row-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.interaction-settings-list-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.interaction-settings-list-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-settings-preserved-row {
+  justify-content: space-between;
+  color: var(--text-color-secondary);
+}
+
+.interaction-settings-lists-toggle {
+  padding: 8px 0;
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.interaction-settings-lists-message {
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
+  padding: 8px 0;
+}
+
+.interaction-settings-quote-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px;
+  border-radius: var(--card-border-radius);
+  background: var(--post-hover-color);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.interaction-settings-quote-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.interaction-settings-quote-label app-icon {
+  display: flex;
+  width: 18px;
+  height: 18px;
+}
+
+.interaction-settings-default-note {
+  color: var(--text-color-muted);
+  font-size: 14px;
+}
+
+.interaction-settings-save-default-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.interaction-settings-save-default-row input[type="checkbox"] {
+  accent-color: var(--highlight-color);
+  margin: 0;
+}
+
+.interaction-settings-error {
+  color: var(--error-color);
+  font-size: 0.9rem;
+}
+
+.interaction-settings-save {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: center;
+}
+
+.interaction-settings-save:disabled {
+  cursor: not-allowed;
 }
 
 .chat-header-buttons {

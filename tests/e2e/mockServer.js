@@ -22,6 +22,11 @@ export class MockServer {
     this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
     this.applyWritesCalls = [];
+    // rkey -> { cid, value }; seed for getRecord, updated by putRecord
+    this.threadgateRecords = new Map();
+    this.putThreadgateCalls = [];
+    this.postgateRecords = new Map();
+    this.putPostgateCalls = [];
     this.drafts = [];
     this.draftCounter = 0;
     this.deletedDraftIds = [];
@@ -2839,6 +2844,36 @@ export class MockServer {
           });
         }
       }
+      if (
+        collection === "app.bsky.feed.threadgate" ||
+        collection === "app.bsky.feed.postgate"
+      ) {
+        const repo = url.searchParams.get("repo");
+        const records =
+          collection === "app.bsky.feed.threadgate"
+            ? this.threadgateRecords
+            : this.postgateRecords;
+        const record = records.get(rkey);
+        if (record) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              uri: `at://${repo}/${collection}/${rkey}`,
+              cid: record.cid,
+              value: record.value,
+            }),
+          });
+        }
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "RecordNotFound",
+            message: `Could not locate record: at://${repo}/${collection}/${rkey}`,
+          }),
+        });
+      }
       return route.fulfill({ status: 404, body: "{}" });
     });
 
@@ -2868,6 +2903,33 @@ export class MockServer {
           delete profile.pinnedPost;
         }
         this.profiles.set(userProfile.did, profile);
+      }
+      if (
+        collection === "app.bsky.feed.threadgate" ||
+        collection === "app.bsky.feed.postgate"
+      ) {
+        const repo = body?.repo;
+        const rkey = body?.rkey;
+        const isThreadgate = collection === "app.bsky.feed.threadgate";
+        const calls = isThreadgate
+          ? this.putThreadgateCalls
+          : this.putPostgateCalls;
+        const records = isThreadgate
+          ? this.threadgateRecords
+          : this.postgateRecords;
+        const cid = isThreadgate
+          ? "bafyreiupdatedthreadgate"
+          : "bafyreiupdatedpostgate";
+        calls.push(body);
+        records.set(rkey, { cid, value: body?.record });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            uri: `at://${repo}/${collection}/${rkey}`,
+            cid,
+          }),
+        });
       }
       if (collection === "app.bsky.graph.list") {
         const repo = body?.repo;

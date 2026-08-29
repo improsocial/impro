@@ -1,4 +1,5 @@
 import { getRKey, parseUri, hasValidHandle } from "/js/dataHelpers.js";
+import { isNil } from "/js/utils.js";
 
 function encodePathSegment(segment) {
   return encodeURIComponent(segment).replace(/%3A/g, ":").replace(/%40/g, "@");
@@ -112,7 +113,7 @@ export function getPermalinkForCommunityPlugin(pluginId) {
 export function linkToLogin({ query = {} } = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null) continue;
+    if (isNil(value)) continue;
     params.set(key, String(value));
   }
   const { pathname, search, hash } = window.location;

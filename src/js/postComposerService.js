@@ -110,6 +110,21 @@ export class PostComposerService {
       // can't wait on plugin init before opening
       this.currentPostComposer.open();
       const composer = this.currentPostComposer;
+      if (!replyTo) {
+        // Set default interaction settings from preferences
+        this.dataLayer.preferencesProvider
+          .requirePreferences()
+          .then((preferences) => {
+            if (this.currentPostComposer === composer) {
+              composer.setDefaultInteractionSettings(
+                preferences.getPostInteractionSettings(),
+              );
+            }
+          })
+          .catch((error) => {
+            console.warn("Failed to load default interaction settings", error);
+          });
+      }
       this.pluginService
         .getPostComposerInit({
           kind: replyTo ? "reply" : quotedPost ? "quote" : "post",

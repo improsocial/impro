@@ -470,12 +470,7 @@ export default async function chatDetailView({
       return;
     }
     try {
-      await dataLayer.mutations.addMessageReaction(
-        convoId,
-        messageId,
-        emoji,
-        currentUserDid,
-      );
+      await dataLayer.mutations.addMessageReaction(convoId, messageId, emoji);
       clearMessageSelection();
     } catch (error) {
       console.error(error);
@@ -483,13 +478,12 @@ export default async function chatDetailView({
     }
   }
 
-  async function handleReactionRemove(emoji, messageId, currentUserDid) {
+  async function handleReactionRemove(emoji, messageId) {
     try {
       await dataLayer.mutations.removeMessageReaction(
         convoId,
         messageId,
         emoji,
-        currentUserDid,
       );
     } catch (error) {
       console.error(error);
@@ -506,7 +500,7 @@ export default async function chatDetailView({
     dialog.dataLayer = dataLayer;
     dialog.addEventListener("close", () => dialog.remove());
     dialog.addEventListener("remove-reaction", (event) =>
-      handleReactionRemove(event.detail.emoji, messageId, currentUserDid),
+      handleReactionRemove(event.detail.emoji, messageId),
     );
     document.body.appendChild(dialog);
     dialog.open();
@@ -832,7 +826,7 @@ export default async function chatDetailView({
         @select=${(event) =>
           handleEmojiSelect(event.detail.emoji, message.id, currentUserDid)}
         @remove-reaction=${(event) => {
-          handleReactionRemove(event.detail.emoji, message.id, currentUserDid);
+          handleReactionRemove(event.detail.emoji, message.id);
           clearMessageSelection();
         }}
         @close=${(event) => closePalette(event.detail.reason)}

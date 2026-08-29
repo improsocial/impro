@@ -1,4 +1,4 @@
-import { getPostLangs, readFileAsDataUrl, wait } from "/js/utils.js";
+import { getPostLangs, isNil, readFileAsDataUrl, wait } from "/js/utils.js";
 import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import {
@@ -87,7 +87,7 @@ export class PostCreator {
       });
       uris.push(uri);
 
-      if (i === 0 && threadgateAllow) {
+      if (i === 0 && !isNil(threadgateAllow)) {
         writes.push({
           $type: "com.atproto.repo.applyWrites#create",
           collection: "app.bsky.feed.threadgate",

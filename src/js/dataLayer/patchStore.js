@@ -118,6 +118,34 @@ export class PatchStore extends ReactiveStore {
             isHidden: true,
           },
         };
+      case "setEmbeddingDisabled":
+        return {
+          ...post,
+          viewer: {
+            ...post.viewer,
+            embeddingDisabled: patchBody.embeddingDisabled,
+          },
+        };
+      case "setThreadgateAllow": {
+        const record = {
+          $type: "app.bsky.feed.threadgate",
+          post: post.uri,
+          ...post.threadgate?.record,
+        };
+        if (patchBody.allow === null) {
+          delete record.allow;
+        } else {
+          record.allow = patchBody.allow;
+        }
+        return {
+          ...post,
+          threadgate: {
+            lists: [],
+            ...post.threadgate,
+            record,
+          },
+        };
+      }
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

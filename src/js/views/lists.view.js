@@ -74,10 +74,7 @@ export default async function listsView({
     dialog.addEventListener("list-create", async (event) => {
       const { listData, successCallback, errorCallback } = event.detail;
       try {
-        const list = await dataLayer.mutations.createList({
-          ...listData,
-          currentUser,
-        });
+        const list = await dataLayer.mutations.createList(listData);
         showToast("List created");
         successCallback();
         const { rkey } = parseUri(list.uri);

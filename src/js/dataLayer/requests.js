@@ -20,7 +20,7 @@ import {
 import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
-import { ApiError } from "/js/api.js";
+import { ApiError, isRecordNotFoundError } from "/js/api.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
 
 const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
@@ -287,10 +287,7 @@ export class Requests {
     try {
       record = await this.api.getProfileRecord();
     } catch (error) {
-      if (
-        !(error instanceof ApiError) ||
-        error.data?.error !== "RecordNotFound"
-      ) {
+      if (!isRecordNotFoundError(error)) {
         throw error;
       }
     }
@@ -572,7 +569,7 @@ export class Requests {
     results.forEach((result, index) => {
       if (result.status === "fulfilled") return;
       const error = result.reason;
-      if (error instanceof ApiError && error.data?.error === "RecordNotFound") {
+      if (isRecordNotFoundError(error)) {
         const uri = missingPostUris[index];
         this.dataStore.$unavailablePosts.set(uri, createUnavailablePost(uri));
       }

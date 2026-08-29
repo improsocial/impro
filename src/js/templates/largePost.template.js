@@ -20,6 +20,7 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
+import { WhoCanReplyModal } from "/js/modals/whoCanReply.modal.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import {
@@ -161,6 +162,8 @@ export function largePostTemplate({
   }
   const embed = post.embed ?? post.record?.embed;
   const postText = post.record.text || "";
+  const isRootPost = !post.record?.reply;
+  const canEditInteractionSettings = isUserPost && isRootPost;
   const badgeLabels = post.badgeLabels ?? [];
   const contentLabel = post.contentLabel;
   // Instead of hiding, add the content label to the badge labels
@@ -229,7 +232,19 @@ export function largePostTemplate({
         })}
         <div class="post-full-timestamp">
           ${formatFullTimestamp(post.indexedAt)}
-          ${whoCanReplyBadgeTemplate({ post })}
+          ${isRootPost
+            ? whoCanReplyBadgeTemplate({
+                post,
+                linkStyle: canEditInteractionSettings,
+                onClick: (post) => {
+                  if (canEditInteractionSettings) {
+                    postInteractionHandler.handleEditInteractionSettings(post);
+                  } else {
+                    WhoCanReplyModal.open({ post });
+                  }
+                },
+              })
+            : null}
         </div>
         ${showActions
           ? html`
@@ -280,6 +295,8 @@ export function largePostTemplate({
                 },
                 onClickPin: (post, doPin) =>
                   postInteractionHandler.handlePinPost(post, doPin),
+                onClickEditInteractionSettings: (post) =>
+                  postInteractionHandler.handleEditInteractionSettings(post),
                 onClickReport: (post) =>
                   postInteractionHandler.handleReport(post),
                 pluginService,

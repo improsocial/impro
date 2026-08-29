@@ -1,4 +1,4 @@
-import { unique } from "/js/utils.js";
+import { isNil, unique } from "/js/utils.js";
 import {
   CDN_URL,
   FOLLOWING_FEED_URI,
@@ -881,22 +881,20 @@ export function isPinnedPost(feedItem) {
   return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
 }
 
-export function getThreadgateAllowSettings(post) {
-  // - undefined allow -> { type: "everybody" }
-  // - empty allow array -> { type: "nobody" }
-  // - otherwise -> array of { type: "mention" | "followers" | "following" | "list" | "unknown", list? }
-  const threadgate = post?.threadgate;
-  if (!threadgate || !threadgate.record) {
-    return { type: "everybody" };
-  }
-  const allow = threadgate.record.allow;
-  if (allow === undefined) {
-    return { type: "everybody" };
+// Normalize allow settings to array
+// - null/undefined allow (or no record) -> [{ type: "everybody" }]
+// - empty allow array -> [{ type: "nobody" }]
+// - otherwise one entry per rule:
+//   { type: "mention" | "followers" | "following" }
+//   { type: "list", list: <at-uri> }
+//   { type: "unknown", raw: <rule> }
+export function normalizeThreadgateAllowSettings(allow) {
+  if (isNil(allow)) {
+    return [{ type: "everybody" }];
   }
   if (allow.length === 0) {
-    return { type: "nobody" };
+    return [{ type: "nobody" }];
   }
-  const lists = threadgate.lists || [];
   return allow.map((rule) => {
     switch (rule.$type) {
       case "app.bsky.feed.threadgate#mentionRule":
@@ -906,14 +904,51 @@ export function getThreadgateAllowSettings(post) {
       case "app.bsky.feed.threadgate#followingRule":
         return { type: "following" };
       case "app.bsky.feed.threadgate#listRule":
-        return {
-          type: "list",
-          list: lists.find((listView) => listView.uri === rule.list) ?? null,
-        };
+        return { type: "list", list: rule.list };
       default:
-        return { type: "unknown" };
+        return { type: "unknown", raw: rule };
     }
   });
+}
+
+export function buildThreadgateAllowFromNormalized(settings) {
+  if (settings.some((setting) => setting.type === "everybody")) {
+    return null;
+  }
+  if (settings.some((setting) => setting.type === "nobody")) {
+    return [];
+  }
+  return settings.map((setting) => {
+    switch (setting.type) {
+      case "mention":
+        return { $type: "app.bsky.feed.threadgate#mentionRule" };
+      case "followers":
+        return { $type: "app.bsky.feed.threadgate#followerRule" };
+      case "following":
+        return { $type: "app.bsky.feed.threadgate#followingRule" };
+      case "list":
+        return {
+          $type: "app.bsky.feed.threadgate#listRule",
+          list: setting.list,
+        };
+      case "unknown":
+        return setting.raw;
+      default:
+        throw new Error(`Unknown threadgate setting type: ${setting.type}`);
+    }
+  });
+}
+
+const DISABLE_EMBEDDING_RULE_TYPE = "app.bsky.feed.postgate#disableRule";
+
+export function hasDisableEmbeddingRule(embeddingRules) {
+  return !!embeddingRules?.some(
+    (rule) => rule.$type === DISABLE_EMBEDDING_RULE_TYPE,
+  );
+}
+
+export function buildPostgateEmbeddingRules(quotesEnabled) {
+  return quotesEnabled ? null : [{ $type: DISABLE_EMBEDDING_RULE_TYPE }];
 }
 
 // Adds a feed item to the beginning of a feed, preserving pinned post position.

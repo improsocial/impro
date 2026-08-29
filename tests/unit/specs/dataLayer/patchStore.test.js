@@ -961,6 +961,111 @@ describe("Post Patches - Reposts, Bookmarks, HidePost", () => {
   });
 });
 
+describe("Post Patches - setEmbeddingDisabled", () => {
+  const postURI = "at://did:test/app.bsky.feed.post/test";
+
+  it("sets embeddingDisabled on the viewer", () => {
+    const patchStore = new PatchStore();
+    patchStore.addPostPatch(postURI, {
+      type: "setEmbeddingDisabled",
+      embeddingDisabled: true,
+    });
+    const result = applyPostPatches(patchStore, {
+      uri: postURI,
+      viewer: { like: null },
+    });
+    assert.deepEqual(result.viewer.embeddingDisabled, true);
+    assert.deepEqual(result.viewer.like, null);
+  });
+
+  it("clears embeddingDisabled", () => {
+    const patchStore = new PatchStore();
+    patchStore.addPostPatch(postURI, {
+      type: "setEmbeddingDisabled",
+      embeddingDisabled: false,
+    });
+    const result = applyPostPatches(patchStore, {
+      uri: postURI,
+      viewer: { embeddingDisabled: true },
+    });
+    assert.deepEqual(result.viewer.embeddingDisabled, false);
+  });
+});
+
+describe("Post Patches - setThreadgateAllow", () => {
+  const postURI = "at://did:test/app.bsky.feed.post/test";
+
+  it("creates a threadgate view when the post has none", () => {
+    const patchStore = new PatchStore();
+    const allow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+    patchStore.addPostPatch(postURI, { type: "setThreadgateAllow", allow });
+    const result = applyPostPatches(patchStore, { uri: postURI });
+    assert.deepEqual(result.threadgate.record, {
+      $type: "app.bsky.feed.threadgate",
+      post: postURI,
+      allow,
+    });
+    assert.deepEqual(result.threadgate.lists, []);
+  });
+
+  it("preserves the existing record fields and lists", () => {
+    const patchStore = new PatchStore();
+    const post = {
+      uri: postURI,
+      threadgate: {
+        uri: "at://did:test/app.bsky.feed.threadgate/test",
+        lists: [{ uri: "at://list", name: "A list" }],
+        record: {
+          $type: "app.bsky.feed.threadgate",
+          post: postURI,
+          allow: [],
+          hiddenReplies: ["at://did:test/app.bsky.feed.post/reply"],
+        },
+      },
+    };
+    const allow = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+    patchStore.addPostPatch(postURI, { type: "setThreadgateAllow", allow });
+    const result = applyPostPatches(patchStore, post);
+    assert.deepEqual(result.threadgate.record.allow, allow);
+    assert.deepEqual(result.threadgate.record.hiddenReplies, [
+      "at://did:test/app.bsky.feed.post/reply",
+    ]);
+    assert.deepEqual(result.threadgate.lists, post.threadgate.lists);
+    assert.deepEqual(result.threadgate.uri, post.threadgate.uri);
+  });
+
+  it("deletes the allow key for null (everybody)", () => {
+    const patchStore = new PatchStore();
+    const post = {
+      uri: postURI,
+      threadgate: {
+        lists: [],
+        record: {
+          $type: "app.bsky.feed.threadgate",
+          post: postURI,
+          allow: [],
+        },
+      },
+    };
+    patchStore.addPostPatch(postURI, {
+      type: "setThreadgateAllow",
+      allow: null,
+    });
+    const result = applyPostPatches(patchStore, post);
+    assert(!("allow" in result.threadgate.record));
+  });
+
+  it("sets an empty allow array for nobody", () => {
+    const patchStore = new PatchStore();
+    patchStore.addPostPatch(postURI, {
+      type: "setThreadgateAllow",
+      allow: [],
+    });
+    const result = applyPostPatches(patchStore, { uri: postURI });
+    assert.deepEqual(result.threadgate.record.allow, []);
+  });
+});
+
 describe("Profile Patches - Mute/Block/NotificationSubscription", () => {
   const did = "did:plc:test";
   const baseProfile = {

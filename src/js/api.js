@@ -30,6 +30,10 @@ export class ApiError extends Error {
   }
 }
 
+export function isRecordNotFoundError(error) {
+  return error instanceof ApiError && error.data?.error === "RecordNotFound";
+}
+
 class PublicSession {
   constructor() {
     this.serviceEndpoint = PUBLIC_SERVICE_ENDPOINT_URL;
@@ -1361,6 +1365,62 @@ export class Api {
         rkey,
         record: {
           $type: "app.bsky.graph.list",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async getThreadgateRecord(rkey) {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.threadgate",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async putThreadgateRecord(rkey, record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.threadgate",
+        rkey,
+        record: {
+          $type: "app.bsky.feed.threadgate",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async getPostgateRecord(rkey) {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.postgate",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async putPostgateRecord(rkey, record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.postgate",
+        rkey,
+        record: {
+          $type: "app.bsky.feed.postgate",
           ...record,
         },
         swapRecord: swapRecord ?? null,

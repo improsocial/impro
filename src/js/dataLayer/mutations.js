@@ -1,5 +1,8 @@
+import { isRecordNotFoundError } from "/js/api.js";
 import {
   parseUri,
+  buildUri,
+  hasDisableEmbeddingRule,
   createNotFoundPost,
   addFeedItemToFeed,
   pinPostInFeed,
@@ -603,6 +606,18 @@ export class Mutations {
     await this.preferencesProvider.updatePreferences(newPreferences);
   }
 
+  async updatePostInteractionSettings({
+    threadgateAllowRules,
+    postgateEmbeddingRules,
+  }) {
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setPostInteractionSettings({
+      threadgateAllowRules,
+      postgateEmbeddingRules,
+    });
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
   async subscribeLabeler(profile, labelerInfo) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "subscribeLabeler",
@@ -1017,7 +1032,9 @@ export class Mutations {
     }
   }
 
-  async createList({ currentUser, purpose, name, description, avatarBlob }) {
+  async createList({ purpose, name, description, avatarBlob }) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
     const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
     const record = {
       purpose,
@@ -1277,6 +1294,118 @@ export class Mutations {
     }
   }
 
+  async updatePostgateEmbeddingRules(post, embeddingRules) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
+    const { repo, rkey } = parseUri(post.uri);
+    if (currentUser.did !== repo) {
+      throw new Error("Only the post author can edit the postgate");
+    }
+    const embeddingDisabled = hasDisableEmbeddingRule(embeddingRules);
+    const hasEmbeddingRules = embeddingRules?.length > 0;
+
+    const patchId = this.patchStore.addPostPatch(post.uri, {
+      type: "setEmbeddingDisabled",
+      embeddingDisabled,
+    });
+    try {
+      let priorPostgateRecord = null;
+      try {
+        priorPostgateRecord = await this.api.getPostgateRecord(rkey);
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      const doUpdate = priorPostgateRecord || hasEmbeddingRules;
+      if (doUpdate) {
+        const record = {
+          ...priorPostgateRecord?.value,
+          $type: "app.bsky.feed.postgate",
+          post: post.uri,
+          createdAt: getCurrentTimestamp(),
+        };
+        if (hasEmbeddingRules) {
+          record.embeddingRules = embeddingRules;
+        } else {
+          delete record.embeddingRules;
+        }
+        await this.api.putPostgateRecord(
+          rkey,
+          record,
+          priorPostgateRecord?.cid ?? null,
+        );
+      }
+
+      const latestPost = this.dataStore.$posts.get(post.uri);
+      if (latestPost) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, embeddingDisabled },
+        });
+      }
+    } finally {
+      this.patchStore.removePostPatch(post.uri, patchId);
+    }
+  }
+
+  async updateThreadgateAllow(post, threadgateAllow) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
+    const { repo, rkey } = parseUri(post.uri);
+    if (currentUser.did !== repo) {
+      throw new Error("Only the thread author can edit the threadgate");
+    }
+
+    const patchId = this.patchStore.addPostPatch(post.uri, {
+      type: "setThreadgateAllow",
+      allow: threadgateAllow,
+    });
+    try {
+      let priorThreadgateRecord = null;
+      try {
+        priorThreadgateRecord = await this.api.getThreadgateRecord(rkey);
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      const record = {
+        ...priorThreadgateRecord?.value,
+        $type: "app.bsky.feed.threadgate",
+        post: post.uri,
+        createdAt: getCurrentTimestamp(),
+      };
+      if (threadgateAllow === null) {
+        delete record.allow;
+      } else {
+        record.allow = threadgateAllow;
+      }
+      const result = await this.api.putThreadgateRecord(
+        rkey,
+        record,
+        priorThreadgateRecord?.cid ?? null,
+      );
+      const written = { record, cid: result.cid };
+
+      const latestPost = this.dataStore.$posts.get(post.uri);
+      if (latestPost) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          threadgate: {
+            uri: buildUri({
+              repo,
+              collection: "app.bsky.feed.threadgate",
+              rkey,
+            }),
+            lists: [],
+            ...latestPost.threadgate,
+            cid: written.cid,
+            record: written.record,
+          },
+        });
+      }
+    } finally {
+      this.patchStore.removePostPatch(post.uri, patchId);
+    }
+  }
+
   async createThread({
     posts,
     replyTo,
@@ -1486,12 +1615,14 @@ export class Mutations {
     }
   }
 
-  async addMessageReaction(convoId, messageId, emoji, currentUserDid) {
+  async addMessageReaction(convoId, messageId, emoji) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
     const patchId = this.patchStore.addMessagePatch(messageId, {
       type: "addReaction",
       reaction: {
         createdAt: getCurrentTimestamp(),
-        sender: { did: currentUserDid },
+        sender: { did: currentUser.did },
         value: emoji,
       },
     });
@@ -1522,10 +1653,12 @@ export class Mutations {
     }
   }
 
-  async removeMessageReaction(convoId, messageId, emoji, currentUserDid) {
+  async removeMessageReaction(convoId, messageId, emoji) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
     const patchId = this.patchStore.addMessagePatch(messageId, {
       type: "removeReaction",
-      currentUserDid,
+      currentUserDid: currentUser.did,
       value: emoji,
     });
     try {

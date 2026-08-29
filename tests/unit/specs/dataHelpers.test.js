@@ -25,7 +25,10 @@ import {
   pinPostInFeed,
   unpinPostInFeed,
   getDisplayName,
-  getThreadgateAllowSettings,
+  normalizeThreadgateAllowSettings,
+  buildThreadgateAllowFromNormalized,
+  hasDisableEmbeddingRule,
+  buildPostgateEmbeddingRules,
   isEmptyPost,
   createUnavailablePost,
   hasValidHandle,
@@ -1163,93 +1166,149 @@ describe("hasValidHandle", () => {
   });
 });
 
-describe("getThreadgateAllowSettings", () => {
-  it("returns everybody when post has no threadgate", () => {
-    assert.deepEqual(getThreadgateAllowSettings({}), { type: "everybody" });
+describe("normalizeThreadgateAllowSettings", () => {
+  it("returns everybody when allow is undefined", () => {
+    assert.deepEqual(normalizeThreadgateAllowSettings(undefined), [
+      { type: "everybody" },
+    ]);
   });
 
-  it("returns everybody when allow is undefined", () => {
-    const post = {
-      threadgate: { record: { $type: "app.bsky.feed.threadgate" } },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), { type: "everybody" });
+  it("returns everybody when allow is null", () => {
+    assert.deepEqual(normalizeThreadgateAllowSettings(null), [
+      { type: "everybody" },
+    ]);
   });
 
   it("returns nobody when allow is empty array", () => {
-    const post = { threadgate: { record: { allow: [] } } };
-    assert.deepEqual(getThreadgateAllowSettings(post), { type: "nobody" });
+    assert.deepEqual(normalizeThreadgateAllowSettings([]), [
+      { type: "nobody" },
+    ]);
   });
 
   it("maps a mention rule", () => {
-    const post = {
-      threadgate: {
-        record: { allow: [{ $type: "app.bsky.feed.threadgate#mentionRule" }] },
-      },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), [{ type: "mention" }]);
+    assert.deepEqual(
+      normalizeThreadgateAllowSettings([
+        { $type: "app.bsky.feed.threadgate#mentionRule" },
+      ]),
+      [{ type: "mention" }],
+    );
   });
 
   it("maps follower and following rules", () => {
-    const post = {
-      threadgate: {
-        record: {
-          allow: [
-            { $type: "app.bsky.feed.threadgate#followerRule" },
-            { $type: "app.bsky.feed.threadgate#followingRule" },
-          ],
-        },
-      },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), [
-      { type: "followers" },
-      { type: "following" },
-    ]);
+    assert.deepEqual(
+      normalizeThreadgateAllowSettings([
+        { $type: "app.bsky.feed.threadgate#followerRule" },
+        { $type: "app.bsky.feed.threadgate#followingRule" },
+      ]),
+      [{ type: "followers" }, { type: "following" }],
+    );
   });
 
-  it("resolves a list rule against threadgate.lists", () => {
+  it("maps a list rule to its raw uri", () => {
     const listUri = "at://did:plc:abc/app.bsky.graph.list/123";
-    const list = { uri: listUri, name: "Cool people" };
-    const post = {
-      threadgate: {
-        lists: [list],
-        record: {
-          allow: [
-            { $type: "app.bsky.feed.threadgate#listRule", list: listUri },
-          ],
-        },
-      },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), [
-      { type: "list", list },
-    ]);
+    assert.deepEqual(
+      normalizeThreadgateAllowSettings([
+        { $type: "app.bsky.feed.threadgate#listRule", list: listUri },
+      ]),
+      [{ type: "list", list: listUri }],
+    );
   });
 
-  it("returns null list when list rule references missing list", () => {
-    const post = {
-      threadgate: {
-        lists: [],
-        record: {
-          allow: [
-            {
-              $type: "app.bsky.feed.threadgate#listRule",
-              list: "at://did:plc:abc/app.bsky.graph.list/zzz",
-            },
-          ],
-        },
-      },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), [
-      { type: "list", list: null },
+  it("keeps unknown rules verbatim for round-tripping", () => {
+    const rule = { $type: "app.bsky.feed.threadgate#futureRule", extra: 1 };
+    assert.deepEqual(normalizeThreadgateAllowSettings([rule]), [
+      { type: "unknown", raw: rule },
     ]);
   });
+});
 
-  it("marks unknown rule types", () => {
-    const post = {
-      threadgate: {
-        record: { allow: [{ $type: "app.bsky.feed.threadgate#futureRule" }] },
-      },
-    };
-    assert.deepEqual(getThreadgateAllowSettings(post), [{ type: "unknown" }]);
+describe("buildThreadgateAllowFromNormalized", () => {
+  it("returns null for everybody", () => {
+    assert.deepEqual(
+      buildThreadgateAllowFromNormalized([{ type: "everybody" }]),
+      null,
+    );
+  });
+
+  it("returns an empty array for nobody", () => {
+    assert.deepEqual(
+      buildThreadgateAllowFromNormalized([{ type: "nobody" }]),
+      [],
+    );
+  });
+
+  it("encodes mention, following, and followers rules", () => {
+    assert.deepEqual(
+      buildThreadgateAllowFromNormalized([
+        { type: "mention" },
+        { type: "following" },
+        { type: "followers" },
+      ]),
+      [
+        { $type: "app.bsky.feed.threadgate#mentionRule" },
+        { $type: "app.bsky.feed.threadgate#followingRule" },
+        { $type: "app.bsky.feed.threadgate#followerRule" },
+      ],
+    );
+  });
+
+  it("encodes list rules from the raw uri", () => {
+    const listUri = "at://did:plc:abc/app.bsky.graph.list/zzz";
+    assert.deepEqual(
+      buildThreadgateAllowFromNormalized([{ type: "list", list: listUri }]),
+      [{ $type: "app.bsky.feed.threadgate#listRule", list: listUri }],
+    );
+  });
+
+  it("re-emits unknown rules verbatim", () => {
+    const rule = { $type: "app.bsky.feed.threadgate#futureRule", extra: 1 };
+    assert.deepEqual(
+      buildThreadgateAllowFromNormalized([{ type: "unknown", raw: rule }]),
+      [rule],
+    );
+  });
+
+  it("round-trips every wire tri-state through decode(encode)", () => {
+    const wireValues = [
+      undefined,
+      [],
+      [
+        { $type: "app.bsky.feed.threadgate#mentionRule" },
+        { $type: "app.bsky.feed.threadgate#followerRule" },
+        { $type: "app.bsky.feed.threadgate#followingRule" },
+        {
+          $type: "app.bsky.feed.threadgate#listRule",
+          list: "at://did:plc:abc/app.bsky.graph.list/zzz",
+        },
+        { $type: "app.bsky.feed.threadgate#futureRule", extra: 1 },
+      ],
+    ];
+    for (const allow of wireValues) {
+      const encoded = buildThreadgateAllowFromNormalized(
+        normalizeThreadgateAllowSettings(allow),
+      );
+      assert.deepEqual(encoded, allow === undefined ? null : allow);
+    }
+  });
+});
+
+describe("postgate embedding rule helpers", () => {
+  const disableRule = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  it("buildPostgateEmbeddingRules maps the quotes-enabled boolean", () => {
+    assert.deepEqual(buildPostgateEmbeddingRules(true), null);
+    assert.deepEqual(buildPostgateEmbeddingRules(false), [disableRule]);
+  });
+
+  it("hasDisableEmbeddingRule detects the disable rule", () => {
+    assert.deepEqual(hasDisableEmbeddingRule(null), false);
+    assert.deepEqual(hasDisableEmbeddingRule(undefined), false);
+    assert.deepEqual(hasDisableEmbeddingRule([]), false);
+    assert.deepEqual(hasDisableEmbeddingRule([disableRule]), true);
+    assert.deepEqual(
+      hasDisableEmbeddingRule([{ $type: "app.bsky.feed.postgate#other" }]),
+      false,
+    );
   });
 });
 

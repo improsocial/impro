@@ -54,6 +54,9 @@ import {
   getDraftDeviceId,
 } from "/js/drafts.js";
 import { ApiError } from "/js/api.js";
+import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
+import { usersIconTemplate } from "/js/templates/icons/usersIcon.template.js";
+import "/js/components/post-interaction-settings-dialog.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -423,10 +426,10 @@ class PostComposer extends Component {
     this._draftId = null;
     this._isDirty = false;
     this._originalLocalRefs = null;
-    // Pass through unsupported fields on drafts
-    this._draftPassthrough = null;
     this._sendAbortController = null;
     this._sendAttemptId = null;
+    this._interactionSettingsTouched = false;
+    this._defaultInteractionSettings = null;
     // postId -> AbortController for that post's in-flight video upload
     this._videoAbortControllers = new Map();
     this.state = new ReactiveStore("postComposer");
@@ -446,6 +449,8 @@ class PostComposer extends Component {
     );
     this._pendingDraftsEnabled = null;
     this.state.$isDraggingFiles = new Signal.State(false);
+    this.state.$threadgateAllow = new Signal.State(null);
+    this.state.$postgateEmbeddingRules = new Signal.State(null);
     this._dragAndDropObserver = null;
     this._disposers = [
       effect(() => {
@@ -573,6 +578,10 @@ class PostComposer extends Component {
     const activePost = posts[activePostIndex];
     const isThread = posts.length > 1;
     const isDraggingFiles = this.state.$isDraggingFiles.get();
+    const threadgateAllow = this.state.$threadgateAllow.get();
+    const postgateEmbeddingRules = this.state.$postgateEmbeddingRules.get();
+    const isInteractionLimited =
+      threadgateAllow !== null || postgateEmbeddingRules?.length > 0;
 
     const currentCharCount = graphemeCount(activePost.text);
     const charCountPercentage = Math.min(
@@ -728,85 +737,107 @@ class PostComposer extends Component {
                 )}
               </div>
               <div class="post-composer-bottom-bar">
-                <div class="post-composer-bottom-bar-left">
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    class="media-picker-input"
-                    multiple
-                    style="display: none;"
-                    @change=${(e) => this.handleMediaSelect(e)}
-                    @cancel=${(e) => {
-                      e.stopPropagation();
-                    }}
-                  />
-                  <button
-                    class="icon-button image-picker-button"
-                    @click=${() => this.handleMediaButtonClick()}
-                    .disabled=${hasVideo ||
-                    hasGif ||
-                    activePost.images.length >= 4}
-                  >
-                    ${imageIconTemplate()}
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-button post-composer-gif-button"
-                    data-testid="composer-gif-button"
-                    aria-label="Select GIF"
-                    .disabled=${hasVideo ||
-                    hasGif ||
-                    activePost.images.length > 0 ||
-                    !!activePost.external}
-                    @click=${() => this.handleGifButtonClick()}
-                  >
-                    <app-icon icon="gif-square-line"></app-icon>
-                  </button>
-                  <gif-picker-dialog
-                    .dataLayer=${this.dataLayer}
-                    @gif-selected=${(e) => this.handleGifSelected(e.detail.gif)}
-                  ></gif-picker-dialog>
-                  <div class="post-composer-emoji-wrapper">
+                ${!this.replyTo
+                  ? html`<div class="post-composer-interaction-settings-row">
+                      <button
+                        type="button"
+                        class="composer-interaction-settings-button rounded-button rounded-button-secondary"
+                        data-testid="composer-interaction-settings"
+                        data-teststate=${isInteractionLimited
+                          ? "limited"
+                          : "open"}
+                        @click=${() => this.openInteractionSettingsDialog()}
+                      >
+                        ${isInteractionLimited
+                          ? html`${usersIconTemplate()}
+                              <span>Interaction limited</span>`
+                          : html`${globeIconTemplate()}
+                              <span>Anyone can interact</span>`}
+                      </button>
+                    </div>`
+                  : ""}
+                <div class="post-composer-bottom-bar-main">
+                  <div class="post-composer-bottom-bar-left">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      class="media-picker-input"
+                      multiple
+                      style="display: none;"
+                      @change=${(e) => this.handleMediaSelect(e)}
+                      @cancel=${(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
+                    <button
+                      class="icon-button image-picker-button"
+                      @click=${() => this.handleMediaButtonClick()}
+                      .disabled=${hasVideo ||
+                      hasGif ||
+                      activePost.images.length >= 4}
+                    >
+                      ${imageIconTemplate()}
+                    </button>
                     <button
                       type="button"
-                      class="icon-button post-composer-emoji-button"
-                      aria-label="Open emoji picker"
-                      @click=${(e) => this.handleEmojiButtonClick(e)}
+                      class="icon-button post-composer-gif-button"
+                      data-testid="composer-gif-button"
+                      aria-label="Select GIF"
+                      .disabled=${hasVideo ||
+                      hasGif ||
+                      activePost.images.length > 0 ||
+                      !!activePost.external}
+                      @click=${() => this.handleGifButtonClick()}
                     >
-                      ${emojiIconTemplate()}
+                      <app-icon icon="gif-square-line"></app-icon>
                     </button>
-                    <emoji-picker-dialog
-                      @select=${(e) => {
-                        this.handleEmojiSelect(e.detail.emoji);
-                        e.currentTarget.close();
-                      }}
-                    ></emoji-picker-dialog>
-                  </div>
-                </div>
-                <div class="post-composer-bottom-bar-right">
-                  ${canAddPost
-                    ? html`<button
-                        class="icon-button post-composer-add-post-button"
-                        data-testid="composer-add-post-button"
-                        aria-label="Add another post"
-                        @click=${() => this.handleAddPost()}
+                    <gif-picker-dialog
+                      .dataLayer=${this.dataLayer}
+                      @gif-selected=${(e) =>
+                        this.handleGifSelected(e.detail.gif)}
+                    ></gif-picker-dialog>
+                    <div class="post-composer-emoji-wrapper">
+                      <button
+                        type="button"
+                        class="icon-button post-composer-emoji-button"
+                        aria-label="Open emoji picker"
+                        @click=${(e) => this.handleEmojiButtonClick(e)}
                       >
-                        ${plusIconTemplate()}
-                      </button>`
-                    : ""}
-                  <div
-                    class=${classnames("word-count", {
-                      overflow: isAboveCharLimit,
-                    })}
-                  >
-                    <span class="word-count-text"
-                      >${300 - currentCharCount}</span
+                        ${emojiIconTemplate()}
+                      </button>
+                      <emoji-picker-dialog
+                        @select=${(e) => {
+                          this.handleEmojiSelect(e.detail.emoji);
+                          e.currentTarget.close();
+                        }}
+                      ></emoji-picker-dialog>
+                    </div>
+                  </div>
+                  <div class="post-composer-bottom-bar-right">
+                    ${canAddPost
+                      ? html`<button
+                          class="icon-button post-composer-add-post-button"
+                          data-testid="composer-add-post-button"
+                          aria-label="Add another post"
+                          @click=${() => this.handleAddPost()}
+                        >
+                          ${plusIconTemplate()}
+                        </button>`
+                      : ""}
+                    <div
+                      class=${classnames("word-count", {
+                        overflow: isAboveCharLimit,
+                      })}
                     >
-                    <div class="word-count-indicator">
-                      <div
-                        class="word-count-indicator-bar"
-                        style="height: ${charCountPercentage}%"
-                      ></div>
+                      <span class="word-count-text"
+                        >${300 - currentCharCount}</span
+                      >
+                      <div class="word-count-indicator">
+                        <div
+                          class="word-count-indicator-bar"
+                          style="height: ${charCountPercentage}%"
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1537,13 +1568,14 @@ class PostComposer extends Component {
               ? buildGifExternal(postState.gif)
               : postState.external,
             quotedRecord: postState.quotedRecord,
-            labels: postState.labels ?? this._draftPassthrough?.labels ?? null,
+            labels: postState.labels ?? null,
           })),
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,
-          threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
-          postgateEmbeddingRules:
-            this._draftPassthrough?.postgateEmbeddingRules ?? null,
+          threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
+          postgateEmbeddingRules: untrack(() =>
+            this.state.$postgateEmbeddingRules.get(),
+          ),
           // Publishing a saved/restored draft consumes it
           draft: this._draftId
             ? {
@@ -1597,9 +1629,10 @@ class PostComposer extends Component {
         unrestoredImages: postState.unrestoredImages,
         unrestoredVideo: postState.unrestoredVideo,
       })),
-      threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
-      postgateEmbeddingRules:
-        this._draftPassthrough?.postgateEmbeddingRules ?? null,
+      threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
+      postgateEmbeddingRules: untrack(() =>
+        this.state.$postgateEmbeddingRules.get(),
+      ),
     };
   }
 
@@ -1685,9 +1718,10 @@ class PostComposer extends Component {
     }
     this.state.$posts.set([this._createPostState()]);
     this.state.$activePostIndex.set(0);
+    this.state.$threadgateAllow.set(null);
+    this.state.$postgateEmbeddingRules.set(null);
     this._draftId = null;
     this._originalLocalRefs = null;
-    this._draftPassthrough = null;
     this.render();
     this._syncInputsFromState();
     this._isDirty = false;
@@ -1752,6 +1786,53 @@ class PostComposer extends Component {
     });
   }
 
+  setDefaultInteractionSettings(settings) {
+    this._defaultInteractionSettings = settings;
+    if (!this._interactionSettingsTouched && !this._draftId) {
+      this.state.$threadgateAllow.set(settings.threadgateAllowRules);
+      this.state.$postgateEmbeddingRules.set(settings.postgateEmbeddingRules);
+    }
+  }
+
+  openInteractionSettingsDialog() {
+    const dialog = document.createElement("post-interaction-settings-dialog");
+    dialog.stacked = true;
+    dialog.dataLayer = this.dataLayer;
+    dialog.threadgateAllow = untrack(() => this.state.$threadgateAllow.get());
+    dialog.postgateEmbeddingRules = untrack(() =>
+      this.state.$postgateEmbeddingRules.get(),
+    );
+    if (this._defaultInteractionSettings) {
+      dialog.defaultInteractionSettings = this._defaultInteractionSettings;
+    }
+    dialog.addEventListener("save-interaction-settings", async (e) => {
+      this.state.$threadgateAllow.set(e.detail.threadgateAllow);
+      this.state.$postgateEmbeddingRules.set(e.detail.postgateEmbeddingRules);
+      this._interactionSettingsTouched = true;
+      this._isDirty = true;
+      if (e.detail.saveAsDefault) {
+        const newDefault = {
+          threadgateAllowRules: e.detail.threadgateAllow,
+          postgateEmbeddingRules: e.detail.postgateEmbeddingRules,
+        };
+        try {
+          await this.dataLayer.mutations.updatePostInteractionSettings(
+            newDefault,
+          );
+          this._defaultInteractionSettings = newDefault;
+        } catch (error) {
+          console.error("Failed to save default interaction settings", error);
+        }
+      }
+      e.detail.successCallback();
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
   openDraftsDialog() {
     const dialog = document.createElement("drafts-dialog");
     dialog.dataLayer = this.dataLayer;
@@ -1783,10 +1864,11 @@ class PostComposer extends Component {
     const draftPosts = draft.posts?.length > 0 ? draft.posts : [{ text: "" }];
     const isOriginatingDevice = draft.deviceId === getDraftDeviceId();
     this.clearComposer();
-    this._draftPassthrough = {
-      threadgateAllow: draft.threadgateAllow ?? null,
-      postgateEmbeddingRules: draft.postgateEmbeddingRules ?? null,
-    };
+    this._interactionSettingsTouched = true;
+    this.state.$threadgateAllow.set(draft.threadgateAllow ?? null);
+    this.state.$postgateEmbeddingRules.set(
+      draft.postgateEmbeddingRules ?? null,
+    );
     this._draftId = draftView.id;
     this._originalLocalRefs = new Set(getLocalRefsFromDraft(draft));
 

@@ -276,10 +276,9 @@ describe("post-composer", () => {
       assert.deepEqual(receivedDetail.draft, null);
     });
 
-    it("carries draft passthrough fields in the send-post detail", async () => {
+    it("carries restored draft fields in the send-post detail", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, { text: "Hello world" });
       const labels = {
         $type: "com.atproto.label.defs#selfLabels",
         values: [{ val: "porn" }],
@@ -287,7 +286,8 @@ describe("post-composer", () => {
       const threadgateAllow = [
         { $type: "app.bsky.feed.threadgate#followingRule" },
       ];
-      element._draftPassthrough = { labels, threadgateAllow };
+      patchFirstPost(element, { text: "Hello world", labels });
+      element.state.$threadgateAllow.set(threadgateAllow);
 
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
@@ -3227,6 +3227,287 @@ describe("post-composer", () => {
         alt: "v alt",
         captions: [{ lang: "en" }],
       });
+    });
+  });
+
+  describe("PostComposer - interaction settings", () => {
+    it("renders the control for root posts but not replies", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await nextFrame();
+      assert(
+        element.querySelector(
+          '[data-testid="composer-interaction-settings"]',
+        ) !== null,
+      );
+
+      const replyElement = createPostComposer();
+      replyElement.replyTo = {
+        uri: "at://did:plc:other/app.bsky.feed.post/xyz",
+        cid: "cid-xyz",
+        author: { did: "did:plc:other", handle: "other.test" },
+        record: { text: "parent" },
+      };
+      connectElement(replyElement);
+      await nextFrame();
+      assert(
+        replyElement.querySelector(
+          '[data-testid="composer-interaction-settings"]',
+        ) === null,
+      );
+    });
+
+    it("reflects the gate state in the control label", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await nextFrame();
+      const control = element.querySelector(
+        '[data-testid="composer-interaction-settings"]',
+      );
+      assert.deepEqual(control.getAttribute("data-teststate"), "open");
+
+      element.state.$threadgateAllow.set([]);
+      await nextFrame();
+      assert.deepEqual(
+        element
+          .querySelector('[data-testid="composer-interaction-settings"]')
+          .getAttribute("data-teststate"),
+        "limited",
+      );
+    });
+
+    it("includes threadgateAllow in the draft snapshot", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const allow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+      element.state.$threadgateAllow.set(allow);
+      const snapshot = element.buildDraftSnapshot();
+      assert.deepEqual(snapshot.threadgateAllow, allow);
+    });
+
+    it("restores threadgateAllow from a draft and clears it on clearComposer", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      const allow = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          posts: [{ text: "restored" }],
+          threadgateAllow: allow,
+        },
+      });
+      assert.deepEqual(element.state.$threadgateAllow.get(), allow);
+      element.clearComposer();
+      assert.deepEqual(element.state.$threadgateAllow.get(), null);
+    });
+
+    it("applies the account default when the composer is untouched", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      assert.deepEqual(element.state.$threadgateAllow.get(), []);
+    });
+
+    it("does not apply the default over a restored draft's gate", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          posts: [{ text: "restored" }],
+        },
+      });
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      assert.deepEqual(element.state.$threadgateAllow.get(), null);
+    });
+
+    it("passes the loaded default to the dialog even when the seed was skipped", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          posts: [{ text: "restored" }],
+        },
+      });
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      assert.deepEqual(dialog.defaultInteractionSettings, {
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      dialog.remove();
+    });
+
+    it("does not pass a default to the dialog before one has loaded", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      assert.deepEqual(dialog.defaultInteractionSettings, undefined);
+      dialog.remove();
+    });
+
+    it("does not apply the default over a value picked via the dialog", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      connectElement(element);
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      const allow = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+      dialog.dispatchEvent(
+        new window.CustomEvent("save-interaction-settings", {
+          detail: {
+            threadgateAllow: allow,
+            postgateEmbeddingRules: null,
+            saveAsDefault: false,
+            successCallback: () => {},
+            errorCallback: () => {},
+          },
+        }),
+      );
+      await nextFrame();
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      assert.deepEqual(element.state.$threadgateAllow.get(), allow);
+      dialog.remove();
+    });
+
+    function saveViaDialog(element, detail) {
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      dialog.dispatchEvent(
+        new window.CustomEvent("save-interaction-settings", {
+          detail: {
+            postgateEmbeddingRules: null,
+            successCallback: () => {},
+            errorCallback: () => {},
+            ...detail,
+          },
+        }),
+      );
+      dialog.remove();
+      return dialog;
+    }
+
+    it("writes the default preference on dialog save when saveAsDefault is set", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      const updateMock = mock.method(
+        element.dataLayer.mutations,
+        "updatePostInteractionSettings",
+        async () => {},
+      );
+      connectElement(element);
+      let succeeded = false;
+      saveViaDialog(element, {
+        threadgateAllow: [],
+        saveAsDefault: true,
+        successCallback: () => {
+          succeeded = true;
+        },
+      });
+      await nextFrame();
+      assert.deepEqual(updateMock.mock.callCount(), 1);
+      assert.deepEqual(updateMock.mock.calls[0].arguments, [
+        { threadgateAllowRules: [], postgateEmbeddingRules: null },
+      ]);
+      assert.deepEqual(element.state.$threadgateAllow.get(), []);
+      assert(succeeded);
+    });
+
+    it("passes the new default to the next dialog after a successful save", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "updatePostInteractionSettings",
+        async () => {},
+      );
+      connectElement(element);
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: null,
+        postgateEmbeddingRules: null,
+      });
+      saveViaDialog(element, { threadgateAllow: [], saveAsDefault: true });
+      await nextFrame();
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      assert.deepEqual(dialog.defaultInteractionSettings, {
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: null,
+      });
+      dialog.remove();
+    });
+
+    it("does not write the preference when saveAsDefault is unset", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      const updateMock = mock.method(
+        element.dataLayer.mutations,
+        "updatePostInteractionSettings",
+        async () => {},
+      );
+      connectElement(element);
+      saveViaDialog(element, { threadgateAllow: [], saveAsDefault: false });
+      await nextFrame();
+      assert.deepEqual(updateMock.mock.callCount(), 0);
+      assert.deepEqual(element.state.$threadgateAllow.get(), []);
+    });
+
+    it("still closes and keeps composer state when the default write fails", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "updatePostInteractionSettings",
+        async () => {
+          throw new Error("Server exploded");
+        },
+      );
+      connectElement(element);
+      element.setDefaultInteractionSettings({
+        threadgateAllowRules: null,
+        postgateEmbeddingRules: null,
+      });
+      let succeeded = false;
+      saveViaDialog(element, {
+        threadgateAllow: [],
+        saveAsDefault: true,
+        successCallback: () => {
+          succeeded = true;
+        },
+      });
+      await nextFrame();
+      assert(succeeded);
+      assert.deepEqual(element.state.$threadgateAllow.get(), []);
+      // The stored default is unchanged, so the next dialog compares against it
+      element.openInteractionSettingsDialog();
+      const dialog = document.querySelector("post-interaction-settings-dialog");
+      assert.deepEqual(dialog.defaultInteractionSettings, {
+        threadgateAllowRules: null,
+        postgateEmbeddingRules: null,
+      });
+      dialog.remove();
     });
   });
 

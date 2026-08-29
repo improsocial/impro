@@ -10,6 +10,7 @@ import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
+import { ApiError } from "/js/api.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2458,6 +2459,386 @@ describe("updatePostNotificationSubscription", () => {
   });
 });
 
+describe("updatePostgateEmbeddingRules", () => {
+  const userDid = "did:plc:me";
+  const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const basePost = {
+    uri: postUri,
+    cid: "cid-abc",
+    author: { did: userDid, viewer: {} },
+    record: { text: "hi" },
+    viewer: {},
+  };
+  const disableRule = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  function recordNotFoundError() {
+    return new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+  }
+
+  function setup(mockApi, { post = basePost } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(post.uri, post);
+    return {
+      mutations: makeMutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+    };
+  }
+
+  it("creates a record when disabling quotes with no prior record", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, [disableRule]);
+
+    assert.deepEqual(putArgs.rkey, "abc");
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual(putArgs.record.embeddingRules, [disableRule]);
+    assert.deepEqual(putArgs.record.post, postUri);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      true,
+    );
+  });
+
+  it("writes rules without a disable rule but keeps embedding enabled", async () => {
+    let putArgs = null;
+    const futureRule = { $type: "app.bsky.feed.postgate#futureRule" };
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, [futureRule]);
+
+    assert.deepEqual(putArgs.record.embeddingRules, [futureRule]);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("skips the write when enabling quotes with no prior record", async () => {
+    let putCalled = false;
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        putCalled = true;
+        return { cid: "x" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, null);
+
+    assert.deepEqual(putCalled, false);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("preserves detachedEmbeddingUris and passes the prior cid as swap", async () => {
+    let putArgs = null;
+    const detachedEmbeddingUris = [
+      "at://did:plc:other/app.bsky.feed.post/quote1",
+    ];
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: postUri,
+          embeddingRules: [disableRule],
+          detachedEmbeddingUris,
+        },
+      }),
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi, {
+      post: { ...basePost, viewer: { embeddingDisabled: true } },
+    });
+
+    await mutations.updatePostgateEmbeddingRules(basePost, null);
+
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(
+      putArgs.record.detachedEmbeddingUris,
+      detachedEmbeddingUris,
+    );
+    assert(!("embeddingRules" in putArgs.record));
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("removes the patch and rethrows on failure", async () => {
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        throw new Error("network down");
+      },
+    };
+    const { mutations, patchStore } = setup(mockApi);
+
+    await assert.rejects(
+      () => mutations.updatePostgateEmbeddingRules(basePost, [disableRule]),
+      /network down/,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("refuses to write for a post the user doesn't own", async () => {
+    const foreignPost = {
+      ...basePost,
+      uri: "at://did:plc:other/app.bsky.feed.post/abc",
+    };
+    const { mutations } = setup({}, { post: foreignPost });
+    await assert.rejects(
+      () => mutations.updatePostgateEmbeddingRules(foreignPost, [disableRule]),
+      /post author/,
+    );
+  });
+});
+
+describe("updateThreadgateAllow", () => {
+  const userDid = "did:plc:me";
+  const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const basePost = {
+    uri: postUri,
+    cid: "cid-abc",
+    author: { did: userDid, viewer: {} },
+    record: { text: "hi" },
+  };
+
+  function recordNotFoundError() {
+    const error = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+    return error;
+  }
+
+  function setup(mockApi, { post = basePost } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(post.uri, post);
+    return {
+      mutations: makeMutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+    };
+  }
+
+  it("creates a record when none exists, with a null swap", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-new-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updateThreadgateAllow(basePost, []);
+
+    assert.deepEqual(putArgs.rkey, "abc");
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual(putArgs.record.allow, []);
+    assert.deepEqual(putArgs.record.post, postUri);
+    const updated = dataStore.$posts.get(postUri);
+    assert.deepEqual(updated.threadgate.record.allow, []);
+    assert.deepEqual(updated.threadgate.cid, "cid-new-gate");
+    assert.deepEqual(
+      updated.threadgate.uri,
+      `at://${userDid}/app.bsky.feed.threadgate/abc`,
+    );
+  });
+
+  it("preserves hiddenReplies and passes the prior cid as swap", async () => {
+    let putArgs = null;
+    const hiddenReplies = [`at://${userDid}/app.bsky.feed.post/reply`];
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.threadgate",
+          post: postUri,
+          allow: [],
+          hiddenReplies,
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations } = setup(mockApi);
+
+    const allow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+    await mutations.updateThreadgateAllow(basePost, allow);
+
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(putArgs.record.hiddenReplies, hiddenReplies);
+    assert.deepEqual(putArgs.record.allow, allow);
+  });
+
+  it("deletes the allow key when editing back to everybody", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.threadgate",
+          post: postUri,
+          allow: [],
+        },
+      }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updateThreadgateAllow(basePost, null);
+
+    assert(!("allow" in putArgs.record));
+    assert(!("allow" in dataStore.$posts.get(postUri).threadgate.record));
+  });
+
+  it("fails and reverts on a swap conflict", async () => {
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: { $type: "app.bsky.feed.threadgate", post: postUri },
+      }),
+      putThreadgateRecord: async () => {
+        throw new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: { error: "InvalidSwap" },
+          headers: {},
+          url: "",
+        });
+      },
+    };
+    const { mutations, patchStore } = setup(mockApi);
+
+    await assert.rejects(() => mutations.updateThreadgateAllow(basePost, []));
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("applies an optimistic patch during the write and removes it after", async () => {
+    let resolvePut;
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: () =>
+        new Promise((resolve) => {
+          resolvePut = () => resolve({ cid: "cid-next" });
+        }),
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi);
+
+    const promise = mutations.updateThreadgateAllow(basePost, []);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const patched = applyPostPatches(patchStore, dataStore.$posts.get(postUri));
+    assert.deepEqual(patched.threadgate.record.allow, []);
+
+    resolvePut();
+    await promise;
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("removes the patch and rethrows on failure", async () => {
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: async () => {
+        throw new Error("network down");
+      },
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi);
+
+    await assert.rejects(
+      () => mutations.updateThreadgateAllow(basePost, []),
+      /network down/,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+    assert.deepEqual(dataStore.$posts.get(postUri).threadgate, undefined);
+  });
+
+  it("refuses to write for a post the user doesn't own", async () => {
+    const foreignPost = {
+      ...basePost,
+      uri: "at://did:plc:other/app.bsky.feed.post/abc",
+    };
+    const { mutations } = setup({}, { post: foreignPost });
+    await assert.rejects(
+      () => mutations.updateThreadgateAllow(foreignPost, []),
+      /thread author/,
+    );
+  });
+});
+
 describe("createThread", () => {
   const currentUserDid = "did:plc:me";
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
@@ -3237,6 +3618,7 @@ describe("addMessageReaction", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    dataStore.$currentUser.set({ did: currentUserDid, handle: "me.test" });
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
@@ -3251,7 +3633,7 @@ describe("addMessageReaction", () => {
 
   it("should add an optimistic patch with the reaction", () => {
     const { mutations, patchStore } = setup();
-    mutations.addMessageReaction(convoId, messageId, emoji, currentUserDid);
+    mutations.addMessageReaction(convoId, messageId, emoji);
     const patches = patchStore._getMessagePatches(messageId);
     assert.deepEqual(patches.length, 1);
     assert.deepEqual(patches[0].body.type, "addReaction");
@@ -3261,12 +3643,7 @@ describe("addMessageReaction", () => {
 
   it("should store the returned message and clear the patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
-    await mutations.addMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.addMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
     assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
@@ -3275,12 +3652,7 @@ describe("addMessageReaction", () => {
     const { mutations, dataStore } = setup({
       convo: { id: convoId, unreadCount: 0 },
     });
-    await mutations.addMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.addMessageReaction(convoId, messageId, emoji);
     const convo = dataStore.$convos.get(convoId);
     assert.deepEqual(
       convo.lastReaction.$type,
@@ -3304,6 +3676,7 @@ describe("removeMessageReaction", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    dataStore.$currentUser.set({ did: currentUserDid, handle: "me.test" });
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
@@ -3318,7 +3691,7 @@ describe("removeMessageReaction", () => {
 
   it("should add an optimistic removeReaction patch", () => {
     const { mutations, patchStore } = setup();
-    mutations.removeMessageReaction(convoId, messageId, emoji, currentUserDid);
+    mutations.removeMessageReaction(convoId, messageId, emoji);
     const patches = patchStore._getMessagePatches(messageId);
     assert.deepEqual(patches.length, 1);
     assert.deepEqual(patches[0].body.type, "removeReaction");
@@ -3328,12 +3701,7 @@ describe("removeMessageReaction", () => {
 
   it("should store the returned message and clear the patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
-    await mutations.removeMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.removeMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
     assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
@@ -3345,12 +3713,7 @@ describe("removeMessageReaction", () => {
         lastReaction: { existing: true },
       },
     });
-    await mutations.removeMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.removeMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$convos.get(convoId).lastReaction, null);
   });
 });
@@ -4700,5 +5063,72 @@ describe("setSelectedFeedUri", () => {
     assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
     mutations.setSelectedFeedUri(null);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+  });
+});
+
+describe("updatePostInteractionSettings", () => {
+  function makePreferenceMutations(initialPrefs) {
+    let updatedPreferences = null;
+    const mockPreferencesProvider = {
+      requirePreferences: () => new Preferences(initialPrefs, []),
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, getUpdatedPreferences: () => updatedPreferences };
+  }
+
+  it("should call updatePreferences with the new default settings", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    const rules = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+    const embeddingRules = [{ $type: "app.bsky.feed.postgate#disableRule" }];
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: embeddingRules,
+    });
+    assert.deepEqual(getUpdatedPreferences().getPostInteractionSettings(), {
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: embeddingRules,
+    });
+  });
+
+  it("should persist an empty threadgate array without decaying it to null", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: [],
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(
+      getUpdatedPreferences().getPostInteractionSettings().threadgateAllowRules,
+      [],
+    );
+  });
+
+  it("should clear the default when passed nulls", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([
+      {
+        $type: "app.bsky.actor.defs#postInteractionSettingsPref",
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: [
+          { $type: "app.bsky.feed.postgate#disableRule" },
+        ],
+      },
+    ]);
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(getUpdatedPreferences().getPostInteractionSettings(), {
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
   });
 });

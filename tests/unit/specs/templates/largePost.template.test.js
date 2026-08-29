@@ -332,6 +332,75 @@ describe("largePostTemplate - moderation", () => {
   });
 });
 
+describe("largePostTemplate - who can reply badge", () => {
+  afterEach(() => {
+    document.body
+      .querySelectorAll("[data-testid='who-can-reply-modal']")
+      .forEach((modal) => modal.remove());
+  });
+
+  function renderBadgeFor({ isUserPost, handler }) {
+    const container = document.createElement("div");
+    render(
+      largePostTemplate({
+        post,
+        ...baseProps,
+        isUserPost,
+        postInteractionHandler: { ...postInteractionHandler, ...handler },
+      }),
+      container,
+    );
+    return container.querySelector("[data-testid='who-can-reply-badge']");
+  }
+
+  it("opens the read-only modal for non-owners", () => {
+    const badge = renderBadgeFor({ isUserPost: false });
+    assert.deepEqual(badge.getAttribute("data-teststate"), "plain");
+    badge.click();
+    assert(
+      document.querySelector("[data-testid='who-can-reply-modal']") !== null,
+    );
+  });
+
+  it("opens the edit dialog for the owner's root post", () => {
+    let editedPost = null;
+    const badge = renderBadgeFor({
+      isUserPost: true,
+      handler: {
+        handleEditInteractionSettings: (targetPost) => {
+          editedPost = targetPost;
+        },
+      },
+    });
+    assert.deepEqual(badge.getAttribute("data-teststate"), "link");
+    badge.click();
+    assert.deepEqual(editedPost, post);
+    assert.deepEqual(
+      document.querySelector("[data-testid='who-can-reply-modal']"),
+      null,
+    );
+  });
+
+  it("does not render the badge for replies", () => {
+    const replyPost = {
+      ...post,
+      record: {
+        ...post.record,
+        reply: { root: { uri: "at://root" }, parent: { uri: "at://root" } },
+      },
+    };
+    const container = document.createElement("div");
+    render(
+      largePostTemplate({ post: replyPost, ...baseProps, isUserPost: true }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='who-can-reply-badge']"),
+      null,
+    );
+  });
+});
+
 describe("largePostTemplate - plugin context menu items", () => {
   afterEach(() => {
     document.body
