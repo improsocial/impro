@@ -89,7 +89,6 @@ export default async function chatDetailView({
   state.$isMuteSaving = new Signal.State(false);
   state.$activeMessageId = new Signal.State(null);
   state.$paletteMessageId = new Signal.State(null);
-  state.$reactionsDialogMessageId = new Signal.State(null);
   state.$stagedReply = new Signal.State(null);
   // null | { url, record, status: "loading" | "ready" | "error" }
   state.$stagedRecordEmbed = new Signal.State(null);
@@ -498,6 +497,21 @@ export default async function chatDetailView({
     }
   }
 
+  function openReactionsDialog(messageId, currentUserDid) {
+    if (document.querySelector("reactions-dialog")) return;
+    const dialog = document.createElement("reactions-dialog");
+    dialog.messageId = messageId;
+    dialog.convoId = convoId;
+    dialog.currentUserDid = currentUserDid;
+    dialog.dataLayer = dataLayer;
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.addEventListener("remove-reaction", (event) =>
+      handleReactionRemove(event.detail.emoji, messageId, currentUserDid),
+    );
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
   function handleMessageClick(messageId) {
     if (!isMobileViewport() && canHover()) {
       return;
@@ -779,7 +793,7 @@ export default async function chatDetailView({
         @click=${(e) => {
           if (!isGroup) return;
           e.stopPropagation();
-          state.$reactionsDialogMessageId.set(message.id);
+          openReactionsDialog(message.id, currentUserDid);
         }}
         aria-label=${isGroup
           ? `${describeReactions()}. Tap to view reactions`
@@ -1377,7 +1391,6 @@ export default async function chatDetailView({
     const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
     const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
     const convoPermalink = getPermalinkForConvo(convoId);
-    const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
     const stagedReply = state.$stagedReply.get();
     const stagedRecordEmbed = state.$stagedRecordEmbed.get();
     const stagedReplySenderProfile =
@@ -1552,31 +1565,6 @@ export default async function chatDetailView({
                 `}
           </div>
         </main>
-        ${reactionsDialogMessageId
-          ? html`<reactions-dialog
-              .messageId=${reactionsDialogMessageId}
-              .convoId=${convoId}
-              .currentUserDid=${currentUser?.did}
-              .dataLayer=${dataLayer}
-              @close=${() => state.$reactionsDialogMessageId.set(null)}
-              @remove-reaction=${async (e) => {
-                const { emoji } = e.detail;
-                try {
-                  await dataLayer.mutations.removeMessageReaction(
-                    convoId,
-                    reactionsDialogMessageId,
-                    emoji,
-                    currentUser?.did,
-                  );
-                } catch (error) {
-                  console.error(error);
-                  showToast("Failed to remove emoji reaction", {
-                    style: "error",
-                  });
-                }
-              }}
-            ></reactions-dialog>`
-          : ""}
       </div>`,
       root,
     );

@@ -2044,6 +2044,44 @@ test.describe("Chat detail view", () => {
       await expect(rows.first()).toHaveAttribute("data-teststate", "own");
     });
 
+    test("removing the last own reaction from the dialog closes and removes it", async ({
+      page,
+    }) => {
+      const message = createMessage({
+        id: "msg-1",
+        text: "Hello group",
+        senderDid: alice.did,
+      });
+      message.reactions = [
+        {
+          createdAt: "2025-01-15T12:05:00.000Z",
+          sender: { did: userProfile.did },
+          value: "👍",
+        },
+      ];
+      const mockServer = setupGroupConvo({ messages: [message] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      const reactionPill = chatDetailView.locator(
+        '[data-testid="message-reactions"]',
+      );
+      await expect(reactionPill).toBeVisible({ timeout: 10000 });
+
+      await reactionPill.click();
+      const dialog = page.locator('[data-testid="reactions-dialog"]');
+      await expect(dialog).toBeVisible({ timeout: 5000 });
+
+      await dialog
+        .locator('[data-testid="reaction-row"][data-teststate="own"]')
+        .click();
+      await expect(page.locator("reactions-dialog")).toHaveCount(0);
+      await expect(reactionPill).toHaveCount(0);
+    });
+
     test("caps visible reaction emojis at 10 and shows the total count", async ({
       page,
     }) => {

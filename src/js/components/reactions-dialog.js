@@ -18,17 +18,17 @@ class ReactionsDialog extends Component {
     this._dispose = effect(() => {
       this.render();
     });
-    requestAnimationFrame(() => {
-      const dialog = this.querySelector(".reactions-dialog");
-      if (dialog && !dialog.open) {
-        dialog.showModal();
-        this.scrollLock ??= scrollLocks.acquire({ target: this });
-        enableDragToDismiss(dialog, {
-          onDismiss: () => this._close(),
-          scrollContainer: this.querySelector(".reactions-list"),
-          ignoreTouchTarget: (element) => element.closest("button") !== null,
-        });
-      }
+  }
+
+  open() {
+    const dialog = this.querySelector(".reactions-dialog");
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
+    enableDragToDismiss(dialog, {
+      onDismiss: () => this._close(),
+      scrollContainer: this.querySelector(".reactions-list"),
+      ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }
 
@@ -39,7 +39,14 @@ class ReactionsDialog extends Component {
   }
 
   _close() {
-    return closeWithAnimation(this.querySelector(".reactions-dialog"));
+    const dialog = this.querySelector(".reactions-dialog");
+    if (!dialog?.open) {
+      this.scrollLock?.release();
+      this.scrollLock = null;
+      this.dispatchEvent(new CustomEvent("close"));
+      return Promise.resolve();
+    }
+    return closeWithAnimation(dialog);
   }
 
   _getMessage() {
@@ -89,7 +96,6 @@ class ReactionsDialog extends Component {
     const reactions = message?.reactions || [];
 
     if (reactions.length === 0) {
-      render(html``, this);
       this._close();
       return;
     }
