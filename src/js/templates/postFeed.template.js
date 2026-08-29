@@ -4,6 +4,7 @@ import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.templ
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { linkToPost } from "/js/navigation.js";
 import { isEmptyPost, isBlockedPost } from "/js/dataHelpers.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 // Posts likely to be above the fold on load; lazy load the rest
 const EAGER_IMAGE_ITEM_COUNT = 5;
@@ -304,12 +305,7 @@ export function postFeedTemplate({
     console.error(error);
     return html`<div class="error-state">
       <div>Error loading posts</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 }

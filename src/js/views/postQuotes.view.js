@@ -3,6 +3,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function postQuotesView({
   root,
@@ -31,12 +32,7 @@ export default async function postQuotesView({
     console.error(error);
     return html`<div class="error-state">
       <div>Error loading quotes</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

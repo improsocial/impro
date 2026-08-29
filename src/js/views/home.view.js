@@ -22,6 +22,7 @@ import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 const requestIdle =
   window.requestIdleCallback?.bind(window) ??
@@ -185,12 +186,7 @@ export default async function homeView({
               >View profile</a
             ><br />`
         : ""}
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

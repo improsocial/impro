@@ -4,6 +4,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/infinite-scroll-container.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function profileKnownFollowersView({
   root,
@@ -32,12 +33,7 @@ export default async function profileKnownFollowersView({
     console.error(error);
     return html`<div class="error-state">
       <div>Error loading followers you know</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

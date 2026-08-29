@@ -51,36 +51,19 @@ test.describe("Trending pane", () => {
     await expect(page.locator('[data-testid="trending-pane"]')).toBeVisible();
   });
 
-  test("shows an error state and recovers on retry", async ({ page }) => {
-    let shouldFail = true;
-    await page.route("**/xrpc/app.bsky.unspecced.getTrends*", (route) => {
-      if (shouldFail) {
-        return route.fulfill({
-          status: 500,
-          contentType: "application/json",
-          body: JSON.stringify({ error: "InternalServerError" }),
-        });
-      }
-      return route.fulfill({
-        status: 200,
+  test("hides the pane when trends fail to load", async ({ page }) => {
+    await page.route("**/xrpc/app.bsky.unspecced.getTrends*", (route) =>
+      route.fulfill({
+        status: 500,
         contentType: "application/json",
-        body: JSON.stringify({
-          trends: [createTrend({ topic: "gardening" })],
-        }),
-      });
-    });
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
 
     await page.goto("/");
-    const pane = page.locator('[data-testid="trending-pane"]');
-    await expect(pane.locator('[data-testid="trending-error"]')).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
 
-    shouldFail = false;
-    await pane.locator('[data-testid="trending-error"] button').click();
-
-    await expect(pane.locator('[data-testid="trending-row"]')).toHaveCount(1);
-    await expect(pane.locator('[data-testid="trending-error"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="trending-pane"]')).toHaveCount(0);
   });
 
   test("stays hidden after being dismissed", async ({ page }) => {

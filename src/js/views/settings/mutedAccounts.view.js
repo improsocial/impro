@@ -3,6 +3,7 @@ import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function settingsMutedAccountsView({
   root,
@@ -27,12 +28,7 @@ export default async function settingsMutedAccountsView({
     console.error(error);
     return html`<div class="error-state">
       <div>Error loading muted accounts</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

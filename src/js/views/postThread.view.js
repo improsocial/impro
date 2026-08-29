@@ -30,6 +30,7 @@ import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function postThreadView({
   root,
@@ -93,23 +94,13 @@ export default async function postThreadView({
     ) {
       return html`<div class="error-state" data-testid="post-not-found">
         <div>Post not found</div>
-        <button
-          class="rounded-button rounded-button-secondary-inverted"
-          @click=${() => window.location.reload()}
-        >
-          Try again
-        </button>
+        ${tryAgainButtonTemplate()}
       </div>`;
     } else {
       console.error(error);
       return html`<div class="error-state" data-testid="thread-error">
         <div>Error loading thread</div>
-        <button
-          class="rounded-button rounded-button-secondary-inverted"
-          @click=${() => window.location.reload()}
-        >
-          Try again
-        </button>
+        ${tryAgainButtonTemplate()}
       </div>`;
     }
   }

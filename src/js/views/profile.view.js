@@ -20,6 +20,7 @@ import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function profileView({
   root,
@@ -192,23 +193,13 @@ export default async function profileView({
       return html`<div class="error-state">
         <h3>Not Found</h3>
         <div>${message}</div>
-        <button
-          class="rounded-button rounded-button-secondary-inverted"
-          @click=${() => window.location.reload()}
-        >
-          Try again
-        </button>
+        ${tryAgainButtonTemplate()}
       </div>`;
     }
     console.error(error);
     return html`<div class="error-state">
       <div>There was an error loading the profile.</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

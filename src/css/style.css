@@ -586,15 +586,6 @@ pinned-feeds-pane {
   gap: 4px;
 }
 
-.error-state.trending-error {
-  padding-top: 0.5em;
-  font-size: 14px;
-}
-
-.trending-error button {
-  margin-top: 12px;
-}
-
 .trending-row {
   display: flex;
   gap: 6px;
@@ -6973,6 +6964,8 @@ sidebar-search {
   align-items: center;
   padding-right: 16px;
   padding-left: 16px;
+  position: relative;
+  padding-top: 8px;
 }
 
 .interaction-settings-section .pill-radio-group label,
@@ -6982,18 +6975,16 @@ sidebar-search {
 
 .post-composer-interaction-settings-row {
   display: flex;
-  padding-bottom: 12px;
-  padding-right: 16px;
-  padding-left: 16px;
-  margin-bottom: 8px;
-  position: relative;
+  padding-bottom: 8px;
+  padding-right: 12px;
+  padding-left: 12px;
 }
 
 /* workaround for iOS Safari subpixel rounding */
-.post-composer-interaction-settings-row::after {
+.post-composer-bottom-bar-main::before {
   content: "";
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   height: 1px;
@@ -9393,6 +9384,12 @@ moderation-warning .toggle-content {
 
 .error-state a {
   color: var(--text-link-color);
+}
+
+.try-again-button .icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 #profile-view .error-state {

@@ -33,22 +33,7 @@ function trendingSkeletonTemplate() {
   </div>`;
 }
 
-function trendingErrorTemplate({ onRetry }) {
-  return html`<div
-    class="error-state trending-error"
-    data-testid="trending-error"
-  >
-    <div>Error loading trends</div>
-    <button
-      class="rounded-button rounded-button-secondary-inverted"
-      @click=${onRetry}
-    >
-      Try again
-    </button>
-  </div>`;
-}
-
-function trendingPaneTemplate({ rows, isLoading, hasError, onHide, onRetry }) {
+function trendingPaneTemplate({ rows, isLoading, onHide }) {
   return html`<section class="trending-pane" data-testid="trending-pane">
     <header class="trending-pane-header">
       ${trendingIconTemplate()}
@@ -62,15 +47,11 @@ function trendingPaneTemplate({ rows, isLoading, hasError, onHide, onRetry }) {
         ${moreMenuIconTemplate()}
       </button>
     </header>
-    ${hasError
-      ? trendingErrorTemplate({ onRetry })
-      : html`<div class="trending-list">
-          ${isLoading
-            ? Array.from({ length: TREND_LIMIT }, () =>
-                trendingSkeletonTemplate(),
-              )
-            : rows.map((row) => trendingRowTemplate(row))}
-        </div>`}
+    <div class="trending-list">
+      ${isLoading
+        ? Array.from({ length: TREND_LIMIT }, () => trendingSkeletonTemplate())
+        : rows.map((row) => trendingRowTemplate(row))}
+    </div>
   </section>`;
 }
 
@@ -105,13 +86,9 @@ class TrendingPane extends Component {
         const hidden = displayPreferences.$trendingHidden.get();
         const failed = this.$failed.get();
         const trends = this.dataLayer.derived.$trends.get();
-        if (hidden) {
-          render(html``, this);
-          return;
-        }
         const isLoading = !failed && trends === null;
         const rows = toRows(trends);
-        if (!failed && !isLoading && rows.length === 0) {
+        if (hidden || failed || (!isLoading && rows.length === 0)) {
           render(html``, this);
           return;
         }
@@ -119,9 +96,7 @@ class TrendingPane extends Component {
           trendingPaneTemplate({
             rows,
             isLoading,
-            hasError: failed,
             onHide: () => this.handleHide(),
-            onRetry: () => this.handleRetry(),
           }),
           this,
         );
@@ -146,11 +121,6 @@ class TrendingPane extends Component {
     if (this.dataLayer.derived.$trends.get() === null) {
       this.$failed?.set(true);
     }
-  }
-
-  handleRetry() {
-    this.$failed.set(false);
-    this.load();
   }
 
   async handleHide() {

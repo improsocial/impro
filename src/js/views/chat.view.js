@@ -22,6 +22,7 @@ import { messagePlusIconTemplate } from "/js/templates/icons/messagePlusIcon.tem
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function chatView({
   root,
@@ -188,12 +189,7 @@ export default async function chatView({
     console.error(error);
     return html`<div class="error-state">
       <div>There was an error loading conversations.</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

@@ -15,6 +15,7 @@ import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/app-icon.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 function sortMembers({ members, ownerDid, currentUserDid }) {
   const rank = (member) => {
@@ -156,23 +157,13 @@ function detailsErrorTemplate({ error }) {
     return html`<div class="error-state" data-testid="convo-not-found">
       <h3>Not Found</h3>
       <div>Conversation not found</div>
-      <button
-        class="rounded-button rounded-button-secondary-inverted"
-        @click=${() => window.location.reload()}
-      >
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
   console.error(error);
   return html`<div class="error-state" data-testid="group-details-error">
     <div>There was an error loading the group chat.</div>
-    <button
-      class="rounded-button rounded-button-secondary-inverted"
-      @click=${() => window.location.reload()}
-    >
-      Try again
-    </button>
+    ${tryAgainButtonTemplate()}
   </div>`;
 }
 

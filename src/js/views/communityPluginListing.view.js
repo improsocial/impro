@@ -10,6 +10,7 @@ import { repoWebUrl } from "/js/plugins/sourceProvider.js";
 import "/js/components/rendered-markdown.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function communityPluginListingView({
   root,
@@ -175,12 +176,7 @@ export default async function communityPluginListingView({
             if (loadError) {
               return html`<div class="error-state">
                 <div>Failed to load plugin</div>
-                <button
-                  class="rounded-button rounded-button-secondary-inverted"
-                  @click=${() => window.location.reload()}
-                >
-                  Try again
-                </button>
+                ${tryAgainButtonTemplate()}
               </div>`;
             }
             if (loading) {
