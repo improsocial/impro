@@ -1,4 +1,4 @@
-import { Api, ApiError } from "/js/api.js";
+import { ApiError } from "/js/api.js";
 
 const ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 
@@ -95,31 +95,13 @@ export class PluginRequests {
     }
     const query = sanitizeXrpcParams(params);
     try {
-      const res = await this.dataLayer.api.request(nsid, {
-        query,
-        headers: {
-          "atproto-accept-labelers": Api.buildAcceptLabelersHeader(
-            await this._getLabelers(),
-          ),
-          "atproto-proxy": this.dataLayer.api.bskyAppViewServiceDid,
-        },
-      });
+      const res = await this.dataLayer.api.appViewRequest(nsid, { query });
       return { ok: true, status: res.status, data: res.data };
     } catch (error) {
       if (error instanceof ApiError) {
         return { ok: false, status: error.status, data: error.data ?? null };
       }
       throw new Error(`xrpcQuery: request to "${nsid}" failed`);
-    }
-  }
-
-  async _getLabelers() {
-    // Preferences may fail to load (or the user is signed out) — requests
-    // without the labelers header just hydrate fewer labels.
-    try {
-      return await this.dataLayer.requests.requireLabelers();
-    } catch {
-      return [];
     }
   }
 }

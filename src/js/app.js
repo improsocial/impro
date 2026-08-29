@@ -95,12 +95,27 @@ export async function main() {
 
   const session = await auth.getSession();
   const appViewConfig = getAppViewConfig();
-  const api = new Api(session ?? null, {
-    onTokenRefreshError: (did) => auth.logout(did),
-    bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
-    chatAppViewServiceDid: appViewConfig.chatServiceDid,
+
+  function createApi(opts = {}) {
+    return new Api(session ?? null, {
+      onTokenRefreshError: (did) => auth.logout(did),
+      bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
+      chatAppViewServiceDid: appViewConfig.chatServiceDid,
+      ...opts,
+    });
+  }
+
+  // Create separate api with no getLabelerDids callback for managing preferences
+  const preferencesApi = createApi();
+  const preferencesProvider = new PreferencesProvider(preferencesApi);
+
+  const api = createApi({
+    getLabelerDids: async () => {
+      const preferences = await preferencesProvider.requirePreferences();
+      return preferences.getLabelerDids();
+    },
   });
-  const preferencesProvider = new PreferencesProvider(api);
+
   const draftMediaStore = new DraftMediaStore();
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const constellation = new Constellation();

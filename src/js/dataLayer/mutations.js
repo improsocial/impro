@@ -1381,10 +1381,7 @@ export class Mutations {
   }
 
   async createGroupChat(name, memberDids) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const res = await this.api.createGroupChat(name, memberDids, {
-      labelers: preferences.getLabelerDids(),
-    });
+    const res = await this.api.createGroupChat(name, memberDids);
     this.dataStore.setConvo(res.convo);
     return res.convo;
   }

@@ -430,30 +430,6 @@ describe("ensurePostThread", () => {
     assert.deepEqual(result, postThread);
   });
 
-  it("should pass labelers option to loadPostThread", async () => {
-    const postURI = "at://did:test/app.bsky.feed.post/123";
-    const postThread = { post: { uri: postURI }, replies: [] };
-    let passedLabelers = null;
-    let callCount = 0;
-
-    const derived = {
-      $hydratedPostThreads: mapSig(() => {
-        callCount++;
-        return callCount > 1 ? postThread : null;
-      }),
-    };
-    const requests = {
-      loadPostThread: async (uri, options) => {
-        passedLabelers = options.labelers;
-      },
-    };
-
-    const declarative = new Declarative(derived, requests);
-    await declarative.ensurePostThread(postURI, { labelers: ["labeler1"] });
-
-    assert.deepEqual(passedLabelers, ["labeler1"]);
-  });
-
   it("should throw when post thread not found after loading", async () => {
     const derived = createMockDerived({});
     const requests = createMockRequests({});

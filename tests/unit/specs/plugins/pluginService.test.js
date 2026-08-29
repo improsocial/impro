@@ -1783,8 +1783,9 @@ describe("data host method wiring", () => {
         { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
       ];
       const dataLayer = Object.assign(emptyDataLayer(), {
-        api: { request: async () => ({ status: 200, data: { mutes: [] } }) },
-        requests: { requireLabelers: () => [] },
+        api: {
+          appViewRequest: async () => ({ status: 200, data: { mutes: [] } }),
+        },
       });
       const service = makeServiceWithRealBridge({
         provider,

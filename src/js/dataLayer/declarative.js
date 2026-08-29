@@ -89,10 +89,10 @@ export class Declarative {
     return profileDids.map((did) => getProfile(did) ?? null);
   }
 
-  async ensurePostThread(postURI, { labelers = [] } = {}) {
+  async ensurePostThread(postURI) {
     let postThread = this.derived.$hydratedPostThreads.get(postURI);
     if (!postThread) {
-      await this.requests.loadPostThread(postURI, { labelers });
+      await this.requests.loadPostThread(postURI);
       postThread = this.derived.$hydratedPostThreads.get(postURI);
     }
     if (!postThread) {
