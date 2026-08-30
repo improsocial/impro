@@ -7082,7 +7082,7 @@ sidebar-search {
 
 .post-composer .rich-text-input {
   width: 100%;
-  min-height: 120px;
+  min-height: 140px;
   border: none;
   background: transparent;
   color: var(--text-color);
