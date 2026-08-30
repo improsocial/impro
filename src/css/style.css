@@ -2366,6 +2366,12 @@ container-link {
   padding-bottom: var(--post-thread-reply-prompt-height);
 }
 
+/* Guarantees enough content below the main post to scroll it under the
+   header, however short the thread is */
+.post-thread-main-section {
+  min-height: calc(100dvh - 46px - var(--safe-area-inset-bottom));
+}
+
 @media (min-width: 800px) {
   .post-thread {
     padding-bottom: 0;

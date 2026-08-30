@@ -398,6 +398,64 @@ test.describe("Post thread view", () => {
     expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
   });
 
+  test("should pin the main post under the header when the thread is shorter than the viewport", async ({
+    page,
+  }) => {
+    const parentPost = createPost({
+      uri: "at://did:plc:parent1/app.bsky.feed.post/parent1",
+      text: "Short parent",
+      authorHandle: "parent1.bsky.social",
+      authorDisplayName: "Parent One",
+    });
+    const childPost = createPost({
+      uri: postUri,
+      text: "Short main post",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: parentPost.uri, cid: parentPost.cid },
+        root: { uri: parentPost.uri, cid: parentPost.cid },
+      },
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([childPost, parentPost]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: childPost,
+      parent: {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: parentPost,
+        parent: null,
+        replies: [],
+      },
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    // The whole thread fits well within the viewport, so the pin depends on
+    // the stretched scroll runway below the main post.
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+      .toBeGreaterThan(0);
+
+    const headerHeight = await view
+      .locator("header")
+      .evaluate((el) => el.offsetHeight);
+    const postTop = await largePost.evaluate(
+      (el) => el.getBoundingClientRect().top,
+    );
+    expect(postTop).toBeGreaterThanOrEqual(headerHeight - 8);
+    expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
+  });
+
   test("should not add scroll runway below a thread without parents", async ({
     page,
   }) => {
