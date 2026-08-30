@@ -62,6 +62,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/app-icon.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 export default async function chatDetailView({
   root,
   params,
@@ -89,7 +90,6 @@ export default async function chatDetailView({
   state.$isMuteSaving = new Signal.State(false);
   state.$activeMessageId = new Signal.State(null);
   state.$paletteMessageId = new Signal.State(null);
-  state.$reactionsDialogMessageId = new Signal.State(null);
   state.$stagedReply = new Signal.State(null);
   // null | { url, record, status: "loading" | "ready" | "error" }
   state.$stagedRecordEmbed = new Signal.State(null);
@@ -471,12 +471,7 @@ export default async function chatDetailView({
       return;
     }
     try {
-      await dataLayer.mutations.addMessageReaction(
-        convoId,
-        messageId,
-        emoji,
-        currentUserDid,
-      );
+      await dataLayer.mutations.addMessageReaction(convoId, messageId, emoji);
       clearMessageSelection();
     } catch (error) {
       console.error(error);
@@ -484,18 +479,32 @@ export default async function chatDetailView({
     }
   }
 
-  async function handleReactionRemove(emoji, messageId, currentUserDid) {
+  async function handleReactionRemove(emoji, messageId) {
     try {
       await dataLayer.mutations.removeMessageReaction(
         convoId,
         messageId,
         emoji,
-        currentUserDid,
       );
     } catch (error) {
       console.error(error);
       showToast("Failed to remove emoji reaction", { style: "error" });
     }
+  }
+
+  function openReactionsDialog(messageId, currentUserDid) {
+    if (document.querySelector("reactions-dialog")) return;
+    const dialog = document.createElement("reactions-dialog");
+    dialog.messageId = messageId;
+    dialog.convoId = convoId;
+    dialog.currentUserDid = currentUserDid;
+    dialog.dataLayer = dataLayer;
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.addEventListener("remove-reaction", (event) =>
+      handleReactionRemove(event.detail.emoji, messageId),
+    );
+    document.body.appendChild(dialog);
+    dialog.open();
   }
 
   function handleMessageClick(messageId) {
@@ -779,7 +788,7 @@ export default async function chatDetailView({
         @click=${(e) => {
           if (!isGroup) return;
           e.stopPropagation();
-          state.$reactionsDialogMessageId.set(message.id);
+          openReactionsDialog(message.id, currentUserDid);
         }}
         aria-label=${isGroup
           ? `${describeReactions()}. Tap to view reactions`
@@ -818,7 +827,7 @@ export default async function chatDetailView({
         @select=${(event) =>
           handleEmojiSelect(event.detail.emoji, message.id, currentUserDid)}
         @remove-reaction=${(event) => {
-          handleReactionRemove(event.detail.emoji, message.id, currentUserDid);
+          handleReactionRemove(event.detail.emoji, message.id);
           clearMessageSelection();
         }}
         @close=${(event) => closePalette(event.detail.reason)}
@@ -1318,17 +1327,13 @@ export default async function chatDetailView({
       return html`<div class="error-state" data-testid="convo-not-found">
         <h3>Not Found</h3>
         <div>Conversation not found</div>
-        <button class="rounded-button" @click=${() => window.location.reload()}>
-          Try again
-        </button>
+        ${tryAgainButtonTemplate()}
       </div>`;
     }
     console.error(error);
     return html`<div class="error-state" data-testid="messages-error">
       <div>There was an error loading messages.</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 
@@ -1371,7 +1376,6 @@ export default async function chatDetailView({
     const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
     const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
     const convoPermalink = getPermalinkForConvo(convoId);
-    const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
     const stagedReply = state.$stagedReply.get();
     const stagedRecordEmbed = state.$stagedRecordEmbed.get();
     const stagedReplySenderProfile =
@@ -1546,31 +1550,6 @@ export default async function chatDetailView({
                 `}
           </div>
         </main>
-        ${reactionsDialogMessageId
-          ? html`<reactions-dialog
-              .messageId=${reactionsDialogMessageId}
-              .convoId=${convoId}
-              .currentUserDid=${currentUser?.did}
-              .dataLayer=${dataLayer}
-              @close=${() => state.$reactionsDialogMessageId.set(null)}
-              @remove-reaction=${async (e) => {
-                const { emoji } = e.detail;
-                try {
-                  await dataLayer.mutations.removeMessageReaction(
-                    convoId,
-                    reactionsDialogMessageId,
-                    emoji,
-                    currentUser?.did,
-                  );
-                } catch (error) {
-                  console.error(error);
-                  showToast("Failed to remove emoji reaction", {
-                    style: "error",
-                  });
-                }
-              }}
-            ></reactions-dialog>`
-          : ""}
       </div>`,
       root,
     );

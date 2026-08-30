@@ -2,12 +2,72 @@ import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import { buildPostgateEmbeddingRules } from "/js/dataHelpers.js";
+import "/js/components/post-interaction-settings-dialog.js";
 
 export class PostInteractionHandler {
   constructor(dataLayer, postComposerService, reportService) {
     this.dataLayer = dataLayer;
     this.postComposerService = postComposerService;
     this.reportService = reportService;
+    this._interactionSettingsDialog = null;
+  }
+
+  handleEditInteractionSettings(post) {
+    if (this._interactionSettingsDialog !== null) {
+      return;
+    }
+    const dialog = document.createElement("post-interaction-settings-dialog");
+    this._interactionSettingsDialog = dialog;
+    dialog.dataLayer = this.dataLayer;
+    dialog.threadgateAllow = post.threadgate?.record?.allow ?? null;
+    dialog.postgateEmbeddingRules = buildPostgateEmbeddingRules(
+      !post.viewer?.embeddingDisabled,
+    );
+    dialog.hydratedLists = post.threadgate?.lists ?? [];
+    dialog.addEventListener("save-interaction-settings", async (event) => {
+      const {
+        threadgateAllow,
+        threadgateDirty,
+        postgateEmbeddingRules,
+        postgateDirty,
+        successCallback,
+        errorCallback,
+      } = event.detail;
+      try {
+        const writes = [];
+        if (threadgateDirty) {
+          writes.push(
+            this.dataLayer.mutations.updateThreadgateAllow(
+              post,
+              threadgateAllow,
+            ),
+          );
+        }
+        if (postgateDirty) {
+          writes.push(
+            this.dataLayer.mutations.updatePostgateEmbeddingRules(
+              post,
+              postgateEmbeddingRules,
+            ),
+          );
+        }
+        await Promise.all(writes);
+        successCallback();
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to update interaction settings", {
+          style: "error",
+        });
+        errorCallback(error.message || "An unexpected error occurred.");
+      }
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+      this._interactionSettingsDialog = null;
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
   }
 
   async handleLike(post, doLike) {

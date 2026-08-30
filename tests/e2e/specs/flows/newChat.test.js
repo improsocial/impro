@@ -3,7 +3,7 @@ import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createProfile } from "../../../shared/factories.js";
 
-test.describe("New chat from sidebar flow", () => {
+test.describe("New chat flow", () => {
   function createMessageableProfile() {
     return createProfile({
       did: "did:plc:alice1",
@@ -13,7 +13,7 @@ test.describe("New chat from sidebar flow", () => {
     });
   }
 
-  test("should start a chat from the sidebar new chat button and land on the conversation", async ({
+  test("should start a chat from the header new chat button and land on the conversation", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -25,9 +25,7 @@ test.describe("New chat from sidebar flow", () => {
     await login(page);
     await page.goto("/messages");
 
-    const newChatButton = page.locator(
-      '[data-testid="sidebar-new-chat-button"]',
-    );
+    const newChatButton = page.locator('[data-testid="new-chat-button"]');
     await expect(newChatButton).toBeVisible({ timeout: 10000 });
     await newChatButton.click();
 

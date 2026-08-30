@@ -85,6 +85,212 @@ test.describe("Post thread view", () => {
     await expect(view).toContainText("This is the main post");
   });
 
+  test("should show a follow button on the main post and follow on click", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([mainPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const followButton = page.locator(
+      '[data-testid="large-post"] [data-testid="follow-button"]',
+    );
+    await expect(followButton).toBeVisible({ timeout: 10000 });
+    await expect(followButton).toHaveAttribute("data-teststate", "follow");
+
+    await followButton.click();
+
+    // The button stays visible after following so it can be undone
+    await expect(followButton).toHaveAttribute("data-teststate", "following");
+    await expect(followButton).toBeVisible();
+  });
+
+  test("should not show a follow button when already following the author", async ({
+    page,
+  }) => {
+    const followedAuthorPost = createPost({
+      uri: postUri,
+      text: "Post by a followed author",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      authorViewer: { following: "at://did:plc:testuser123/follow/1" },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([followedAuthorPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const largePost = page.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+    await expect(
+      largePost.locator('[data-testid="follow-button"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should not show a follow button on the user's own post", async ({
+    page,
+  }) => {
+    const ownPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/own1",
+      text: "My own post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([ownPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/testuser.bsky.social/post/own1");
+
+    const largePost = page.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+    await expect(
+      largePost.locator('[data-testid="follow-button"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should not show a follow button on a root post with a followers-only threadgate", async ({
+    page,
+  }) => {
+    const gatedPost = createPost({
+      uri: postUri,
+      text: "Followers-only thread",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      threadgate: {
+        uri: postUri.replace("feed.post", "feed.threadgate"),
+        cid: "bafytgate1",
+        record: {
+          allow: [{ $type: "app.bsky.feed.threadgate#followerRule" }],
+        },
+        lists: [],
+      },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([gatedPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const largePost = page.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+    await expect(
+      largePost.locator('[data-testid="follow-button"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should show a follow button on a reply in someone else's follower-gated thread", async ({
+    page,
+  }) => {
+    const rootUri = "at://did:plc:gatekeeper/app.bsky.feed.post/root1";
+    const rootPost = createPost({
+      uri: rootUri,
+      text: "Followers-only thread root",
+      authorHandle: "gatekeeper.bsky.social",
+      authorDisplayName: "Gate Keeper",
+      threadgate: {
+        uri: rootUri.replace("feed.post", "feed.threadgate"),
+        cid: "bafytgate2",
+        record: {
+          allow: [{ $type: "app.bsky.feed.threadgate#followerRule" }],
+        },
+        lists: [],
+      },
+    });
+    const replyPost = createPost({
+      uri: postUri,
+      text: "A reply by someone else",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: rootPost.uri, cid: rootPost.cid },
+        root: { uri: rootPost.uri, cid: rootPost.cid },
+      },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([replyPost, rootPost]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: replyPost,
+      parent: {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: rootPost,
+        parent: null,
+        replies: [],
+      },
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const followButton = page.locator(
+      '[data-testid="large-post"] [data-testid="follow-button"]',
+    );
+    await expect(followButton).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should not show a follow button on the root author's reply in their own follower-gated thread", async ({
+    page,
+  }) => {
+    const rootUri = "at://did:plc:author1/app.bsky.feed.post/root1";
+    const rootPost = createPost({
+      uri: rootUri,
+      text: "Followers-only thread root",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      threadgate: {
+        uri: rootUri.replace("feed.post", "feed.threadgate"),
+        cid: "bafytgate3",
+        record: {
+          allow: [{ $type: "app.bsky.feed.threadgate#followerRule" }],
+        },
+        lists: [],
+      },
+    });
+    const replyPost = createPost({
+      uri: postUri,
+      text: "Continuing my own gated thread",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: rootPost.uri, cid: rootPost.cid },
+        root: { uri: rootPost.uri, cid: rootPost.cid },
+      },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([replyPost, rootPost]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: replyPost,
+      parent: {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: rootPost,
+        parent: null,
+        replies: [],
+      },
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const largePost = page.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+    await expect(
+      largePost.locator('[data-testid="follow-button"]'),
+    ).toHaveCount(0);
+  });
+
   test("should render an emoji-only post enlarged", async ({ page }) => {
     const mockServer = new MockServer();
     const emojiPost = createPost({

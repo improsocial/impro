@@ -544,7 +544,10 @@ describe("loadLabelerInfo", () => {
 describe("loadMutedProfiles", () => {
   it("should store muted profiles on first load", async () => {
     const res = {
-      mutes: [{ did: "did:plc:a" }, { did: "did:plc:b" }],
+      mutes: [
+        { did: "did:plc:a", handle: "a.test" },
+        { did: "did:plc:b", handle: "b.test" },
+      ],
       cursor: "next",
     };
     const mockApi = { getMutes: async () => res };
@@ -563,9 +566,11 @@ describe("loadMutedProfiles", () => {
     assert.deepEqual(dataStore.$mutedProfiles.get(), res);
     assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
       did: "did:plc:a",
+      handle: "a.test",
     });
     assert.deepEqual(dataStore.$profiles.get("did:plc:b"), {
       did: "did:plc:b",
+      handle: "b.test",
     });
   });
 
@@ -666,7 +671,10 @@ function makeRequests(
 describe("loadBlockedProfiles", () => {
   it("should store blocked profiles on first load", async () => {
     const res = {
-      blocks: [{ did: "did:plc:a" }, { did: "did:plc:b" }],
+      blocks: [
+        { did: "did:plc:a", handle: "a.test" },
+        { did: "did:plc:b", handle: "b.test" },
+      ],
       cursor: "next",
     };
     const mockApi = { getBlocks: async () => res };
@@ -678,9 +686,11 @@ describe("loadBlockedProfiles", () => {
     assert.deepEqual(dataStore.$blockedProfiles.get(), res);
     assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
       did: "did:plc:a",
+      handle: "a.test",
     });
     assert.deepEqual(dataStore.$profiles.get("did:plc:b"), {
       did: "did:plc:b",
+      handle: "b.test",
     });
   });
 
@@ -1220,7 +1230,7 @@ describe("loadSearchTypeahead", () => {
     const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchProfilesTypeahead: async () => ({
-        actors: [{ did: "did:plc:a" }],
+        actors: [{ did: "did:plc:a", handle: "a.test" }],
       }),
     };
     const requests = makeRequests(mockApi, dataStore);
@@ -1232,6 +1242,7 @@ describe("loadSearchTypeahead", () => {
     assert.deepEqual(stored.actors[0].did, "did:plc:a");
     assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
       did: "did:plc:a",
+      handle: "a.test",
     });
   });
 
@@ -1276,7 +1287,7 @@ describe("loadSidebarSearchTypeahead", () => {
     const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
       searchProfilesTypeahead: async () => ({
-        actors: [{ did: "did:plc:a" }],
+        actors: [{ did: "did:plc:a", handle: "a.test" }],
       }),
     };
     const requests = makeRequests(mockApi, dataStore);
@@ -1288,6 +1299,7 @@ describe("loadSidebarSearchTypeahead", () => {
     assert.deepEqual(stored.actors[0].did, "did:plc:a");
     assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
       did: "did:plc:a",
+      handle: "a.test",
     });
   });
 
@@ -1438,7 +1450,11 @@ describe("loadNotifications", () => {
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
-          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+          {
+            reason: "like",
+            uri: "n1",
+            author: { did: "did:plc:liker", handle: "liker.test" },
+          },
         ],
         cursor: "next",
       }),
@@ -1452,6 +1468,7 @@ describe("loadNotifications", () => {
     assert.deepEqual(dataStore.$notifications.get().cursor, "next");
     assert.deepEqual(dataStore.$profiles.get("did:plc:liker"), {
       did: "did:plc:liker",
+      handle: "liker.test",
     });
   });
 
@@ -1520,7 +1537,11 @@ describe("loadNotifications", () => {
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
-          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+          {
+            reason: "like",
+            uri: "n1",
+            author: { did: "did:plc:liker", handle: "liker.test" },
+          },
         ],
         cursor: "next",
         seenAt: "2025-01-15T10:00:00.000Z",
@@ -1599,7 +1620,11 @@ describe("loadNotifications", () => {
     const mockApi = {
       getNotifications: async () => ({
         notifications: [
-          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+          {
+            reason: "like",
+            uri: "n1",
+            author: { did: "did:plc:liker", handle: "liker.test" },
+          },
         ],
         cursor: "next",
       }),

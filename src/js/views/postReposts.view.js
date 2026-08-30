@@ -4,6 +4,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function postRepostsView({
   root,
@@ -30,9 +31,7 @@ export default async function postRepostsView({
     console.error(error);
     return html`<div class="error-state">
       <div>Error loading reposts</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

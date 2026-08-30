@@ -247,6 +247,172 @@ describe("request", () => {
   });
 });
 
+describe("labelers header stamping", () => {
+  const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
+
+  function createApiWithLabelers(labelers) {
+    const session = createMockSession({});
+    const api = new Api(session, {
+      getLabelerDids: async () => labelers,
+    });
+    return { session, api };
+  }
+
+  it("stamps the header on appview-proxied requests", async () => {
+    const { session, api } = createApiWithLabelers([
+      "did:plc:labeler1",
+      BSKY_LABELER_DID,
+    ]);
+
+    await api.getProfile("did:plc:someone");
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(
+      options.headers["atproto-accept-labelers"],
+      `did:plc:labeler1, ${BSKY_LABELER_DID};redact`,
+    );
+  });
+
+  it("does not stamp the header on chat requests", async () => {
+    const { session, api } = createApiWithLabelers(["did:plc:labeler1"]);
+
+    await api.getConvo("convo1");
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["atproto-accept-labelers"], undefined);
+    assert.deepEqual(
+      options.headers["atproto-proxy"],
+      api.chatAppViewServiceDid,
+    );
+  });
+
+  it("stamps the header on getPostThreadOther requests", async () => {
+    const { session, api } = createApiWithLabelers(["did:plc:labeler1"]);
+
+    await api.getPostThreadOther("at://did:plc:author/app.bsky.feed.post/abc");
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(
+      options.headers["atproto-accept-labelers"],
+      "did:plc:labeler1",
+    );
+  });
+
+  it("does not stamp the header on unproxied requests", async () => {
+    const { session, api } = createApiWithLabelers(["did:plc:labeler1"]);
+
+    await api.getPreferences();
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["atproto-accept-labelers"], undefined);
+  });
+
+  it("does not stamp the header on requests proxied to other services", async () => {
+    const { session, api } = createApiWithLabelers(["did:plc:labeler1"]);
+
+    await api.registerPush({
+      serviceDid: "did:web:push.example.com",
+      token: "token",
+      platform: "web",
+      appId: "app",
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["atproto-accept-labelers"], undefined);
+  });
+
+  it("merges caller-supplied entries after the provider's labelers", async () => {
+    const { session, api } = createApiWithLabelers([
+      "did:plc:labeler1",
+      BSKY_LABELER_DID,
+    ]);
+
+    await api.appViewRequest("app.bsky.actor.getProfile", {
+      query: { actor: "did:plc:someone" },
+      headers: {
+        "atproto-accept-labelers": "did:plc:custom",
+      },
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(
+      options.headers["atproto-accept-labelers"],
+      `did:plc:labeler1, ${BSKY_LABELER_DID};redact, did:plc:custom`,
+    );
+  });
+
+  it("dedupes caller entries already covered by the provider, keeping the provider's suffix", async () => {
+    const { session, api } = createApiWithLabelers([
+      "did:plc:labeler1",
+      BSKY_LABELER_DID,
+    ]);
+
+    await api.appViewRequest("app.bsky.actor.getProfile", {
+      query: { actor: "did:plc:someone" },
+      headers: {
+        "atproto-accept-labelers": `${BSKY_LABELER_DID}, did:plc:custom`,
+      },
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(
+      options.headers["atproto-accept-labelers"],
+      `did:plc:labeler1, ${BSKY_LABELER_DID};redact, did:plc:custom`,
+    );
+  });
+
+  it("keeps caller entries when the provider has no labelers", async () => {
+    const { session, api } = createApiWithLabelers([]);
+
+    await api.appViewRequest("app.bsky.actor.getProfile", {
+      query: { actor: "did:plc:someone" },
+      headers: {
+        "atproto-accept-labelers": "did:plc:custom",
+      },
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(
+      options.headers["atproto-accept-labelers"],
+      "did:plc:custom",
+    );
+  });
+
+  it("does not stamp the header on an instance without a labelers provider", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.getProfile("did:plc:someone");
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["atproto-accept-labelers"], undefined);
+  });
+
+  it("does not stamp an empty header when there are no labelers", async () => {
+    const { session, api } = createApiWithLabelers([]);
+
+    await api.getProfile("did:plc:someone");
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["atproto-accept-labelers"], undefined);
+  });
+
+  it("propagates provider failures", async () => {
+    const session = createMockSession({});
+    const providerError = new Error("preferences failed");
+    const api = new Api(session, {
+      getLabelerDids: async () => {
+        throw providerError;
+      },
+    });
+
+    await assert.rejects(
+      () => api.getProfile("did:plc:someone"),
+      providerError,
+    );
+  });
+});
+
 describe("token refresh failure", () => {
   let onTokenRefreshError = null;
 
@@ -498,21 +664,6 @@ describe("getPostThread", () => {
       ),
     );
   });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ thread: { post: {} } });
-    const api = new Api(session);
-
-    await api.getPostThread("at://did:plc:author/app.bsky.feed.post/abc", {
-      labelers: ["did:plc:labeler1", "did:plc:labeler2"],
-    });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1, did:plc:labeler2",
-    );
-  });
 });
 
 describe("getPostThreadOther", () => {
@@ -528,21 +679,6 @@ describe("getPostThreadOther", () => {
       url.includes(
         "anchor=at%3A%2F%2Fdid%3Aplc%3Aauthor%2Fapp.bsky.feed.post%2Fabc",
       ),
-    );
-  });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ thread: [] });
-    const api = new Api(session);
-
-    await api.getPostThreadOther("at://did:plc:author/app.bsky.feed.post/abc", {
-      labelers: ["did:plc:labeler1", "did:plc:labeler2"],
-    });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1, did:plc:labeler2",
     );
   });
 });
@@ -996,19 +1132,6 @@ describe("listConvos", () => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("readState=unread"));
   });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ convos: [] });
-    const api = new Api(session);
-
-    await api.listConvos({ labelers: ["did:plc:labeler1"] });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
-  });
 });
 
 describe("getConvo", () => {
@@ -1022,19 +1145,6 @@ describe("getConvo", () => {
     assert(url.includes("chat.bsky.convo.getConvo"));
     assert(url.includes("convoId=convo1"));
     assert.deepEqual(result.convo.id, "convo1");
-  });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ convo: { id: "convo1", members: [] } });
-    const api = new Api(session);
-
-    await api.getConvo("convo1", { labelers: ["did:plc:labeler1"] });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
   });
 });
 
@@ -1052,19 +1162,6 @@ describe("getMessages", () => {
     assert(url.includes("chat.bsky.convo.getMessages"));
     assert(url.includes("convoId=convo1"));
     assert.deepEqual(result.messages.length, 1);
-  });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ messages: [] });
-    const api = new Api(session);
-
-    await api.getMessages("convo1", { labelers: ["did:plc:labeler1"] });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
   });
 });
 
@@ -1152,21 +1249,6 @@ describe("getConvoAvailability", () => {
     assert(url.includes("chat.bsky.convo.getConvoAvailability"));
     assert.deepEqual(result.canChat, true);
   });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ canChat: true });
-    const api = new Api(session);
-
-    await api.getConvoAvailability(["did:plc:member1"], {
-      labelers: ["did:plc:labeler1"],
-    });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
-  });
 });
 
 describe("getConvoForMembers", () => {
@@ -1183,21 +1265,6 @@ describe("getConvoForMembers", () => {
     assert(url.includes("chat.bsky.convo.getConvoForMembers"));
     assert.deepEqual(result.convo.id, "convo1");
   });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ convo: { id: "convo1" } });
-    const api = new Api(session);
-
-    await api.getConvoForMembers(["did:plc:member1"], {
-      labelers: ["did:plc:labeler1"],
-    });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
-  });
 });
 
 describe("getChatLogs", () => {
@@ -1211,19 +1278,6 @@ describe("getChatLogs", () => {
     assert(url.includes("chat.bsky.convo.getLog"));
     assert(url.includes("cursor=somecursor"));
     assert.deepEqual(result.cursor, "next");
-  });
-
-  it("should include labelers header when provided", async () => {
-    const session = createMockSession({ logs: [] });
-    const api = new Api(session);
-
-    await api.getChatLogs({ cursor: "", labelers: ["did:plc:labeler1"] });
-
-    const { options } = session.getLastFetchOptions();
-    assert.deepEqual(
-      options.headers["atproto-accept-labelers"],
-      "did:plc:labeler1",
-    );
   });
 });
 

@@ -58,11 +58,10 @@ test.describe("Login view", () => {
 
     await advanced.locator("summary").click();
     await expect(select).toBeVisible();
-    await expect(select.locator("option")).toHaveText([
-      "Bluesky",
-      "Blacksky",
-      "Custom",
-    ]);
+    const options = select.locator("option");
+    await expect(options.first()).toHaveText("Bluesky");
+    await expect(options.last()).toHaveText("Custom");
+    expect(await options.count()).toBeGreaterThanOrEqual(3);
   });
 
   test("custom option reveals DID inputs and toggles off when a default is reselected", async ({

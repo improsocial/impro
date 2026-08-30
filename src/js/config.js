@@ -40,7 +40,6 @@ export const IN_APP_LINK_DOMAINS = [
   "bsky.app",
   "impro.social",
   "dev.impro.social",
-  "localhost",
 ];
 
 export const AppViewConfig = {
@@ -54,13 +53,20 @@ export const AppViewConfig = {
     id: "blacksky",
     displayName: "Blacksky",
     appViewServiceDid: "did:web:api.blacksky.community#bsky_appview",
-    chatServiceDid: "did:web:api.bsky.chat#bsky_chat", // note: uses bsky chat service
+    chatServiceDid: "did:web:api.bsky.chat#bsky_chat", // uses bsky chat service
+  },
+  EUROSKY: {
+    id: "eurosky",
+    displayName: "Eurosky",
+    appViewServiceDid: "did:web:api.eurosky.network#bsky_appview",
+    chatServiceDid: "did:web:api.bsky.chat#bsky_chat", // uses bsky chat service
   },
 };
 
 export const DEFAULT_APP_VIEW_CONFIGS = [
   AppViewConfig.BLUESKY,
   AppViewConfig.BLACKSKY,
+  AppViewConfig.EUROSKY,
 ];
 
 export const NONE_NOTIFICATION_SERVICE_ID = "none";

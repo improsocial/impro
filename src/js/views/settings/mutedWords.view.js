@@ -301,10 +301,7 @@ export default async function settingsMutedWordsView({
             </div>
 
             <div class="field-caption">Options:</div>
-            <label
-              class="muted-word-checkbox-row"
-              data-testid="exclude-following"
-            >
+            <label class="checkbox-row" data-testid="exclude-following">
               <input type="checkbox" name="exclude-following" />
               Exclude users you follow
             </label>

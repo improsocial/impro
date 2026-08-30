@@ -240,6 +240,8 @@ export function smallPostTemplate({
             },
             onClickPin: (post, doPin) =>
               postInteractionHandler.handlePinPost(post, doPin),
+            onClickEditInteractionSettings: (post) =>
+              postInteractionHandler.handleEditInteractionSettings(post),
             onClickReport: (post) => postInteractionHandler.handleReport(post),
             enableFeedFeedback,
             pluginService,

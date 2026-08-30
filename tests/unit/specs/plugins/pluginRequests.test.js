@@ -42,7 +42,6 @@ const queryTestPlugin = { pluginId: "test-plugin" };
 
 function makeXrpcPluginRequests({
   request = async () => ({ status: 200, data: {} }),
-  labelers = ["did:plc:labeler"],
   session = { did: "did:plc:me", handle: "me.test" },
   requireActionPermission = () => {},
 } = {}) {
@@ -50,16 +49,9 @@ function makeXrpcPluginRequests({
   const permissionCalls = [];
   const dataLayer = {
     api: {
-      bskyAppViewServiceDid: "did:web:appview.test#bsky_appview",
-      request: async (path, options) => {
+      appViewRequest: async (path, options) => {
         requestCalls.push({ path, options });
         return request(path, options);
-      },
-    },
-    requests: {
-      requireLabelers: () => {
-        if (labelers instanceof Error) throw labelers;
-        return labelers;
       },
     },
   };
@@ -456,7 +448,7 @@ describe("pluginXrpcRequest", () => {
     assert.deepEqual(requestCalls, []);
   });
 
-  it("performs an allowlisted public query with params and labelers, without a permission check", async () => {
+  it("performs an allowlisted public query with params, without a permission check", async () => {
     const data = { posts: [{ uri: "at://quote/1" }] };
     const { pluginRequests, requestCalls, permissionCalls } =
       makeXrpcPluginRequests({
@@ -474,14 +466,6 @@ describe("pluginXrpcRequest", () => {
       uri: "at://example/post/1",
       limit: 25,
     });
-    assert.deepEqual(
-      requestCalls[0].options.headers["atproto-accept-labelers"],
-      "did:plc:labeler",
-    );
-    assert.deepEqual(
-      requestCalls[0].options.headers["atproto-proxy"],
-      "did:web:appview.test#bsky_appview",
-    );
     assert.deepEqual(permissionCalls, []);
   });
 
@@ -539,21 +523,6 @@ describe("pluginXrpcRequest", () => {
     );
     assert.deepEqual(permissionCalls, []);
     assert.deepEqual(requestCalls, []);
-  });
-
-  it("sends an empty labelers header when preferences are unavailable", async () => {
-    const { pluginRequests, requestCalls } = makeXrpcPluginRequests({
-      labelers: new Error("Preferences not loaded"),
-    });
-    await pluginRequests.pluginXrpcRequest(
-      queryPlugin,
-      "app.bsky.feed.getQuotes",
-      {},
-    );
-    assert.deepEqual(
-      requestCalls[0].options.headers["atproto-accept-labelers"],
-      "",
-    );
   });
 
   it("returns ok:false with the error body on an ApiError", async () => {

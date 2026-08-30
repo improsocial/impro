@@ -572,6 +572,38 @@ export class Preferences {
     return clone;
   }
 
+  getPostInteractionSettings() {
+    const pref = Preferences.getPostInteractionSettingsPreference(this.obj);
+    return {
+      threadgateAllowRules: pref?.threadgateAllowRules ?? null,
+      postgateEmbeddingRules: pref?.postgateEmbeddingRules?.length
+        ? pref.postgateEmbeddingRules
+        : null,
+    };
+  }
+
+  setPostInteractionSettings({ threadgateAllowRules, postgateEmbeddingRules }) {
+    const clone = this.clone();
+    let pref = Preferences.getPostInteractionSettingsPreference(clone.obj);
+    if (!pref) {
+      pref = {
+        $type: "app.bsky.actor.defs#postInteractionSettingsPref",
+      };
+      clone.obj.push(pref);
+    }
+    if (threadgateAllowRules === null) {
+      delete pref.threadgateAllowRules;
+    } else {
+      pref.threadgateAllowRules = threadgateAllowRules;
+    }
+    if (postgateEmbeddingRules === null) {
+      delete pref.postgateEmbeddingRules;
+    } else {
+      pref.postgateEmbeddingRules = postgateEmbeddingRules;
+    }
+    return clone;
+  }
+
   hasMutedWord({ text, facets, embed, languages, author }) {
     const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
     if (!mutedWordsPreference) {
@@ -757,6 +789,13 @@ export class Preferences {
     return Preferences.getPreferenceByType(
       obj,
       "app.bsky.actor.defs#mutedWordsPref",
+    );
+  }
+
+  static getPostInteractionSettingsPreference(obj) {
+    return Preferences.getPreferenceByType(
+      obj,
+      "app.bsky.actor.defs#postInteractionSettingsPref",
     );
   }
 

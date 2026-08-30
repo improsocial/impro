@@ -88,6 +88,30 @@ describe("ScrollLock", () => {
     assert.deepEqual(document.body.style.position, "");
   });
 
+  it("compensates with the scroll position from before the header is pinned", () => {
+    // Pinning the sticky header removes it from flow, and at the bottom of
+    // the page the browser clamps scrollY down by the header height —
+    // simulate that clamp to ensure the margin uses the pre-pin value.
+    const header = container.querySelector("header");
+    const descriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () =>
+        header.classList.contains("scroll-lock-pinned") ? 3553.5 : 3600,
+    });
+    try {
+      createLock();
+      const main = container.querySelector("main");
+      assert.deepEqual(main.style.marginTop, "-3600px");
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(window, "scrollY", descriptor);
+      } else {
+        delete window.scrollY;
+      }
+    }
+  });
+
   it("restores a locked scrollable ancestor's overflow on unlock", () => {
     const scrollable = document.createElement("div");
     scrollable.style.overflowY = "auto";

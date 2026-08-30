@@ -65,7 +65,6 @@ export function mainLayoutTemplate({
   onClickActiveNavItem,
   children,
   onClickComposeButton,
-  onClickNewChatButton,
   pluginService,
   previewingPlugins = [],
   onLongPressProfile = null,
@@ -92,7 +91,6 @@ export function mainLayoutTemplate({
             numChatNotifications,
             onClickActiveItem: onClickActiveNavItem,
             onClickComposeButton,
-            onClickNewChatButton,
             pluginSidebarItems: pluginService.getSidebarItems(),
             onLongPressProfile,
           })}
@@ -155,7 +153,6 @@ export class MainLayout extends Layout {
       notificationService,
       chatNotificationService,
       postComposerService,
-      newChatService,
       accountSwitcherService,
       pluginService,
       groupChatLinkService,
@@ -212,7 +209,6 @@ export class MainLayout extends Layout {
           children: slot,
           onClickComposeButton: () =>
             postComposerService.composePost({ currentUser }),
-          onClickNewChatButton: () => newChatService.openNewChatDialog(),
           pluginService,
           previewingPlugins,
           onLongPressProfile,

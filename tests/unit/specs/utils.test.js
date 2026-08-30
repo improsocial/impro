@@ -6,6 +6,7 @@ import {
   sortBy,
   maxBy,
   noop,
+  isNil,
   sliceByByte,
   formatLargeNumber,
   formatFullTimestamp,
@@ -227,6 +228,21 @@ describe("noop", () => {
   it("should do nothing and return undefined", () => {
     const result = noop();
     assert.deepEqual(result, undefined);
+  });
+});
+
+describe("isNil", () => {
+  it("returns true for null and undefined", () => {
+    assert.deepEqual(isNil(null), true);
+    assert.deepEqual(isNil(undefined), true);
+  });
+
+  it("returns false for other falsy values", () => {
+    assert.deepEqual(isNil(false), false);
+    assert.deepEqual(isNil(0), false);
+    assert.deepEqual(isNil(""), false);
+    assert.deepEqual(isNil(NaN), false);
+    assert.deepEqual(isNil([]), false);
   });
 });
 

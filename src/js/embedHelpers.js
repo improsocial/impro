@@ -1,9 +1,5 @@
-import {
-  IN_APP_LINK_DOMAINS,
-  TENOR_GIF_PROXY_URL,
-  KLIPY_GIF_PROXY_HOSTNAME,
-} from "/js/config.js";
-import { createEmbedFromPost } from "/js/dataHelpers.js";
+import { TENOR_GIF_PROXY_URL, KLIPY_GIF_PROXY_HOSTNAME } from "/js/config.js";
+import { createEmbedFromPost, isInAppLinkHostname } from "/js/dataHelpers.js";
 
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const RECORD_LINK_PATTERNS = [
@@ -34,10 +30,7 @@ const RECORD_LINK_PATTERNS = [
 export function parseRecordLink(url) {
   try {
     const parsedUrl = new URL(url);
-    if (
-      parsedUrl.hostname !== window.location.hostname &&
-      !IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
-    ) {
+    if (!isInAppLinkHostname(parsedUrl.hostname)) {
       return null;
     }
     for (const { pattern, collection } of RECORD_LINK_PATTERNS) {

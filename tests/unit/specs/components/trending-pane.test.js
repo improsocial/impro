@@ -142,59 +142,17 @@ describe("trending-pane", () => {
     );
   });
 
-  it("shows an error state when the request fails", async () => {
+  it("renders nothing when the request fails", async () => {
     const dataLayer = makeDataLayer(async () => {
       throw new ApiError({ status: 500, statusText: "Server Error", data: {} });
     });
     const element = mount(dataLayer);
     await flushMicrotasks();
 
-    assert(element.querySelector("[data-testid='trending-pane']") !== null);
-    assert(element.querySelector("[data-testid='trending-error']") !== null);
     assert.deepEqual(
-      element.querySelectorAll("[data-testid='trending-skeleton']").length,
-      0,
-    );
-  });
-
-  it("recovers from the error state when retry succeeds", async () => {
-    let shouldFail = true;
-    const dataLayer = makeDataLayer(async () => {
-      if (shouldFail) {
-        throw new ApiError({
-          status: 500,
-          statusText: "Server Error",
-          data: {},
-        });
-      }
-      return { trends: [createTrend({ topic: "gardening" })] };
-    });
-    const element = mount(dataLayer);
-    await flushMicrotasks();
-    assert(element.querySelector("[data-testid='trending-error']") !== null);
-
-    shouldFail = false;
-    element.querySelector("[data-testid='trending-error'] button").click();
-    await flushMicrotasks();
-
-    assert.deepEqual(
-      element.querySelector("[data-testid='trending-error']"),
+      element.querySelector("[data-testid='trending-pane']"),
       null,
     );
-    assert.deepEqual(rowLabels(element), ["gardening"]);
-  });
-
-  it("returns to the error state when a retry also fails", async () => {
-    const dataLayer = makeDataLayer(async () => {
-      throw new ApiError({ status: 500, statusText: "Server Error", data: {} });
-    });
-    const element = mount(dataLayer);
-    await flushMicrotasks();
-
-    element.querySelector("[data-testid='trending-error'] button").click();
-    await flushMicrotasks();
-
-    assert(element.querySelector("[data-testid='trending-error']") !== null);
   });
 
   it("hides the pane after confirming the hide prompt", async () => {

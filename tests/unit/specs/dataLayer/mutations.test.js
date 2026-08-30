@@ -10,6 +10,7 @@ import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
+import { ApiError } from "/js/api.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -30,11 +31,21 @@ function makeMutations(api, dataStore, patchStore, preferencesProvider) {
   );
 }
 
-// `applyPostPatches` now requires the patches array. Helper that fetches the
-// current patches for a post URI and applies them.
+// The appliers require the patches array. Helpers that fetch the current
+// patches for a key and apply them.
 function applyPostPatches(patchStore, post) {
   const patches = patchStore.$postPatches.get(post.uri) || [];
   return patchStore.applyPostPatches(post, patches);
+}
+
+function applyProfilePatches(patchStore, profile) {
+  const patches = patchStore.$profilePatches.get(profile.did) || [];
+  return patchStore.applyProfilePatches(profile, patches);
+}
+
+function applyConvoPatches(patchStore, convo) {
+  const patches = patchStore.$convoPatches.get(convo.id) || [];
+  return patchStore.applyConvoPatches(convo, patches);
 }
 
 function makeDerived(
@@ -77,7 +88,7 @@ describe("addLike", () => {
       createLikeRecord: async () => ({ uri: "like-uri" }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -101,7 +112,7 @@ describe("addLike", () => {
       createLikeRecord: async () => mockLike,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -130,7 +141,7 @@ describe("addLike", () => {
         ),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -154,7 +165,7 @@ describe("addLike", () => {
 
   it("should not double-count when a refresh lands while the like is in flight", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockApi = {
       createLikeRecord: async () => {
         // Simulate a feed refresh delivering the server state (like already
@@ -182,7 +193,7 @@ describe("addLike", () => {
     const storedPost = dataStore.$posts.get(testPost.uri);
     assert.deepEqual(storedPost.likeCount, 6);
     assert.deepEqual(storedPost.viewer.like, "server-like-uri");
-    assert.deepEqual(patchStore.$patchedPosts.get(testPost.uri).likeCount, 6);
+    assert.deepEqual(applyPostPatches(patchStore, storedPost).likeCount, 6);
   });
 });
 
@@ -201,7 +212,7 @@ describe("removeLike", () => {
         }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -224,7 +235,7 @@ describe("removeLike", () => {
       deleteLikeRecord: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -263,7 +274,7 @@ describe("followProfile", () => {
         }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -276,7 +287,7 @@ describe("followProfile", () => {
 
     mutations.followProfile(testProfile);
 
-    const patchedProfile = patchStore.applyProfilePatches(testProfile);
+    const patchedProfile = applyProfilePatches(patchStore, testProfile);
     assert.deepEqual(patchedProfile.viewer.following, "fake following");
     assert.deepEqual(patchedProfile.followersCount, 11);
   });
@@ -288,7 +299,7 @@ describe("followProfile", () => {
     };
     const dataStore = new DataStore(createSessionState(null));
     dataStore.$detailedProfiles.set(testProfile.did, testProfile);
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -308,8 +319,46 @@ describe("followProfile", () => {
     assert.deepEqual(storedDetailed.viewer.following, "follow-123");
     assert.deepEqual(storedDetailed.followersCount, 11);
 
-    const patchedProfile = patchStore.applyProfilePatches(storedProfile);
+    const patchedProfile = applyProfilePatches(patchStore, storedProfile);
     assert.deepEqual(patchedProfile, storedProfile);
+  });
+
+  it("should update hydrated post authors after the patch is removed", async () => {
+    const mockApi = {
+      createFollowRecord: async () => ({ uri: "follow-123" }),
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    const postUri = "at://did:test:profile/app.bsky.feed.post/1";
+    dataStore.setPosts([
+      {
+        uri: postUri,
+        record: { text: "hello" },
+        author: {
+          did: testProfile.did,
+          handle: testProfile.handle,
+          viewer: { following: null },
+        },
+        viewer: {},
+        labels: [],
+      },
+    ]);
+
+    await mutations.followProfile(testProfile);
+
+    const hydratedPost = derived.$hydratedPosts.get(postUri);
+    assert.deepEqual(hydratedPost.author.viewer.following, "follow-123");
   });
 });
 
@@ -330,7 +379,7 @@ describe("unfollowProfile", () => {
         }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -343,7 +392,7 @@ describe("unfollowProfile", () => {
 
     mutations.unfollowProfile(testProfile);
 
-    const patchedProfile = patchStore.applyProfilePatches(testProfile);
+    const patchedProfile = applyProfilePatches(patchStore, testProfile);
     assert.deepEqual(patchedProfile.viewer.following, null);
     assert.deepEqual(patchedProfile.followersCount, 9);
   });
@@ -354,7 +403,7 @@ describe("unfollowProfile", () => {
     };
     const dataStore = new DataStore(createSessionState(null));
     dataStore.$detailedProfiles.set(testProfile.did, testProfile);
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -374,7 +423,7 @@ describe("unfollowProfile", () => {
     assert.deepEqual(storedDetailed.viewer.following, null);
     assert.deepEqual(storedDetailed.followersCount, 9);
 
-    const patchedProfile = patchStore.applyProfilePatches(storedProfile);
+    const patchedProfile = applyProfilePatches(patchStore, storedProfile);
     assert.deepEqual(patchedProfile, storedProfile);
   });
 });
@@ -399,7 +448,7 @@ describe("subscribeLabeler", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -423,7 +472,7 @@ describe("subscribeLabeler", () => {
       updatePreferences: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -447,7 +496,7 @@ describe("subscribeLabeler", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -484,7 +533,7 @@ describe("unsubscribeLabeler", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -508,7 +557,7 @@ describe("unsubscribeLabeler", () => {
       updatePreferences: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -532,7 +581,7 @@ describe("unsubscribeLabeler", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -568,7 +617,7 @@ describe("updateLabelerSetting", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -594,7 +643,7 @@ describe("updateLabelerSetting", () => {
       updatePreferences: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -618,7 +667,7 @@ describe("updateLabelerSetting", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -650,7 +699,7 @@ describe("updateLabelerSetting", () => {
       updatePreferences: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -683,7 +732,7 @@ describe("Error Handling and Edge Cases", () => {
         new Promise((resolve) => setTimeout(resolve, 75)),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -716,7 +765,7 @@ describe("Error Handling and Edge Cases", () => {
       deleteLikeRecord: async () => undefined,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -744,7 +793,7 @@ describe("addMutedWord", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -774,7 +823,7 @@ describe("addMutedWord", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -828,7 +877,7 @@ describe("removeMutedWord", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -856,7 +905,7 @@ describe("updateProfile", () => {
 
   function createMutationsWithMockApi(mockApi) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1086,7 +1135,7 @@ describe("pinPost", () => {
 
   function setup(mockApi, { pinnedPost = null, authorFeed = null } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1260,7 +1309,7 @@ describe("unpinPost", () => {
 
   function setup(mockApi, { pinnedPost, authorFeed = null } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1341,7 +1390,7 @@ describe("muteProfile", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1402,7 +1451,7 @@ describe("unmuteProfile", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1458,7 +1507,7 @@ describe("blockProfile", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1550,7 +1599,7 @@ describe("unblockProfile", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1630,7 +1679,7 @@ describe("addBookmark", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1694,7 +1743,7 @@ describe("removeBookmark", () => {
 
   function setup(mockApi = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1761,7 +1810,7 @@ describe("createRepost", () => {
 
   function setup(mockApi = {}, { authorFeed } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1867,7 +1916,7 @@ describe("deleteRepost", () => {
 
   function setup(mockApi = {}, { authorFeed } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -1943,7 +1992,7 @@ describe("pinFeed", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2007,7 +2056,7 @@ describe("pinFeed", () => {
       updatePreferences: () => updatePromise,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2048,7 +2097,7 @@ describe("unpinFeed", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2080,7 +2129,7 @@ describe("unpinFeed", () => {
       updatePreferences: () => updatePromise,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2145,7 +2194,7 @@ describe("setPinnedItems", () => {
         { type: "list", data: { uri: listA } },
       ]);
     }
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2216,7 +2265,7 @@ describe("setPinnedItems", () => {
       { type: "feed", data: { uri: feedA } },
       { type: "list", data: { uri: listA } },
     ]);
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2251,7 +2300,7 @@ describe("hidePost", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2275,7 +2324,7 @@ describe("hidePost", () => {
       updatePreferences: () => updatePromise,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2323,7 +2372,7 @@ describe("updateMutedWord", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -2354,7 +2403,7 @@ describe("updatePostNotificationSubscription", () => {
   it("should set viewer.activitySubscription on the profile", async () => {
     const subscription = { post: true, reply: false };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2382,7 +2431,7 @@ describe("updatePostNotificationSubscription", () => {
 
   it("should remove the patch on failure and rethrow", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2410,13 +2459,393 @@ describe("updatePostNotificationSubscription", () => {
   });
 });
 
+describe("updatePostgateEmbeddingRules", () => {
+  const userDid = "did:plc:me";
+  const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const basePost = {
+    uri: postUri,
+    cid: "cid-abc",
+    author: { did: userDid, viewer: {} },
+    record: { text: "hi" },
+    viewer: {},
+  };
+  const disableRule = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  function recordNotFoundError() {
+    return new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+  }
+
+  function setup(mockApi, { post = basePost } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(post.uri, post);
+    return {
+      mutations: makeMutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+    };
+  }
+
+  it("creates a record when disabling quotes with no prior record", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, [disableRule]);
+
+    assert.deepEqual(putArgs.rkey, "abc");
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual(putArgs.record.embeddingRules, [disableRule]);
+    assert.deepEqual(putArgs.record.post, postUri);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      true,
+    );
+  });
+
+  it("writes rules without a disable rule but keeps embedding enabled", async () => {
+    let putArgs = null;
+    const futureRule = { $type: "app.bsky.feed.postgate#futureRule" };
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, [futureRule]);
+
+    assert.deepEqual(putArgs.record.embeddingRules, [futureRule]);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("skips the write when enabling quotes with no prior record", async () => {
+    let putCalled = false;
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        putCalled = true;
+        return { cid: "x" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updatePostgateEmbeddingRules(basePost, null);
+
+    assert.deepEqual(putCalled, false);
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("preserves detachedEmbeddingUris and passes the prior cid as swap", async () => {
+    let putArgs = null;
+    const detachedEmbeddingUris = [
+      "at://did:plc:other/app.bsky.feed.post/quote1",
+    ];
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: postUri,
+          embeddingRules: [disableRule],
+          detachedEmbeddingUris,
+        },
+      }),
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi, {
+      post: { ...basePost, viewer: { embeddingDisabled: true } },
+    });
+
+    await mutations.updatePostgateEmbeddingRules(basePost, null);
+
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(
+      putArgs.record.detachedEmbeddingUris,
+      detachedEmbeddingUris,
+    );
+    assert(!("embeddingRules" in putArgs.record));
+    assert.deepEqual(
+      dataStore.$posts.get(postUri).viewer.embeddingDisabled,
+      false,
+    );
+  });
+
+  it("removes the patch and rethrows on failure", async () => {
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        throw new Error("network down");
+      },
+    };
+    const { mutations, patchStore } = setup(mockApi);
+
+    await assert.rejects(
+      () => mutations.updatePostgateEmbeddingRules(basePost, [disableRule]),
+      /network down/,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("refuses to write for a post the user doesn't own", async () => {
+    const foreignPost = {
+      ...basePost,
+      uri: "at://did:plc:other/app.bsky.feed.post/abc",
+    };
+    const { mutations } = setup({}, { post: foreignPost });
+    await assert.rejects(
+      () => mutations.updatePostgateEmbeddingRules(foreignPost, [disableRule]),
+      /post author/,
+    );
+  });
+});
+
+describe("updateThreadgateAllow", () => {
+  const userDid = "did:plc:me";
+  const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const basePost = {
+    uri: postUri,
+    cid: "cid-abc",
+    author: { did: userDid, viewer: {} },
+    record: { text: "hi" },
+  };
+
+  function recordNotFoundError() {
+    const error = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+    return error;
+  }
+
+  function setup(mockApi, { post = basePost } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(post.uri, post);
+    return {
+      mutations: makeMutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+    };
+  }
+
+  it("creates a record when none exists, with a null swap", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-new-gate" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updateThreadgateAllow(basePost, []);
+
+    assert.deepEqual(putArgs.rkey, "abc");
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual(putArgs.record.allow, []);
+    assert.deepEqual(putArgs.record.post, postUri);
+    const updated = dataStore.$posts.get(postUri);
+    assert.deepEqual(updated.threadgate.record.allow, []);
+    assert.deepEqual(updated.threadgate.cid, "cid-new-gate");
+    assert.deepEqual(
+      updated.threadgate.uri,
+      `at://${userDid}/app.bsky.feed.threadgate/abc`,
+    );
+  });
+
+  it("preserves hiddenReplies and passes the prior cid as swap", async () => {
+    let putArgs = null;
+    const hiddenReplies = [`at://${userDid}/app.bsky.feed.post/reply`];
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.threadgate",
+          post: postUri,
+          allow: [],
+          hiddenReplies,
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations } = setup(mockApi);
+
+    const allow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+    await mutations.updateThreadgateAllow(basePost, allow);
+
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(putArgs.record.hiddenReplies, hiddenReplies);
+    assert.deepEqual(putArgs.record.allow, allow);
+  });
+
+  it("deletes the allow key when editing back to everybody", async () => {
+    let putArgs = null;
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.threadgate",
+          post: postUri,
+          allow: [],
+        },
+      }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.updateThreadgateAllow(basePost, null);
+
+    assert(!("allow" in putArgs.record));
+    assert(!("allow" in dataStore.$posts.get(postUri).threadgate.record));
+  });
+
+  it("fails and reverts on a swap conflict", async () => {
+    const mockApi = {
+      getThreadgateRecord: async () => ({
+        cid: "cid-prior",
+        value: { $type: "app.bsky.feed.threadgate", post: postUri },
+      }),
+      putThreadgateRecord: async () => {
+        throw new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: { error: "InvalidSwap" },
+          headers: {},
+          url: "",
+        });
+      },
+    };
+    const { mutations, patchStore } = setup(mockApi);
+
+    await assert.rejects(() => mutations.updateThreadgateAllow(basePost, []));
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("applies an optimistic patch during the write and removes it after", async () => {
+    let resolvePut;
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: () =>
+        new Promise((resolve) => {
+          resolvePut = () => resolve({ cid: "cid-next" });
+        }),
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi);
+
+    const promise = mutations.updateThreadgateAllow(basePost, []);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const patched = applyPostPatches(patchStore, dataStore.$posts.get(postUri));
+    assert.deepEqual(patched.threadgate.record.allow, []);
+
+    resolvePut();
+    await promise;
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+  });
+
+  it("removes the patch and rethrows on failure", async () => {
+    const mockApi = {
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: async () => {
+        throw new Error("network down");
+      },
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi);
+
+    await assert.rejects(
+      () => mutations.updateThreadgateAllow(basePost, []),
+      /network down/,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(postUri) ?? [], []);
+    assert.deepEqual(dataStore.$posts.get(postUri).threadgate, undefined);
+  });
+
+  it("refuses to write for a post the user doesn't own", async () => {
+    const foreignPost = {
+      ...basePost,
+      uri: "at://did:plc:other/app.bsky.feed.post/abc",
+    };
+    const { mutations } = setup({}, { post: foreignPost });
+    await assert.rejects(
+      () => mutations.updateThreadgateAllow(foreignPost, []),
+      /thread author/,
+    );
+  });
+});
+
 describe("createThread", () => {
   const currentUserDid = "did:plc:me";
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
 
   function setup({ replyPostThread, authorFeed, replyAuthorFeed } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2539,7 +2968,7 @@ describe("deletePost", () => {
     };
     let apiCalledWith = null;
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2574,7 +3003,7 @@ describe("createMessage", () => {
 
   function setup({ convoMessages, convo } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2628,7 +3057,7 @@ describe("createMessage", () => {
   it("should pass replyTo to the api", async () => {
     let apiCalledWith = null;
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2653,7 +3082,7 @@ describe("createMessage", () => {
   it("should pass embed to the api", async () => {
     let apiCalledWith = null;
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2678,7 +3107,7 @@ describe("createMessage", () => {
 
   it("should propagate the raw error on send failure", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2707,7 +3136,7 @@ describe("acceptConvo", () => {
 
   function setup({ convoList, convoRequestList } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2791,7 +3220,7 @@ describe("acceptConvo", () => {
 describe("createGroupChat", () => {
   function setup({ convoList, apiFailure } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2867,7 +3296,7 @@ describe("rejectConvo", () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2915,7 +3344,7 @@ describe("leaveConvo", () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2958,7 +3387,7 @@ describe("leaveConvo", () => {
   it("should leave the store unchanged when api.leaveConvo throws", async () => {
     const otherAccepted = { id: "convo-2", status: "accepted" };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -2992,7 +3421,7 @@ describe("setConvoMuted", () => {
 
   it("should optimistically patch, then write to dataStore and clear the patch on success", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3003,7 +3432,10 @@ describe("setConvoMuted", () => {
       {
         muteConvo: async (id) => {
           muteCalledWith = id;
-          patchDuringApi = patchStore.$patchedConvos.get(convo.id);
+          patchDuringApi = applyConvoPatches(
+            patchStore,
+            dataStore.$convos.get(convo.id),
+          );
         },
       },
       dataStore,
@@ -3024,7 +3456,7 @@ describe("setConvoMuted", () => {
   it("should call api.unmuteConvo when muted=false", async () => {
     const mutedConvo = { id: "convo-1", muted: true };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3049,7 +3481,7 @@ describe("setConvoMuted", () => {
 
   it("should revert the optimistic patch and leave the dataStore unchanged when the api throws", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3069,12 +3501,15 @@ describe("setConvoMuted", () => {
 
     assert.deepEqual(dataStore.$convos.get(convo.id).muted, false);
     assert.deepEqual(patchStore.$convoPatches.get(convo.id), []);
-    assert.deepEqual(patchStore.$patchedConvos.get(convo.id).muted, false);
+    assert.deepEqual(
+      applyConvoPatches(patchStore, dataStore.$convos.get(convo.id)).muted,
+      false,
+    );
   });
 
   it("should not write to dataStore if the underlying convo was cleared during the api call", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3101,7 +3536,7 @@ describe("markConvoAsRead", () => {
   it("should call api.markConvoAsRead and zero the unread count", async () => {
     const convoId = "convo-1";
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3126,7 +3561,7 @@ describe("markConvoAsRead", () => {
 
   it("should not throw when the convo is not cached", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3144,7 +3579,7 @@ describe("markConvoAsRead", () => {
   it("should not call the api when the convo has no unread messages", async () => {
     const convoId = "convo-read";
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3179,10 +3614,11 @@ describe("addMessageReaction", () => {
 
   function setup({ convo } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    dataStore.$currentUser.set({ did: currentUserDid, handle: "me.test" });
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
@@ -3197,7 +3633,7 @@ describe("addMessageReaction", () => {
 
   it("should add an optimistic patch with the reaction", () => {
     const { mutations, patchStore } = setup();
-    mutations.addMessageReaction(convoId, messageId, emoji, currentUserDid);
+    mutations.addMessageReaction(convoId, messageId, emoji);
     const patches = patchStore._getMessagePatches(messageId);
     assert.deepEqual(patches.length, 1);
     assert.deepEqual(patches[0].body.type, "addReaction");
@@ -3207,12 +3643,7 @@ describe("addMessageReaction", () => {
 
   it("should store the returned message and clear the patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
-    await mutations.addMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.addMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
     assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
@@ -3221,12 +3652,7 @@ describe("addMessageReaction", () => {
     const { mutations, dataStore } = setup({
       convo: { id: convoId, unreadCount: 0 },
     });
-    await mutations.addMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.addMessageReaction(convoId, messageId, emoji);
     const convo = dataStore.$convos.get(convoId);
     assert.deepEqual(
       convo.lastReaction.$type,
@@ -3246,10 +3672,11 @@ describe("removeMessageReaction", () => {
 
   function setup({ convo } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    dataStore.$currentUser.set({ did: currentUserDid, handle: "me.test" });
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
@@ -3264,7 +3691,7 @@ describe("removeMessageReaction", () => {
 
   it("should add an optimistic removeReaction patch", () => {
     const { mutations, patchStore } = setup();
-    mutations.removeMessageReaction(convoId, messageId, emoji, currentUserDid);
+    mutations.removeMessageReaction(convoId, messageId, emoji);
     const patches = patchStore._getMessagePatches(messageId);
     assert.deepEqual(patches.length, 1);
     assert.deepEqual(patches[0].body.type, "removeReaction");
@@ -3274,12 +3701,7 @@ describe("removeMessageReaction", () => {
 
   it("should store the returned message and clear the patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
-    await mutations.removeMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.removeMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
     assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
@@ -3291,12 +3713,7 @@ describe("removeMessageReaction", () => {
         lastReaction: { existing: true },
       },
     });
-    await mutations.removeMessageReaction(
-      convoId,
-      messageId,
-      emoji,
-      currentUserDid,
-    );
+    await mutations.removeMessageReaction(convoId, messageId, emoji);
     assert.deepEqual(dataStore.$convos.get(convoId).lastReaction, null);
   });
 });
@@ -3309,7 +3726,7 @@ describe("sendShowLessInteraction", () => {
 
   it("should append the interaction to the dataStore (empty list branch)", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3344,7 +3761,7 @@ describe("sendShowLessInteraction", () => {
 
   it("should append to an existing list (non-empty branch)", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3372,7 +3789,7 @@ describe("sendShowLessInteraction", () => {
 
   it("should key stored interactions by feed", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3397,7 +3814,7 @@ describe("sendShowLessInteraction", () => {
 
   it("should omit feedContext when null but keep an empty string", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3433,7 +3850,7 @@ describe("sendShowLessInteraction", () => {
 
   it("should store but not send when there is no feed proxy url", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3464,7 +3881,7 @@ describe("sendShowMoreInteraction", () => {
 
   it("should append the interaction to the dataStore (empty list branch)", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3498,7 +3915,7 @@ describe("sendShowMoreInteraction", () => {
 
   it("should append to an existing list (non-empty branch)", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3550,7 +3967,7 @@ describe("pinList", () => {
         new Promise((resolve) => setTimeout(resolve, 100)),
     });
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     mutations.pinList(listUri);
@@ -3565,7 +3982,7 @@ describe("pinList", () => {
   it("should call preferences.pinFeed with type 'list'", async () => {
     const { provider, pinFeedCalls } = makeMockProvider();
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.pinList(listUri);
@@ -3578,7 +3995,7 @@ describe("pinList", () => {
   it("should remove patch after successful update", async () => {
     const { provider } = makeMockProvider();
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.pinList(listUri);
@@ -3593,7 +4010,7 @@ describe("pinList", () => {
       },
     });
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     let errorThrown = false;
@@ -3621,7 +4038,7 @@ describe("pinFeed entryType", () => {
         new Promise((resolve) => setTimeout(resolve, 100)),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
       dataStore,
@@ -3652,7 +4069,7 @@ describe("unpinList", () => {
       updatePreferences: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.unpinList(listUri);
@@ -3673,7 +4090,7 @@ describe("unpinList", () => {
       updatePreferences: () => updatePromise,
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     const promise = mutations.unpinList(listUri);
@@ -3703,7 +4120,7 @@ describe("addProfileToList", () => {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3738,7 +4155,7 @@ describe("addProfileToList", () => {
       createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3771,7 +4188,7 @@ describe("addProfileToList", () => {
       ],
       cursor: null,
     });
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3797,7 +4214,7 @@ describe("addProfileToList", () => {
       },
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3847,7 +4264,7 @@ describe("removeProfileFromList", () => {
       ],
       cursor: null,
     });
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3869,7 +4286,7 @@ describe("removeProfileFromList", () => {
       deleteListItemRecord: async () => {},
     };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3915,7 +4332,7 @@ describe("removeProfileFromList", () => {
       ],
       cursor: null,
     });
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3945,7 +4362,7 @@ describe("removeProfileFromList", () => {
       listsWithMembership: [{ list: testList, listItem: initialListItem }],
       cursor: null,
     });
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -3990,7 +4407,7 @@ describe("$detailedProfiles mirroring", () => {
 
   function setup(mockApi, { seedDetailed = true } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -4055,7 +4472,7 @@ describe("$detailedProfiles mirroring", () => {
     const seedFollowed = { ...detailedSeed, viewer: { following: "at://x" } };
     const mockApi = { deleteFollowRecord: async () => {} };
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -4091,7 +4508,7 @@ describe("$detailedProfiles mirroring", () => {
 
   it("unmuteProfile mirrors viewer.muted=false into $detailedProfiles", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -4132,7 +4549,7 @@ describe("$detailedProfiles mirroring", () => {
 
   it("unblockProfile mirrors viewer.blocking=null into $detailedProfiles", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -4190,7 +4607,7 @@ describe("updateList", () => {
 
   function setup(overrides = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -4418,7 +4835,7 @@ describe("deleteList", () => {
 
   function setup({ listItems = [], overrides = {} } = {}) {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     const preferences = Preferences.createLoggedOutPreferences();
     const preferencesProvider = {
       requirePreferences: () => preferences,
@@ -4605,7 +5022,7 @@ describe("deleteList", () => {
 
   it("unpins the list if it was pinned", async () => {
     const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore(dataStore);
+    const patchStore = new PatchStore();
     let preferences = Preferences.createLoggedOutPreferences().pinFeed(
       listUri,
       "list",
@@ -4646,5 +5063,72 @@ describe("setSelectedFeedUri", () => {
     assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
     mutations.setSelectedFeedUri(null);
     assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+  });
+});
+
+describe("updatePostInteractionSettings", () => {
+  function makePreferenceMutations(initialPrefs) {
+    let updatedPreferences = null;
+    const mockPreferencesProvider = {
+      requirePreferences: () => new Preferences(initialPrefs, []),
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, getUpdatedPreferences: () => updatedPreferences };
+  }
+
+  it("should call updatePreferences with the new default settings", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    const rules = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+    const embeddingRules = [{ $type: "app.bsky.feed.postgate#disableRule" }];
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: embeddingRules,
+    });
+    assert.deepEqual(getUpdatedPreferences().getPostInteractionSettings(), {
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: embeddingRules,
+    });
+  });
+
+  it("should persist an empty threadgate array without decaying it to null", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: [],
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(
+      getUpdatedPreferences().getPostInteractionSettings().threadgateAllowRules,
+      [],
+    );
+  });
+
+  it("should clear the default when passed nulls", async () => {
+    const { mutations, getUpdatedPreferences } = makePreferenceMutations([
+      {
+        $type: "app.bsky.actor.defs#postInteractionSettingsPref",
+        threadgateAllowRules: [],
+        postgateEmbeddingRules: [
+          { $type: "app.bsky.feed.postgate#disableRule" },
+        ],
+      },
+    ]);
+    await mutations.updatePostInteractionSettings({
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(getUpdatedPreferences().getPostInteractionSettings(), {
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
   });
 });

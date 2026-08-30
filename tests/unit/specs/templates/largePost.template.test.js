@@ -121,6 +121,105 @@ describe("largePostTemplate", () => {
   });
 });
 
+describe("largePostTemplate - follow button", () => {
+  function postWithAuthorViewer(viewer) {
+    return { ...post, author: { ...post.author, viewer } };
+  }
+
+  it("should not render a follow button by default", () => {
+    const result = largePostTemplate({ post, ...baseProps });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='follow-button']"),
+      null,
+    );
+  });
+
+  it("should render a follow button when showFollowButton is set", () => {
+    const result = largePostTemplate({
+      post: postWithAuthorViewer({}),
+      ...baseProps,
+      showFollowButton: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const button = container.querySelector("[data-testid='follow-button']");
+    assert(button !== null);
+    assert.deepEqual(button.getAttribute("data-teststate"), "follow");
+    assert(!button.disabled);
+  });
+
+  it("should show follow-back state when the author follows the user", () => {
+    const result = largePostTemplate({
+      post: postWithAuthorViewer({ followedBy: "at://follow-back-uri" }),
+      ...baseProps,
+      showFollowButton: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const button = container.querySelector("[data-testid='follow-button']");
+    assert.deepEqual(button.getAttribute("data-teststate"), "follow-back");
+  });
+
+  it("should show following state when the user follows the author", () => {
+    const result = largePostTemplate({
+      post: postWithAuthorViewer({ following: "at://follow-uri" }),
+      ...baseProps,
+      showFollowButton: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const button = container.querySelector("[data-testid='follow-button']");
+    assert.deepEqual(button.getAttribute("data-teststate"), "following");
+  });
+
+  it("should call onClickFollow with the author and the toggled follow state", () => {
+    const followablePost = postWithAuthorViewer({});
+    const calls = [];
+    const result = largePostTemplate({
+      post: followablePost,
+      ...baseProps,
+      showFollowButton: true,
+      onClickFollow: (profile, doFollow) => calls.push([profile, doFollow]),
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    container.querySelector("[data-testid='follow-button']").click();
+    assert.deepEqual(calls, [[followablePost.author, true]]);
+  });
+
+  it("should call onClickFollow with false when already following", () => {
+    const followingPost = postWithAuthorViewer({
+      following: "at://follow-uri",
+    });
+    const calls = [];
+    const result = largePostTemplate({
+      post: followingPost,
+      ...baseProps,
+      showFollowButton: true,
+      onClickFollow: (profile, doFollow) => calls.push([profile, doFollow]),
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    container.querySelector("[data-testid='follow-button']").click();
+    assert.deepEqual(calls, [[followingPost.author, false]]);
+  });
+
+  it("should disable the follow button while a follow is pending", () => {
+    const result = largePostTemplate({
+      post: postWithAuthorViewer({}),
+      ...baseProps,
+      showFollowButton: true,
+      isFollowPending: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const button = container.querySelector("[data-testid='follow-button']");
+    assert(button.disabled);
+  });
+});
+
 describe("largePostTemplate - rich text", () => {
   it("should truncate long URLs in post text", () => {
     const url = "https://example.com/very/long/path/to/some/page";
@@ -230,6 +329,75 @@ describe("largePostTemplate - moderation", () => {
     const container = document.createElement("div");
     render(result, container);
     assert.deepEqual(container.querySelector("moderation-warning"), null);
+  });
+});
+
+describe("largePostTemplate - who can reply badge", () => {
+  afterEach(() => {
+    document.body
+      .querySelectorAll("[data-testid='who-can-reply-modal']")
+      .forEach((modal) => modal.remove());
+  });
+
+  function renderBadgeFor({ isUserPost, handler }) {
+    const container = document.createElement("div");
+    render(
+      largePostTemplate({
+        post,
+        ...baseProps,
+        isUserPost,
+        postInteractionHandler: { ...postInteractionHandler, ...handler },
+      }),
+      container,
+    );
+    return container.querySelector("[data-testid='who-can-reply-badge']");
+  }
+
+  it("opens the read-only modal for non-owners", () => {
+    const badge = renderBadgeFor({ isUserPost: false });
+    assert.deepEqual(badge.getAttribute("data-teststate"), "plain");
+    badge.click();
+    assert(
+      document.querySelector("[data-testid='who-can-reply-modal']") !== null,
+    );
+  });
+
+  it("opens the edit dialog for the owner's root post", () => {
+    let editedPost = null;
+    const badge = renderBadgeFor({
+      isUserPost: true,
+      handler: {
+        handleEditInteractionSettings: (targetPost) => {
+          editedPost = targetPost;
+        },
+      },
+    });
+    assert.deepEqual(badge.getAttribute("data-teststate"), "link");
+    badge.click();
+    assert.deepEqual(editedPost, post);
+    assert.deepEqual(
+      document.querySelector("[data-testid='who-can-reply-modal']"),
+      null,
+    );
+  });
+
+  it("does not render the badge for replies", () => {
+    const replyPost = {
+      ...post,
+      record: {
+        ...post.record,
+        reply: { root: { uri: "at://root" }, parent: { uri: "at://root" } },
+      },
+    };
+    const container = document.createElement("div");
+    render(
+      largePostTemplate({ post: replyPost, ...baseProps, isUserPost: true }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='who-can-reply-badge']"),
+      null,
+    );
   });
 });
 

@@ -174,7 +174,6 @@ export class Router extends EventEmitter {
   }
 
   mount(root) {
-    // Clear any pre-mount loading state
     root.innerHTML = "";
     let layoutContainer = null;
     if (this.layout) {

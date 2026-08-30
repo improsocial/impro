@@ -3373,3 +3373,127 @@ describe("recent GIFs", () => {
     assert.deepEqual(preferences.getRecentGifs(), []);
   });
 });
+
+describe("Preferences.getPostInteractionSettings", () => {
+  const PREF_TYPE = "app.bsky.actor.defs#postInteractionSettingsPref";
+  const DISABLE_RULE = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  it("returns null fields when no preference exists", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(preferences.getPostInteractionSettings(), {
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
+  });
+
+  it("returns null fields when the keys are absent", () => {
+    const preferences = new Preferences([{ $type: PREF_TYPE }], []);
+    assert.deepEqual(preferences.getPostInteractionSettings(), {
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
+  });
+
+  it("returns an empty threadgate array without decaying it to null", () => {
+    const preferences = new Preferences(
+      [{ $type: PREF_TYPE, threadgateAllowRules: [] }],
+      [],
+    );
+    assert.deepEqual(
+      preferences.getPostInteractionSettings().threadgateAllowRules,
+      [],
+    );
+  });
+
+  it("returns stored rules", () => {
+    const rules = [
+      { $type: "app.bsky.feed.threadgate#followingRule" },
+      { $type: "app.bsky.feed.threadgate#listRule", list: "at://list/1" },
+    ];
+    const preferences = new Preferences(
+      [
+        {
+          $type: PREF_TYPE,
+          threadgateAllowRules: rules,
+          postgateEmbeddingRules: [DISABLE_RULE],
+        },
+      ],
+      [],
+    );
+    assert.deepEqual(preferences.getPostInteractionSettings(), {
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: [DISABLE_RULE],
+    });
+  });
+
+  it("normalizes an empty postgate array to null (lexicon: same as absent)", () => {
+    const preferences = new Preferences(
+      [{ $type: PREF_TYPE, postgateEmbeddingRules: [] }],
+      [],
+    );
+    assert.deepEqual(
+      preferences.getPostInteractionSettings().postgateEmbeddingRules,
+      null,
+    );
+  });
+});
+
+describe("Preferences.setPostInteractionSettings", () => {
+  const PREF_TYPE = "app.bsky.actor.defs#postInteractionSettingsPref";
+  const DISABLE_RULE = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  it("creates the preference when it does not exist", () => {
+    const rules = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+    const updated = new Preferences([], []).setPostInteractionSettings({
+      threadgateAllowRules: rules,
+      postgateEmbeddingRules: [DISABLE_RULE],
+    });
+    assert.deepEqual(updated.obj, [
+      {
+        $type: PREF_TYPE,
+        threadgateAllowRules: rules,
+        postgateEmbeddingRules: [DISABLE_RULE],
+      },
+    ]);
+  });
+
+  it("stores an empty threadgate array as an empty array, not an absent key", () => {
+    const updated = new Preferences([], []).setPostInteractionSettings({
+      threadgateAllowRules: [],
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(updated.obj, [
+      { $type: PREF_TYPE, threadgateAllowRules: [] },
+    ]);
+    assert.deepEqual(
+      updated.getPostInteractionSettings().threadgateAllowRules,
+      [],
+    );
+  });
+
+  it("removes keys when set to null", () => {
+    const updated = new Preferences(
+      [
+        {
+          $type: PREF_TYPE,
+          threadgateAllowRules: [],
+          postgateEmbeddingRules: [DISABLE_RULE],
+        },
+      ],
+      [],
+    ).setPostInteractionSettings({
+      threadgateAllowRules: null,
+      postgateEmbeddingRules: null,
+    });
+    assert.deepEqual(updated.obj, [{ $type: PREF_TYPE }]);
+  });
+
+  it("does not modify the original preferences", () => {
+    const original = new Preferences([], []);
+    original.setPostInteractionSettings({
+      threadgateAllowRules: [],
+      postgateEmbeddingRules: [DISABLE_RULE],
+    });
+    assert.deepEqual(original.obj, []);
+  });
+});

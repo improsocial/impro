@@ -17,11 +17,11 @@ describe("toggle-switch", () => {
   }
 
   describe("ToggleSwitch - rendering", () => {
-    it("should render a track with role switch and a knob", () => {
+    it("should render a track and knob with role switch on the element", () => {
       const element = createToggle();
       const track = element.querySelector(".toggle-switch-track");
       assert(track !== null);
-      assert.deepEqual(track.getAttribute("role"), "switch");
+      assert.deepEqual(element.getAttribute("role"), "switch");
       assert(track.querySelector(".toggle-switch-knob") !== null);
     });
 
@@ -30,9 +30,9 @@ describe("toggle-switch", () => {
       const track = element.querySelector(".toggle-switch-track");
       assert(!track.classList.contains("checked"));
       assert(!track.classList.contains("disabled"));
-      assert.deepEqual(track.getAttribute("aria-checked"), "false");
-      assert.deepEqual(track.getAttribute("aria-disabled"), "false");
-      assert.deepEqual(track.getAttribute("tabindex"), "0");
+      assert.deepEqual(element.getAttribute("aria-checked"), "false");
+      assert.deepEqual(element.getAttribute("aria-disabled"), "false");
+      assert.deepEqual(element.getAttribute("tabindex"), "0");
       assert.deepEqual(element.checked, false);
       assert.deepEqual(element.disabled, false);
     });
@@ -41,7 +41,7 @@ describe("toggle-switch", () => {
       const element = createToggle({ checked: "" });
       const track = element.querySelector(".toggle-switch-track");
       assert(track.classList.contains("checked"));
-      assert.deepEqual(track.getAttribute("aria-checked"), "true");
+      assert.deepEqual(element.getAttribute("aria-checked"), "true");
       assert.deepEqual(element.checked, true);
     });
 
@@ -49,21 +49,19 @@ describe("toggle-switch", () => {
       const element = createToggle({ disabled: "" });
       const track = element.querySelector(".toggle-switch-track");
       assert(track.classList.contains("disabled"));
-      assert.deepEqual(track.getAttribute("aria-disabled"), "true");
-      assert.deepEqual(track.getAttribute("tabindex"), "-1");
+      assert.deepEqual(element.getAttribute("aria-disabled"), "true");
+      assert.deepEqual(element.getAttribute("tabindex"), "-1");
       assert.deepEqual(element.disabled, true);
     });
 
     it("should apply the label attribute as aria-label", () => {
       const element = createToggle({ label: "Dark mode" });
-      const track = element.querySelector(".toggle-switch-track");
-      assert.deepEqual(track.getAttribute("aria-label"), "Dark mode");
+      assert.deepEqual(element.getAttribute("aria-label"), "Dark mode");
     });
 
     it("should default aria-label to empty string without a label attribute", () => {
       const element = createToggle();
-      const track = element.querySelector(".toggle-switch-track");
-      assert.deepEqual(track.getAttribute("aria-label"), "");
+      assert.deepEqual(element.getAttribute("aria-label"), "");
     });
 
     it("should not duplicate the track when connectedCallback runs again", () => {
@@ -82,7 +80,7 @@ describe("toggle-switch", () => {
       element.setAttribute("checked", "");
       const track = element.querySelector(".toggle-switch-track");
       assert(track.classList.contains("checked"));
-      assert.deepEqual(track.getAttribute("aria-checked"), "true");
+      assert.deepEqual(element.getAttribute("aria-checked"), "true");
     });
 
     it("should update the DOM when the checked attribute is removed", () => {
@@ -90,7 +88,7 @@ describe("toggle-switch", () => {
       element.removeAttribute("checked");
       const track = element.querySelector(".toggle-switch-track");
       assert(!track.classList.contains("checked"));
-      assert.deepEqual(track.getAttribute("aria-checked"), "false");
+      assert.deepEqual(element.getAttribute("aria-checked"), "false");
     });
 
     it("should update the DOM when the disabled attribute changes", () => {
@@ -98,11 +96,11 @@ describe("toggle-switch", () => {
       element.setAttribute("disabled", "");
       const track = element.querySelector(".toggle-switch-track");
       assert(track.classList.contains("disabled"));
-      assert.deepEqual(track.getAttribute("tabindex"), "-1");
+      assert.deepEqual(element.getAttribute("tabindex"), "-1");
 
       element.removeAttribute("disabled");
       assert(!track.classList.contains("disabled"));
-      assert.deepEqual(track.getAttribute("tabindex"), "0");
+      assert.deepEqual(element.getAttribute("tabindex"), "0");
     });
   });
 
@@ -171,6 +169,39 @@ describe("toggle-switch", () => {
       element.addEventListener("change", changeListener);
       element.querySelector(".toggle-switch-track").click();
       assert.deepEqual(changeListener.mock.callCount(), 0);
+    });
+  });
+
+  describe("ToggleSwitch - label association", () => {
+    it("should dispatch a single change when a wrapping label is clicked", () => {
+      const label = document.createElement("label");
+      const labelText = document.createElement("span");
+      labelText.textContent = "Dark mode";
+      const element = document.createElement("toggle-switch");
+      label.append(labelText, element);
+      document.body.appendChild(label);
+
+      const changeListener = mock.fn();
+      element.addEventListener("change", changeListener);
+      labelText.click();
+
+      assert.deepEqual(changeListener.mock.callCount(), 1);
+      assert.deepEqual(changeListener.mock.calls[0].arguments[0].detail, {
+        checked: true,
+      });
+    });
+
+    it("should not double-fire when the switch inside a label is clicked directly", () => {
+      const label = document.createElement("label");
+      const element = document.createElement("toggle-switch");
+      label.append(element);
+      document.body.appendChild(label);
+
+      const changeListener = mock.fn();
+      element.addEventListener("change", changeListener);
+      element.querySelector(".toggle-switch-track").click();
+
+      assert.deepEqual(changeListener.mock.callCount(), 1);
     });
   });
 

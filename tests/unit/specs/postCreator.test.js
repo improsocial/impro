@@ -581,6 +581,22 @@ describe("draft passthrough fields", () => {
     assert.deepEqual(writes[2].value.embeddingRules, postgateEmbeddingRules);
   });
 
+  it("writes a threadgate with empty allow for 'nobody'", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await createSinglePost(pc, { postText: "hi", threadgateAllow: [] });
+    const writes = api.lastWrites;
+    assert.deepEqual(
+      writes.map((write) => write.collection),
+      ["app.bsky.feed.post", "app.bsky.feed.threadgate"],
+    );
+    assert.deepEqual(writes[1].value.allow, []);
+  });
+
   it("writes no gate records when the fields are absent or empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(

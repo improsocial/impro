@@ -9,6 +9,8 @@ function getHeaderElement(container) {
 }
 
 function lockScroll(container) {
+  // Important: read scrollY before pinning the header
+  const scrollY = window.scrollY;
   const header = getHeaderElement(container);
   let headerHeight = 0;
   if (header) {
@@ -18,11 +20,11 @@ function lockScroll(container) {
   // https://stackoverflow.com/a/19667968
   const main = container.querySelector("main");
   if (main) {
-    const topMargin = -1 * (window.scrollY - headerHeight);
+    const topMargin = -1 * (scrollY - headerHeight);
     main.style.marginTop = topMargin + "px";
-    // Non-zero padding keeps the compensation margin from collapsing
-    // with the first child's top margin
-    main.style.paddingTop = "0.05px";
+    // flow-root keeps the compensation margin from collapsing with the
+    // first child's top margin
+    main.style.display = "flow-root";
   }
   const body = document.body;
   body.style.position = "fixed";
@@ -55,7 +57,7 @@ function unlockScroll(container, { restoreScroll = true } = {}) {
   if (main) {
     scrollTo = -1 * (main.getBoundingClientRect().top - headerHeight);
     main.style.marginTop = "";
-    main.style.paddingTop = "";
+    main.style.display = "";
   }
   if (header) {
     header.classList.remove("scroll-lock-pinned");

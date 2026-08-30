@@ -38,6 +38,7 @@ import "/js/components/tab-bar.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 function notificationItemTemplate({ href, isUnread, children }) {
   const unreadClass = isUnread ? "unread" : "";
@@ -273,7 +274,11 @@ export default async function notificationsView({
     const displayName = getDisplayName(firstNotif.author);
     const otherCount = notifications.length - 1;
     return html`<span
-      ><strong>${displayName}</strong>${verificationBadgeTemplate({
+      ><a
+        class="notification-profile-link"
+        href="${linkToProfile(firstNotif.author)}"
+        >${displayName}</a
+      >${verificationBadgeTemplate({
         profile: firstNotif.author,
       })}${automatedAccountBadgeTemplate({
         profile: firstNotif.author,
@@ -657,9 +662,7 @@ export default async function notificationsView({
     console.error(error);
     return html`<div class="error-state">
       <div>There was an error loading notifications.</div>
-      <button class="rounded-button" @click=${() => window.location.reload()}>
-        Try again
-      </button>
+      ${tryAgainButtonTemplate()}
     </div>`;
   }
 

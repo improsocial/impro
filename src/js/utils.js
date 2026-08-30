@@ -2,6 +2,10 @@ import { Capacitor } from "/js/lib/capacitor.js";
 
 export function noop() {}
 
+export function isNil(value) {
+  return value === null || value === undefined;
+}
+
 export function kebabCase(str) {
   return str.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
@@ -253,7 +257,7 @@ export function classnames(...defs) {
           .filter(([_, value]) => value)
           .map(([key]) => key)
           .join(" ") + " ";
-    } else if (def === null || def === undefined) {
+    } else if (isNil(def)) {
       continue;
     } else {
       throw new Error("Invalid classname definition");
