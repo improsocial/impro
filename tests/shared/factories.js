@@ -173,6 +173,7 @@ export function createProfile({
   associated,
   viewer,
   labels,
+  status,
 }) {
   return {
     did,
@@ -188,6 +189,51 @@ export function createProfile({
     ...(followersCount !== undefined ? { followersCount } : {}),
     ...(followsCount !== undefined ? { followsCount } : {}),
     ...(postsCount !== undefined ? { postsCount } : {}),
+    ...(status ? { status } : {}),
+  };
+}
+
+// A hydrated app.bsky.actor.defs#statusView, as it arrives on profile views
+export function createLiveStatusView({
+  did,
+  url = "https://www.twitch.tv/testuser",
+  title = "Test Stream",
+  createdAt = "2025-01-15T12:00:00.000Z",
+  durationMinutes = 60,
+  expiresAt,
+  isDisabled = false,
+  embed,
+  thumb,
+}) {
+  // Pass expiresAt: null to omit the field entirely
+  const computedExpiresAt =
+    expiresAt ??
+    new Date(Date.parse(createdAt) + durationMinutes * 60 * 1000).toISOString();
+  return {
+    status: "app.bsky.actor.status#live",
+    uri: `at://${did}/app.bsky.actor.status/self`,
+    cid: "bafyreilivestatus",
+    record: {
+      $type: "app.bsky.actor.status",
+      status: "app.bsky.actor.status#live",
+      createdAt,
+      durationMinutes,
+    },
+    embed:
+      embed !== undefined
+        ? embed
+        : {
+            $type: "app.bsky.embed.external#view",
+            external: {
+              uri: url,
+              title,
+              description: "",
+              ...(thumb ? { thumb } : {}),
+            },
+          },
+    isActive: true,
+    ...(expiresAt === null ? {} : { expiresAt: computedExpiresAt }),
+    isDisabled,
   };
 }
 
@@ -365,6 +411,7 @@ export function createPost({
   labels,
   viewer,
   authorViewer,
+  authorStatus,
   loggedOut = false,
   threadgate,
 }) {
@@ -382,6 +429,7 @@ export function createPost({
         : { viewer: { muted: false, blockedBy: false, ...authorViewer } }),
       labels: [],
       createdAt: "2025-01-01T00:00:00.000Z",
+      ...(authorStatus ? { status: authorStatus } : {}),
     },
     record: {
       $type: "app.bsky.feed.post",

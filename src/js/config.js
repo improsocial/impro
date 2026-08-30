@@ -36,6 +36,15 @@ export const VIDEO_SERVICE_DID = "did:web:video.bsky.app";
 
 export const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 
+export const LIVE_ALLOWED_DOMAINS = [
+  "twitch.tv",
+  "stream.place",
+  "bluecast.app",
+  "youtube.com",
+  "substack.com",
+  "beehiiv.com",
+];
+
 export const IN_APP_LINK_DOMAINS = [
   "bsky.app",
   "impro.social",

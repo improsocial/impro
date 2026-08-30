@@ -1,10 +1,21 @@
-import { mock } from "node:test";
+import { afterEach, mock } from "node:test";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { Signal, SignalMap } from "/js/signals.js";
+
+const disposables = new Set();
+afterEach(() => {
+  for (const disposable of disposables) disposable.dispose();
+  disposables.clear();
+});
+
+export function trackDisposable(disposable) {
+  disposables.add(disposable);
+  return disposable;
+}
 
 export function makeTestDataLayer({
   api: apiOverrides = {},
@@ -21,7 +32,7 @@ export function makeTestDataLayer({
     updatePreferences: async () => {},
     ...apiOverrides,
   };
-  return new DataLayer(
+  const dataLayer = new DataLayer(
     api,
     new PreferencesProvider(api),
     identityResolver ?? { resolveHandle: async () => null },
@@ -29,6 +40,8 @@ export function makeTestDataLayer({
     hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),
     constellation ?? new Constellation(),
   );
+  trackDisposable(dataLayer.derived.liveStatusScheduler);
+  return dataLayer;
 }
 
 export function makeTestPluginService(overrides = {}) {

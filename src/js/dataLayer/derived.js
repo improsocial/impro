@@ -25,8 +25,9 @@ import {
   attachJoinLinkPreviewToEmbed,
   getJoinLinkCodeFromEmbed,
   isFollowingFeedUri,
+  isStatusValid,
 } from "/js/dataHelpers.js";
-import { sortBy } from "/js/utils.js";
+import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
 import {
   effect,
@@ -123,6 +124,7 @@ export class Derived extends ReactiveStore {
     hiddenFeedItemsStore,
     isAuthenticated,
     draftMediaStore,
+    liveStatusScheduler = new KeyedScheduler(),
   ) {
     super("derived");
     this.dataStore = dataStore;
@@ -131,6 +133,9 @@ export class Derived extends ReactiveStore {
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.isAuthenticated = isAuthenticated;
     this.draftMediaStore = draftMediaStore;
+    this.liveStatusScheduler = liveStatusScheduler;
+    // did → increasing id, bumped when an actor's live status expires
+    this.$liveStatusRecheckIds = new SignalMap();
     this.$showLessInteractions = new ComputedMap(
       (feedUri) => this.dataStore.$showLessInteractions.get(feedUri) ?? [],
     );
@@ -173,6 +178,61 @@ export class Derived extends ReactiveStore {
       if (!patches?.length) return profile;
       return this.patchStore.applyProfilePatches(profile, patches);
     });
+    // { state: "none" | "active" | "inactive" }
+    this.$actorLiveStatus = new ComputedMap((did) => {
+      const profile =
+        this.$patchedDetailedProfiles.get(did) ??
+        this.$patchedProfiles.get(did);
+      const statusView = profile?.status;
+      if (!statusView || typeof statusView !== "object") {
+        return { state: "none" };
+      }
+      const viewer = profile.viewer;
+      const preferences = this.$preferences.get();
+      if (
+        viewer?.blocking ||
+        viewer?.blockedBy ||
+        viewer?.muted ||
+        (preferences && preferences.getProfileBlurLabel(profile))
+      ) {
+        return { state: "none" };
+      }
+      if (isStatusValid(statusView)) {
+        // Subscribe to expiry rechecks
+        this.$liveStatusRecheckIds.get(did);
+        const delayMs = Date.parse(statusView.expiresAt) - Date.now();
+        if (Number.isFinite(delayMs) && delayMs > 0) {
+          // Schedule expiry recheck - note this is a side effect, so be careful with this logic!
+          this.liveStatusScheduler.schedule(did, delayMs, () => {
+            this.$liveStatusRecheckIds.set(
+              did,
+              (this.$liveStatusRecheckIds.get(did) ?? 0) + 1,
+            );
+          });
+          if (!statusView.isDisabled) {
+            return {
+              state: "active",
+              uri: statusView.uri,
+              cid: statusView.cid ?? null,
+              embed: statusView.embed,
+              expiresAt: statusView.expiresAt,
+              record: statusView.record ?? null,
+            };
+          }
+        }
+      }
+      return {
+        state: "inactive",
+        isDisabled: !!statusView.isDisabled,
+        uri: statusView.uri ?? null,
+        cid: statusView.cid ?? null,
+        record: statusView.record ?? null,
+        expiresAt: statusView.expiresAt ?? null,
+      };
+    });
+    this.$isActorLive = new ComputedMap(
+      (did) => this.$actorLiveStatus.get(did).state === "active",
+    );
     this.$patchedMessages = new ComputedMap((messageId) => {
       const message = this.dataStore.$messages.get(messageId);
       if (!message) return null;
@@ -454,16 +514,12 @@ export class Derived extends ReactiveStore {
     this.$hydratedProfiles = new ComputedMap((did) => {
       const profile = this.$patchedProfiles.get(did);
       if (!profile) return profile;
-      const preferences = this.$preferences.get();
-      if (!preferences) return profile;
-      return this.hydrateProfileLabels(profile, preferences);
+      return this.hydrateProfile(profile);
     });
     this.$hydratedDetailedProfiles = new ComputedMap((did) => {
       const profile = this.$patchedDetailedProfiles.get(did);
       if (!profile) return null;
-      const preferences = this.$preferences.get();
-      if (!preferences) return profile;
-      return this.hydrateProfileLabels(profile, preferences);
+      return this.hydrateProfile(profile);
     });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
       const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
@@ -567,9 +623,14 @@ export class Derived extends ReactiveStore {
       if (!preferences) return null;
       return preferences.getLabelerSettings(labelerDid);
     });
-    this.$convos = new ComputedMap((convoId) =>
-      this.$patchedConvos.get(convoId),
-    );
+    this.$convos = new ComputedMap((convoId) => {
+      const convo = this.$patchedConvos.get(convoId);
+      if (!convo) return convo;
+      return {
+        ...convo,
+        members: convo.members.map((member) => this.hydrateProfile(member)),
+      };
+    });
     this.$convoList = new Signal.Computed(() => {
       const data = this.dataStore.$convoList.get();
       if (!data) return null;
@@ -618,12 +679,9 @@ export class Derived extends ReactiveStore {
         .filter((did) => !convo.members.some((member) => member.did === did))
         .map((did) => this.$hydratedProfiles.get(did))
         .filter(Boolean);
-      const preferences = this.$preferences.get();
-      const members = preferences
-        ? convo.members.map((member) =>
-            this.hydrateProfileLabels(member, preferences),
-          )
-        : convo.members;
+      const members = convo.members.map((member) =>
+        this.hydrateProfile(member),
+      );
       return [...members, ...referencedProfiles];
     });
     this.$convoForProfile = new ComputedMap((profileDid) => {
@@ -797,15 +855,22 @@ export class Derived extends ReactiveStore {
     return { ...item, embed: updated };
   }
 
-  hydrateProfileLabels(profile, preferences) {
+  hydrateProfile(profile) {
+    const preferences = this.$preferences.get();
     let result = profile;
-    const blurLabel = preferences.getProfileBlurLabel(profile);
-    if (blurLabel) {
-      result = { ...result, blurLabel };
+    if (preferences) {
+      const blurLabel = preferences.getProfileBlurLabel(result);
+      if (blurLabel) {
+        result = { ...result, blurLabel };
+      }
+      const badgeLabels = preferences.getBadgeLabelsForProfile(result);
+      if (badgeLabels.length > 0) {
+        result = { ...result, badgeLabels };
+      }
     }
-    const badgeLabels = preferences.getBadgeLabelsForProfile(profile);
-    if (badgeLabels.length > 0) {
-      result = { ...result, badgeLabels };
+    if (result?.did && this.$isActorLive.get(result.did)) {
+      // NOTE: LEXICON DEVIATION
+      result = { ...result, isLive: true };
     }
     return result;
   }
@@ -815,7 +880,7 @@ export class Derived extends ReactiveStore {
       return null;
     }
     const storedAuthor = post.author?.did
-      ? this.$patchedProfiles.get(post.author.did)
+      ? this.$hydratedProfiles.get(post.author.did)
       : null;
     if (storedAuthor) {
       post = { ...post, author: storedAuthor };

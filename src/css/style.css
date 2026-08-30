@@ -123,6 +123,7 @@ html {
     transparent
   );
   --warning-color: var(--yellow);
+  --live-color: light-dark(#e91646, #eb2452);
 
   /* border colors */
   --header-border-color: var(--generic-border-color);
@@ -1140,6 +1141,57 @@ input[type="color"]::-moz-color-swatch {
   align-items: center;
   justify-content: center;
   width: fit-content;
+}
+
+.avatar-live-frame {
+  position: relative;
+  display: inline-flex;
+}
+
+.avatar-image-frame.avatar-live {
+  border: 2px solid var(--live-color);
+}
+
+.avatar-live-badge {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--live-color);
+  color: var(--white);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.avatar-live-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  color: inherit;
+  font: inherit;
+}
+
+.profile-top-row .avatar-image-frame.avatar-live {
+  border-width: 3px;
+  border-color: var(--live-color);
+}
+
+.profile-top-row .avatar-live-badge {
+  font-size: 12px;
+  padding: 3px 6px;
+  bottom: -8px;
+  border-radius: 5px;
 }
 
 .avatar-placeholder {
@@ -5250,6 +5302,118 @@ chat-input .rich-text-input-placeholder {
   color: var(--text-color);
   line-height: 1;
   padding: 2px 2px 2px 0;
+}
+
+@media (min-width: 800px) {
+  .bottom-sheet.live-status-dialog {
+    max-width: 400px;
+  }
+}
+
+.live-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.live-status-dialog-content {
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+  overflow-y: auto;
+}
+
+.live-status-thumb {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1.91 / 1;
+  background-color: var(--skeleton-color);
+}
+
+.live-status-thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.live-status-thumb-image--blurred {
+  filter: blur(20px);
+  transform: translateZ(0);
+}
+
+.live-status-thumb-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: var(--live-color);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 5px;
+}
+
+.live-status-title {
+  font-size: 17px;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.live-status-domain {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.live-status-watch-button {
+  text-align: center;
+  text-decoration: none;
+}
+
+.live-status-divider {
+  border-top: var(--hair) solid var(--generic-border-color);
+}
+
+.live-status-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-status-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-status-profile-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-status-profile-handle {
+  font-size: 14px;
+  color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-status-footer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-color-muted);
+  padding: 0 16px 16px;
 }
 
 .bottom-sheet.reactions-dialog {

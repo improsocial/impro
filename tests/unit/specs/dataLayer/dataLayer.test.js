@@ -5,6 +5,7 @@ import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
+import { trackDisposable } from "../../testHelpers.js";
 
 function createMockApi(options = {}) {
   const isAuthenticated = options.isAuthenticated ?? false;
@@ -19,7 +20,7 @@ function createMockApi(options = {}) {
 }
 
 function createDataLayer(api) {
-  return new DataLayer(
+  const dataLayer = new DataLayer(
     api,
     new PreferencesProvider(api),
     { resolveHandle: async () => null },
@@ -27,6 +28,8 @@ function createDataLayer(api) {
     new HiddenFeedItemsStore(),
     new Constellation(),
   );
+  trackDisposable(dataLayer.derived.liveStatusScheduler);
+  return dataLayer;
 }
 
 describe("constructor", () => {

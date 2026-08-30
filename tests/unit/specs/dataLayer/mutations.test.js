@@ -11,6 +11,7 @@ import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
+import { trackDisposable } from "../../testHelpers.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -66,7 +67,7 @@ function makeDerived(
             : null,
         ),
       };
-  return new Derived(
+  const derived = new Derived(
     dataStore,
     patchStore,
     provider,
@@ -74,6 +75,8 @@ function makeDerived(
     isAuthenticated,
     new DraftMediaStore("test-media"),
   );
+  trackDisposable(derived.liveStatusScheduler);
+  return derived;
 }
 
 describe("addLike", () => {

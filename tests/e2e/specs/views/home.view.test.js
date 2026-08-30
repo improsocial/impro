@@ -4,6 +4,7 @@ import { MockServer } from "../../mockServer.js";
 import {
   createFeedGenerator,
   createList,
+  createLiveStatusView,
   createPost,
 } from "../../../shared/factories.js";
 import { userProfile } from "../../testData.js";
@@ -1456,6 +1457,51 @@ test.describe("Home view", () => {
       await expect(page.locator('[data-testid="toast"]')).toBeVisible({
         timeout: 10000,
       });
+    });
+  });
+
+  test.describe("Live avatars on touch devices", () => {
+    test.use({
+      viewport: { width: 375, height: 667 },
+      hasTouch: true,
+      isMobile: true,
+    });
+
+    test("tapping a live avatar opens the live status dialog instead of navigating", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const post = createPost({
+        uri: "at://did:plc:liveauthor1/app.bsky.feed.post/post1",
+        text: "Streaming now",
+        authorHandle: "liveauthor.bsky.social",
+        authorDisplayName: "Live Author",
+        authorStatus: createLiveStatusView({
+          did: "did:plc:liveauthor1",
+          url: "https://www.twitch.tv/liveauthor",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      mockServer.addTimelinePosts([post]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const feedItem = page.locator('[data-testid="feed-item"]');
+      await expect(feedItem.locator('[data-testid="live-badge"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      await feedItem.locator("a.avatar-link").click();
+      const dialog = page.locator('[data-testid="live-status-dialog"]');
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.locator('[data-testid="live-status-watch"]'),
+      ).toHaveAttribute("href", "https://www.twitch.tv/liveauthor");
+
+      // Still on the home view — the tap did not navigate to the profile
+      await expect(page.locator("#home-view")).toBeVisible();
     });
   });
 });

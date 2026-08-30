@@ -160,3 +160,13 @@ class EmojiPickerStub extends globalThis.window.HTMLElement {}
 if (!globalThis.customElements.get("emoji-picker")) {
   globalThis.customElements.define("emoji-picker", EmojiPickerStub);
 }
+
+// Global per-test cleanup: emptying the body disconnects custom elements
+// (whose disconnectedCallback clears their timers) and cleanupToasts
+// cancels toast timers, so no test leaves timers pending on the event loop.
+const { afterEach } = await import("node:test");
+const { cleanupToasts } = await import("/js/toasts.js");
+afterEach(() => {
+  document.body.replaceChildren();
+  cleanupToasts();
+});

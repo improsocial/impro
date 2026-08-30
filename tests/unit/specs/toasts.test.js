@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { showToast, showPluginToast, hidePluginToast } from "/js/toasts.js";
+import {
+  showToast,
+  showPluginToast,
+  hidePluginToast,
+  cleanupToasts,
+} from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
 
 function clearDOM() {
@@ -238,6 +243,31 @@ describe("showPluginToast", () => {
       timeout: 0,
     });
     assert.deepEqual(document.querySelectorAll(".toast").length, 2);
+  });
+});
+
+describe("cleanupToasts", () => {
+  it("should dismiss and remove every mounted toast immediately", async () => {
+    clearDOM();
+    await showToast("First", { timeout: 0 });
+    await showToast("Second", { timeout: 0 });
+    assert.deepEqual(document.querySelectorAll(".toast").length, 2);
+    cleanupToasts();
+    assert.deepEqual(document.querySelectorAll(".toast").length, 0);
+  });
+
+  it("should be a no-op when no toasts are mounted", () => {
+    clearDOM();
+    cleanupToasts();
+  });
+
+  it("should remove a toast that was already dismissed but not yet cleaned up", async () => {
+    clearDOM();
+    const handle = await showToast("Going", { timeout: 0 });
+    handle.dismiss();
+    assert(document.querySelector(".toast") !== null);
+    cleanupToasts();
+    assert.deepEqual(document.querySelectorAll(".toast").length, 0);
   });
 });
 

@@ -2,6 +2,8 @@ import { html, render, keyed } from "/js/lib/lit-html.js";
 import { Signal, effect } from "/js/signals.js";
 import { classnames, formatLargeNumber } from "/js/utils.js";
 import {
+  cdnImageUrl,
+  getDisplayDomain,
   getDisplayName,
   isLabelerProfile,
   hasValidHandle,
@@ -49,16 +51,29 @@ class ProfileHoverCard extends Component {
         null;
       const currentUser = derived.$currentUser.get();
       const isDetailed = !!derived.$hydratedDetailedProfiles.get(did);
+      const liveStatus = derived.$actorLiveStatus.get(did);
+      const isLive = liveStatus.state === "active" && !!profile;
+      // Match social-app: the live card is wider than the profile card
+      this.#floatingCard.style.width = isLive ? "350px" : "300px";
       render(
         keyed(
           did,
-          hoverCardTemplate({
-            profile,
-            isDetailed,
-            currentUser,
-            interactionHandlers: this.#interactionHandlers,
-            dataLayer: this.#dataLayer,
-          }),
+          isLive
+            ? liveHoverCardTemplate({
+                profile,
+                liveStatus,
+                onOpenProfile: () => {
+                  this.close();
+                  window.router.go(linkToProfile(profile));
+                },
+              })
+            : hoverCardTemplate({
+                profile,
+                isDetailed,
+                currentUser,
+                interactionHandlers: this.#interactionHandlers,
+                dataLayer: this.#dataLayer,
+              }),
         ),
         this.#floatingCard,
       );
@@ -99,6 +114,61 @@ class ProfileHoverCard extends Component {
 }
 
 ProfileHoverCard.register();
+
+function liveHoverCardTemplate({ profile, liveStatus, onOpenProfile }) {
+  const external = liveStatus?.embed?.external;
+  if (!external) return null;
+  const title = external.title || external.uri;
+  const thumb = external.thumb ? cdnImageUrl(external.thumb) : null;
+  return html`<div class="profile-hover-card-anim">
+    <div class="live-status-card" data-testid="live-status-card">
+      ${thumb
+        ? html`<div class="live-status-thumb" data-testid="live-status-thumb">
+            <img
+              src="${thumb}"
+              alt=""
+              class=${classnames("live-status-thumb-image", {
+                "live-status-thumb-image--blurred": !!profile.blurLabel,
+              })}
+            />
+            <div class="live-status-thumb-badge">LIVE</div>
+          </div>`
+        : null}
+      <div class="live-status-info">
+        <div class="live-status-title">${title}</div>
+        <div class="live-status-domain">${getDisplayDomain(external.uri)}</div>
+      </div>
+      <a
+        class="rounded-button rounded-button-primary live-status-watch-button"
+        data-testid="live-status-watch"
+        href="${external.uri}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Watch now
+      </a>
+      <div class="live-status-divider"></div>
+      <div class="live-status-profile-row">
+        ${avatarTemplate({
+          author: profile,
+          clickAction: "none",
+          showLiveBadge: false,
+        })}
+        <div class="live-status-profile-info">
+          <div class="live-status-profile-name">${getDisplayName(profile)}</div>
+          <div class="live-status-profile-handle">@${profile.handle}</div>
+        </div>
+        <button
+          class="rounded-button live-status-open-profile-button"
+          data-testid="live-status-open-profile"
+          @click=${onOpenProfile}
+        >
+          Open profile
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
 
 function loadingBodyTemplate() {
   return html`<div class="profile-hover-card-loading">
