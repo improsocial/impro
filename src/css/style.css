@@ -10243,11 +10243,19 @@ label:has(toggle-switch[disabled]) {
 }
 
 .interaction-settings-lists-toggle {
-  padding: 8px 0;
-  color: var(--text-color);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.interaction-settings-lists-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.interaction-settings-lists-chevron {
+  display: flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .interaction-settings-lists-message {

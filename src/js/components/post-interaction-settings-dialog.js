@@ -116,19 +116,30 @@ function listsSectionTemplate({
   listsError,
   atRuleCap,
   isSaving,
+  listsOpen,
+  onToggleListsOpen,
   onToggleList,
 }) {
   const selectedCount = settings.filter(
     (setting) => setting.type === "list",
   ).length;
   return html`
-    <details class="interaction-settings-lists">
+    <details
+      class="interaction-settings-lists"
+      @toggle=${(event) => onToggleListsOpen(event.target.open)}
+    >
       <summary
-        class="interaction-settings-lists-toggle"
+        class="checkbox-row interaction-settings-row interaction-settings-lists-toggle"
         data-testid="interaction-settings-lists-toggle"
       >
-        Select from your
-        lists${selectedCount > 0 ? ` (${selectedCount} selected)` : ""}
+        <span>
+          Select from your
+          lists${selectedCount > 0 ? ` (${selectedCount} selected)` : ""}
+        </span>
+        <app-icon
+          class="interaction-settings-lists-chevron"
+          icon=${listsOpen ? "chevron-up-line" : "chevron-down-line"}
+        ></app-icon>
       </summary>
       ${listsError
         ? html`<div class="interaction-settings-lists-message">
@@ -187,6 +198,8 @@ function interactionSettingsFormTemplate({
   saveError,
   defaultsRowState,
   saveAsDefault,
+  listsOpen,
+  onToggleListsOpen,
   onToggleSaveAsDefault,
   onSelectEverybody,
   onSelectNobody,
@@ -254,6 +267,8 @@ function interactionSettingsFormTemplate({
           listsError,
           atRuleCap,
           isSaving,
+          listsOpen,
+          onToggleListsOpen,
           onToggleList,
         })}
         ${preservedSettings.map((setting) =>
@@ -333,6 +348,7 @@ class PostInteractionSettingsDialog extends Component {
     this.state.$isSaving = new Signal.State(false);
     this.state.$saveError = new Signal.State(null);
     this.state.$saveAsDefault = new Signal.State(false);
+    this.state.$listsOpen = new Signal.State(false);
     this._defaultAllowJson = this.defaultInteractionSettings
       ? JSON.stringify(this.defaultInteractionSettings.threadgateAllowRules)
       : null;
@@ -476,6 +492,7 @@ class PostInteractionSettingsDialog extends Component {
     const isSaving = this.state.$isSaving.get();
     const saveError = this.state.$saveError.get();
     const saveAsDefault = this.state.$saveAsDefault.get();
+    const listsOpen = this.state.$listsOpen.get();
     const curateLists = this._getCurateLists();
     let defaultsRowState = null;
     if (this._defaultAllowJson !== null) {
@@ -539,6 +556,8 @@ class PostInteractionSettingsDialog extends Component {
                 saveError,
                 defaultsRowState,
                 saveAsDefault,
+                listsOpen,
+                onToggleListsOpen: (open) => this.state.$listsOpen.set(open),
                 onToggleSaveAsDefault: (checked) =>
                   this.state.$saveAsDefault.set(checked),
                 onSelectEverybody: () => this._selectEverybody(),
