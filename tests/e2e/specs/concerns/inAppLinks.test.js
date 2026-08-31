@@ -183,6 +183,34 @@ test.describe("In-app link interception", () => {
     expect(page.url()).toContain("example.com/some-page");
   });
 
+  test("should not intercept links with a plugin-preview query param", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__spaSessionMarker = true;
+      const anchor = document.createElement("a");
+      anchor.href = "/?plugin-preview=example-plugin";
+      anchor.textContent = "Plugin preview";
+      anchor.id = "test-plugin-preview-link";
+      document.body.appendChild(anchor);
+    });
+
+    await page.locator("#test-plugin-preview-link").click();
+
+    await expect(page).toHaveURL(/\?plugin-preview=example-plugin$/);
+    await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
+
+    // A full document navigation resets window state; an SPA transition would
+    // have kept the marker
+    const marker = await page.evaluate(() => window.__spaSessionMarker);
+    expect(marker).toBe(undefined);
+
+    // Logged in, bootstrap shows the preview-links warning toast
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
   test("should not intercept modifier-key clicks on in-app links", async ({
     page,
   }) => {

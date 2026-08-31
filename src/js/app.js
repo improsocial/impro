@@ -63,7 +63,10 @@ import {
   getAppViewConfig,
   handleAppViewResetQueryParam,
 } from "/js/appViewConfig.js";
-import { PluginService } from "/js/plugins/pluginService.js";
+import {
+  PluginService,
+  PLUGIN_PREVIEW_QUERY_PARAM,
+} from "/js/plugins/pluginService.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
@@ -452,11 +455,16 @@ export async function main() {
     if (e.altKey) {
       return;
     }
+    const parsedUrl = new URL(anchor.href, window.location.href);
+    // The plugin preview param only takes effect at bootstrap, so these links
+    // need a full page load
+    if (parsedUrl.searchParams.has(PLUGIN_PREVIEW_QUERY_PARAM)) {
+      return;
+    }
     if (anchor.href.startsWith("/")) {
       e.preventDefault();
       return router.go(anchor.href);
     }
-    const parsedUrl = new URL(anchor.href);
     // Handle direct .bsky.social links
     if (parsedUrl.hostname.endsWith(".bsky.social")) {
       const handle = parsedUrl.hostname;
