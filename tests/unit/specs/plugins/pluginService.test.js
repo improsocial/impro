@@ -4,7 +4,7 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal, SignalMap, effect } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
@@ -645,6 +645,41 @@ describe("loadEnabledPlugins", () => {
   });
 });
 
+describe("getPreviewPlugins", () => {
+  it("re-fires reactive readers when a plugin finishes loading", async () => {
+    const { state, provider } = makeProvider();
+    const service = makeServiceWithRealBridge({
+      provider,
+      router: { go: () => {} },
+    });
+    service.isPreviewMode = true;
+    state.installedPlugins = [
+      { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    const seen = [];
+    const dispose = effect(() => {
+      seen.push(service.getPreviewPlugins().map((plugin) => plugin.id));
+    });
+    try {
+      assert.deepEqual(seen, [[]]);
+      service.pluginBridge.$loadedPlugins.set("a", { pluginId: "a" });
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      assert.deepEqual(seen.at(-1), ["a"]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("returns nothing outside preview mode", () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    service.pluginBridge.isLoaded = () => true;
+    assert.deepEqual(service.getPreviewPlugins(), []);
+  });
+});
+
 describe("uninstallPlugin", () => {
   it("unloads, removes preference, clears settings, and reconciles", async () => {
     const { service, state, unloadCalls, reconcileCalls } = makeService();
@@ -880,7 +915,7 @@ describe("$pluginsInfo", () => {
       { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
       { id: "beta", name: "Beta", version: "1.0.0", enabled: true },
     ];
-    service.pluginBridge._loadedPlugins.set("alpha", { pluginId: "alpha" });
+    service.pluginBridge.$loadedPlugins.set("alpha", { pluginId: "alpha" });
 
     assert.deepEqual(service.getPreviewPlugins(), []);
 

@@ -1,6 +1,6 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
-import { SignalMap, ComputedMap } from "/js/signals.js";
+import { SignalMap, ComputedMap, untrack } from "/js/signals.js";
 
 const SANDBOX_URL = "/plugin-sandbox.html";
 
@@ -252,10 +252,10 @@ export class PluginBridge {
     this._pluginStylesLoader = pluginStylesLoader;
     this._loadPluginInstance = loadPluginInstance;
     this._registrationTargets = new Map();
-    this._loadedPlugins = new Map();
     this._inFlightLoads = new Map();
     this._hostCallHandlers = new Map();
     // reactive loading state
+    this.$loadedPlugins = new SignalMap();
     this.$loading = new SignalMap();
     this.$pluginLoadingErrors = new SignalMap();
     this.$loadStatuses = new ComputedMap((pluginId) => ({
@@ -265,11 +265,11 @@ export class PluginBridge {
   }
 
   isLoaded(pluginId) {
-    return this._loadedPlugins.has(pluginId);
+    return this.$loadedPlugins.has(pluginId);
   }
 
   getInstance(pluginId) {
-    return this._loadedPlugins.get(pluginId) ?? null;
+    return this.$loadedPlugins.get(pluginId) ?? null;
   }
 
   addRegistrationTarget(target, handler) {
@@ -309,7 +309,7 @@ export class PluginBridge {
   }
 
   async loadPlugin(pluginId, version, repo) {
-    if (this._loadedPlugins.has(pluginId)) return;
+    if (untrack(() => this.$loadedPlugins.has(pluginId))) return;
     const inFlightLoad = this._inFlightLoads.get(pluginId);
     if (inFlightLoad) return inFlightLoad;
     const load = (async () => {
@@ -401,7 +401,7 @@ export class PluginBridge {
             this._handleHostCall(instance, message),
         },
       );
-      this._loadedPlugins.set(pluginId, pluginInstance);
+      this.$loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
       return pluginInstance;
     } catch (error) {
@@ -453,7 +453,7 @@ export class PluginBridge {
   }
 
   handleNodeEvent(pluginId, handlerId, virtualEvent) {
-    const instance = this._loadedPlugins.get(pluginId);
+    const instance = this.$loadedPlugins.get(pluginId);
     if (!instance) {
       logger.warn(
         `received event for unknown plugin "${pluginId}", handler "${handlerId}"`,
@@ -466,10 +466,10 @@ export class PluginBridge {
   }
 
   unloadPlugin(pluginId) {
-    const instance = this._loadedPlugins.get(pluginId);
+    const instance = this.$loadedPlugins.get(pluginId);
     if (!instance) return;
     instance.unload();
-    this._loadedPlugins.delete(pluginId);
+    this.$loadedPlugins.delete(pluginId);
     this.$loading.delete(pluginId);
     this.$pluginLoadingErrors.delete(pluginId);
     this._pluginStylesLoader.unmount(pluginId);
