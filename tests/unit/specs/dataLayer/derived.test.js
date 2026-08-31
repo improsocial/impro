@@ -16,6 +16,7 @@ import {
   createPost,
   createProfile,
 } from "../../../shared/factories.js";
+import { trackDisposable } from "../../testHelpers.js";
 
 function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
   const patchStore = new PatchStore();
@@ -33,6 +34,7 @@ function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
     false,
     draftMediaStore ?? new DraftMediaStore("test-media"),
   );
+  trackDisposable(derived.liveStatusScheduler);
   return { derived, patchStore, hiddenFeedItemsStore };
 }
 

@@ -8,6 +8,7 @@ import {
   createFeedGenerator,
   createLabelerView,
   createList,
+  createLiveStatusView,
 } from "../../../shared/factories.js";
 
 const otherUser = createProfile({
@@ -2553,6 +2554,92 @@ test.describe("Profile view", () => {
       await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
         timeout: 10000,
       });
+    });
+  });
+
+  test.describe("Live status", () => {
+    const liveStatusUrl = "https://www.twitch.tv/otheruser";
+
+    function createLiveUser(status) {
+      return createProfile({
+        did: "did:plc:liveuser1",
+        handle: "liveuser.bsky.social",
+        displayName: "Live User",
+        status,
+      });
+    }
+
+    test("shows the live badge and opens the live status dialog from the header avatar", async ({
+      page,
+    }) => {
+      const liveUser = createLiveUser(
+        createLiveStatusView({
+          did: "did:plc:liveuser1",
+          url: liveStatusUrl,
+          title: "Playing games",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      );
+      const mockServer = new MockServer();
+      mockServer.addProfile(liveUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${liveUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+        "Live User",
+        { timeout: 10000 },
+      );
+      await expect(view.locator('[data-testid="live-badge"]')).toBeVisible();
+
+      await view.locator('[data-testid="avatar-live-button"]').click();
+      const dialog = page.locator('[data-testid="live-status-dialog"]');
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.locator('[data-testid="live-status-watch"]'),
+      ).toHaveAttribute("href", liveStatusUrl);
+
+      await dialog.locator('[data-testid="live-status-open-profile"]').click();
+      await expect(dialog).not.toBeVisible();
+    });
+
+    test("shows no live badge for expired, disallowed-host, or disabled statuses", async ({
+      page,
+    }) => {
+      for (const status of [
+        createLiveStatusView({
+          did: "did:plc:liveuser1",
+          url: liveStatusUrl,
+          expiresAt: "2025-01-15T13:00:00.000Z",
+        }),
+        createLiveStatusView({
+          did: "did:plc:liveuser1",
+          url: "https://example.com/stream",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+        createLiveStatusView({
+          did: "did:plc:liveuser1",
+          url: liveStatusUrl,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          isDisabled: true,
+        }),
+      ]) {
+        const mockServer = new MockServer();
+        mockServer.addProfile(createLiveUser(status));
+        await mockServer.setup(page);
+        await login(page);
+        await page.goto("/profile/did:plc:liveuser1");
+
+        const view = page.locator("#profile-view");
+        await expect(
+          view.locator('[data-testid="profile-name"]'),
+        ).toContainText("Live User", { timeout: 10000 });
+        await expect(view.locator('[data-testid="live-badge"]')).toHaveCount(0);
+        await expect(
+          view.locator('[data-testid="avatar-live-button"]'),
+        ).toHaveCount(0);
+      }
     });
   });
 });

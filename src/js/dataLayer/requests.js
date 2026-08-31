@@ -578,16 +578,14 @@ export class Requests {
 
   async loadDetailedProfile(did) {
     const profile = await this.api.getProfile(did);
-    this.dataStore.$profiles.set(did, profile);
-    this.dataStore.$detailedProfiles.set(did, profile);
+    this.dataStore.setDetailedProfile(profile);
   }
 
   async loadDetailedProfiles(dids) {
     if (dids.length === 0) return;
     const profiles = await this.api.getProfiles(dids);
     for (const profile of profiles) {
-      this.dataStore.$profiles.set(profile.did, profile);
-      this.dataStore.$detailedProfiles.set(profile.did, profile);
+      this.dataStore.setDetailedProfile(profile);
     }
   }
 

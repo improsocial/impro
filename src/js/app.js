@@ -49,6 +49,7 @@ import { NewChatService } from "/js/newChatService.js";
 import { AccountSwitcherService } from "/js/accountSwitcherService.js";
 import { ReportService } from "/js/reportService.js";
 import { GroupChatLinkService } from "/js/groupChatLinkService.js";
+import { LiveStatusService } from "/js/liveStatusService.js";
 import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
@@ -167,6 +168,7 @@ export async function main() {
     : null;
   const reportService = session ? new ReportService(dataLayer) : null;
   const groupChatLinkService = new GroupChatLinkService(dataLayer, router);
+  const liveStatusService = new LiveStatusService(dataLayer);
   const interactionHandlers = new InteractionHandlers({
     session,
     dataLayer,
@@ -221,6 +223,7 @@ export async function main() {
     accountSwitcherService,
     reportService,
     groupChatLinkService,
+    liveStatusService,
     pluginService,
     interactionHandlers,
     profileHoverCardService,

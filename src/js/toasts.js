@@ -7,6 +7,7 @@ import { wait, raf } from "/js/utils.js";
 
 const TOAST_GAP_PX = 8;
 const activeToasts = [];
+const mountedToasts = new Set();
 
 const STYLE_ICONS = {
   default: circleCheckIconTemplate,
@@ -32,6 +33,14 @@ function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
   let shown = false;
   let dismissed = false;
   let timeoutId = null;
+  let removeTimeoutId = null;
+
+  function remove() {
+    if (removeTimeoutId != null) clearTimeout(removeTimeoutId);
+    removeTimeoutId = null;
+    mountedToasts.delete(handle);
+    toast.remove();
+  }
 
   function dismiss() {
     if (dismissed) return;
@@ -46,7 +55,7 @@ function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
       }
     }
     if (shown) toast.hidePopover();
-    setTimeout(() => toast.remove(), 1000);
+    removeTimeoutId = setTimeout(remove, 1000);
     onDismiss();
   }
 
@@ -97,7 +106,16 @@ function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
 
   show();
 
-  return { dismiss, element: toast };
+  const handle = { dismiss, remove, element: toast };
+  mountedToasts.add(handle);
+  return handle;
+}
+
+export function cleanupToasts() {
+  for (const handle of [...mountedToasts]) {
+    handle.dismiss();
+    handle.remove();
+  }
 }
 
 export function showToast(

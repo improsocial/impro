@@ -267,6 +267,7 @@ export function profileCardTemplate({
   onClickAddToLists = noop,
   onClickReport = noop,
   onClickEditProfile = noop,
+  liveStatus = null,
   pluginService = null,
   isFollowPending = false,
   isBlockPending = false,
@@ -301,7 +302,10 @@ export function profileCardTemplate({
       <div class="profile-top-row">
         ${avatarTemplate({
           author: profile,
-          clickAction: "lightbox",
+          clickAction:
+            liveStatus?.state === "active" && !isCurrentUser
+              ? "live"
+              : "lightbox",
         })}
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
           ? html` ${isFollowing

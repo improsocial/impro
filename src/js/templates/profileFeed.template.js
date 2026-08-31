@@ -137,7 +137,7 @@ export function profileListItemTemplate({
       <div class="profile-list-item-row">
         ${avatarTemplate({
           author: actor,
-          clickAction: clickAction === "link" ? "link" : "none",
+          clickAction: clickAction === "link" ? "default" : "none",
         })}
         <div
           class="profile-list-item-body"

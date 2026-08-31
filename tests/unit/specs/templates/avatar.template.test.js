@@ -125,6 +125,158 @@ describe("avatarTemplate", () => {
   });
 });
 
+describe("avatarTemplate - live status", () => {
+  const liveAuthor = { ...post.author, isLive: true };
+
+  it("should render live ring class and badge for a live author", () => {
+    const result = avatarTemplate({ author: liveAuthor });
+    const container = document.createElement("div");
+    render(result, container);
+    const frame = container.querySelector(".avatar-image-frame");
+    assert(frame.classList.contains("avatar-live"));
+    assert(container.querySelector("[data-testid='live-badge']") !== null);
+  });
+
+  it("should render no ring class or badge for a non-live author", () => {
+    const result = avatarTemplate({ author: post.author });
+    const container = document.createElement("div");
+    render(result, container);
+    const frame = container.querySelector(".avatar-image-frame");
+    assert(!frame.classList.contains("avatar-live"));
+    assert.deepEqual(
+      container.querySelector("[data-testid='live-badge']"),
+      null,
+    );
+  });
+
+  it("should hide the badge but keep the ring when showLiveBadge is false", () => {
+    const result = avatarTemplate({ author: liveAuthor, showLiveBadge: false });
+    const container = document.createElement("div");
+    render(result, container);
+    const frame = container.querySelector(".avatar-image-frame");
+    assert(frame.classList.contains("avatar-live"));
+    assert.deepEqual(
+      container.querySelector("[data-testid='live-badge']"),
+      null,
+    );
+  });
+
+  it("should render no ring or badge when showLiveStatus is false", () => {
+    const result = avatarTemplate({
+      author: liveAuthor,
+      showLiveStatus: false,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const frame = container.querySelector(".avatar-image-frame");
+    assert(!frame.classList.contains("avatar-live"));
+    assert.deepEqual(
+      container.querySelector("[data-testid='live-badge']"),
+      null,
+    );
+  });
+
+  it("should dispatch live-avatar:click instead of navigating on touch devices", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = () => ({
+      matches: true,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    try {
+      const container = document.createElement("div");
+      render(avatarTemplate({ author: liveAuthor }), container);
+      let detail = null;
+      container.addEventListener("live-avatar:click", (event) => {
+        detail = event.detail;
+      });
+      const clickEvent = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      });
+      container.querySelector("a.avatar-link").dispatchEvent(clickEvent);
+      assert(clickEvent.defaultPrevented);
+      assert.equal(detail.did, liveAuthor.did);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("should keep link navigation on touch devices when clickAction is link", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = () => ({
+      matches: true,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    try {
+      const container = document.createElement("div");
+      render(
+        avatarTemplate({ author: liveAuthor, clickAction: "link" }),
+        container,
+      );
+      let dispatched = false;
+      let templatePrevented = null;
+      container.addEventListener("live-avatar:click", () => {
+        dispatched = true;
+      });
+      container.addEventListener("click", (event) => {
+        templatePrevented = event.defaultPrevented;
+        event.preventDefault();
+      });
+      const clickEvent = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      });
+      container.querySelector("a.avatar-link").dispatchEvent(clickEvent);
+      assert.equal(templatePrevented, false);
+      assert.equal(dispatched, false);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("should keep link navigation for live avatars on non-touch devices", () => {
+    const container = document.createElement("div");
+    render(avatarTemplate({ author: liveAuthor }), container);
+    let dispatched = false;
+    let templatePrevented = null;
+    container.addEventListener("live-avatar:click", () => {
+      dispatched = true;
+    });
+    container.addEventListener("click", (event) => {
+      templatePrevented = event.defaultPrevented;
+      event.preventDefault();
+    });
+    const clickEvent = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    container.querySelector("a.avatar-link").dispatchEvent(clickEvent);
+    assert.equal(templatePrevented, false);
+    assert.equal(dispatched, false);
+  });
+
+  it("should render a button dispatching live-avatar:click when clickAction is live", () => {
+    const result = avatarTemplate({
+      author: liveAuthor,
+      clickAction: "live",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    let detail = null;
+    container.addEventListener("live-avatar:click", (event) => {
+      detail = event.detail;
+    });
+    const button = container.querySelector(
+      "[data-testid='avatar-live-button']",
+    );
+    assert(button !== null);
+    button.click();
+    assert.equal(detail.did, liveAuthor.did);
+  });
+});
+
 describe("avatarTemplate - labeler profiles", () => {
   it("should render avatar for labeler profile with labeler class", () => {
     const labelerAuthor = {

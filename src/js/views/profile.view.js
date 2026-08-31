@@ -237,6 +237,7 @@ export default async function profileView({
         profile.did,
       );
       const isCurrentUser = currentUser?.did === profile.did;
+      const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
       let authorFeedsToShow = getAuthorFeeds({ isCurrentUser, isLabeler });
       const feedGenCount = profile.associated?.feedgens || 0;
       if (feedGenCount > 0) {
@@ -317,6 +318,7 @@ export default async function profileView({
               profileInteractionHandler.handleReport(profile),
             onClickAddToLists: (profile) => handleAddToLists(profile),
             onClickEditProfile: () => handleEditProfile(profile),
+            liveStatus,
             pluginService,
             isFollowPending: dataLayer.derived.$isFollowPending.get(
               profile.did,

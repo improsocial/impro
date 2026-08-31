@@ -114,6 +114,12 @@ export class DataStore extends ReactiveStore {
     this.$profiles.set(profile.did, merged);
   }
 
+  setDetailedProfile(profile) {
+    if (!profile?.did) return;
+    this.$profiles.set(profile.did, profile);
+    this.$detailedProfiles.set(profile.did, profile);
+  }
+
   setProfiles(profiles) {
     for (const profile of profiles) {
       this.mergeProfile(profile);

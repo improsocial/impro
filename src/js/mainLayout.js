@@ -69,6 +69,7 @@ export function mainLayoutTemplate({
   previewingPlugins = [],
   onLongPressProfile = null,
   groupChatLinkService,
+  liveStatusService,
   dataLayer,
 }) {
   return html`
@@ -79,6 +80,8 @@ export function mainLayoutTemplate({
           e.detail.actionType,
           e.detail.preview,
         )}
+      @live-avatar:click=${(e) =>
+        liveStatusService.handleAvatarClick(e.detail.did)}
     >
       <div class="view-columns">
         <div class="view-column-left">
@@ -156,6 +159,7 @@ export class MainLayout extends Layout {
       accountSwitcherService,
       pluginService,
       groupChatLinkService,
+      liveStatusService,
       profileHoverCardService,
       auth,
     } = this.context;
@@ -213,6 +217,7 @@ export class MainLayout extends Layout {
           previewingPlugins,
           onLongPressProfile,
           groupChatLinkService,
+          liveStatusService,
           dataLayer,
         }),
         container,

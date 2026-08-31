@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { effect } from "/js/signals.js";
 
 const {
   PluginBridge,
@@ -247,9 +248,28 @@ describe("PluginBridge:isLoaded / getInstance", () => {
   it("returns true and the instance once stored", () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("demo");
-    bridge._loadedPlugins.set("demo", instance);
+    bridge.$loadedPlugins.set("demo", instance);
     assert.deepEqual(bridge.isLoaded("demo"), true);
     assert(bridge.getInstance("demo") === instance);
+  });
+
+  it("re-fires reactive readers of isLoaded on load and unload", async () => {
+    const { bridge } = makeBridge();
+    const seen = [];
+    const dispose = effect(() => {
+      seen.push(bridge.isLoaded("demo"));
+    });
+    try {
+      assert.deepEqual(seen, [false]);
+      bridge.$loadedPlugins.set("demo", makeFakeInstance("demo"));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(seen.at(-1), true);
+      bridge.unloadPlugin("demo");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(seen.at(-1), false);
+    } finally {
+      dispose();
+    }
   });
 });
 
@@ -367,7 +387,7 @@ describe("PluginBridge:handleNodeEvent", () => {
   it("forwards the event to instance.call with handlerId and virtualEvent", () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("p1");
-    bridge._loadedPlugins.set("p1", instance);
+    bridge.$loadedPlugins.set("p1", instance);
     bridge.handleNodeEvent("p1", 12, { kind: "click" });
     assert.deepEqual(instance._calls.length, 1);
     assert.deepEqual(instance._calls[0].handlerId, 12);
@@ -394,7 +414,7 @@ describe("PluginBridge:unloadPlugin", () => {
   it("unloads the instance, removes it, and unmounts styles", () => {
     const { bridge, stylesLoader } = makeBridge();
     const instance = makeFakeInstance("demo");
-    bridge._loadedPlugins.set("demo", instance);
+    bridge.$loadedPlugins.set("demo", instance);
     bridge.unloadPlugin("demo");
     assert.deepEqual(instance.unloaded, true);
     assert.deepEqual(bridge.isLoaded("demo"), false);
@@ -478,7 +498,7 @@ describe("PluginBridge:$loadStatuses", () => {
     const { bridge } = makeBridge();
     bridge.$loading.set("demo", true);
     bridge.$pluginLoadingErrors.set("demo", new Error("boom"));
-    bridge._loadedPlugins.set("demo", makeFakeInstance("demo"));
+    bridge.$loadedPlugins.set("demo", makeFakeInstance("demo"));
     bridge.unloadPlugin("demo");
     assert.deepEqual(bridge.$loadStatuses.get("demo"), {
       loading: false,
@@ -620,7 +640,7 @@ describe("PluginBridge:loadPlugin error paths", () => {
       return originalGetManifest(...args);
     };
     const { bridge } = makeBridge({ provider });
-    bridge._loadedPlugins.set("p1", makeFakeInstance("p1"));
+    bridge.$loadedPlugins.set("p1", makeFakeInstance("p1"));
     const result = await bridge.loadPlugin("p1", "1.0.0");
     assert.deepEqual(result, undefined);
     assert.deepEqual(getManifestCalled, false);
@@ -833,7 +853,7 @@ describe("PluginBridge:reloadPlugin", () => {
   it("unloads the existing instance before calling loadPlugin", async () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("demo");
-    bridge._loadedPlugins.set("demo", instance);
+    bridge.$loadedPlugins.set("demo", instance);
     const loadCalls = [];
     bridge.loadPlugin = async (id, version, repo) => {
       loadCalls.push({ id, version, repo });

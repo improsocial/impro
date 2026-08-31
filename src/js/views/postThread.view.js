@@ -649,29 +649,7 @@ export default async function postThreadView({
     return largePost.getBoundingClientRect().top - headerHeight;
   }
 
-  // The browser clamps scrolling at the document height, so when there
-  // isn't enough content below the post to pin it under the header,
-  // stretch the main section to provide the missing scroll runway.
-  function ensureScrollRunway(largePost, header) {
-    const mainSection = root.querySelector(".post-thread-main-section");
-    if (!mainSection) {
-      return;
-    }
-    mainSection.style.minHeight = "";
-    const targetScrollY =
-      window.scrollY + getLargePostPinOffset(largePost, header);
-    const shortfall =
-      targetScrollY +
-      window.innerHeight -
-      document.documentElement.scrollHeight;
-    if (shortfall > -1) {
-      const sectionHeight = mainSection.getBoundingClientRect().height;
-      mainSection.style.minHeight = `${Math.ceil(sectionHeight + shortfall) + 1}px`;
-    }
-  }
-
   function scrollToLargePost(largePost, header) {
-    ensureScrollRunway(largePost, header);
     pinScrollPosition({
       targetY: () => {
         const offset = getLargePostPinOffset(largePost, header);

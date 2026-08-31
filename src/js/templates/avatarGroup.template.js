@@ -8,7 +8,11 @@ export function avatarGroupTemplate({ authors }) {
     </div>`;
   }
   if (authors.length === 1) {
-    return avatarTemplate({ author: authors[0], clickAction: "none" });
+    return avatarTemplate({
+      author: authors[0],
+      clickAction: "none",
+      showLiveStatus: false,
+    });
   }
   const shownAuthors = authors.slice(0, 4);
   return html`<div
@@ -18,7 +22,11 @@ export function avatarGroupTemplate({ authors }) {
     ${shownAuthors.map(
       (author) =>
         html`<div class="avatar-group-item">
-          ${avatarTemplate({ author, clickAction: "none" })}
+          ${avatarTemplate({
+            author,
+            clickAction: "none",
+            showLiveStatus: false,
+          })}
         </div>`,
     )}
   </div>`;

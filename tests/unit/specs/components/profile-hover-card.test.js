@@ -1,7 +1,10 @@
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/profile-hover-card.js";
-import { createProfile } from "../../../shared/factories.js";
+import {
+  createLiveStatusView,
+  createProfile,
+} from "../../../shared/factories.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 
 // The element renders reactively via an effect(), which flushes on rAF.
@@ -201,5 +204,45 @@ describe("<profile-hover-card>", () => {
     );
     await flushRender();
     assert.match(card.textContent, /New Name/);
+  });
+
+  it("renders the live status card instead of the profile body when live", async () => {
+    const profile = makeDetailedProfile({
+      status: createLiveStatusView({
+        did: "did:plc:target",
+        url: "https://www.twitch.tv/target",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }),
+    });
+    const { dataLayer, interactionHandlers } = makeSetup({
+      detailedProfile: profile,
+    });
+    const card = mountCard({ dataLayer, interactionHandlers });
+    await flushRender();
+    assert(card.querySelector('[data-testid="live-status-card"]') !== null);
+    assert.equal(
+      card
+        .querySelector('[data-testid="live-status-watch"]')
+        .getAttribute("href"),
+      "https://www.twitch.tv/target",
+    );
+    assert(card.querySelector('[data-testid="hover-card-name"]') === null);
+  });
+
+  it("renders the normal profile body when the status is expired", async () => {
+    const profile = makeDetailedProfile({
+      status: createLiveStatusView({
+        did: "did:plc:target",
+        url: "https://www.twitch.tv/target",
+        expiresAt: "2025-01-15T13:00:00.000Z",
+      }),
+    });
+    const { dataLayer, interactionHandlers } = makeSetup({
+      detailedProfile: profile,
+    });
+    const card = mountCard({ dataLayer, interactionHandlers });
+    await flushRender();
+    assert(card.querySelector('[data-testid="live-status-card"]') === null);
+    assert(card.querySelector('[data-testid="hover-card-name"]') !== null);
   });
 });

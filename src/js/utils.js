@@ -562,6 +562,39 @@ export class Poller {
   }
 }
 
+export class KeyedScheduler {
+  constructor() {
+    this.timers = new Map();
+  }
+
+  get size() {
+    return this.timers.size;
+  }
+
+  schedule(key, delayMs, fn) {
+    this.cancel(key);
+    const timer = setTimeout(() => {
+      this.timers.delete(key);
+      fn();
+    }, delayMs);
+    this.timers.set(key, timer);
+  }
+
+  cancel(key) {
+    const timer = this.timers.get(key);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.timers.delete(key);
+  }
+
+  dispose() {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
+}
+
 export function raf() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
 }

@@ -3,6 +3,7 @@ import {
   CDN_URL,
   FOLLOWING_FEED_URI,
   IN_APP_LINK_DOMAINS,
+  LIVE_ALLOWED_DOMAINS,
 } from "/js/config.js";
 
 export const INVALID_HANDLE = "handle.invalid";
@@ -1037,6 +1038,36 @@ export function isInAppLinkHostname(hostname) {
     hostname === window.location.hostname ||
     IN_APP_LINK_DOMAINS.includes(hostname)
   );
+}
+
+// Display form of a link's host, e.g. "https://www.twitch.tv/x" -> "twitch.tv"
+export function getDisplayDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+export function isAllowedLiveHost(url) {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return LIVE_ALLOWED_DOMAINS.some(
+    (domain) => hostname === domain || hostname.endsWith("." + domain),
+  );
+}
+
+export function isStatusValid(statusView) {
+  if (!statusView || typeof statusView !== "object") return false;
+  if (statusView.status !== "app.bsky.actor.status#live") return false;
+  if (!statusView.uri || !statusView.expiresAt) return false;
+  if (statusView.embed?.$type !== "app.bsky.embed.external#view") return false;
+  const externalUri = statusView.embed.external?.uri;
+  return !!externalUri && isAllowedLiveHost(externalUri);
 }
 
 const CHAT_INVITE_PATH_REGEX = /^\/chat\/([a-zA-Z0-9]{7,10})$/;
