@@ -466,7 +466,7 @@ export class PluginBridge {
   }
 
   unloadPlugin(pluginId) {
-    const instance = this.$loadedPlugins.get(pluginId);
+    const instance = untrack(() => this.$loadedPlugins.get(pluginId));
     if (!instance) return;
     instance.unload();
     this.$loadedPlugins.delete(pluginId);
