@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
@@ -27,12 +28,10 @@ export default async function feedDetailView({
 
   const { handleOrDid, rkey } = params;
 
-  let profileDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    profileDid = handleOrDid;
-  } else {
-    profileDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const profileDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const feedUri = `at://${profileDid}/app.bsky.feed.generator/${rkey}`;
 
   const { postInteractionHandler, feedInteractionHandler } =

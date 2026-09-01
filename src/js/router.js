@@ -104,6 +104,7 @@ export class Router extends EventEmitter {
     this.redirects = {};
     this.notFoundView = () => {};
     this.notFoundOptions = {};
+    this.errorViewResolver = null;
     this.renderFunc = () => {};
     this.layout = null;
     this.containers = { default: null, bare: null, layout: null };
@@ -167,6 +168,10 @@ export class Router extends EventEmitter {
   setNotFoundView(viewGetter, options = {}) {
     this.notFoundView = viewGetter;
     this.notFoundOptions = options;
+  }
+
+  setErrorViewResolver(resolveErrorView) {
+    this.errorViewResolver = resolveErrorView;
   }
 
   setLayout(layout) {
@@ -333,12 +338,28 @@ export class Router extends EventEmitter {
     this.currentPage = newPage;
     this.pages.set(path, { el: newPage, routeInfo });
     window.scrollTo(0, 0);
-    await this.renderFunc({
-      view,
-      params,
-      layout: options.layout === false ? null : this.layout,
-      container: this.currentPage,
-    });
+    const layout = options.layout === false ? null : this.layout;
+    try {
+      await this.renderFunc({
+        view,
+        params,
+        layout,
+        container: newPage,
+      });
+    } catch (error) {
+      const errorViewGetter = this.errorViewResolver?.(error, routeInfo);
+      if (!errorViewGetter) {
+        throw error;
+      }
+      const errorView = await errorViewGetter();
+      newPage.replaceChildren();
+      await this.renderFunc({
+        view: errorView,
+        params,
+        layout,
+        container: newPage,
+      });
+    }
     this.currentPage.classList.remove("page-hidden");
     this.currentPage.classList.add("page-visible");
     outgoingPage?.classList.remove("page-visible");

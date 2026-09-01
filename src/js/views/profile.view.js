@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { wait } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
@@ -54,10 +55,8 @@ export default async function profileView({
   if (!handleOrDid) {
     const currentUser = await dataLayer.declarative.ensureCurrentUser();
     profileDid = currentUser.did;
-  } else if (handleOrDid.startsWith("did:")) {
-    profileDid = handleOrDid;
   } else {
-    profileDid = await identityResolver.resolveHandle(handleOrDid);
+    profileDid = await resolveDidFromHandleOrDid(handleOrDid, identityResolver);
   }
 
   const { postInteractionHandler, profileInteractionHandler } =

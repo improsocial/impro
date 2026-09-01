@@ -1,5 +1,6 @@
 import { TENOR_GIF_PROXY_URL, KLIPY_GIF_PROXY_HOSTNAME } from "/js/config.js";
 import { createEmbedFromPost, isInAppLinkHostname } from "/js/dataHelpers.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const RECORD_LINK_PATTERNS = [
@@ -272,9 +273,7 @@ export async function resolveRecordFromLink(
     throw new Error(`Not a record link: ${url}`);
   }
   const { collection, didOrHandle, rkey } = parsedLink;
-  const did = didOrHandle.startsWith("did:")
-    ? didOrHandle
-    : await identityResolver.resolveHandle(didOrHandle);
+  const did = await resolveDidFromHandleOrDid(didOrHandle, identityResolver);
   const recordUri = `at://${did}/${collection}/${rkey}`;
   if (collection === "app.bsky.feed.post") {
     const post = await dataLayer.declarative.ensurePost(recordUri);

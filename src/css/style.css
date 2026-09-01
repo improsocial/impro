@@ -9488,32 +9488,6 @@ moderation-warning .toggle-content {
   margin-bottom: 4px;
 }
 
-#not-found-view main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100dvh - 45px);
-}
-
-@media (max-width: 799px) {
-  #not-found-view main {
-    min-height: calc(
-      100dvh - 45px - var(--footer-height) - var(--safe-area-inset-bottom)
-    );
-  }
-}
-
-#not-found-view h1 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-#not-found-view a {
-  color: var(--text-link-color);
-}
-
 .error-message {
   padding: 12px;
   color: var(--error-color);
@@ -9540,7 +9514,8 @@ moderation-warning .toggle-content {
   margin-bottom: 4px;
 }
 
-.error-state button {
+.error-state button,
+.error-state a.rounded-button {
   margin-top: 16px;
 }
 

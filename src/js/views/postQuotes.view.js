@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
@@ -18,12 +19,10 @@ export default async function postQuotesView({
 }) {
   const { handleOrDid, rkey } = params;
 
-  let authorDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    authorDid = handleOrDid;
-  } else {
-    authorDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const authorDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
   const { postInteractionHandler } = interactionHandlers;

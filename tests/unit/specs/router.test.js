@@ -266,6 +266,61 @@ describe("renderRoute", () => {
   });
 });
 
+describe("setErrorViewResolver", () => {
+  function setupRouter() {
+    const router = new Router();
+    mountRouter(router);
+    router.renderRoute(({ view, params, container }) =>
+      view({ root: container, params }),
+    );
+    return router;
+  }
+
+  it("renders the resolved error view in place of a view that throws", async () => {
+    const router = setupRouter();
+    const failure = new Error("boom");
+    router.addRoute("/broken/:id", () => async ({ root }) => {
+      root.appendChild(document.createElement("span"));
+      throw failure;
+    });
+    const errorView = mock.fn(async ({ root }) => {
+      root.textContent = "error page";
+    });
+    const seenErrors = [];
+    router.setErrorViewResolver((error) => {
+      seenErrors.push(error);
+      return () => errorView;
+    });
+
+    await router.load("/broken/123");
+
+    assert.deepEqual(seenErrors, [failure]);
+    assert.deepEqual(errorView.mock.callCount(), 1);
+    assert.deepEqual(errorView.mock.calls[0].arguments[0].params, {
+      id: "123",
+    });
+    assert.deepEqual(router.currentPage.textContent, "error page");
+    assert.deepEqual(router.currentPage.querySelectorAll("span").length, 0);
+  });
+
+  it("rethrows when no error view resolver is set", async () => {
+    const router = setupRouter();
+    router.addRoute("/broken", () => async () => {
+      throw new Error("boom");
+    });
+    await assert.rejects(() => router.load("/broken"), /boom/);
+  });
+
+  it("rethrows when the resolver returns no view", async () => {
+    const router = setupRouter();
+    router.addRoute("/broken", () => async () => {
+      throw new Error("boom");
+    });
+    router.setErrorViewResolver(() => null);
+    await assert.rejects(() => router.load("/broken"), /boom/);
+  });
+});
+
 describe("popstate", () => {
   // Capture the Router's popstate handler rather than dispatching a global
   // popstate event, since previously-created Router instances in other tests

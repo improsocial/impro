@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -19,12 +20,10 @@ export default async function postRepostsView({
 }) {
   const { handleOrDid, rkey } = params;
 
-  let authorDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    authorDid = handleOrDid;
-  } else {
-    authorDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const authorDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
   function repostsErrorTemplate({ error }) {

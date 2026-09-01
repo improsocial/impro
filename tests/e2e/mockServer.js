@@ -2372,8 +2372,12 @@ export class MockServer {
       const identity = this._findIdentity(handle);
       if (!identity) {
         return route.fulfill({
-          status: 404,
-          body: JSON.stringify({ error: "NotFound" }),
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidRequest",
+            message: "Unable to resolve handle",
+          }),
         });
       }
       return route.fulfill({

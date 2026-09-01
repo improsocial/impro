@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy, maxBy, pinScrollPosition } from "/js/utils.js";
 import {
@@ -47,12 +48,10 @@ export default async function postThreadView({
 }) {
   const { handleOrDid, rkey } = params;
 
-  let authorDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    authorDid = handleOrDid;
-  } else {
-    authorDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const authorDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
   const { postInteractionHandler, profileInteractionHandler } =

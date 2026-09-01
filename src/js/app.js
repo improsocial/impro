@@ -18,6 +18,8 @@ import profileKnownFollowersView from "/js/views/profileKnownFollowers.view.js";
 import searchView from "/js/views/search.view.js";
 import hashtagView from "/js/views/hashtag.view.js";
 import notFoundView from "/js/views/notFound.view.js";
+import pageErrorView from "/js/views/pageError.view.js";
+import accountNotFoundView from "/js/views/accountNotFound.view.js";
 import settingsView from "/js/views/settings.view.js";
 import settingsAppearanceView from "/js/views/settings/appearance.view.js";
 import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
@@ -36,7 +38,7 @@ import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
-import { IdentityResolver } from "/js/atproto.js";
+import { IdentityResolver, HandleNotFoundError } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { installIOSFixedLayerResync } from "/js/iosFixedLayerResync.js";
@@ -411,6 +413,14 @@ export async function main() {
       `/plugin/${encodeURIComponent(params.pluginId)}/settings`,
   });
   router.setNotFoundView(() => notFoundView);
+  router.setErrorViewResolver((error) => {
+    // This can happen if a page URL has an invalid handle
+    if (error instanceof HandleNotFoundError) {
+      return () => accountNotFoundView;
+    }
+    console.error(error);
+    return () => pageErrorView;
+  });
 
   router.renderRoute(({ view, params, container, layout }) => {
     return view({

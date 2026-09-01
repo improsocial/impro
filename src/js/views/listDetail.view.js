@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
@@ -40,12 +41,10 @@ export default async function listDetailView({
 
   const { handleOrDid, rkey } = params;
 
-  let profileDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    profileDid = handleOrDid;
-  } else {
-    profileDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const profileDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const listUri = `at://${profileDid}/app.bsky.graph.list/${rkey}`;
 
   const {
