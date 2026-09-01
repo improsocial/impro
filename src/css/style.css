@@ -513,8 +513,9 @@ pinned-feeds-pane {
   width: 15px;
 }
 
-.pinned-feeds-item .pinned-feeds-more-icon .icon {
+.pinned-feeds-item .pinned-feeds-more-icon app-icon {
   width: 15px;
+  height: 15px;
 }
 
 @media (hover: hover) {
@@ -551,12 +552,6 @@ pinned-feeds-pane {
   width: 20px;
   height: 20px;
   border-radius: var(--feed-avatar-border-radius);
-}
-
-.pinned-feeds-item-icon svg {
-  width: 14px;
-  height: 14px;
-  display: block;
 }
 
 .pinned-feeds-timeline-icon {
@@ -742,7 +737,7 @@ plugin-slot:empty {
   justify-content: center;
 }
 
-.rounded-button.bell-button .notifications-icon {
+.rounded-button.bell-button .icon {
   width: 20px;
   height: 20px;
 }
@@ -754,7 +749,7 @@ plugin-slot:empty {
   justify-content: center;
 }
 
-.rounded-button.chat-button .chat-icon {
+.rounded-button.chat-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -799,7 +794,8 @@ plugin-slot:empty {
   transition: background-color 0.2s;
 }
 
-.icon-button .icon {
+.icon-button .icon,
+.icon-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -866,7 +862,7 @@ plugin-slot:empty {
   width: 30px;
 }
 
-.feeds-button .icon {
+.feeds-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -1623,10 +1619,7 @@ tab-bar:not([full-width]) {
 .sidebar-nav-icon .icon {
   width: 24px;
   height: 24px;
-}
-
-.sidebar-nav-icon .icon path {
-  stroke: var(--text-color);
+  color: var(--text-color);
 }
 
 app-icon {
@@ -1687,7 +1680,7 @@ plugin-blob-image .blob-image-fallback {
   font-weight: 600;
 }
 
-.sidebar-compose-button .icon {
+.sidebar-compose-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -1897,10 +1890,7 @@ button.sidebar-plugin-nav-item {
 .footer-nav-item .icon {
   width: 24px;
   height: 24px;
-}
-
-.footer-nav-item .icon path {
-  stroke: var(--text-color);
+  color: var(--text-color);
 }
 
 .status-badge {
@@ -5606,10 +5596,6 @@ emoji-picker-dialog emoji-picker,
   background: transparent;
 }
 
-.chat-icon.filled circle {
-  fill: var(--background-color);
-}
-
 .profile-container {
   padding: 0;
   min-height: 100dvh;
@@ -6075,7 +6061,7 @@ button.profile-list-item-button.is-disabled {
   }
 }
 
-.search-input-container .search-icon {
+.search-input-container > app-icon {
   position: absolute;
   left: 24px;
   top: 24px;
@@ -6160,7 +6146,7 @@ button.profile-list-item-button.is-disabled {
   color: var(--text-color-muted);
 }
 
-.search-typeahead-icon .search-icon {
+.search-typeahead-icon > app-icon {
   width: 24px;
   height: 24px;
 }
@@ -6321,8 +6307,10 @@ button.profile-list-item-button.is-disabled {
   opacity: 0.3;
 }
 
-.search-placeholder-icon path {
-  stroke: var(--text-color-muted);
+.search-placeholder-icon > app-icon {
+  width: 100%;
+  height: 100%;
+  color: var(--text-color-muted);
 }
 
 .search-placeholder-text {
@@ -6393,7 +6381,7 @@ sidebar-search {
   }
 }
 
-.sidebar-search-input-container .search-icon {
+.sidebar-search-input-container > app-icon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -6568,7 +6556,7 @@ sidebar-search {
   cursor: pointer;
 }
 
-.feeds-list-item-unpin-button svg {
+.feeds-list-item-unpin-button .icon {
   width: 20px;
   height: 20px;
 }
@@ -6615,7 +6603,7 @@ sidebar-search {
   padding: 8px;
 }
 
-.header-edit-button svg {
+.header-edit-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -6734,7 +6722,7 @@ sidebar-search {
   margin: 0 auto;
 }
 
-.feeds-list-item .pin-feed-button svg {
+.feeds-list-item .pin-feed-button .icon {
   width: 16px;
   height: 16px;
 }
@@ -10595,7 +10583,7 @@ label:has(toggle-switch[disabled]) {
   flex-direction: column;
 }
 
-.search-dialog-input-container .search-icon {
+.search-dialog-input-container > app-icon {
   position: absolute;
   left: 10px;
   top: 50%;

@@ -1,17 +1,12 @@
 import { html, ref } from "/js/lib/lit-html.js";
 import { classnames, enableLongPress } from "/js/utils.js";
-import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
-import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
-import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
-import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { formatNumNotifications } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 
 function footerNavItemTemplate({ item, active }) {
-  return html`${item.icon({ filled: active })}
+  return html`${fillableIconTemplate({ icon: item.icon, filled: active })}
   ${item.badge
     ? html`<div class="status-badge" data-testid="status-badge">
         <div class="status-badge-text">${item.badge}</div>
@@ -52,17 +47,17 @@ export function footerTemplate({
   const menuItems = [
     {
       id: "home",
-      icon: homeIconTemplate,
+      icon: "home",
       url: "/",
     },
     {
       id: "search",
-      icon: searchIconTemplate,
+      icon: "search",
       url: "/search",
     },
     {
       id: "chat",
-      icon: chatIconTemplate,
+      icon: "chat-dots",
       url: "/messages",
       badge:
         numChatNotifications > 0
@@ -71,14 +66,13 @@ export function footerTemplate({
     },
     {
       id: "notifications",
-      icon: notificationsIconTemplate,
+      icon: "bell",
       url: "/notifications",
       badge:
         numNotifications > 0 ? formatNumNotifications(numNotifications) : null,
     },
     {
       id: "profile",
-      // icon: userIconTemplate,
       url: currentUser ? `/profile/${currentUser.handle}` : "",
       disabled: !currentUser,
       template: () =>

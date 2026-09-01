@@ -12,8 +12,7 @@ import {
 } from "/js/utils.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
-import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
-import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { shareIconTemplate } from "/js/templates/icons/shareIcon.template.js";
 import {
   getRKey,
@@ -445,7 +444,7 @@ export function postActionBarTemplate({
               }}
             >
               <div class="post-action-icon">
-                ${heartIconTemplate({ filled: isLiked })}
+                ${fillableIconTemplate({ icon: "like", filled: isLiked })}
               </div>
               ${numLikes > 0
                 ? html`<span class="post-action-count"
@@ -474,7 +473,10 @@ export function postActionBarTemplate({
               }}
             >
               <div class="post-action-icon">
-                ${bookmarkIconTemplate({ filled: isBookmarked })}
+                ${fillableIconTemplate({
+                  icon: "bookmark",
+                  filled: isBookmarked,
+                })}
               </div>
             </animated-button>`,
           )}

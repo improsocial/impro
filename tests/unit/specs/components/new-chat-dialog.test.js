@@ -345,8 +345,9 @@ describe("new-chat-dialog", () => {
       const { dataLayer } = makeDataLayer();
       const element = createDialog(dataLayer);
       assert(
-        element.querySelector(".search-dialog-input-container .search-icon") !==
-          null,
+        element.querySelector(
+          ".search-dialog-input-container > app-icon[icon='search-line']",
+        ) !== null,
       );
     });
 

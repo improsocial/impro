@@ -4,7 +4,7 @@ import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import "/js/components/app-icon.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { classnames } from "/js/utils.js";
@@ -205,7 +205,7 @@ class ManageListMembersDialog extends Component {
               </button>
             </div>
             <div class="search-dialog-input-container">
-              ${searchIconTemplate()}
+              <app-icon icon="search-line"></app-icon>
               <input
                 type="search"
                 class="search-dialog-input"

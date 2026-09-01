@@ -14,7 +14,7 @@ import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
@@ -142,7 +142,7 @@ export function smallPostTemplate({
         <div class="post-content-right">
           ${isPinned
             ? html`<div class="pinned-label" data-testid="pinned-label">
-                ${pinIconTemplate()} Pinned
+                ${fillableIconTemplate({ icon: "pin" })} Pinned
               </div>`
             : ""}
           ${repostAuthor

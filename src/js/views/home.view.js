@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
+import "/js/components/app-icon.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
@@ -296,7 +296,7 @@ export default async function homeView({
               aria-label="Feeds"
               data-testid="feeds-button"
             >
-              ${hashtagIconTemplate()}
+              <app-icon icon="hashtag-line"></app-icon>
             </a>
           `,
           bottomItemTemplate: () => html`

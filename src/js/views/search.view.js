@@ -1,5 +1,5 @@
 import { html, keyed, render } from "/js/lib/lit-html.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import "/js/components/app-icon.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -17,7 +17,7 @@ import {
 } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -291,7 +291,9 @@ export default async function searchView({
         data-testid="search-typeahead-search-row"
         @click=${() => onCommit()}
       >
-        <div class="search-typeahead-icon">${searchIconTemplate()}</div>
+        <div class="search-typeahead-icon">
+          <app-icon icon="search-line"></app-icon>
+        </div>
         <div class="search-typeahead-text">${query}</div>
       </button>
       ${profiles === null
@@ -327,7 +329,9 @@ export default async function searchView({
         data-testid="search-recent-row-button"
         @click=${() => handleRecentSearchSelect(q)}
       >
-        <div class="search-typeahead-icon">${searchIconTemplate()}</div>
+        <div class="search-typeahead-icon">
+          <app-icon icon="search-line"></app-icon>
+        </div>
         <div class="search-typeahead-text">${q}</div>
       </button>
       <button
@@ -571,7 +575,7 @@ export default async function searchView({
                     );
                   }}
                 >
-                  ${isPinned ? "" : pinIconTemplate({ filled: false })}
+                  ${isPinned ? "" : fillableIconTemplate({ icon: "pin" })}
                   ${isPinned ? "Unpin feed" : "Pin feed"}
                 </button>
               </div>
@@ -700,7 +704,9 @@ export default async function searchView({
         });
       } else {
         bodyTemplate = html`<div class="search-placeholder">
-          <div class="search-placeholder-icon">${searchIconTemplate()}</div>
+          <div class="search-placeholder-icon">
+            <app-icon icon="search-line"></app-icon>
+          </div>
           <div class="search-placeholder-text">
             ${isAuthenticated
               ? "Start typing to search for users, posts, and feeds."
@@ -719,7 +725,7 @@ export default async function searchView({
           onClickMenuButton: () => layout.openSidebar(),
           bottomItemTemplate: () => html`
             <div class="search-input-container">
-              ${searchIconTemplate()}
+              <app-icon icon="search-line"></app-icon>
               <input
                 class="search-input"
                 type="search"

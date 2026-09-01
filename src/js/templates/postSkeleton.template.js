@@ -1,7 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
-import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 
 export function postSkeletonTemplate() {
   return html`<div class="post-skeleton" data-testid="post-skeleton">
@@ -23,7 +23,9 @@ export function postSkeletonTemplate() {
           <div class="skeleton-action-icon">${repostIconTemplate()}</div>
         </div>
         <div class="skeleton-action">
-          <div class="skeleton-action-icon">${heartIconTemplate()}</div>
+          <div class="skeleton-action-icon">
+            ${fillableIconTemplate({ icon: "like" })}
+          </div>
         </div>
       </div>
     </div>

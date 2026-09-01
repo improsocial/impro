@@ -4,7 +4,7 @@ import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import "/js/components/app-icon.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -239,7 +239,7 @@ function dialogHeaderTemplate({ title, onBack = null, action = "" }) {
 
 function searchInputTemplate({ rawQuery, onInput, onClear }) {
   return html`<div class="search-dialog-input-container">
-    ${searchIconTemplate()}
+    <app-icon icon="search-line"></app-icon>
     <input
       type="search"
       class="search-dialog-input"

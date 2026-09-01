@@ -7,18 +7,8 @@ import {
   enableLongPress,
   raf,
 } from "/js/utils.js";
-import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
-import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
-import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
-import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
-import { widgetsIconTemplate } from "/js/templates/icons/widgetsIcon.template.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
-import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
-import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
-import { listIconTemplate } from "/js/templates/icons/listIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
@@ -98,7 +88,10 @@ function sidebarNavTemplate({
             }}
           >
             <span class="sidebar-nav-icon"
-              >${item.icon({ filled: activeNavItem === item.id })}
+              >${fillableIconTemplate({
+                icon: item.icon,
+                filled: activeNavItem === item.id,
+              })}
               ${item.badge
                 ? html`<div class="status-badge" data-testid="status-badge">
                     <div class="status-badge-text">${item.badge}</div>
@@ -122,19 +115,19 @@ function loggedOutSidebarTemplate({
   const menuItems = [
     {
       id: "home",
-      icon: homeIconTemplate,
+      icon: "home",
       label: "Home",
       url: "/",
     },
     {
       id: "search",
-      icon: searchIconTemplate,
+      icon: "search",
       label: "Search",
       url: "/search",
     },
     {
       id: "plugins",
-      icon: widgetsIconTemplate,
+      icon: "widgets",
       label: "Plugins",
       url: "/plugins/community",
     },
@@ -212,19 +205,19 @@ export function sidebarTemplate({
   const menuItems = [
     {
       id: "home",
-      icon: homeIconTemplate,
+      icon: "home",
       label: "Home",
       url: "/",
     },
     {
       id: "search",
-      icon: searchIconTemplate,
+      icon: "search",
       label: "Search",
       url: "/search",
     },
     {
       id: "notifications",
-      icon: notificationsIconTemplate,
+      icon: "bell",
       label: "Notifications",
       url: "/notifications",
       badge:
@@ -232,7 +225,7 @@ export function sidebarTemplate({
     },
     {
       id: "chat",
-      icon: chatIconTemplate,
+      icon: "chat-dots",
       label: "Chat",
       url: "/messages",
       badge:
@@ -242,38 +235,38 @@ export function sidebarTemplate({
     },
     {
       id: "feeds",
-      icon: hashtagIconTemplate,
+      icon: "hashtag",
       label: "Feeds",
       url: "/feeds",
     },
     {
       id: "lists",
-      icon: listIconTemplate,
+      icon: "checkbox-list",
       label: "Lists",
       url: "/lists",
     },
     {
       id: "bookmarks",
-      icon: bookmarkIconTemplate,
+      icon: "bookmark",
       label: "Saved",
       url: "/bookmarks",
     },
     {
       id: "profile",
-      icon: userIconTemplate,
+      icon: "user",
       label: "Profile",
       url: currentUser ? `/profile/${currentUser.did}` : "",
       disabled: !currentUser,
     },
     {
       id: "plugins",
-      icon: widgetsIconTemplate,
+      icon: "widgets",
       label: "Plugins",
       url: "/plugins/installed",
     },
     {
       id: "settings",
-      icon: settingsIconTemplate,
+      icon: "settings-cog",
       label: "Settings",
       url: "/settings",
     },
@@ -377,7 +370,8 @@ export function sidebarTemplate({
             data-testid="sidebar-compose-button"
             @click=${() => onClickComposeButton()}
           >
-            ${editIconTemplate()} <span>New Post</span>
+            <app-icon icon="edit-pen-2"></app-icon>
+            <span>New Post</span>
           </button>`
         : ""}
       <div class="sidebar-spacer"></div>

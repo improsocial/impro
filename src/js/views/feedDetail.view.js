@@ -4,7 +4,7 @@ import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
@@ -103,7 +103,7 @@ export default async function feedDetailView({
                 @click=${() =>
                   feedInteractionHandler.handlePinFeed(feedUri, !isPinned)}
               >
-                ${pinIconTemplate({ filled: isPinned })}
+                ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
               </button>`;
           },
         })}

@@ -9,8 +9,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
+import "/js/components/app-icon.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { linkToList, linkToFeed } from "/js/navigation.js";
@@ -92,7 +92,7 @@ export default async function feedsView({
               state.$draftUnpinned.add(value);
             }}
           >
-            ${pinIconTemplate({ filled: true })}
+            ${fillableIconTemplate({ icon: "pin", filled: true })}
           </button>`
         : ""}
       <button
@@ -249,7 +249,7 @@ export default async function feedsView({
               @click=${() => state.$isEditing.set(true)}
               ?disabled=${!canEdit}
             >
-              ${settingsIconTemplate()}
+              <app-icon icon="settings-cog-line"></app-icon>
             </button>`;
           },
         })}

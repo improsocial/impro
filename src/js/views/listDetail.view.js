@@ -7,7 +7,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
@@ -149,7 +149,7 @@ export default async function listDetailView({
                           !isPinned,
                         )}
                     >
-                      ${pinIconTemplate({ filled: isPinned })}
+                      ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
                     </button>`
                   : listSubscriptionButtonTemplate({
                       list,

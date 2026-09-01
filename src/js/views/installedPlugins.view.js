@@ -1,7 +1,7 @@
 import { html, render, keyed } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
+import "/js/components/app-icon.js";
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
@@ -305,7 +305,9 @@ export default async function installedPluginsView({
                                     href=${linkToPluginSettings(plugin.id)}
                                     aria-label="Settings for ${plugin.name}"
                                   >
-                                    ${settingsIconTemplate()}
+                                    <app-icon
+                                      icon="settings-cog-line"
+                                    ></app-icon>
                                   </a>`
                                 : ""}
                               <button

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import "/js/components/app-icon.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -22,7 +22,9 @@ function typeaheadTemplate({ query, profiles, onCommit, onSelectProfile }) {
       data-testid="sidebar-search-typeahead-search-row"
       @click=${onCommit}
     >
-      <div class="search-typeahead-icon">${searchIconTemplate()}</div>
+      <div class="search-typeahead-icon">
+        <app-icon icon="search-line"></app-icon>
+      </div>
       <div class="search-typeahead-text">${query}</div>
     </button>
     ${profiles === null
@@ -64,7 +66,7 @@ function sidebarSearchTemplate({
 }) {
   return html`<div class="sidebar-search">
     <div class="sidebar-search-input-container">
-      ${searchIconTemplate()}
+      <app-icon icon="search-line"></app-icon>
       <input
         class="sidebar-search-input"
         data-testid="sidebar-search-input"

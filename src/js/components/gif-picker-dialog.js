@@ -6,7 +6,6 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { gifProxyUrl } from "/js/embedHelpers.js";
-import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
@@ -50,7 +49,7 @@ function getCategory(categoryId) {
 function gifPickerHeaderTemplate({ query, onInput, onClear, onCloseDialog }) {
   return html`<div class="gif-picker-header" data-testid="gif-picker-header">
     <div class="search-dialog-input-container gif-picker-input-container">
-      ${searchIconTemplate()}
+      <app-icon icon="search-line"></app-icon>
       <input
         type="search"
         class="search-dialog-input gif-picker-search"

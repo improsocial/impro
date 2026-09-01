@@ -9,9 +9,9 @@ import { cdnImageUrl, getDisplayName } from "/js/dataHelpers.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
+import "/js/components/app-icon.js";
+import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
 import {
   formatLargeNumber,
   classnames,
@@ -319,7 +319,8 @@ export function profileCardTemplate({
                     onClickPostNotifications(profile);
                   }}
                 >
-                  ${notificationsIconTemplate({
+                  ${fillableIconTemplate({
+                    icon: "bell",
                     filled: !!activitySubscription?.post,
                   })}
                 </button>`
@@ -334,7 +335,7 @@ export function profileCardTemplate({
                     onClickChat(profile);
                   }}
                 >
-                  ${chatIconTemplate()}
+                  <app-icon icon="chat-dots-line"></app-icon>
                 </button>`
               : ""}`
           : null}

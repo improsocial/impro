@@ -4,7 +4,7 @@ import { Signal, effect } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
-import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
+import "/js/components/app-icon.js";
 
 const SKELETON_COUNT = 5;
 
@@ -78,8 +78,8 @@ function pinnedFeedsPaneTemplate({
       data-testid="pinned-feeds-more"
     >
       <span class="pinned-feeds-item-icon pinned-feeds-more-icon"
-        >${hashtagIconTemplate()}</span
-      >
+        ><app-icon icon="hashtag-line"></app-icon
+      ></span>
       <span class="pinned-feeds-item-label">Manage feeds</span>
     </a>
   </nav>`;
