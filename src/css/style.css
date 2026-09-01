@@ -9672,7 +9672,6 @@ moderation-warning .toggle-content {
   color: var(--text-color-muted);
   font-size: 14px;
   line-height: 1.4;
-  margin-bottom: 12px;
 }
 
 .label-preference-name + .label-preference-buttons {
@@ -9684,6 +9683,7 @@ moderation-warning .toggle-content {
   border-radius: var(--embed-border-radius);
   overflow: hidden;
   border: var(--hair) solid var(--generic-border-color);
+  margin-top: 12px;
 }
 
 .label-pref-button {
