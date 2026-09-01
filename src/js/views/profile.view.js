@@ -50,14 +50,10 @@ export default async function profileView({
   state.$activeTab = new Signal.State("posts");
 
   const { handleOrDid } = params;
-  let profileDid = null;
-  // If no handle or did is provided, use the current user
-  if (!handleOrDid) {
-    const currentUser = await dataLayer.declarative.ensureCurrentUser();
-    profileDid = currentUser.did;
-  } else {
-    profileDid = await resolveDidFromHandleOrDid(handleOrDid, identityResolver);
-  }
+  const profileDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
 
   const { postInteractionHandler, profileInteractionHandler } =
     interactionHandlers;

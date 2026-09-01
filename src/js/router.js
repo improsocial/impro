@@ -110,6 +110,7 @@ export class Router extends EventEmitter {
     this.containers = { default: null, bare: null, layout: null };
     this.currentPage = null;
     this.currentPath = null;
+    this._latestLoadToken = null;
     this.$currentRoute = new Signal.State(null);
     this.pages = new BoundedMap(MAX_PAGES, {
       policy: "lru",
@@ -219,7 +220,14 @@ export class Router extends EventEmitter {
     const params = {};
     for (let i = 0; i < routeParts.length; i++) {
       if (routeParts[i].startsWith(":")) {
-        params[routeParts[i].slice(1)] = decodeURIComponent(pathParts[i]);
+        let value;
+        try {
+          value = decodeURIComponent(pathParts[i]);
+        } catch {
+          // Fall back to the raw segment
+          value = pathParts[i];
+        }
+        params[routeParts[i].slice(1)] = value;
       } else {
         if (pathParts[i] !== routeParts[i]) {
           return null;
@@ -253,14 +261,23 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isRestore = false } = {}) {
+    this._latestLoadToken = Symbol("load");
     const [pathnameForRedirect, query] = path.split("?");
-    const redirectTarget = this.matchRedirect(pathnameForRedirect);
-    if (redirectTarget !== null) {
-      const redirectPath = query
-        ? `${redirectTarget}?${query}`
-        : redirectTarget;
-      window.history.replaceState(window.history.state, "", redirectPath);
-      return this.load(redirectPath, { isRestore });
+    const redirectResult = this.matchRedirect(pathnameForRedirect);
+    if (redirectResult !== null) {
+      const loadToken = this._latestLoadToken;
+      // Resolvers can be async, so check that the load token matches after awaiting
+      const redirectTarget = await redirectResult;
+      if (this._latestLoadToken !== loadToken) {
+        return;
+      }
+      if (redirectTarget != null) {
+        const redirectPath = query
+          ? `${redirectTarget}?${query}`
+          : redirectTarget;
+        window.history.replaceState(window.history.state, "", redirectPath);
+        return this.load(redirectPath, { isRestore });
+      }
     }
     // Save the scroll position of the page we're leaving before swapping it out
     if (this.currentPath != null) {

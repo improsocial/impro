@@ -60,6 +60,7 @@ import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import { isInAppLinkHostname } from "/js/dataHelpers.js";
+import { linkToProfile } from "/js/navigation.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import {
   getAppViewConfig,
@@ -334,8 +335,7 @@ export async function main() {
     "/profile/:handleOrDid/following",
     () => profileFollowingView,
   );
-  // "/profile" with no param is the current user's profile
-  router.addRoute(["/profile/:handleOrDid", "/profile"], () => profileView, {
+  router.addRoute("/profile/:handleOrDid", () => profileView, {
     layoutOptions: {
       activeNavItem: (params) => (isOwnProfile(params) ? "profile" : null),
       isNavItemPage: (params) => isOwnProfile(params),
@@ -403,6 +403,16 @@ export async function main() {
     pluginsRouteOptions,
   );
   router.addRedirects({
+    // Current user profile shortcut
+    "/profile": async () => {
+      if (!session) return "/";
+      try {
+        const currentUser = await dataLayer.declarative.ensureCurrentUser();
+        return linkToProfile(currentUser);
+      } catch {
+        return "/";
+      }
+    },
     // Old community plugin URLs
     "/settings/plugins/community": () => "/plugins/community",
     "/settings/plugins/community/:pluginId": (params) =>
@@ -494,7 +504,9 @@ export async function main() {
     }
   });
 
-  await router.load(window.location.pathname ?? "/");
+  router.load(window.location.pathname ?? "/").catch((error) => {
+    console.error("Error loading initial route:", error);
+  });
 
   // Sometimes clicks get swallowed after swipe-back navigations on iOS safari
   // Adding a global touchstart listener fixes this for some reason

@@ -84,6 +84,22 @@ const labelerView = createLabelerView({
 });
 
 test.describe("Profile view", () => {
+  test("should rewrite the URL to the user's handle when visiting /profile", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto("/profile");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      userProfile.displayName,
+      { timeout: 10000 },
+    );
+    await expect(page).toHaveURL(`/profile/${userProfile.handle}`);
+  });
+
   test("should display profile name, handle, and stats", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
