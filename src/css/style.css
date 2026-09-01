@@ -355,12 +355,10 @@ video {
 }
 
 @media (max-width: 799px) {
-  .view-column-center main {
-    margin-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
-  }
-
-  .view-column-center main.chat-detail-main {
-    margin-bottom: 0;
+  .view-column-center .page::after {
+    display: block;
+    height: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+    content: "";
   }
 }
 
