@@ -14,7 +14,7 @@ describe("whoCanReplyBadgeTemplate", () => {
     const badge = renderBadge({});
     assert(badge !== null);
     assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
-    assert(badge.querySelector(".globe-icon") !== null);
+    assert(badge.querySelector("app-icon[icon='globe-grid-line']") !== null);
   });
 
   it("shows 'Everybody can reply' when allow is undefined", () => {
@@ -22,7 +22,7 @@ describe("whoCanReplyBadgeTemplate", () => {
     const badge = renderBadge(post);
     assert(badge !== null);
     assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
-    assert(badge.querySelector(".globe-icon") !== null);
+    assert(badge.querySelector("app-icon[icon='globe-grid-line']") !== null);
   });
 
   it("shows 'Replies disabled' when allow is empty", () => {

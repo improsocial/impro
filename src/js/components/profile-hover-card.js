@@ -17,10 +17,10 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { Component } from "/js/components/component.js";
 import "/js/components/floating-card.js";
 import "/js/components/detected-rich-text.js";
+import "/js/components/app-icon.js";
 
 // A hover card that renders profile data for a given DID inside an inner
 // <floating-card>. Set `dataLayer` and `interactionHandlers` once, then drive
@@ -222,8 +222,8 @@ function followButtonTemplate({
     ${isFollowing
       ? "Following"
       : isFollowedBy
-        ? html`${plusIconTemplate()} Follow back`
-        : html`${plusIconTemplate()} Follow`}
+        ? html`<app-icon icon="plus-line"></app-icon> Follow back`
+        : html`<app-icon icon="plus-line"></app-icon> Follow`}
   </button>`;
 }
 

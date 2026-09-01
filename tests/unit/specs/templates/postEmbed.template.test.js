@@ -724,7 +724,9 @@ describe("postEmbedTemplate - quoted posts", () => {
       "[data-testid='blocked-quote']",
     );
     assert(blockedQuote !== null);
-    assert(blockedQuote.querySelector(".info-icon") !== null);
+    assert(
+      blockedQuote.querySelector("app-icon[icon='info-circle-line']") !== null,
+    );
   });
 
   it("should render not found quote embed", () => {
@@ -746,7 +748,9 @@ describe("postEmbedTemplate - quoted posts", () => {
       "[data-testid='not-found-quote']",
     );
     assert(notFoundQuote !== null);
-    assert(notFoundQuote.querySelector(".info-icon") !== null);
+    assert(
+      notFoundQuote.querySelector("app-icon[icon='info-circle-line']") !== null,
+    );
   });
 
   it("should render detached/removed quote embed", () => {
@@ -768,7 +772,9 @@ describe("postEmbedTemplate - quoted posts", () => {
       "[data-testid='removed-quote']",
     );
     assert(removedQuote !== null);
-    assert(removedQuote.querySelector(".info-icon") !== null);
+    assert(
+      removedQuote.querySelector("app-icon[icon='info-circle-line']") !== null,
+    );
   });
 
   it("should use closed-eye icon-style for a muted-account quoted post", () => {

@@ -3,7 +3,6 @@ import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
-import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import "/js/components/app-icon.js";
 
 const SKELETON_COUNT = 5;
@@ -11,8 +10,8 @@ const SKELETON_COUNT = 5;
 function pinnedItemAvatarTemplate({ item }) {
   if (item.type === "timeline") {
     return html`<span class="pinned-feeds-item-icon pinned-feeds-timeline-icon"
-      >${homeIconTemplate({ filled: true })}</span
-    >`;
+      ><app-icon icon="home"></app-icon
+    ></span>`;
   }
   const fallback =
     item.type === "list"

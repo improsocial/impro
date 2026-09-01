@@ -50,9 +50,6 @@ import {
   linkToGroupChatDetails,
   linkToProfile,
 } from "/js/navigation.js";
-import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -183,7 +180,7 @@ export default async function chatDetailView({
         data-testid="message-embed-preview-remove"
         @click=${() => clearStagedRecordEmbed()}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
       ${body}
     </div>`;
@@ -222,7 +219,7 @@ export default async function chatDetailView({
         data-testid="reply-preview-clear"
         @click=${() => clearReply()}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
     </div>`;
   }
@@ -914,8 +911,8 @@ export default async function chatDetailView({
       }}
     >
       <span class="message-reply-caption-arrow" aria-hidden="true"
-        >${cornerDownRightIconTemplate()}</span
-      >
+        ><app-icon icon="corner-down-right-line"></app-icon
+      ></span>
       <span>${captionText}</span>
     </div>`;
   }
@@ -1012,7 +1009,7 @@ export default async function chatDetailView({
                     handleEmojiTriggerClick(e, message.id);
                   }}
                 >
-                  ${emojiIconTemplate()}
+                  <app-icon icon="emoji-smile-line"></app-icon>
                 </button>
                 <button
                   class="message-more-trigger"

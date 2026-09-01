@@ -1,14 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-label.js";
+import "/js/components/app-icon.js";
 
 export default async function settingsMutedWordsView({
   root,
@@ -217,7 +216,7 @@ export default async function settingsMutedWordsView({
           >
             ${isRemoving
               ? html`<div class="loading-spinner"></div>`
-              : closeIconTemplate()}
+              : html`<app-icon icon="close-line"></app-icon>`}
           </button>
         </div>
       </div>
@@ -314,7 +313,7 @@ export default async function settingsMutedWordsView({
             >
               ${state.$isSaving.get()
                 ? html`<div class="loading-spinner"></div>`
-                : html`<span>Add</span>${plusIconTemplate()}`}
+                : html`<span>Add</span><app-icon icon="plus-line"></app-icon>`}
             </button>
             ${state.$error.get()
               ? html`<div

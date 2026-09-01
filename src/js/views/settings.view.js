@@ -5,25 +5,15 @@ import {
   onPageShow,
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
-import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
-import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
-import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
-import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
-import { moreMenuIconTemplate } from "/js/templates/icons/moreMenuIcon.template.js";
+import "/js/components/app-icon.js";
 import { getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
-import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
@@ -60,8 +50,10 @@ export default async function settingsView({
         @click=${hasOthers ? onToggle : onAdd}
       >
         <span class="vertical-nav-icon"
-          >${hasOthers ? userIconTemplate() : userPlusIconTemplate()}</span
-        >
+          ><app-icon
+            icon=${hasOthers ? "user-line" : "user-plus-line"}
+          ></app-icon
+        ></span>
         <span class="vertical-nav-label"
           >${hasOthers ? "Switch account" : "Add another account"}</span
         >
@@ -73,8 +65,8 @@ export default async function settingsView({
             : null
           : expanded
             ? html`<span class="vertical-nav-arrow"
-                >${chevronUpIconTemplate()}</span
-              >`
+                ><app-icon icon="chevron-up-line"></app-icon
+              ></span>`
             : html`<span
                 class="settings-account-avatar-stack"
                 data-testid="settings-account-avatar-stack"
@@ -148,7 +140,7 @@ export default async function settingsView({
                               );
                             }}
                           >
-                            ${moreMenuIconTemplate()}
+                            <app-icon icon="more-menu-line"></app-icon>
                           </button>
                           <context-menu>
                             <context-menu-item
@@ -167,7 +159,9 @@ export default async function settingsView({
                 data-testid="settings-account-add"
                 @click=${onAdd}
               >
-                <span class="vertical-nav-icon">${userPlusIconTemplate()}</span>
+                <span class="vertical-nav-icon"
+                  ><app-icon icon="user-plus-line"></app-icon
+                ></span>
                 <span class="vertical-nav-label">Add account</span>
                 ${pendingAction?.type === "add"
                   ? html`<span
@@ -187,37 +181,37 @@ export default async function settingsView({
   const menuItems = [
     {
       key: "notifications",
-      icon: notificationsIconTemplate,
+      icon: () => html`<app-icon icon="bell-line"></app-icon>`,
       label: "Notifications",
       url: "/settings/notifications",
     },
     {
       key: "muted-words",
-      icon: mutedWordIconTemplate,
+      icon: () => html`<app-icon icon="hand-line"></app-icon>`,
       label: "Muted words",
       url: "/settings/muted-words",
     },
     {
       key: "muted-accounts",
-      icon: eyeSlashIconTemplate,
+      icon: () => html`<app-icon icon="eye-off-line"></app-icon>`,
       label: "Muted accounts",
       url: "/settings/muted-accounts",
     },
     {
       key: "blocked-accounts",
-      icon: restrictedIconTemplate,
+      icon: () => html`<app-icon icon="restricted-line"></app-icon>`,
       label: "Blocked accounts",
       url: "/settings/blocked-accounts",
     },
     {
       key: "appearance",
-      icon: eyeIconTemplate,
+      icon: () => html`<app-icon icon="eye-line"></app-icon>`,
       label: "Appearance",
       url: "/settings/appearance",
     },
     {
       key: "advanced",
-      icon: codeIconTemplate,
+      icon: () => html`<app-icon icon="code-line"></app-icon>`,
       label: "Advanced",
       url: "/settings/advanced",
     },
@@ -325,8 +319,8 @@ export default async function settingsView({
                   <span class="vertical-nav-icon">${item.icon()}</span>
                   <span class="vertical-nav-label">${item.label}</span>
                   <span class="vertical-nav-arrow"
-                    >${chevronRightIconTemplate()}</span
-                  >
+                    ><app-icon icon="chevron-right-line"></app-icon
+                  ></span>
                 </a>
               `,
             )}

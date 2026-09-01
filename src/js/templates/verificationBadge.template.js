@@ -1,6 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { verifiedCheckIconTemplate } from "/js/templates/icons/verifiedCheckIcon.template.js";
-import { verifierCheckIconTemplate } from "/js/templates/icons/verifierCheckIcon.template.js";
+import "/js/components/app-icon.js";
 
 export function getVerificationState(profile) {
   if (!profile?.verification) {
@@ -27,7 +26,7 @@ export function verificationBadgeTemplate({ profile }) {
     class="verification-badge"
     title="${isVerifier ? "Trusted Verifier" : "Verified"}"
     >${isVerifier
-      ? verifierCheckIconTemplate()
-      : verifiedCheckIconTemplate()}</span
+      ? html`<app-icon icon="verifier-check"></app-icon>`
+      : html`<app-icon icon="verified-check"></app-icon>`}</span
   >`;
 }

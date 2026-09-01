@@ -15,12 +15,6 @@ import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { DragAndDropObserver } from "/js/dragAndDropObserver.js";
-import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
-import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
-import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import {
   validateVideoFile,
@@ -54,8 +48,6 @@ import {
   getDraftDeviceId,
 } from "/js/drafts.js";
 import { ApiError } from "/js/api.js";
-import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
-import { usersIconTemplate } from "/js/templates/icons/usersIcon.template.js";
 import "/js/components/post-interaction-settings-dialog.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
@@ -111,7 +103,7 @@ function errorMessageBannerTemplate({ message, onDismiss }) {
     data-testid="composer-error-banner"
     role="alert"
   >
-    ${alertIconTemplate()}
+    <app-icon icon="alert-circle-line"></app-icon>
     <span class="composer-error-banner-message">${message}</span>
     <button
       class="composer-error-banner-dismiss"
@@ -119,7 +111,7 @@ function errorMessageBannerTemplate({ message, onDismiss }) {
       aria-label="Dismiss error"
       @click=${onDismiss}
     >
-      ${closeIconTemplate()}
+      <app-icon icon="close-line"></app-icon>
     </button>
   </div>`;
 }
@@ -174,7 +166,7 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
           onClose();
         }}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
       ${externalLinkTemplate({
         url: data.url,
@@ -190,7 +182,10 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
 }
 
 function altIndicatorContentTemplate(hasAlt) {
-  return html`${hasAlt ? checkIconTemplate() : plusIconTemplate()} ALT`;
+  return html`${hasAlt
+    ? html`<app-icon icon="check"></app-icon>`
+    : html`<app-icon icon="plus-line"></app-icon>`}
+  ALT`;
 }
 
 function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
@@ -217,7 +212,7 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
             onRemove();
           }}
         >
-          ${closeIconTemplate()}
+          <app-icon icon="close-line"></app-icon>
         </button>
         ${!isReady
           ? html`<div class="video-preview-overlay">
@@ -257,7 +252,7 @@ function gifPreviewTemplate({ gif, onRemove, onEditAltText }) {
             onRemove();
           }}
         >
-          ${closeIconTemplate()}
+          <app-icon icon="close-line"></app-icon>
         </button>
         <button
           class="alt-indicator ${hasAlt ? "has-alt" : "no-alt"}"
@@ -296,7 +291,7 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
                 onRemove(index);
               }}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div class="alt-indicator ${img.alt ? "has-alt" : "no-alt"}">
               ${altIndicatorContentTemplate(!!img.alt)}
@@ -347,7 +342,7 @@ function composerPostTemplate({
               onRemovePost();
             }}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </button>`
         : ""}
       <div class="post-composer-body">
@@ -400,7 +395,7 @@ function composerPostTemplate({
                 onCloseQuote();
               }}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div inert>
               ${recordEmbedTemplate({
@@ -749,9 +744,9 @@ class PostComposer extends Component {
                         @click=${() => this.openInteractionSettingsDialog()}
                       >
                         ${isInteractionLimited
-                          ? html`${usersIconTemplate()}
+                          ? html`<app-icon icon="users-line"></app-icon>
                               <span>Interaction limited</span>`
-                          : html`${globeIconTemplate()}
+                          : html`<app-icon icon="globe-grid-line"></app-icon>
                               <span>Anyone can interact</span>`}
                       </button>
                     </div>`
@@ -776,7 +771,7 @@ class PostComposer extends Component {
                       hasGif ||
                       activePost.images.length >= 4}
                     >
-                      ${imageIconTemplate()}
+                      <app-icon icon="image-line"></app-icon>
                     </button>
                     <button
                       type="button"
@@ -803,7 +798,7 @@ class PostComposer extends Component {
                         aria-label="Open emoji picker"
                         @click=${(e) => this.handleEmojiButtonClick(e)}
                       >
-                        ${emojiIconTemplate()}
+                        <app-icon icon="emoji-smile-line"></app-icon>
                       </button>
                       <emoji-picker-dialog
                         @select=${(e) => {
@@ -821,7 +816,7 @@ class PostComposer extends Component {
                           aria-label="Add another post"
                           @click=${() => this.handleAddPost()}
                         >
-                          ${plusIconTemplate()}
+                          <app-icon icon="plus-line"></app-icon>
                         </button>`
                       : ""}
                     <div

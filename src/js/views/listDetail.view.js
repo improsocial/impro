@@ -7,8 +7,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
   bindToPage,
@@ -303,7 +302,8 @@ export default async function listDetailView({
                             data-testid="list-empty-add-people-button"
                             @click=${() => handleAddPeople(list)}
                           >
-                            ${userPlusIconTemplate()} Add people to list
+                            <app-icon icon="user-plus-line"></app-icon> Add
+                            people to list
                           </button>`
                         : ""}
                     </div>`
@@ -326,7 +326,8 @@ export default async function listDetailView({
                             data-testid="list-empty-add-people-button"
                             @click=${() => handleAddPeople(list)}
                           >
-                            ${userPlusIconTemplate()} Add people to list
+                            <app-icon icon="user-plus-line"></app-icon> Add
+                            people to list
                           </button>`
                         : ""}
                     </div>`}

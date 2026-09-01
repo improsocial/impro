@@ -4,9 +4,7 @@ import { ImageLoader } from "/js/utils.js";
 import { enablePinchZoom } from "/js/zoomHelpers.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
-import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 
 class LightboxDialog extends Component {
   connectedCallback() {
@@ -91,7 +89,7 @@ class LightboxDialog extends Component {
               this.close();
             }}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </div>
           ${hasMultiple
             ? html`
@@ -103,7 +101,7 @@ class LightboxDialog extends Component {
                   }}
                   ?disabled=${this.currentIndex === 0}
                 >
-                  ${chevronLeftIconTemplate()}
+                  <app-icon icon="chevron-left-line"></app-icon>
                 </button>
               `
             : ""}
@@ -122,7 +120,7 @@ class LightboxDialog extends Component {
                   }}
                   ?disabled=${this.currentIndex === this.images.length - 1}
                 >
-                  ${chevronRightIconTemplate()}
+                  <app-icon icon="chevron-right-line"></app-icon>
                 </button>
               `
             : ""}

@@ -440,7 +440,7 @@ trending-pane {
   padding-bottom: 12px;
 }
 
-.trending-pane-header .icon svg {
+.trending-pane-header app-icon svg {
   width: 18px;
   height: 18px;
   display: block;
@@ -509,11 +509,7 @@ pinned-feeds-pane {
   cursor: pointer;
 }
 
-.pinned-feeds-item .home-icon {
-  width: 15px;
-}
-
-.pinned-feeds-item .pinned-feeds-more-icon app-icon {
+.pinned-feeds-item app-icon {
   width: 15px;
   height: 15px;
 }
@@ -683,7 +679,7 @@ plugin-slot:empty {
   background-color: var(--secondary-button-color);
 }
 
-.rounded-button .plus-icon {
+.rounded-button app-icon[icon="plus-line"] {
   width: 14px;
   height: 14px;
 }
@@ -737,7 +733,7 @@ plugin-slot:empty {
   justify-content: center;
 }
 
-.rounded-button.bell-button .icon {
+.rounded-button.bell-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -794,7 +790,6 @@ plugin-slot:empty {
   transition: background-color 0.2s;
 }
 
-.icon-button .icon,
 .icon-button app-icon {
   width: 24px;
   height: 24px;
@@ -828,8 +823,8 @@ plugin-slot:empty {
   z-index: var(--floating-back-button-z-index);
 }
 
-.back-button .icon,
-.floating-back-button .icon {
+.back-button app-icon,
+.floating-back-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -852,7 +847,7 @@ plugin-slot:empty {
   width: 30px;
 }
 
-.inbox-button .icon {
+.inbox-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -886,7 +881,7 @@ plugin-slot:empty {
   width: 100%;
 }
 
-.rounded-button .icon {
+.rounded-button app-icon {
   display: flex;
 }
 
@@ -1089,13 +1084,13 @@ input[type="color"]::-moz-color-swatch {
   justify-content: center;
 }
 
-.skeleton-action .skeleton-action-icon .icon {
+.skeleton-action .skeleton-action-icon app-icon {
   width: 18px;
   height: 18px;
   display: block;
 }
 
-.skeleton-action .skeleton-action-icon .icon svg {
+.skeleton-action .skeleton-action-icon app-icon svg {
   width: 100%;
   height: 100%;
   display: block;
@@ -1616,12 +1611,6 @@ tab-bar:not([full-width]) {
   flex-shrink: 0;
 }
 
-.sidebar-nav-icon .icon {
-  width: 24px;
-  height: 24px;
-  color: var(--text-color);
-}
-
 app-icon {
   display: inline-flex;
   width: 1em;
@@ -1653,8 +1642,8 @@ plugin-blob-image .blob-image-fallback {
 
 .sidebar-nav-icon app-icon,
 .sidebar-nav-icon > .plugin-icon {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
   color: var(--text-color);
 }
 
@@ -1887,7 +1876,7 @@ button.sidebar-plugin-nav-item {
   cursor: default;
 }
 
-.footer-nav-item .icon {
+.footer-nav-item app-icon {
   width: 24px;
   height: 24px;
   color: var(--text-color);
@@ -2121,7 +2110,7 @@ container-link {
   cursor: pointer;
   margin-left: 2px;
 }
-.who-can-reply-badge .icon {
+.who-can-reply-badge app-icon {
   width: 15px;
   height: 15px;
 }
@@ -2131,7 +2120,7 @@ container-link {
   }
 }
 @media (hover: hover) {
-  .who-can-reply-badge:hover :not(.icon) {
+  .who-can-reply-badge:hover :not(app-icon) {
     text-decoration: underline;
   }
 }
@@ -2247,7 +2236,7 @@ container-link {
   gap: 3px;
 }
 
-.pinned-label .icon {
+.pinned-label app-icon {
   height: 13px;
   width: 13px;
 }
@@ -2267,13 +2256,10 @@ container-link {
   }
 }
 
-.small-post .repost-label .icon {
+.small-post .repost-label app-icon {
   height: 17px;
   width: 17px;
-}
-
-.small-post .repost-label .icon path {
-  stroke: var(--text-color-muted);
+  color: var(--text-color-muted);
 }
 
 .small-post .missing-post-indicator {
@@ -2288,7 +2274,7 @@ container-link {
   width: 100%;
 }
 
-.small-post .missing-post-indicator .icon {
+.small-post .missing-post-indicator app-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -2305,7 +2291,7 @@ container-link {
   gap: 6px;
 }
 
-.missing-quote-indicator .icon {
+.missing-quote-indicator app-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -2326,7 +2312,7 @@ container-link {
   flex-shrink: 0;
 }
 
-.no-unauthenticated-avatar .icon {
+.no-unauthenticated-avatar app-icon {
   width: 20px;
   height: 20px;
   color: var(--text-color-muted);
@@ -2339,7 +2325,7 @@ container-link {
   padding-top: 4px;
 }
 
-.no-unauthenticated-message .icon {
+.no-unauthenticated-message app-icon {
   display: inline-block;
   vertical-align: middle;
   width: 16px;
@@ -2491,29 +2477,14 @@ container-link {
   margin-top: 4px;
 }
 
-.reply-to-author .icon {
+.reply-to-author app-icon {
   display: inline-block;
   width: 13px;
   height: 13px;
   vertical-align: -2px;
 }
 
-.icon {
-  position: relative;
-}
-
-.icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.close-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.account-switcher-add-icon .icon {
+.account-switcher-add-icon app-icon {
   width: 24px;
   height: 24px;
 }
@@ -2522,7 +2493,7 @@ container-link {
   color: var(--text-color-secondary);
 }
 
-.account-switcher-current-check .icon {
+.account-switcher-current-check app-icon {
   width: 24px;
   height: 24px;
 }
@@ -2656,15 +2627,9 @@ animated-button {
   justify-content: center;
 }
 
-.post-action-icon .icon {
+.post-action-icon app-icon {
   width: 18px;
   height: 18px;
-  display: block;
-}
-
-.post-action-icon .icon svg {
-  width: 100%;
-  height: 100%;
   display: block;
 }
 
@@ -2858,7 +2823,7 @@ animated-button {
   transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
-.external-link-image-wrapper .play-icon {
+.external-link-image-wrapper app-icon {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -2872,15 +2837,9 @@ animated-button {
 }
 
 @media (hover: hover) {
-  .youtube-embed .external-link a:hover .play-icon {
+  .youtube-embed .external-link a:hover app-icon {
     background: color-mix(in srgb, var(--white) 85%, transparent);
   }
-}
-
-.external-link-image-wrapper .play-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 
 .youtube-embed-iframe {
@@ -2907,7 +2866,7 @@ animated-button {
   letter-spacing: 0.5px;
 }
 
-.alt-indicator .icon {
+.alt-indicator app-icon {
   width: 11px;
   height: 11px;
 }
@@ -2945,7 +2904,7 @@ animated-button {
   object-fit: cover;
 }
 
-.external-link-image-wrapper .play-icon {
+.external-link-image-wrapper app-icon {
   pointer-events: none;
 }
 
@@ -3204,7 +3163,7 @@ animated-button {
   justify-content: center;
 }
 
-.embed-preview-close-button .close-icon {
+.embed-preview-close-button app-icon {
   width: 18px;
   height: 18px;
 }
@@ -3471,7 +3430,7 @@ image-carousel {
   right: 8px;
 }
 
-.crop-indicator svg {
+.crop-indicator app-icon {
   width: 14px;
   height: 14px;
   display: block;
@@ -3650,41 +3609,27 @@ image-carousel {
   margin-right: 6px;
 }
 
-.notification-icon .user-icon,
-.notification-icon .user-plus-icon {
-  color: var(--highlight-color) !important;
+.notification-icon > app-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--highlight-color);
 }
 
-.notification-icon .user-icon path,
-.notification-icon .user-plus-icon path {
-  fill: var(--highlight-color) !important;
-  stroke: var(--highlight-color) !important;
-}
-
-.notification-icon .notifications-icon {
-  color: var(--highlight-color) !important;
-}
-
-.notification-icon .heart-icon path {
-  fill: var(--like-color);
-  stroke: var(--like-color);
+.notification-icon > app-icon[icon="like"] {
+  color: var(--like-color);
 }
 
 /* @chunk notifications */
-.notification-icon .repost-icon path {
-  stroke: var(--highlight-color);
-}
-
-.notification-icon.verified-icon svg {
+.notification-icon > app-icon[icon="repost"] {
   color: var(--highlight-color);
 }
 
-.notification-icon.unverified-icon svg {
+.notification-icon.verified-icon app-icon {
+  color: var(--highlight-color);
+}
+
+.notification-icon.unverified-icon app-icon {
   color: var(--text-color-muted);
-}
-
-.notification-icon .contacts-icon {
-  color: var(--highlight-color);
 }
 
 .notification-content {
@@ -4577,7 +4522,7 @@ image-carousel {
   display: flex;
 }
 
-.message-reply-caption-arrow .icon {
+.message-reply-caption-arrow app-icon {
   width: 13px;
   height: 13px;
 }
@@ -4789,7 +4734,7 @@ image-carousel {
   padding: 4px 0;
 }
 
-.chat-join-link-embed-unavailable .icon {
+.chat-join-link-embed-unavailable app-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -4807,7 +4752,7 @@ image-carousel {
   color: var(--text-color);
 }
 
-.chat-join-link-action .icon {
+.chat-join-link-action app-icon {
   width: 18px;
   height: 18px;
 }
@@ -4840,7 +4785,7 @@ image-carousel {
   touch-action: manipulation;
 }
 
-.message-emoji-trigger .emoji-icon {
+.message-emoji-trigger app-icon {
   width: 20px;
   height: 20px;
 }
@@ -5079,7 +5024,7 @@ chat-input .rich-text-input-placeholder {
   }
 }
 
-.message-input-emoji-button .emoji-icon {
+.message-input-emoji-button app-icon {
   width: 22px;
   height: 22px;
 }
@@ -5116,16 +5061,11 @@ chat-input .rich-text-input-placeholder {
   opacity: 0.8;
 }
 
-.message-input-send-button .send-icon {
+.message-input-send-button app-icon {
   color: var(--overlay-text-color);
   width: 20px;
   height: 20px;
   left: 2px;
-}
-
-.message-input-send-button .send-icon svg {
-  width: 20px;
-  height: 20px;
 }
 
 .reaction-palette {
@@ -5715,7 +5655,7 @@ emoji-picker-dialog emoji-picker,
   font: inherit;
 }
 
-.automated-account-badge svg {
+.automated-account-badge app-icon {
   width: 12px;
   height: 12px;
 }
@@ -5730,7 +5670,7 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 2px;
 }
 
-.profile-name .automated-account-badge svg {
+.profile-name .automated-account-badge app-icon {
   width: 18px;
   height: 18px;
 }
@@ -6085,7 +6025,7 @@ button.profile-list-item-button.is-disabled {
   justify-content: center;
 }
 
-.search-clear-button .close-icon {
+.search-clear-button app-icon {
   width: 16px;
   height: 16px;
 }
@@ -6215,8 +6155,7 @@ button.profile-list-item-button.is-disabled {
   color: var(--text-color-muted);
 }
 
-.search-recent-remove-button .icon,
-.search-recent-remove-button .icon svg {
+.search-recent-remove-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -6283,8 +6222,7 @@ button.profile-list-item-button.is-disabled {
   height: 10px;
 }
 
-.search-recent-profile-remove .close-icon,
-.search-recent-profile-remove .close-icon svg {
+.search-recent-profile-remove app-icon {
   width: 16px;
   height: 16px;
 }
@@ -6556,7 +6494,7 @@ sidebar-search {
   cursor: pointer;
 }
 
-.feeds-list-item-unpin-button .icon {
+.feeds-list-item-unpin-button app-icon {
   width: 20px;
   height: 20px;
 }
@@ -6594,7 +6532,7 @@ sidebar-search {
   color: white;
 }
 
-.following-avatar .icon svg {
+.following-avatar app-icon {
   width: 24px;
   height: 24px;
 }
@@ -6722,7 +6660,12 @@ sidebar-search {
   margin: 0 auto;
 }
 
-.feeds-list-item .pin-feed-button .icon {
+.list-empty-add-people-button app-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.feeds-list-item .pin-feed-button app-icon {
   width: 16px;
   height: 16px;
 }
@@ -6762,7 +6705,7 @@ sidebar-search {
   background-color: var(--error-subtle-color);
 }
 
-.composer-error-banner .alert-icon {
+.composer-error-banner app-icon {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -6786,7 +6729,7 @@ sidebar-search {
   color: var(--text-color-muted);
 }
 
-.composer-error-banner-dismiss .icon {
+.composer-error-banner-dismiss app-icon {
   width: 16px;
   height: 16px;
 }
@@ -7166,7 +7109,7 @@ sidebar-search {
   align-items: center;
 }
 
-.composer-interaction-settings-button .icon {
+.composer-interaction-settings-button app-icon {
   width: 15px;
   height: 15px;
 }
@@ -7204,7 +7147,7 @@ sidebar-search {
   align-items: center;
 }
 
-.post-composer-remove-post-button .close-icon {
+.post-composer-remove-post-button app-icon {
   width: 16px;
   height: 16px;
 }
@@ -7224,7 +7167,7 @@ sidebar-search {
   }
 }
 
-.post-composer-add-post-button .icon {
+.post-composer-add-post-button app-icon {
   width: 24px;
   height: 24px;
   color: var(--highlight-color);
@@ -7258,7 +7201,7 @@ sidebar-search {
   }
 }
 
-.post-composer-emoji-button .emoji-icon {
+.post-composer-emoji-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -7306,7 +7249,7 @@ sidebar-search {
   }
 }
 
-.image-picker-button .icon {
+.image-picker-button app-icon {
   width: 24px;
   height: 24px;
   color: var(--highlight-color);
@@ -7329,7 +7272,7 @@ sidebar-search {
 }
 
 .post-composer-gif-button:disabled app-icon,
-.image-picker-button:disabled .icon {
+.image-picker-button:disabled app-icon {
   color: var(--text-color-muted);
 }
 
@@ -7419,7 +7362,7 @@ sidebar-search {
   }
 }
 
-.floating-compose-button .icon {
+.floating-compose-button app-icon {
   width: 24px;
   height: 24px;
 }
@@ -7695,7 +7638,7 @@ context-menu-item > button {
   gap: 16px;
 }
 
-context-menu-item > button > .icon,
+context-menu-item > button > app-icon,
 context-menu-item > button > .context-menu-item-icon {
   width: 20px;
   height: 20px;
@@ -8419,14 +8362,10 @@ context-menu-item-group > context-menu-item > button {
   right: 20px;
 }
 
-.lightbox-nav .icon {
+.lightbox-nav app-icon {
   width: 24px;
   height: 24px;
-}
-
-.lightbox-nav .icon path {
-  stroke: var(--white);
-  stroke-width: 3;
+  color: var(--white);
 }
 
 /* @chunk settings */
@@ -8593,7 +8532,7 @@ context-menu-item-group > context-menu-item > button {
   font-size: 15px;
 }
 
-.settings-button .plus-icon {
+.settings-button app-icon[icon="plus-line"] {
   width: 14px;
   height: 14px;
 }
@@ -8706,7 +8645,7 @@ context-menu-item-group > context-menu-item > button {
   justify-content: center;
 }
 
-.muted-word-delete-button .close-icon {
+.muted-word-delete-button app-icon {
   width: 16px;
   height: 16px;
 }
@@ -8783,26 +8722,20 @@ context-menu-item-group > context-menu-item > button {
   flex-shrink: 0;
 }
 
-.vertical-nav-icon .icon {
+.vertical-nav-icon app-icon {
   width: 26px;
   height: 26px;
-}
-
-.vertical-nav-icon .icon path {
-  stroke: var(--text-color);
+  color: var(--text-color);
 }
 
 .vertical-nav-label {
   flex: 1;
 }
 
-.vertical-nav-arrow .icon {
+.vertical-nav-arrow app-icon {
   width: 20px;
   height: 20px;
-}
-
-.vertical-nav-arrow .icon path {
-  stroke: var(--text-color-muted);
+  color: var(--text-color-muted);
 }
 
 .settings-account-avatar-stack {
@@ -8869,7 +8802,7 @@ context-menu-item-group > context-menu-item > button {
   flex-shrink: 0;
 }
 
-.settings-account-ellipsis .icon {
+.settings-account-ellipsis app-icon {
   width: 16px;
   height: 16px;
 }
@@ -9031,7 +8964,7 @@ context-menu-item-group > context-menu-item > button {
   margin-bottom: 4px;
 }
 
-.draft-item-delete .icon {
+.draft-item-delete app-icon {
   width: 18px;
   height: 18px;
 }
@@ -9248,7 +9181,7 @@ moderation-warning .moderation-warning-label {
   min-width: 0;
 }
 
-moderation-warning .moderation-warning-label .icon {
+moderation-warning .moderation-warning-label app-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -9453,7 +9386,7 @@ moderation-warning .toggle-content {
   gap: 6px;
 }
 
-.warning-area h4 .icon {
+.warning-area h4 app-icon {
   width: 18px;
   height: 18px;
 }
@@ -9511,7 +9444,7 @@ moderation-warning .toggle-content {
   color: var(--text-link-color);
 }
 
-.try-again-button .icon svg {
+.try-again-button app-icon svg {
   width: 18px;
   height: 18px;
   display: block;
@@ -9764,13 +9697,9 @@ moderation-warning .toggle-content {
   color: var(--white);
 }
 
-.report-step-indicator .check-icon {
+.report-step-indicator app-icon {
   width: 16px;
   height: 16px;
-}
-
-.check-icon path {
-  stroke-width: 3.2;
 }
 
 .report-step-title {
@@ -9880,7 +9809,7 @@ moderation-warning .toggle-content {
   border-radius: var(--icon-button-border-radius);
 }
 
-.report-selected-clear .close-icon {
+.report-selected-clear app-icon {
   width: 16px;
   height: 16px;
 }
@@ -10490,12 +10419,12 @@ label:has(toggle-switch[disabled]) {
   }
 }
 
-.new-chat-button .icon {
+.new-chat-button app-icon {
   width: 16px;
   height: 16px;
 }
 
-.new-chat-fab .icon {
+.new-chat-fab app-icon {
   width: 28px;
   height: 28px;
 }
@@ -10689,7 +10618,7 @@ label:has(toggle-switch[disabled]) {
   margin-bottom: 4px;
 }
 
-.new-group-entry-button .users-icon {
+.new-group-entry-button app-icon:first-child {
   color: var(--highlight-color);
 }
 
@@ -10698,7 +10627,7 @@ label:has(toggle-switch[disabled]) {
   font-weight: 600;
 }
 
-.new-group-entry-button .chevron-right-icon {
+.new-group-entry-button app-icon {
   color: var(--text-color-muted);
 }
 
@@ -10754,7 +10683,7 @@ label:has(toggle-switch[disabled]) {
   color: var(--text-color-muted);
 }
 
-.new-group-chip-remove .icon {
+.new-group-chip-remove app-icon {
   width: 20px;
   height: 20px;
 }
@@ -10784,11 +10713,11 @@ label:has(toggle-switch[disabled]) {
   color: white;
 }
 
-.new-group-member-toggle .icon {
+.new-group-member-toggle app-icon {
   line-height: 0;
 }
 
-.new-group-member-toggle .icon svg {
+.new-group-member-toggle app-icon svg {
   width: 14px;
   height: 14px;
 }
@@ -11201,10 +11130,9 @@ tab-bar[full-width] .tab-bar-button {
   pointer-events: none;
 }
 
-.form-dialog-camera-button .icon {
+.form-dialog-camera-button app-icon {
   width: 14px;
   height: 14px;
-  display: flex;
 }
 
 .form-dialog-camera-button-banner {
@@ -11407,8 +11335,8 @@ image-cropper {
   flex-shrink: 0;
 }
 
-.community-plugins-link-icon .icon,
-.plugins-intro-icon .icon {
+.community-plugins-link-icon app-icon,
+.plugins-intro-icon app-icon {
   width: 22px;
   height: 22px;
 }
@@ -11437,13 +11365,10 @@ image-cropper {
   flex-shrink: 0;
 }
 
-.community-plugins-link-arrow .icon {
+.community-plugins-link-arrow app-icon {
   width: 20px;
   height: 20px;
-}
-
-.community-plugins-link-arrow .icon path {
-  stroke: var(--text-color-muted);
+  color: var(--text-color-muted);
 }
 
 .plugins-intro {
@@ -11618,13 +11543,10 @@ a.plugin-list-item-info {
   align-items: center;
 }
 
-.plugin-list-item-arrow .icon {
+.plugin-list-item-arrow app-icon {
   width: 20px;
   height: 20px;
-}
-
-.plugin-list-item-arrow .icon path {
-  stroke: var(--text-color-muted);
+  color: var(--text-color-muted);
 }
 
 @media (hover: hover) {
@@ -12176,7 +12098,7 @@ h2.setting-item-name {
   color: var(--highlight-color);
 }
 
-.plugin-preview-banner-icon .icon {
+.plugin-preview-banner-icon app-icon {
   width: 18px;
   height: 18px;
 }

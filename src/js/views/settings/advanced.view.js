@@ -13,10 +13,10 @@ import {
   isValidAppViewConfig,
   CUSTOM_APP_VIEW_CONFIG_ID,
 } from "/js/appViewConfig.js";
-import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
+import "/js/components/app-icon.js";
 
 export default async function settingsAdvancedView({
   root,
@@ -254,7 +254,9 @@ export default async function settingsAdvancedView({
                       class="warning-area"
                       data-testid="custom-appview-warning"
                     >
-                      <h4>${alertIconTemplate()} Warning</h4>
+                      <h4>
+                        <app-icon icon="alert-circle-line"></app-icon> Warning
+                      </h4>
                       Only set these values if you know what they mean!
                     </div>
                     <div class="form-group">
@@ -411,7 +413,7 @@ export default async function settingsAdvancedView({
                 main branch.
               </p>
               <div class="warning-area">
-                <h4>${alertIconTemplate()} Warning</h4>
+                <h4><app-icon icon="alert-circle-line"></app-icon> Warning</h4>
                 Unregistered plugins have not been reviewed. Only install
                 plugins from sources you trust.
               </div>

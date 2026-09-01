@@ -227,24 +227,37 @@ describe("moderation-warning", () => {
     it("should render info icon by default", () => {
       const element = document.createElement("moderation-warning");
       document.body.appendChild(element);
-      assert(element.querySelector(".info-icon") !== null);
-      assert.deepEqual(element.querySelector(".eye-slash-icon"), null);
+      assert(
+        element.querySelector("app-icon[icon='info-circle-line']") !== null,
+      );
+      assert.deepEqual(
+        element.querySelector("app-icon[icon='eye-off-line']"),
+        null,
+      );
     });
 
     it("should render info icon when icon-style is 'info'", () => {
       const element = document.createElement("moderation-warning");
       element.setAttribute("icon-style", "info");
       document.body.appendChild(element);
-      assert(element.querySelector(".info-icon") !== null);
-      assert.deepEqual(element.querySelector(".eye-slash-icon"), null);
+      assert(
+        element.querySelector("app-icon[icon='info-circle-line']") !== null,
+      );
+      assert.deepEqual(
+        element.querySelector("app-icon[icon='eye-off-line']"),
+        null,
+      );
     });
 
     it("should render eye-slash icon when icon-style is 'closed-eye'", () => {
       const element = document.createElement("moderation-warning");
       element.setAttribute("icon-style", "closed-eye");
       document.body.appendChild(element);
-      assert(element.querySelector(".eye-slash-icon") !== null);
-      assert.deepEqual(element.querySelector(".info-icon"), null);
+      assert(element.querySelector("app-icon[icon='eye-off-line']") !== null);
+      assert.deepEqual(
+        element.querySelector("app-icon[icon='info-circle-line']"),
+        null,
+      );
     });
 
     it("should render icon inside the top-bar label", () => {
@@ -255,7 +268,7 @@ describe("moderation-warning", () => {
         ".top-bar .moderation-warning-label",
       );
       assert(labelEl !== null);
-      assert(labelEl.querySelector(".icon") !== null);
+      assert(labelEl.querySelector("app-icon") !== null);
       assert(labelEl.textContent.includes("Hidden"));
     });
   });

@@ -17,8 +17,6 @@ import {
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
-import { inboxIconTemplate } from "/js/templates/icons/inboxIcon.template.js";
-import { messagePlusIconTemplate } from "/js/templates/icons/messagePlusIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
@@ -48,7 +46,7 @@ export default async function chatView({
         data-testid="new-chat-button"
         @click=${() => handleNewChatClick()}
       >
-        ${messagePlusIconTemplate()}
+        <app-icon icon="message-plus-line"></app-icon>
       </button>
     `;
   }
@@ -148,7 +146,7 @@ export default async function chatView({
         data-testid="inbox-button"
         data-teststate=${hasUnreadRequests ? "unread" : "read"}
       >
-        ${inboxIconTemplate()}
+        <app-icon icon="inbox"></app-icon>
         ${hasUnreadRequests
           ? html`<div class="unread-dot" data-testid="unread-dot"></div>`
           : ""}
@@ -258,7 +256,7 @@ export default async function chatView({
           data-testid="new-chat-fab"
           @click=${() => handleNewChatClick()}
         >
-          ${messagePlusIconTemplate()}
+          <app-icon icon="message-plus-line"></app-icon>
         </button>
       </div>`,
       root,

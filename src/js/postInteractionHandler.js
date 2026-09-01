@@ -1,9 +1,10 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
-import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import { html } from "/js/lib/lit-html.js";
 import { buildPostgateEmbeddingRules } from "/js/dataHelpers.js";
 import "/js/components/post-interaction-settings-dialog.js";
+import "/js/components/app-icon.js";
 
 export class PostInteractionHandler {
   constructor(dataLayer, postComposerService, reportService) {
@@ -122,7 +123,8 @@ export class PostInteractionHandler {
       try {
         await this.dataLayer.mutations.removeBookmark(post);
         showToast("Removed from saved posts", {
-          iconTemplate: trashCanIconTemplate,
+          iconTemplate: () =>
+            html`<app-icon icon="delete-bin-line"></app-icon>`,
         });
       } catch (error) {
         console.error(error);

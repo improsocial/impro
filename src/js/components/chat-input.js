@@ -1,10 +1,9 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
-import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { hasKeyboardInput, graphemeCount, getByteLength } from "/js/utils.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/emoji-picker-dialog.js";
+import "/js/components/app-icon.js";
 
 // Limits from the chat.bsky.convo.defs#messageInput lexicon
 const MAX_MESSAGE_GRAPHEMES = 1000;
@@ -147,7 +146,7 @@ class ChatInput extends Component {
               ?disabled=${this.disabled}
               @click=${(e) => this.handleEmojiButtonClick(e)}
             >
-              ${emojiIconTemplate()}
+              <app-icon icon="emoji-smile-line"></app-icon>
             </button>
             <emoji-picker-dialog
               @select=${(e) => {
@@ -164,7 +163,7 @@ class ChatInput extends Component {
         >
           ${this.loading
             ? html`<div class="loading-spinner"></div>`
-            : sendIconTemplate()}
+            : html`<app-icon icon="send-line"></app-icon>`}
         </button>
       </div>
     `;

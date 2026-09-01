@@ -13,10 +13,7 @@ import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
-import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
@@ -24,6 +21,7 @@ import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/container-link.js";
+import "/js/components/app-icon.js";
 
 function contentWarningTemplate({
   post,
@@ -81,7 +79,7 @@ function replyToLabelTemplate({ currentUser, replyToAuthor, replyToBlocked }) {
     >`;
   }
   return html`<div class="reply-to-author" data-testid="reply-to-label">
-    ${cornerDownRightIconTemplate()} Replied to ${repliedTo}
+    <app-icon icon="corner-down-right-line"></app-icon> Replied to ${repliedTo}
   </div>`;
 }
 
@@ -147,7 +145,7 @@ export function smallPostTemplate({
             : ""}
           ${repostAuthor
             ? html`<div class="repost-label" data-testid="repost-label">
-                ${repostIconTemplate()}
+                <app-icon icon="repost"></app-icon>
                 ${repostAuthor.did === currentUser?.did
                   ? "Reposted by you"
                   : html`Reposted by
@@ -179,7 +177,8 @@ export function smallPostTemplate({
             children: html` <div class="post-body">
               ${hideUnauthenticated
                 ? html`<div class="missing-post-indicator no-unauthenticated">
-                    ${infoIconTemplate()} Sign-in required
+                    <app-icon icon="info-circle-line"></app-icon> Sign-in
+                    required
                   </div>`
                 : html`${postText.length > 0
                     ? html`<div class="post-text">

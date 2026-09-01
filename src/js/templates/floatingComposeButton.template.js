@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
+import "/js/components/app-icon.js";
 
 export function floatingComposeButtonTemplate({ onClick }) {
   return html`<button
@@ -7,6 +7,6 @@ export function floatingComposeButtonTemplate({ onClick }) {
     data-testid="floating-compose-button"
     @click=${() => onClick()}
   >
-    ${editIconTemplate()}
+    <app-icon icon="edit-pen-2"></app-icon>
   </button>`;
 }

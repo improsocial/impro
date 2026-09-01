@@ -9,9 +9,8 @@ import { cdnImageUrl, getDisplayName } from "/js/dataHelpers.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import "/js/components/app-icon.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import {
   formatLargeNumber,
   classnames,
@@ -404,8 +403,8 @@ export function profileCardTemplate({
             ${isFollowing
               ? "Following"
               : isFollowedBy
-                ? html`${plusIconTemplate()} Follow back`
-                : html`${plusIconTemplate()} Follow`}
+                ? html`<app-icon icon="plus-line"></app-icon> Follow back`
+                : html`<app-icon icon="plus-line"></app-icon> Follow`}
           </button>`;
         })()}
         <button

@@ -18,6 +18,8 @@ describe("notFoundPostTemplate", () => {
     const container = document.createElement("div");
     render(result, container);
     const indicator = container.querySelector(".missing-post-indicator");
-    assert(indicator.querySelector(".trash-can-icon") !== null);
+    assert(
+      indicator.querySelector("app-icon[icon='delete-bin-line']") !== null,
+    );
   });
 });

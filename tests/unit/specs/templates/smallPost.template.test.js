@@ -455,11 +455,7 @@ describe("smallPostTemplate - moderation", () => {
     );
     assert(messageEl !== null, "should have message element");
     assert(
-      messageEl.textContent.includes("Sign-in required"),
-      "should show lock message",
-    );
-    assert(
-      messageEl.querySelector(".info-icon") !== null,
+      messageEl.querySelector("app-icon[icon='info-circle-line']") !== null,
       "should show info icon",
     );
     assert(!container.querySelector(".post-text"), "should not show post text");

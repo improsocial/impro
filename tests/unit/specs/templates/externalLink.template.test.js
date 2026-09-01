@@ -181,7 +181,7 @@ describe("externalLinkTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector(".play-icon") !== null);
+    assert(container.querySelector("app-icon[icon='play']") !== null);
   });
 
   it("should not render a play icon for a non-video link", () => {
@@ -193,7 +193,7 @@ describe("externalLinkTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert.deepEqual(container.querySelector(".play-icon"), null);
+    assert.deepEqual(container.querySelector("app-icon[icon='play']"), null);
   });
 
   it("should render a play icon placeholder for a video link without an image", () => {
@@ -208,7 +208,7 @@ describe("externalLinkTemplate", () => {
       ".external-link-video-placeholder",
     );
     assert(placeholder !== null);
-    assert(placeholder.querySelector(".play-icon") !== null);
+    assert(placeholder.querySelector("app-icon[icon='play']") !== null);
     assert.deepEqual(container.querySelector(".external-link-image"), null);
   });
 

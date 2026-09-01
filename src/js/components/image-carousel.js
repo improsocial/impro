@@ -3,7 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { isSafari } from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/lightbox-image-group.js";
-import { cropIndicatorIconTemplate } from "/js/templates/icons/cropIndicatorIcon.template.js";
+import "/js/components/app-icon.js";
 
 const MIN_ASPECT_RATIO = 2 / 3;
 const MAX_ASPECT_RATIO = 3 / 2;
@@ -129,7 +129,7 @@ export class ImageCarousel extends Component {
                         data-testid="image-crop-badge"
                         aria-label="Image cropped"
                       >
-                        ${cropIndicatorIconTemplate()}
+                        <app-icon icon="crop-indicator"></app-icon>
                       </span>`
                     : ""}
                 </button>

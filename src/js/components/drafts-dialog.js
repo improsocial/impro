@@ -7,8 +7,7 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
-import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
-import { playIconTemplate } from "/js/templates/icons/playIcon.template.js";
+import "/js/components/app-icon.js";
 import {
   getLocalRefsFromDraft,
   getImagesFromDraftPost,
@@ -46,7 +45,7 @@ function draftMediaTemplate({ images, gif, video }) {
   if (video?.exists) {
     thumbs.push(
       html`<div class="draft-item-thumb draft-item-video-placeholder">
-        ${playIconTemplate()}
+        <app-icon icon="play"></app-icon>
       </div>`,
     );
   }
@@ -128,7 +127,7 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
             onDelete(draftView);
           }}
         >
-          ${trashCanIconTemplate()}
+          <app-icon icon="delete-bin-line"></app-icon>
         </button>
       </div>
     </div>

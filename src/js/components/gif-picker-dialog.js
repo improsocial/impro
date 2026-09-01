@@ -6,7 +6,6 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { gifProxyUrl } from "/js/embedHelpers.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -73,7 +72,7 @@ function gifPickerHeaderTemplate({ query, onInput, onClear, onCloseDialog }) {
             aria-label="Clear GIF search"
             @click=${() => onClear()}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </button>`
         : ""}
     </div>
@@ -83,7 +82,7 @@ function gifPickerHeaderTemplate({ query, onInput, onClear, onCloseDialog }) {
       data-testid="gif-picker-close"
       @click=${() => onCloseDialog()}
     >
-      ${closeIconTemplate()}
+      <app-icon icon="close-line"></app-icon>
     </button>
   </div>`;
 }

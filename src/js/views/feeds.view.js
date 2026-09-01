@@ -8,11 +8,8 @@ import {
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
-import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
-import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { linkToList, linkToFeed } from "/js/navigation.js";
 import { Signal, ReactiveStore, SignalSet, SignalArray } from "/js/signals.js";
 import { enableReorder } from "/js/utils.js";
@@ -101,7 +98,7 @@ export default async function feedsView({
         aria-label="Drag to reorder"
         ?disabled=${isSaving}
       >
-        ${menuIconTemplate()}
+        <app-icon icon="hamburger-menu"></app-icon>
       </button>`;
   }
 
@@ -114,7 +111,7 @@ export default async function feedsView({
         data-testid="feeds-list-item-following"
       >
         <div class="feeds-list-item-avatar following-avatar">
-          ${homeIconTemplate({ filled: true })}
+          <app-icon icon="home"></app-icon>
         </div>
         <div class="feeds-list-item-content">
           <div class="feeds-list-item-title">Following</div>
@@ -264,7 +261,7 @@ export default async function feedsView({
                 : item.type === "timeline"
                   ? ""
                   : html`<div class="feeds-list-item-chevron">
-                      ${chevronRightIconTemplate()}
+                      <app-icon icon="chevron-right-line"></app-icon>
                     </div>`;
               return rowTemplate({ item, currentUser, rightItem });
             },

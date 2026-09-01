@@ -5,7 +5,6 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { classnames } from "/js/utils.js";
 
@@ -201,7 +200,7 @@ class ManageListMembersDialog extends Component {
                 data-testid="manage-list-members-close"
                 @click=${() => this.close()}
               >
-                ${closeIconTemplate()}
+                <app-icon icon="close-line"></app-icon>
               </button>
             </div>
             <div class="search-dialog-input-container">
@@ -227,7 +226,7 @@ class ManageListMembersDialog extends Component {
                       aria-label="Clear search"
                       @click=${() => this._onClearSearch()}
                     >
-                      ${closeIconTemplate()}
+                      <app-icon icon="close-line"></app-icon>
                     </button>
                   `
                 : ""}

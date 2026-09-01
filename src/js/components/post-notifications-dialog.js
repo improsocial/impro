@@ -4,7 +4,7 @@ import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import "/js/components/toggle-switch.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 
 class PostNotificationsDialog extends Component {
   connectedCallback() {
@@ -54,7 +54,7 @@ class PostNotificationsDialog extends Component {
               class="post-notifications-dialog-close"
               @click=${() => this.close()}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div class="post-notifications-dialog-body">
               <div class="post-notifications-dialog-header">

@@ -25,8 +25,8 @@ import {
   doHideAuthorOnUnauthenticated,
   canReplyToPost,
 } from "/js/dataHelpers.js";
-import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
+import "/js/components/app-icon.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
@@ -340,7 +340,9 @@ export default async function postThreadView({
           ${replyContext === "parent" || replyContext === "reply"
             ? html`<div class="reply-context-line-in"></div>`
             : ""}
-          <div class="no-unauthenticated-avatar">${lockIconTemplate()}</div>
+          <div class="no-unauthenticated-avatar">
+            <app-icon icon="lock-line"></app-icon>
+          </div>
           ${replyContext === "root" || replyContext === "parent"
             ? html`<div class="reply-context-line-out-container">
                 <div class="reply-context-line-out"></div>
@@ -359,7 +361,9 @@ export default async function postThreadView({
   function noUnauthenticatedLargePostTemplate() {
     return html`<div class="post large-post no-unauthenticated-post">
       <div class="no-unauthenticated-header">
-        <div class="no-unauthenticated-avatar">${lockIconTemplate()}</div>
+        <div class="no-unauthenticated-avatar">
+          <app-icon icon="lock-line"></app-icon>
+        </div>
         <div class="no-unauthenticated-skeleton-text">
           <div class="skeleton-line skeleton-line-short"></div>
           <div class="skeleton-line skeleton-line-medium"></div>

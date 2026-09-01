@@ -12,7 +12,6 @@ import {
   cdnImageUrl,
   parseUri,
 } from "/js/dataHelpers.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/app-icon.js";
 
@@ -173,8 +172,7 @@ function quotePostsRowTemplate({ quotesEnabled, isSaving, onToggleQuotes }) {
   return html`
     <label class="interaction-settings-quote-row">
       <span class="interaction-settings-quote-label">
-        <app-icon icon="quote-line"></app-icon>
-        Allow quote posts
+        <app-icon icon="quote-line"></app-icon> Allow quote posts
       </span>
       <toggle-switch
         label="Allow quote posts"
@@ -532,7 +530,7 @@ class PostInteractionSettingsDialog extends Component {
               aria-label="Close"
               @click=${() => this.close()}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div
               class="post-interaction-settings-dialog-body sheet-scroll-region"

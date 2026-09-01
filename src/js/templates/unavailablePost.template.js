@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
+import "/js/components/app-icon.js";
 
 export function unavailablePostTemplate() {
   return html`<div
@@ -7,7 +7,7 @@ export function unavailablePostTemplate() {
     data-testid="post-tombstone-unavailable"
   >
     <div class="missing-post-indicator">
-      ${infoIconTemplate()} Post unavailable
+      <app-icon icon="info-circle-line"></app-icon> Post unavailable
     </div>
   </div> `;
 }

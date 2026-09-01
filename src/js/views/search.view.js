@@ -1,6 +1,5 @@
 import { html, keyed, render } from "/js/lib/lit-html.js";
 import "/js/components/app-icon.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { classnames } from "/js/utils.js";
@@ -17,7 +16,7 @@ import {
 } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -345,7 +344,7 @@ export default async function searchView({
           handleRecentSearchRemove(q);
         }}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
     </div>`;
   }
@@ -369,7 +368,7 @@ export default async function searchView({
           handleRecentProfileRemove(profile.did);
         }}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
     </container-link>`;
   }
@@ -759,7 +758,7 @@ export default async function searchView({
                       class="search-clear-button"
                       @click=${() => handleClearSearch()}
                     >
-                      ${closeIconTemplate()}
+                      <app-icon icon="close-line"></app-icon>
                     </button>
                   `
                 : ""}

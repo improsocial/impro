@@ -7,13 +7,10 @@ import {
   isValidAppViewConfig,
   CUSTOM_APP_VIEW_CONFIG_ID,
 } from "/js/appViewConfig.js";
-import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { validateReturnToParam } from "/js/navigation.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
+import "/js/components/app-icon.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import {
@@ -297,11 +294,11 @@ export default async function loginView({
                     ></span>`
                   : isCurrent
                     ? html`<span class="account-switcher-current-check"
-                        >${circleCheckIconTemplate()}</span
-                      >`
+                        ><app-icon icon="circle-check"></app-icon
+                      ></span>`
                     : html`<span class="account-switcher-chevron"
-                        >${chevronRightIconTemplate()}</span
-                      >`}
+                        ><app-icon icon="chevron-right-line"></app-icon
+                      ></span>`}
               </button>
             `;
           })}
@@ -313,7 +310,7 @@ export default async function loginView({
             @click=${() => handleUseAnotherAccount()}
           >
             <span class="account-switcher-avatar account-switcher-add-icon">
-              ${userPlusIconTemplate()}
+              <app-icon icon="user-plus-line"></app-icon>
             </span>
             <span class="account-switcher-names">
               <span class="account-switcher-display-name"
@@ -435,7 +432,9 @@ export default async function loginView({
                 ${isCustom
                   ? html`
                       <div class="warning-area">
-                        <h4>${alertIconTemplate()} Warning</h4>
+                        <h4>
+                          <app-icon icon="alert-circle-line"></app-icon> Warning
+                        </h4>
                         Only set these values if you know what they mean!
                       </div>
                       <div class="form-group">

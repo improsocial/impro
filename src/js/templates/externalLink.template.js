@@ -1,7 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { sanitizeUri } from "/js/utils.js";
 import { isVideoLink } from "/js/dataHelpers.js";
-import { playIconTemplate } from "/js/templates/icons/playIcon.template.js";
+import "/js/components/app-icon.js";
 
 function getDomainFromUri(uri) {
   try {
@@ -50,13 +50,13 @@ export function externalLinkTemplate({
                 alt=${title}
                 loading=${lazyLoadImages ? "lazy" : "eager"}
               />
-              ${isVideoLink(url) ? playIconTemplate() : ""}
+              ${isVideoLink(url) ? html`<app-icon icon="play"></app-icon>` : ""}
             </div>`
           : isVideoLink(url)
             ? html`<div
                 class="external-link-image-wrapper external-link-video-placeholder"
               >
-                ${playIconTemplate()}
+                <app-icon icon="play"></app-icon>
               </div>`
             : ""}
         <div class="external-link-text">

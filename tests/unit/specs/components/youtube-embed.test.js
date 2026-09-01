@@ -84,16 +84,13 @@ describe("youtube-embed", () => {
         thumb.getAttribute("src"),
         "https://example.com/thumb.jpg",
       );
-      assert(element.querySelector(".play-icon") !== null);
+      assert(element.querySelector("app-icon[icon='play']") !== null);
     });
 
     it("renders a play icon placeholder instead of an image when thumb is empty", () => {
       const element = createEmbed();
       assert.deepEqual(element.querySelector(".external-link-image"), null);
-      assert(
-        element.querySelector(".external-link-video-placeholder .play-icon") !==
-          null,
-      );
+      assert(element.querySelector("app-icon[icon='play']") !== null);
     });
   });
 

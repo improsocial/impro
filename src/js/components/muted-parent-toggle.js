@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
-import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
+import "/js/components/app-icon.js";
 import { classnames } from "/js/utils.js";
 
 class MutedParentToggle extends Component {
@@ -40,7 +40,7 @@ class MutedParentToggle extends Component {
             }}
           >
             <div class="muted-parent-toggle-button-icon">
-              ${eyeSlashIconTemplate()}
+              <app-icon icon="eye-off-line"></app-icon>
             </div>
             <span>${this.label}</span>
             <div class="muted-account-show-more">Show</div>

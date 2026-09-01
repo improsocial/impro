@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
+import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -12,9 +12,6 @@ import {
   bindPageTitle,
   onPageShow,
 } from "/js/router.js";
-import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
-import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
@@ -30,9 +27,6 @@ import { getGifFromPost } from "/js/embedHelpers.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { getTimestampFromRkey } from "/js/atproto.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
-import { verifiedCheckIconTemplate } from "/js/templates/icons/verifiedCheckIcon.template.js";
-import { contactsIconTemplate } from "/js/templates/icons/contactsIcon.template.js";
 import { profileListModal } from "/js/modals/profileList.modal.js";
 import "/js/components/tab-bar.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
@@ -319,7 +313,7 @@ export default async function notificationsView({
     return html`
       <div class="notification-item ${isUnread ? "unread" : ""}">
         <div class="notification-icon">
-          ${userPlusIconTemplate({ filled: true })}
+          <app-icon icon="user-plus"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -350,7 +344,7 @@ export default async function notificationsView({
       isUnread,
       children: html`
         <div class="notification-icon">
-          ${notificationsIconTemplate({ filled: true })}
+          <app-icon icon="bell"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -383,7 +377,7 @@ export default async function notificationsView({
       isUnread,
       children: html`
         <div class="notification-icon">
-          ${heartIconTemplate({ filled: true })}
+          <app-icon icon="like"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -413,7 +407,7 @@ export default async function notificationsView({
       href: isUnavailablePost(repostedPost) ? null : linkToPost(repostedPost),
       isUnread,
       children: html`
-        <div class="notification-icon">${repostIconTemplate()}</div>
+        <div class="notification-icon"><app-icon icon="repost"></app-icon></div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
           <div class="notification-text">
@@ -468,7 +462,7 @@ export default async function notificationsView({
       isUnread,
       children: html`
         <div class="notification-icon">
-          ${heartIconTemplate({ filled: true })}
+          <app-icon icon="like"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -500,7 +494,7 @@ export default async function notificationsView({
       isUnread,
       children: html`
         <div class="notification-icon">
-          ${userIconTemplate({ filled: true })}
+          <app-icon icon="user"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -526,7 +520,7 @@ export default async function notificationsView({
     return html`
       <div class="notification-item ${isUnread ? "unread" : ""}">
         <div class="notification-icon verified-icon">
-          ${verifiedCheckIconTemplate()}
+          <app-icon icon="verified-check"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -553,7 +547,7 @@ export default async function notificationsView({
     return html`
       <div class="notification-item ${isUnread ? "unread" : ""}">
         <div class="notification-icon unverified-icon">
-          ${verifiedCheckIconTemplate()}
+          <app-icon icon="verified-check"></app-icon>
         </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
@@ -583,7 +577,9 @@ export default async function notificationsView({
       href: profileLink,
       isUnread,
       children: html`
-        <div class="notification-icon">${contactsIconTemplate()}</div>
+        <div class="notification-icon">
+          <app-icon icon="user-box"></app-icon>
+        </div>
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
           <div class="notification-text">

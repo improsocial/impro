@@ -1,11 +1,10 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
-import { trendingIconTemplate } from "/js/templates/icons/trendingIcon.template.js";
-import { moreMenuIconTemplate } from "/js/templates/icons/moreMenuIcon.template.js";
 import { displayPreferences } from "/js/displayPreferences.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/container-link.js";
+import "/js/components/app-icon.js";
 
 const TREND_LIMIT = 5;
 
@@ -36,7 +35,7 @@ function trendingSkeletonTemplate() {
 function trendingPaneTemplate({ rows, isLoading, onHide }) {
   return html`<section class="trending-pane" data-testid="trending-pane">
     <header class="trending-pane-header">
-      ${trendingIconTemplate()}
+      <app-icon icon="pulse-line"></app-icon>
       <h2 class="trending-pane-title">Trending</h2>
       <button
         class="trending-hide-button"
@@ -44,7 +43,7 @@ function trendingPaneTemplate({ rows, isLoading, onHide }) {
         aria-label="Trending options"
         @click=${onHide}
       >
-        ${moreMenuIconTemplate()}
+        <app-icon icon="more-menu-line"></app-icon>
       </button>
     </header>
     <div class="trending-list">

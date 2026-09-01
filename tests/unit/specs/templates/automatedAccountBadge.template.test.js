@@ -25,7 +25,7 @@ describe("automatedAccountBadgeTemplate", () => {
     assert.deepEqual(badge.getAttribute("title"), "Automated Account");
   });
 
-  it("should render an SVG icon inside the badge", () => {
+  it("should render the robot icon inside the badge", () => {
     const profile = {
       did: "did:plc:123",
       labels: [{ val: "bot" }],
@@ -33,8 +33,11 @@ describe("automatedAccountBadgeTemplate", () => {
     const result = automatedAccountBadgeTemplate({ profile });
     const container = document.createElement("div");
     render(result, container);
-    const svg = container.querySelector(".automated-account-badge svg");
-    assert(svg !== null);
+    assert(
+      container.querySelector(
+        ".automated-account-badge app-icon[icon='robot-line']",
+      ) !== null,
+    );
   });
 
   it("should open a modal when clicked", () => {

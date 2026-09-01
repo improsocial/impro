@@ -1,8 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
-import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
-import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
+import "/js/components/app-icon.js";
 
 function avatarAndTitleTemplate({
   title,
@@ -57,7 +56,7 @@ export function headerTemplate({
             data-testid="menu-button"
             @click=${onClickMenuButton}
           >
-            ${menuIconTemplate()}
+            <app-icon icon="hamburger-menu"></app-icon>
           </button>`
         : html`<button
             class="icon-button back-button"
@@ -66,7 +65,7 @@ export function headerTemplate({
               ? () => onClickBackButton()
               : () => router.back({ fallbackRoute: backButtonFallbackRoute })}
           >
-            ${arrowLeftIconTemplate()}
+            <app-icon icon="arrow-left-line"></app-icon>
           </button>`}
       ${titleHref
         ? html`<container-link class="header-title-link" href=${titleHref}>

@@ -5,11 +5,6 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
-import { usersIconTemplate } from "/js/templates/icons/usersIcon.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -132,7 +127,7 @@ function memberToggleTemplate({ isSelected }) {
     data-testid="new-group-member-toggle"
     data-teststate=${isSelected ? "selected" : "unselected"}
   >
-    ${isSelected ? checkIconTemplate() : ""}
+    ${isSelected ? html`<app-icon icon="check"></app-icon>` : ""}
   </div>`;
 }
 
@@ -190,9 +185,9 @@ function newGroupEntryTemplate({ canCreateGroups, onClick }) {
     data-testid="new-chat-new-group-button"
     @click=${onClick}
   >
-    ${usersIconTemplate()}
+    <app-icon icon="users-line"></app-icon>
     <span class="new-group-entry-label">New group chat</span>
-    ${chevronRightIconTemplate()}
+    <app-icon icon="chevron-right-line"></app-icon>
   </button>`;
 }
 
@@ -213,7 +208,7 @@ function memberChipsTemplate({ profiles, onRemove }) {
             aria-label="Remove ${getDisplayName(profile)} from group chat"
             @click=${() => onRemove(profile)}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </button>
         </div>`,
     )}
@@ -229,7 +224,7 @@ function dialogHeaderTemplate({ title, onBack = null, action = "" }) {
           data-testid="new-group-back-button"
           @click=${onBack}
         >
-          ${chevronLeftIconTemplate()}
+          <app-icon icon="chevron-left-line"></app-icon>
         </button>`
       : ""}
     <h2 class="search-dialog-title">${title}</h2>
@@ -261,7 +256,7 @@ function searchInputTemplate({ rawQuery, onInput, onClear }) {
             aria-label="Clear search"
             @click=${onClear}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </button>
         `
       : ""}
@@ -358,7 +353,7 @@ function chatStepTemplate({
         data-testid="new-chat-dialog-close"
         @click=${onClose}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>`,
     })}
     ${searchInputTemplate({

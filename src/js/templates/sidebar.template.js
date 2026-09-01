@@ -7,7 +7,7 @@ import {
   enableLongPress,
   raf,
 } from "/js/utils.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
   linkToProfileFollowers,

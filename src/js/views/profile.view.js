@@ -15,7 +15,7 @@ import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
-import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
+import "/js/components/app-icon.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
@@ -450,7 +450,7 @@ export default async function profileView({
       html`<div id="profile-view">
         <main style="position: relative;">
           <button class="floating-back-button" @click=${() => router.back()}>
-            ${arrowLeftIconTemplate()}
+            <app-icon icon="arrow-left-line"></app-icon>
           </button>
           ${(() => {
             if (profileRequestStatus.error) {

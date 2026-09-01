@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
@@ -97,7 +96,7 @@ function sidebarSearchTemplate({
             aria-label="Clear search"
             @click=${onClear}
           >
-            ${closeIconTemplate()}
+            <app-icon icon="close-line"></app-icon>
           </button>`
         : ""}
     </div>

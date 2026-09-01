@@ -10,10 +10,8 @@ import {
   isAndroid,
   isFirefox,
 } from "/js/utils.js";
-import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
-import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
-import { fillableIconTemplate } from "/js/templates/icons/fillableIcon.template.js";
-import { shareIconTemplate } from "/js/templates/icons/shareIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
+import "/js/components/app-icon.js";
 import {
   getRKey,
   canReplyToPost,
@@ -386,7 +384,9 @@ export function postActionBarTemplate({
               onClickReply(post);
             }}
           >
-            <div class="post-action-icon">${replyIconTemplate()}</div>
+            <div class="post-action-icon">
+              <app-icon icon="reply"></app-icon>
+            </div>
             ${numReplies > 0
               ? html`<span class="post-action-count" data-testid="reply-count"
                   >${formatLargeNumber(numReplies)}</span
@@ -419,7 +419,9 @@ export function postActionBarTemplate({
               );
             }}
           >
-            <div class="post-action-icon">${repostIconTemplate()}</div>
+            <div class="post-action-icon">
+              <app-icon icon="repost"></app-icon>
+            </div>
             ${numReposts > 0
               ? html`<span class="post-action-count" data-testid="repost-count"
                   >${formatLargeNumber(numReposts)}</span
@@ -490,7 +492,9 @@ export function postActionBarTemplate({
               openContextMenu(e, shareMenuTemplate({ post }));
             }}
           >
-            <div class="post-action-icon">${shareIconTemplate()}</div>
+            <div class="post-action-icon">
+              <app-icon icon="share-line"></app-icon>
+            </div>
           </button>
         </div>
         <div class="post-action">

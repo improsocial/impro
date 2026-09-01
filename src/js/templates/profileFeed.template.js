@@ -1,7 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { linkToProfile } from "/js/navigation.js";
+import "/js/components/app-icon.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
@@ -94,8 +94,8 @@ function followButtonRightItem({
     ${isFollowing
       ? "Following"
       : isFollowedBy
-        ? html`${plusIconTemplate()} Follow back`
-        : html`${plusIconTemplate()} Follow`}
+        ? html`<app-icon icon="plus-line"></app-icon> Follow back`
+        : html`<app-icon icon="plus-line"></app-icon> Follow`}
   </button>`;
 }
 

@@ -2,10 +2,6 @@ import { html, render, keyed } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/app-icon.js";
-import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
-import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, SignalSet, ReactiveStore } from "/js/signals.js";
@@ -167,8 +163,8 @@ export default async function installedPluginsView({
         <main>
           <a class="community-plugins-link" href="/plugins/community">
             <span class="community-plugins-link-icon"
-              >${globeIconTemplate()}</span
-            >
+              ><app-icon icon="globe-grid-line"></app-icon
+            ></span>
             <span class="community-plugins-link-text">
               <span class="community-plugins-link-title"
                 >Browse community plugins</span
@@ -178,8 +174,8 @@ export default async function installedPluginsView({
               >
             </span>
             <span class="community-plugins-link-arrow"
-              >${chevronRightIconTemplate()}</span
-            >
+              ><app-icon icon="chevron-right-line"></app-icon
+            ></span>
           </a>
 
           ${!pluginsInfo
@@ -222,7 +218,7 @@ export default async function installedPluginsView({
                         ?disabled=${reloading}
                         @click=${() => reloadPlugins()}
                       >
-                        ${reloadIconTemplate()}
+                        <app-icon icon="reload-line"></app-icon>
                       </button>
                     </div>
                   </div>
@@ -315,7 +311,7 @@ export default async function installedPluginsView({
                                 aria-label="Uninstall ${plugin.name}"
                                 @click=${() => uninstallPlugin(plugin)}
                               >
-                                ${trashCanIconTemplate()}
+                                <app-icon icon="delete-bin-line"></app-icon>
                               </button>
                               <toggle-switch
                                 class="plugin-toggle"

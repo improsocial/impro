@@ -9,10 +9,7 @@ import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 
 class AccountSwitcherDialog extends Component {
   connectedCallback() {
@@ -122,7 +119,7 @@ class AccountSwitcherDialog extends Component {
                 ?disabled=${pendingAction !== null}
                 @click=${() => this.close()}
               >
-                ${closeIconTemplate()}
+                <app-icon icon="close-line"></app-icon>
               </button>
             </div>
             <div
@@ -209,11 +206,11 @@ class AccountSwitcherDialog extends Component {
                         ></span>`
                       : isCurrent
                         ? html`<span class="account-switcher-current-check"
-                            >${circleCheckIconTemplate()}</span
-                          >`
+                            ><app-icon icon="circle-check"></app-icon
+                          ></span>`
                         : html`<span class="account-switcher-chevron"
-                            >${chevronRightIconTemplate()}</span
-                          >`}
+                            ><app-icon icon="chevron-right-line"></app-icon
+                          ></span>`}
                   </button>
                 `;
               })}
@@ -224,7 +221,7 @@ class AccountSwitcherDialog extends Component {
                 @click=${() => this._onAdd()}
               >
                 <span class="account-switcher-avatar account-switcher-add-icon">
-                  ${userPlusIconTemplate()}
+                  <app-icon icon="user-plus-line"></app-icon>
                 </span>
                 <span class="account-switcher-names">
                   <span class="account-switcher-display-name">Add account</span>

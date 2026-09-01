@@ -9,10 +9,9 @@ import {
 import { parseAltFromGifDescription } from "/js/embedHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import "/js/components/plugin-rich-text.js";
+import "/js/components/app-icon.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
@@ -56,7 +55,7 @@ function blockedQuoteTemplate() {
     class="quoted-post missing-quote-indicator embed-card"
     data-testid="blocked-quote"
   >
-    ${infoIconTemplate()} Blocked
+    <app-icon icon="info-circle-line"></app-icon> Blocked
   </div>`;
 }
 
@@ -65,7 +64,7 @@ function removedQuoteTemplate() {
     class="quoted-post missing-quote-indicator embed-card"
     data-testid="removed-quote"
   >
-    ${infoIconTemplate()} Removed by author
+    <app-icon icon="info-circle-line"></app-icon> Removed by author
   </div>`;
 }
 
@@ -74,7 +73,7 @@ function notFoundQuoteTemplate() {
     class="quoted-post missing-quote-indicator embed-card"
     data-testid="not-found-quote"
   >
-    ${infoIconTemplate()} Deleted
+    <app-icon icon="info-circle-line"></app-icon> Deleted
   </div>`;
 }
 
@@ -395,7 +394,7 @@ function openAltTextDialog(altText) {
         @click=${() => closeWithAnimation(dialog)}
         aria-label="Close"
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
       <p class="alt-text-dialog-text">${altText}</p>`,
     dialog,
