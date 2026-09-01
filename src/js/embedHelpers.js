@@ -1,6 +1,36 @@
-import { TENOR_GIF_PROXY_URL, KLIPY_GIF_PROXY_HOSTNAME } from "/js/config.js";
+import {
+  TENOR_GIF_PROXY_URL,
+  KLIPY_GIF_PROXY_HOSTNAME,
+  LINK_CARD_SERVICE_URL,
+} from "/js/config.js";
 import { createEmbedFromPost, isInAppLinkHostname } from "/js/dataHelpers.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
+import { fetchWithTimeout } from "/js/utils.js";
+
+export async function getLinkCardMeta(url, { timeoutMs = 15000 } = {}) {
+  let res;
+  try {
+    res = await fetchWithTimeout(
+      `${LINK_CARD_SERVICE_URL}/v1/extract?url=${encodeURIComponent(url)}`,
+      { timeoutMs, label: "getLinkCardMeta" },
+    );
+  } catch (error) {
+    console.warn("getLinkCardMeta failed", error);
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    const data = await res.json();
+    return {
+      title: data?.title ?? null,
+      description: data?.description ?? null,
+      image: data?.image ?? null,
+    };
+  } catch (error) {
+    console.warn("getLinkCardMeta JSON parse failed", error);
+    return null;
+  }
+}
 
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const RECORD_LINK_PATTERNS = [

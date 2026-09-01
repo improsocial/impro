@@ -22,16 +22,17 @@ import {
   VideoUploader,
   VideoValidationError,
 } from "/js/videoUtils.js";
-import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import {
   recordEmbedTemplate,
   gifExternalTemplate,
 } from "/js/templates/postEmbed.template.js";
+import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
 import {
   parseRecordLink,
   resolveRecordFromLink,
   buildGifExternal,
   restoreGifFromDraftUri,
+  getLinkCardMeta,
 } from "/js/embedHelpers.js";
 import "/js/components/app-icon.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
@@ -41,6 +42,9 @@ import {
   createEmbedFromPost,
   getLocalRefsFromDraft,
   getImagesFromDraftPost,
+  getInviteCodeFromUrl,
+  isInviteLinkUrl,
+  isAvailableJoinLinkPreview,
 } from "/js/dataHelpers.js";
 import {
   DraftMediaStore,
@@ -76,6 +80,15 @@ function hasPostStateContent(postState) {
     postState.external !== null ||
     postState.quotedRecord !== null
   );
+}
+
+function buildExternalForChatInvitePreview(url, preview) {
+  return {
+    url,
+    title: preview.name ?? url,
+    description: `${preview.memberCount}/${preview.memberLimit}`,
+    image: "",
+  };
 }
 
 function getSendErrorMessage(error) {
@@ -151,6 +164,103 @@ function replyToTemplate({ post }) {
         </div>
       </div>
       <hr style="margin-top: 18px;" />
+    </div>
+  `;
+}
+
+function joinLinkPreviewTemplate({ preview, onClose }) {
+  return html`
+    <div class="post-composer-embed-preview">
+      <button
+        class="embed-preview-close-button"
+        data-testid="composer-join-link-remove"
+        @click=${(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        <app-icon icon="close-line"></app-icon>
+      </button>
+      <div inert>
+        ${chatJoinLinkEmbedTemplate({
+          embed: {
+            $type: "chat.bsky.embed.joinLink#view",
+            joinLinkPreview: preview,
+          },
+          currentConvoId: null,
+        })}
+      </div>
+    </div>
+  `;
+}
+
+function joinLinkEmbedTemplate({ preview, status, url, onClose, onRetry }) {
+  if (preview) {
+    return joinLinkPreviewTemplate({ preview, onClose });
+  }
+  if (status === "loading") {
+    return joinLinkLoadingTemplate({ onClose });
+  }
+  if (status === "error") {
+    return joinLinkErrorTemplate({ url, onClose, onRetry });
+  }
+  return "";
+}
+
+function joinLinkLoadingTemplate({ onClose }) {
+  return html`
+    <div class="post-composer-embed-preview post-composer-join-link-loading">
+      <button
+        class="embed-preview-close-button"
+        data-testid="composer-join-link-remove"
+        @click=${(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        <app-icon icon="close-line"></app-icon>
+      </button>
+      <div class="loading-spinner"></div>
+    </div>
+  `;
+}
+
+function joinLinkErrorTemplate({ url, onClose, onRetry }) {
+  return html`
+    <div
+      class="post-composer-embed-preview post-composer-join-link-error"
+      data-testid="composer-join-link-error"
+    >
+      <button
+        class="embed-preview-close-button"
+        data-testid="composer-join-link-remove"
+        @click=${(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        <app-icon icon="close-line"></app-icon>
+      </button>
+      <div class="post-composer-join-link-error-body">
+        <div class="post-composer-join-link-error-url">${url}</div>
+        <div class="post-composer-join-link-error-message">
+          Couldn't load invite preview.
+        </div>
+        <button
+          class="post-composer-join-link-error-retry"
+          data-testid="composer-join-link-retry"
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRetry();
+          }}
+        >
+          Retry
+        </button>
+      </div>
     </div>
   `;
 }
@@ -305,6 +415,7 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
 
 function composerPostTemplate({
   postState,
+  joinLinkPreview,
   isActive,
   canRemove,
   promptText,
@@ -321,6 +432,7 @@ function composerPostTemplate({
   onRemoveGif,
   onEditGifAltText,
   onCloseExternal,
+  onRetryJoinLink,
   onCloseQuote,
 }) {
   return html`
@@ -360,12 +472,20 @@ function composerPostTemplate({
           ></rich-text-input>
         </div>
       </div>
-      ${postState.external
-        ? externalLinkEmbedPreviewTemplate({
-            data: postState.external,
-            onClose: () => onCloseExternal(),
+      ${joinLinkPreview || postState.joinLinkStatus
+        ? joinLinkEmbedTemplate({
+            preview: joinLinkPreview,
+            status: postState.joinLinkStatus,
+            url: postState.externalLinkUrl,
+            onClose: onCloseExternal,
+            onRetry: onRetryJoinLink,
           })
-        : ""}
+        : postState.external
+          ? externalLinkEmbedPreviewTemplate({
+              data: postState.external,
+              onClose: onCloseExternal,
+            })
+          : ""}
       ${postState.images.length > 0
         ? imagePreviewTemplate({
             images: postState.images,
@@ -477,6 +597,7 @@ class PostComposer extends Component {
       gif: null,
       external: null,
       externalLinkUrl: null,
+      joinLinkStatus: null, // null | 'error' | 'loading'
       quotedRecord: null,
       quotedRecordUrl: null,
       rejectedLinkEmbeds: new Set(),
@@ -495,6 +616,22 @@ class PostComposer extends Component {
 
   _getPost(postId) {
     return this._getPosts().find((postState) => postState.id === postId);
+  }
+
+  _getJoinLinkPreview(url) {
+    if (!url) return null;
+    const code = getInviteCodeFromUrl(url);
+    if (!code) return null;
+    return this.dataLayer?.derived?.$joinLinkPreviewsByCode.get(code) ?? null;
+  }
+
+  _hasAnyUnavailableInvite(posts) {
+    return posts.some((postState) => {
+      const url = postState.externalLinkUrl;
+      if (!url || !isInviteLinkUrl(url)) return false;
+      const preview = this._getJoinLinkPreview(url);
+      return preview !== null && !isAvailableJoinLinkPreview(preview);
+    });
   }
 
   _getActivePost() {
@@ -593,6 +730,7 @@ class PostComposer extends Component {
         isVideoUploadPending(postState.video) ||
         postState.video?.status === "error",
     );
+    const hasAnyUnavailableInvite = this._hasAnyUnavailableInvite(posts);
     const hasVideo = !!activePost.video;
     const hasGif = !!activePost.gif;
     const nextPost = posts[activePostIndex + 1] ?? null;
@@ -682,7 +820,8 @@ class PostComposer extends Component {
                 .disabled=${isSending ||
                 isCancellingSend ||
                 isAnyPostAboveCharLimit ||
-                isAnyVideoBlocking}
+                isAnyVideoBlocking ||
+                hasAnyUnavailableInvite}
               >
                 ${isSending
                   ? html`Sending... <span>&nbsp;&nbsp;</span>
@@ -704,6 +843,9 @@ class PostComposer extends Component {
                     postState.id,
                     composerPostTemplate({
                       postState,
+                      joinLinkPreview: this._getJoinLinkPreview(
+                        postState.externalLinkUrl,
+                      ),
                       isActive: index === activePostIndex,
                       canRemove: isThread && index === activePostIndex,
                       promptText: this._getPromptText(index),
@@ -725,6 +867,8 @@ class PostComposer extends Component {
                         this.handleEditGifAltText(postState.id),
                       onCloseExternal: () =>
                         this.handleExternalLinkEmbedPreviewClose(postState.id),
+                      onRetryJoinLink: () =>
+                        this.loadJoinLinkEmbedPreview(postState.id),
                       onCloseQuote: () =>
                         this.handleQuotedEmbedPreviewClose(postState.id),
                     }),
@@ -865,11 +1009,13 @@ class PostComposer extends Component {
         isVideoUploadPending(postState.video) ||
         postState.video?.status === "error",
     );
+    const hasUnavailableInvite = this._hasAnyUnavailableInvite(posts);
     return (
       isSending ||
       isCancellingSend ||
       isAnyPostAboveCharLimit ||
-      isAnyVideoBlocking
+      isAnyVideoBlocking ||
+      hasUnavailableInvite
     );
   }
 
@@ -973,6 +1119,7 @@ class PostComposer extends Component {
       activePost.rejectedLinkEmbeds.add(activePost.externalLinkUrl);
       patch.externalLinkUrl = null;
       patch.external = null;
+      patch.joinLinkStatus = null;
     }
     this._updatePost(activePost.id, patch);
     this._isDirty = true;
@@ -1025,7 +1172,11 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState) return;
     postState.rejectedLinkEmbeds.add(postState.externalLinkUrl);
-    this._updatePost(postId, { externalLinkUrl: null, external: null });
+    this._updatePost(postId, {
+      externalLinkUrl: null,
+      external: null,
+      joinLinkStatus: null,
+    });
     this._isDirty = true;
   }
 
@@ -1162,6 +1313,7 @@ class PostComposer extends Component {
       postState.rejectedLinkEmbeds.add(postState.externalLinkUrl);
       patch.externalLinkUrl = null;
       patch.external = null;
+      patch.joinLinkStatus = null;
     }
     this._updatePost(postId, patch);
     this._isDirty = true;
@@ -1407,6 +1559,10 @@ class PostComposer extends Component {
   async loadExternalLinkEmbedPreview(postId) {
     const url = this._getPost(postId)?.externalLinkUrl;
     if (!url) return;
+    if (isInviteLinkUrl(url)) {
+      await this.loadJoinLinkEmbedPreview(postId);
+      return;
+    }
     // preliminary data
     this._updatePost(postId, {
       external: {
@@ -1416,43 +1572,62 @@ class PostComposer extends Component {
         image: "",
       },
     });
-    let res = null;
+    const data = await getLinkCardMeta(url);
+    if (!data) return;
+    // preview may have been closed or replaced while metadata was loading
+    const current = this._getPost(postId)?.external;
+    if (!current || current.url !== url) return;
+    const updated = { ...current };
+    if (data.title) updated.title = data.title;
+    if (data.description) updated.description = data.description;
+    this._updatePost(postId, { external: updated });
+    if (data.image) {
+      // only show image if it can be loaded
+      let imageRes = null;
+      try {
+        imageRes = await fetch(sanitizeUri(data.image));
+      } catch (error) {}
+      // preview may have been closed or replaced while the image was loading
+      const latest = this._getPost(postId)?.external;
+      if (imageRes && imageRes.ok && latest && latest.url === url) {
+        this._updatePost(postId, {
+          external: { ...latest, image: data.image },
+        });
+      }
+    }
+  }
+
+  async loadJoinLinkEmbedPreview(postId) {
+    const url = this._getPost(postId)?.externalLinkUrl;
+    if (!url) return;
+    const code = getInviteCodeFromUrl(url);
+    if (!code) return;
+    this._updatePost(postId, {
+      external: null,
+      joinLinkStatus: "loading",
+    });
+    let preview = null;
+    let didError = false;
     try {
-      res = await fetch(
-        `${LINK_CARD_SERVICE_URL}/v1/extract?url=${encodeURIComponent(url)}`,
-      );
+      preview = await this.dataLayer.declarative.ensureJoinLinkPreview(code);
     } catch (error) {
-      console.error("Error loading external link embed preview: ", error);
+      didError = true;
+      console.warn("Error loading join link preview: ", error);
+    }
+    // The embed may have been closed or replaced while loading
+    if (this._getPost(postId)?.externalLinkUrl !== url) return;
+    if (didError) {
+      this._updatePost(postId, { joinLinkStatus: "error" });
       return;
     }
-    if (res && res.ok) {
-      const data = await res.json();
-      // preview may have been closed or replaced while metadata was loading
-      const current = this._getPost(postId)?.external;
-      if (!current || current.url !== url) return;
-      const updated = { ...current };
-      if (data.title) {
-        updated.title = data.title;
-      }
-      if (data.description) {
-        updated.description = data.description;
-      }
-      this._updatePost(postId, { external: updated });
-      if (data.image) {
-        // only show image if it can be loaded
-        let imageRes = null;
-        try {
-          imageRes = await fetch(sanitizeUri(data.image));
-        } catch (error) {}
-        // preview may have been closed or replaced while the image was loading
-        const latest = this._getPost(postId)?.external;
-        if (imageRes && imageRes.ok && latest && latest.url === url) {
-          this._updatePost(postId, {
-            external: { ...latest, image: data.image },
-          });
-        }
-      }
+    if (!isAvailableJoinLinkPreview(preview)) {
+      this._updatePost(postId, { joinLinkStatus: null });
+      return;
     }
+    this._updatePost(postId, {
+      external: buildExternalForChatInvitePreview(url, preview),
+      joinLinkStatus: null,
+    });
   }
 
   open() {
@@ -1529,12 +1704,56 @@ class PostComposer extends Component {
     return nonEmpty;
   }
 
+  // Ensure all invite links embeds are loaded and ready to send
+  async _ensureInviteExternals(posts) {
+    await Promise.all(
+      posts.map(async (postState) => {
+        const url = postState.externalLinkUrl;
+        if (!url || !isInviteLinkUrl(url)) return;
+        const cached = this._getJoinLinkPreview(url);
+        if (isAvailableJoinLinkPreview(cached)) {
+          this._updatePost(postState.id, {
+            external: buildExternalForChatInvitePreview(url, cached),
+            joinLinkStatus: null,
+          });
+          return;
+        }
+        const code = getInviteCodeFromUrl(url);
+        if (!code) throw new Error("Invalid invite link");
+        const preview =
+          await this.dataLayer.declarative.ensureJoinLinkPreview(code);
+        if (!isAvailableJoinLinkPreview(preview)) {
+          throw new Error("Invite link is unavailable");
+        }
+        this._updatePost(postState.id, {
+          external: buildExternalForChatInvitePreview(url, preview),
+          joinLinkStatus: null,
+        });
+      }),
+    );
+    const currentPosts = this._getPosts();
+    // Replace posts with the latest versions
+    return posts.map((stale) =>
+      currentPosts.find((p) => p.id === stale.id),
+    );
+  }
+
   async send() {
     if (this.isSendBlocked()) return;
-    const postsToSend = await this._buildPostsForSend();
+    let postsToSend = await this._buildPostsForSend();
     if (!postsToSend) return;
     this.state.$errorMessage.set(null);
     this.state.$isSending.set(true);
+    try {
+      postsToSend = await this._ensureInviteExternals(postsToSend);
+    } catch (error) {
+      console.warn("Error resolving invite link preview for send: ", error);
+      this.state.$isSending.set(false);
+      this.state.$errorMessage.set(
+        "Couldn't load an invite link in your post. Please try again or remove it.",
+      );
+      return;
+    }
     const attemptId = Symbol();
     this._sendAttemptId = attemptId;
     this._sendAbortController = new AbortController();
@@ -1555,16 +1774,19 @@ class PostComposer extends Component {
     this.dispatchEvent(
       new CustomEvent("send-post", {
         detail: {
-          posts: postsToSend.map((postState) => ({
-            postText: postState.text,
-            images: postState.images,
-            video: postState.video,
-            external: postState.gif
+          posts: postsToSend.map((postState) => {
+            const external = postState.gif
               ? buildGifExternal(postState.gif)
-              : postState.external,
-            quotedRecord: postState.quotedRecord,
-            labels: postState.labels ?? null,
-          })),
+              : postState.external;
+            return {
+              postText: postState.text,
+              images: postState.images,
+              video: postState.video,
+              external,
+              quotedRecord: postState.quotedRecord,
+              labels: postState.labels ?? null,
+            };
+          }),
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,
           threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
