@@ -464,7 +464,7 @@ trending-pane {
   color: var(--text-color-muted);
 }
 
-.trending-hide-button svg {
+.trending-hide-button app-icon {
   width: 20px;
   height: 20px;
   display: block;
@@ -5617,7 +5617,7 @@ emoji-picker-dialog emoji-picker,
   color: var(--highlight-color);
 }
 
-.verification-badge svg {
+.verification-badge app-icon {
   width: 12px;
   height: 12px;
 }
@@ -5637,7 +5637,7 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 2px;
 }
 
-.profile-name .verification-badge svg {
+.profile-name .verification-badge app-icon {
   width: 18px;
   height: 18px;
 }
@@ -6454,7 +6454,7 @@ sidebar-search {
   color: var(--text-color-muted);
 }
 
-.feeds-list-item-chevron svg {
+.feeds-list-item-chevron app-icon {
   width: 32px;
   height: 32px;
 }
@@ -6503,7 +6503,7 @@ sidebar-search {
   cursor: grabbing;
 }
 
-.feeds-list-item-drag-handle svg {
+.feeds-list-item-drag-handle app-icon {
   width: 20px;
   height: 20px;
 }
