@@ -229,15 +229,14 @@ describe("live status", () => {
 
     it("attaches isLive to hydrated profiles and post authors", () => {
       const { derived, dataStore } = makeDerived();
-      addLiveProfile(
-        dataStore,
-        createLiveStatusView({ did, expiresAt: futureExpiry() }),
-      );
+      const status = createLiveStatusView({ did, expiresAt: futureExpiry() });
+      addLiveProfile(dataStore, status);
       const post = createPost({
         uri: `at://${did}/app.bsky.feed.post/live1`,
         text: "hello",
         authorHandle: "liveuser.bsky.social",
         authorDisplayName: "Live User",
+        authorStatus: status,
       });
       dataStore.setPosts([post]);
       assert.equal(derived.$hydratedProfiles.get(did).isLive, true);

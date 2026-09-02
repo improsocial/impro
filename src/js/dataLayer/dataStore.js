@@ -88,6 +88,7 @@ export class DataStore extends ReactiveStore {
 
       const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
       this.mergeProfile(normalizedQuotedPost.author);
+      this._saveStatusForProfile(normalizedQuotedPost.author);
       if (!this.$posts.has(quotedPost.uri)) {
         this.$embeddedPosts.set(quotedPost.uri, normalizedQuotedPost);
       }
@@ -96,6 +97,7 @@ export class DataStore extends ReactiveStore {
 
     for (const post of posts) {
       this.mergeProfile(post.author);
+      this._saveStatusForProfile(post.author);
       this.$posts.set(post.uri, post);
       // Delete matching embedded post, since they're only used as previews
       this.$embeddedPosts.delete(post.uri);
