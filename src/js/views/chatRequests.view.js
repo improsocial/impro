@@ -1,7 +1,7 @@
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { displayRelativeTime } from "/js/utils.js";
+import { formatRelativeTime } from "/js/utils.js";
 import {
   getConvoPreviewText,
   getDisplayName,
@@ -53,7 +53,7 @@ export default async function chatRequestsView({
       (member) => member.did !== currentUser?.did,
     );
     const otherMember = groupDetails ? null : otherMembers[0];
-    const timeAgo = lastMessage ? displayRelativeTime(lastMessage.sentAt) : "";
+    const timeAgo = lastMessage ? formatRelativeTime(lastMessage.sentAt) : "";
     const messagePreview = lastMessage
       ? getConvoPreviewText(lastMessage, {
           currentUser,

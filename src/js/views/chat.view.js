@@ -6,7 +6,7 @@ import {
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { displayRelativeTime } from "/js/utils.js";
+import { formatRelativeTime } from "/js/utils.js";
 import {
   getConvoPreviewText,
   getDisplayName,
@@ -59,7 +59,7 @@ export default async function chatView({
     );
     const otherUser = groupDetails ? null : otherMembers[0];
     const timeAgo = lastInteraction
-      ? displayRelativeTime(getInteractionTimestamp(lastInteraction))
+      ? formatRelativeTime(getInteractionTimestamp(lastInteraction))
       : "";
     const isUnread = convo.unreadCount > 0;
     return html`

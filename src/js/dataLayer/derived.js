@@ -183,21 +183,23 @@ export class Derived extends ReactiveStore {
     });
     // { state: "none" | "active" | "inactive" }
     this.$actorLiveStatus = new ComputedMap((did) => {
+      const statusView = this.dataStore.$profileStatuses.get(did);
+      if (!statusView || typeof statusView !== "object") {
+        this.liveStatusScheduler.cancel(did);
+        return { state: "none" };
+      }
       const profile =
         this.$patchedDetailedProfiles.get(did) ??
         this.$patchedProfiles.get(did);
-      const statusView = profile?.status;
-      if (!statusView || typeof statusView !== "object") {
-        return { state: "none" };
-      }
-      const viewer = profile.viewer;
+      const viewer = profile?.viewer;
       const preferences = this.$preferences.get();
       if (
         viewer?.blocking ||
         viewer?.blockedBy ||
         viewer?.muted ||
-        (preferences && preferences.getProfileBlurLabel(profile))
+        (profile && preferences && preferences.getProfileBlurLabel(profile))
       ) {
+        this.liveStatusScheduler.cancel(did);
         return { state: "none" };
       }
       if (isStatusValid(statusView)) {
