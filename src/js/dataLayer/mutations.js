@@ -1,9 +1,10 @@
-import { isRecordNotFoundError } from "/js/api.js";
+import { isInvalidSwapError, isRecordNotFoundError } from "/js/api.js";
 import {
   parseUri,
   buildUri,
   hasDisableEmbeddingRule,
   createNotFoundPost,
+  createStatusView,
   addFeedItemToFeed,
   pinPostInFeed,
   unpinPostInFeed,
@@ -11,6 +12,7 @@ import {
   buildCdnUrl,
 } from "/js/dataHelpers.js";
 import { batch, getCurrentTimestamp } from "/js/utils.js";
+import { fetchAndCompressImage } from "/js/embedHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 
@@ -1030,6 +1032,93 @@ export class Mutations {
     if (currentUser && currentUser.did === profile.did) {
       this.dataStore.$currentUser.set({ ...currentUser, ...patch });
     }
+  }
+
+  async setLiveStatus({
+    linkMeta,
+    durationMinutes,
+    createdAt: passedCreatedAt = null,
+  }) {
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (!currentUser) throw new Error("No current user");
+    const createdAt = passedCreatedAt ?? getCurrentTimestamp();
+
+    // Upload thumbnail (best-effort — failure here doesn't block the publish)
+    let thumbBlob = null;
+    if (linkMeta.image) {
+      try {
+        const compressed = await fetchAndCompressImage(linkMeta.image);
+        const uploaded = await this.api.uploadBlob(compressed.blob);
+        thumbBlob = {
+          $type: "blob",
+          mimeType: uploaded.mimeType,
+          ref: { $link: uploaded.ref.$link },
+          size: uploaded.size,
+        };
+      } catch (error) {
+        if (error?.name === "AbortError") throw error;
+        console.warn("Error uploading live status thumb", error);
+      }
+    }
+
+    const record = {
+      $type: "app.bsky.actor.status",
+      status: "app.bsky.actor.status#live",
+      createdAt,
+      durationMinutes,
+      embed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          $type: "app.bsky.embed.external#external",
+          uri: linkMeta.url,
+          title: linkMeta.title,
+          description: linkMeta.description,
+          ...(thumbBlob ? { thumb: thumbBlob } : {}),
+        },
+      },
+    };
+
+    let attempts = 0;
+    let putResult;
+    while (true) {
+      let priorCid = null;
+      try {
+        const prior = await this.api.getStatusRecord();
+        priorCid = prior.cid ?? null;
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      try {
+        putResult = await this.api.putStatusRecord(record, priorCid);
+        break;
+      } catch (error) {
+        if (
+          isInvalidSwapError(error) &&
+          attempts < 5 // retry up to 5 times
+        ) {
+          attempts += 1;
+          continue;
+        }
+        throw error;
+      }
+    }
+    const statusView = createStatusView({
+      did: currentUser.did,
+      cid: putResult?.cid ?? null,
+      record,
+    });
+    this.dataStore.$profileStatuses.set(currentUser.did, statusView);
+  }
+
+  async clearLiveStatus() {
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (!currentUser) throw new Error("No current user");
+    try {
+      await this.api.deleteStatusRecord();
+    } catch (error) {
+      if (!isRecordNotFoundError(error)) throw error;
+    }
+    this.dataStore.$profileStatuses.set(currentUser.did, null);
   }
 
   async createList({ purpose, name, description, avatarBlob }) {

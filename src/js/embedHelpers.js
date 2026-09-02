@@ -5,7 +5,21 @@ import {
 } from "/js/config.js";
 import { createEmbedFromPost, isInAppLinkHostname } from "/js/dataHelpers.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
-import { fetchWithTimeout } from "/js/utils.js";
+import { fetchWithTimeout, readFileAsDataUrl } from "/js/utils.js";
+import { ImageCompressor } from "/js/imageCompressor.js";
+
+// Fetch a remote image and return a compressed { blob, ... } ready for
+// api.uploadBlob.
+export async function fetchAndCompressImage(
+  url,
+  { signal, imageCompressor } = {},
+) {
+  const imageRes = await fetch(url, { signal });
+  const imageBlob = await imageRes.blob();
+  const dataUrl = await readFileAsDataUrl(imageBlob);
+  const compressor = imageCompressor ?? new ImageCompressor();
+  return compressor.compressImage(dataUrl);
+}
 
 export async function getLinkCardMeta(url, { timeoutMs = 15000 } = {}) {
   let res;

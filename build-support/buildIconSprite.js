@@ -2,7 +2,13 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, basename, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ICONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "icons");
+const ICONS_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "src",
+  "img",
+  "icons",
+);
 
 const PRESERVED_ATTRS = [
   "fill",
@@ -41,35 +47,23 @@ function extractInner(svg) {
   return { viewBox, attrs: attrs.join(" "), inner };
 }
 
-export default {
-  data() {
-    return {
-      permalink: "/img/icons.svg",
-      eleventyExcludeFromCollections: true,
-    };
-  },
-
-  render() {
-    // Combine every SVG under src/img/icons/** into a sprite file
-    const files = walk(ICONS_DIR).sort();
-    const symbols = [];
-    const seen = new Set();
-    for (const file of files) {
-      const id = basename(file, ".svg");
-      if (seen.has(id)) {
-        console.warn(
-          `duplicate icon id "${id}" (${relative(ICONS_DIR, file)})`,
-        );
-        continue;
-      }
-      seen.add(id);
-      const svg = readFileSync(file, "utf8");
-      const { viewBox, attrs, inner } = extractInner(svg);
-      const attrStr = attrs ? ` ${attrs}` : "";
-      symbols.push(
-        `<symbol id="${id}" viewBox="${viewBox}"${attrStr}>${inner}</symbol>`,
-      );
+export function buildIconSprite() {
+  const files = walk(ICONS_DIR).sort();
+  const symbols = [];
+  const seen = new Set();
+  for (const file of files) {
+    const id = basename(file, ".svg");
+    if (seen.has(id)) {
+      console.warn(`duplicate icon id "${id}" (${relative(ICONS_DIR, file)})`);
+      continue;
     }
-    return `<svg xmlns="http://www.w3.org/2000/svg">${symbols.join("")}</svg>`;
-  },
-};
+    seen.add(id);
+    const svg = readFileSync(file, "utf8");
+    const { viewBox, attrs, inner } = extractInner(svg);
+    const attrStr = attrs ? ` ${attrs}` : "";
+    symbols.push(
+      `<symbol id="${id}" viewBox="${viewBox}"${attrStr}>${inner}</symbol>`,
+    );
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">${symbols.join("")}</svg>`;
+}

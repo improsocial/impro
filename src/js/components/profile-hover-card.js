@@ -128,7 +128,7 @@ function liveHoverCardTemplate({ profile, liveStatus, onOpenProfile }) {
               src="${thumb}"
               alt=""
               class=${classnames("live-status-thumb-image", {
-                "live-status-thumb-image--blurred": !!profile.blurLabel,
+                "is-blurred": !!profile.blurLabel,
               })}
             />
             <div class="live-status-thumb-badge">LIVE</div>

@@ -134,7 +134,7 @@ export function avatarTemplate({
               alt="${getDisplayName(author)} profile picture"
               class=${classnames("avatar-image", {
                 "labeler-avatar": isLabeler,
-                "avatar-image--blurred": isBlurred,
+                "is-blurred": isBlurred,
               })}
               data-testid="avatar-image"
               data-lightbox-src="${avatarFullSizeUrl}"

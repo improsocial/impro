@@ -3,7 +3,7 @@ import {
   CDN_URL,
   FOLLOWING_FEED_URI,
   IN_APP_LINK_DOMAINS,
-  LIVE_ALLOWED_DOMAINS,
+  LIVE_ALLOWED_SERVICES,
 } from "/js/config.js";
 
 export const INVALID_HANDLE = "handle.invalid";
@@ -58,6 +58,39 @@ function blobCdnUrl(prefix, did, blob) {
   const cid = blob?.ref?.$link ?? null;
   if (!cid) return null;
   return buildCdnUrl(prefix, did, cid);
+}
+
+export function createStatusView({ did, cid, record }) {
+  const external = record.embed.external;
+  const expiresAt = new Date(
+    Date.parse(record.createdAt) + record.durationMinutes * 60 * 1000,
+  ).toISOString();
+  return {
+    $type: "app.bsky.actor.defs#statusView",
+    status: record.status,
+    record,
+    uri: `at://${did}/app.bsky.actor.status/self`,
+    cid,
+    embed: {
+      $type: "app.bsky.embed.external#view",
+      external: {
+        uri: external.uri,
+        title: external.title,
+        description: external.description,
+        ...(external.thumb
+          ? {
+              thumb: buildCdnUrl(
+                "feed_thumbnail",
+                did,
+                external.thumb.ref.$link,
+              ),
+            }
+          : {}),
+      },
+    },
+    isActive: true,
+    expiresAt,
+  };
 }
 
 // A profileViewDetailed-shaped object assembled from the raw
@@ -1056,8 +1089,8 @@ export function isAllowedLiveHost(url) {
   } catch {
     return false;
   }
-  return LIVE_ALLOWED_DOMAINS.some(
-    (domain) => hostname === domain || hostname.endsWith("." + domain),
+  return LIVE_ALLOWED_SERVICES.some(
+    ({ domain }) => hostname === domain || hostname.endsWith("." + domain),
   );
 }
 
