@@ -1119,7 +1119,7 @@ input[type="color"]::-moz-color-swatch {
   display: block;
 }
 
-.avatar-image--blurred {
+.avatar-image.is-blurred {
   filter: blur(5px);
   transform: translateZ(0);
   will-change: filter;
@@ -5267,7 +5267,7 @@ chat-input .rich-text-input-placeholder {
   display: block;
 }
 
-.live-status-thumb-image--blurred {
+.live-status-thumb-image.is-blurred {
   filter: blur(20px);
   transform: translateZ(0);
 }
@@ -5342,6 +5342,133 @@ chat-input .rich-text-input-placeholder {
   font-size: 13px;
   color: var(--text-color-muted);
   padding: 0 16px 16px;
+}
+
+@media (min-width: 800px) {
+  .go-live-dialog.bottom-sheet,
+  .edit-live-dialog.bottom-sheet {
+    max-width: 500px;
+  }
+}
+
+.live-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.live-dialog-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.live-dialog-explainer {
+  margin: 0;
+  color: var(--text-color-muted);
+  font-size: 14px;
+}
+
+.live-dialog-expiry {
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.live-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-dialog-label {
+  font-size: 13px;
+  color: var(--text-color-muted);
+  font-weight: 500;
+}
+
+.live-dialog-field input {
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--generic-border-color);
+  border-radius: 8px;
+  background: var(--background-color);
+  color: var(--text-color);
+  margin-bottom: 12px;
+}
+
+.live-dialog-info-box {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-color-muted) 12%, transparent);
+  color: var(--text-color-muted);
+}
+
+.live-dialog-info-box.is-error {
+  background: color-mix(in srgb, var(--live-color) 15%, transparent);
+  color: var(--live-color);
+}
+
+.live-link-form-preview {
+  display: flex;
+  gap: 12px;
+  border: 1px solid var(--generic-border-color);
+  border-radius: 8px;
+  padding: 8px;
+  align-items: center;
+}
+
+.live-link-form-preview-image {
+  width: 114px;
+  height: 64px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--text-color-muted) 12%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-link-form-preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-link-form-preview-image-placeholder {
+  color: var(--text-color-muted);
+  font-size: 12px;
+}
+
+.live-link-form-preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.live-link-form-preview-title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.live-link-form-preview-domain {
+  font-size: 12px;
+  color: var(--text-color-muted);
+}
+
+.live-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .bottom-sheet.reactions-dialog {
@@ -5554,7 +5681,7 @@ emoji-picker-dialog emoji-picker,
   object-fit: cover;
 }
 
-.profile-banner--blurred {
+.profile-banner.is-blurred {
   filter: blur(100px);
 }
 
@@ -6805,6 +6932,12 @@ sidebar-search {
   overflow: hidden;
   padding: 0;
   padding-bottom: var(--safe-area-inset-bottom);
+
+  --secondary-button-color: light-dark(var(--lighter-gray), var(--light-gray));
+  --secondary-button-hover-color: light-dark(
+    color-mix(in srgb, var(--lighter-gray) 80%, var(--text-color)),
+    color-mix(in srgb, var(--light-gray) 80%, var(--white))
+  );
 }
 
 /* Shared scroll region for a bottom sheet's flex-fill body: fills the space
@@ -6909,6 +7042,20 @@ sidebar-search {
 /* @chunk post-composer */
 .post-composer-embed-preview {
   position: relative;
+}
+
+.post-composer-join-link-loading,
+.post-composer-join-link-error {
+  border-radius: var(--embed-border-radius);
+  border: var(--hair) solid var(--embed-border-color);
+  padding: 24px 16px;
+}
+
+.post-composer-join-link-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
 }
 
 .post-composer-image-preview {
@@ -8515,6 +8662,12 @@ context-menu-item-group > context-menu-item > button {
   font-weight: 500;
 }
 
+.bottom-sheet .checkbox-row,
+.bottom-sheet .pill-radio-group label,
+.bottom-sheet .interaction-settings-quote-row {
+  background: var(--secondary-button-color);
+}
+
 .checkbox-row:has(input:checked) {
   background: color-mix(in srgb, var(--highlight-color) 15%, transparent);
 }
@@ -9091,6 +9244,11 @@ context-menu-item-group > context-menu-item > button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-switcher-display-name .verification-badge,
+.account-switcher-display-name .automated-account-badge {
+  margin-left: 4px;
 }
 
 .account-switcher-handle {
@@ -10222,6 +10380,7 @@ label:has(toggle-switch[disabled]) {
   color: var(--text-color);
   padding: 4px 8px;
   opacity: 0.6;
+  font-size: 24px;
 }
 
 @media (min-width: 800px) {

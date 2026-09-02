@@ -22,7 +22,7 @@ export class AppIcon extends Component {
       render(html``, this);
       return;
     }
-    render(html`<svg><use href="/img/icons.svg#${icon}" /></svg>`, this);
+    render(html`<svg><use href="#${icon}" /></svg>`, this);
   }
 }
 

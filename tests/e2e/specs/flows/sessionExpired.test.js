@@ -28,7 +28,7 @@ test.describe("Session expiry flow", () => {
 
     await expect(page).toHaveURL("/login", { timeout: 10000 });
     await expect(
-      page.locator('[data-testid="saved-accounts-list"]'),
+      page.locator('[data-testid="account-switcher-list"]'),
     ).toBeVisible();
 
     // The account entry survives the soft logout so it shows up in the

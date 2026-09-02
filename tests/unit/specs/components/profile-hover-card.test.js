@@ -31,16 +31,21 @@ function makeSetup({
 } = {}) {
   const dataLayer = makeTestDataLayer();
   if (detailedProfile) {
-    dataLayer.dataStore.$detailedProfiles.set(
-      detailedProfile.did,
-      detailedProfile,
-    );
+    // Route through setDetailedProfile so `status` is extracted into
+    // $profileStatuses like production ingestion does.
+    dataLayer.dataStore.setDetailedProfile(detailedProfile);
   }
   if (basicProfile) {
-    dataLayer.dataStore.$profiles.set(basicProfile.did, basicProfile);
+    dataLayer.dataStore.setProfiles([basicProfile]);
   }
   if (currentUser) {
     dataLayer.dataStore.$currentUser.set(currentUser);
+    if (currentUser.status !== undefined) {
+      dataLayer.dataStore.$profileStatuses.set(
+        currentUser.did,
+        currentUser.status,
+      );
+    }
   }
   const followCalls = [];
   const interactionHandlers = {

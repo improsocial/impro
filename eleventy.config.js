@@ -3,6 +3,7 @@ import path from "node:path";
 import { isAssetPath } from "./build-support/assetPaths.js";
 import { applyContentHashing } from "./build-support/contentHash.js";
 import { watchLocalPlugins } from "./build-support/localPlugins.js";
+import { buildIconSprite } from "./build-support/buildIconSprite.js";
 
 const BUILD_DIR = process.env.BUILD_DIR || "build";
 
@@ -19,6 +20,8 @@ export default async function (eleventyConfig) {
   );
   eleventyConfig.addPassthroughCopy("src/img/shortcuts");
   eleventyConfig.addWatchTarget("src/img/icons");
+  // Inlined icons for index html
+  eleventyConfig.addShortcode("iconSprite", () => buildIconSprite());
   eleventyConfig.addPassthroughCopy("src/manifest.json");
   eleventyConfig.addPassthroughCopy("src/sw.js");
   eleventyConfig.addPassthroughCopy("src/_headers");

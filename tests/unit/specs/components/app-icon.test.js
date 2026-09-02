@@ -14,7 +14,7 @@ describe("app-icon", () => {
 
     const use = element.querySelector("use");
     assert(use !== null);
-    assert.deepEqual(use.getAttribute("href"), "/img/icons.svg#bell");
+    assert.deepEqual(use.getAttribute("href"), "#bell");
   });
 
   it("renders nothing when icon is absent", () => {
@@ -27,15 +27,9 @@ describe("app-icon", () => {
     const element = document.createElement("app-icon");
     element.setAttribute("icon", "bus");
     document.body.appendChild(element);
-    assert.deepEqual(
-      element.querySelector("use").getAttribute("href"),
-      "/img/icons.svg#bus",
-    );
+    assert.deepEqual(element.querySelector("use").getAttribute("href"), "#bus");
 
     element.setAttribute("icon", "car");
-    assert.deepEqual(
-      element.querySelector("use").getAttribute("href"),
-      "/img/icons.svg#car",
-    );
+    assert.deepEqual(element.querySelector("use").getAttribute("href"), "#car");
   });
 });

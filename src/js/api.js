@@ -34,6 +34,10 @@ export function isRecordNotFoundError(error) {
   return error instanceof ApiError && error.data?.error === "RecordNotFound";
 }
 
+export function isInvalidSwapError(error) {
+  return error instanceof ApiError && error.data?.error === "InvalidSwap";
+}
+
 class PublicSession {
   constructor() {
     this.serviceEndpoint = PUBLIC_SERVICE_ENDPOINT_URL;
@@ -1325,6 +1329,46 @@ export class Api {
           ...record,
         },
         swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async getStatusRecord() {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.status",
+        rkey: "self",
+      },
+    });
+    return res.data;
+  }
+
+  async putStatusRecord(record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.status",
+        rkey: "self",
+        record: {
+          $type: "app.bsky.actor.status",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async deleteStatusRecord() {
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.status",
+        rkey: "self",
       },
     });
     return res.data;
