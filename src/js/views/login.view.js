@@ -8,11 +8,8 @@ import {
   CUSTOM_APP_VIEW_CONFIG_ID,
 } from "/js/appViewConfig.js";
 import { validateReturnToParam } from "/js/navigation.js";
-import { getDisplayName } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
 import "/js/components/app-icon.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import {
   pageEffect,
   bindToPage,
@@ -208,117 +205,16 @@ export default async function loginView({
         <h2 class="saved-accounts-heading" data-testid="saved-accounts-heading">
           Sign in as...
         </h2>
-        <div class="account-switcher-list" data-testid="saved-accounts-list">
-          ${savedAccounts.map((account) => {
-            const profile = profilesByDid[account.did] ?? null;
-            const isCurrent = account.did === currentDid;
-            const isPendingRow = pendingDid === account.did;
-            const handle = profile?.handle ?? account.handle;
-            const showSkeleton = profile === null && profilesLoading;
-            const teststate = isPendingRow
-              ? "pending"
-              : isCurrent
-                ? "current"
-                : account.needsReauth
-                  ? "reauth"
-                  : "other";
-            return html`
-              <button
-                type="button"
-                class="account-switcher-item ${account.needsReauth
-                  ? "account-switcher-item-reauth"
-                  : ""}"
-                data-testid="saved-account-row"
-                data-did=${account.did}
-                data-handle=${account.handle ?? ""}
-                data-teststate=${teststate}
-                aria-label=${isCurrent
-                  ? `Continue as @${handle ?? account.did} (currently signed in)`
-                  : `Sign in as @${handle ?? account.did}`}
-                ?disabled=${pendingDid !== null}
-                @click=${() => handleSelectAccount(account)}
-              >
-                ${showSkeleton
-                  ? html`
-                      <span class="account-switcher-avatar">
-                        <span class="skeleton-avatar skeleton-animate"></span>
-                      </span>
-                      <span
-                        class="account-switcher-names account-switcher-names-skeleton"
-                        data-testid="account-switcher-skeleton"
-                      >
-                        <span
-                          class="skeleton-line-short skeleton-animate"
-                        ></span>
-                        <span
-                          class="skeleton-line-shorter skeleton-animate"
-                        ></span>
-                      </span>
-                    `
-                  : html`
-                      <span class="account-switcher-avatar">
-                        ${profile
-                          ? avatarTemplate({
-                              author: profile,
-                              clickAction: "none",
-                            })
-                          : html`<div class="avatar-image-placeholder"></div>`}
-                      </span>
-                      <span class="account-switcher-names">
-                        <span class="account-switcher-display-name">
-                          ${profile
-                            ? getDisplayName(profile)
-                            : (account.handle ?? account.did)}${profile
-                            ? verificationBadgeTemplate({ profile })
-                            : ""}${profile
-                            ? automatedAccountBadgeTemplate({ profile })
-                            : ""}
-                        </span>
-                        ${handle
-                          ? html`<span class="account-switcher-handle"
-                              >@${handle}</span
-                            >`
-                          : null}
-                        ${account.needsReauth
-                          ? html`<span
-                              class="account-switcher-reauth-hint"
-                              data-testid="saved-account-reauth-hint"
-                              >Sign in again</span
-                            >`
-                          : null}
-                      </span>
-                    `}
-                ${isPendingRow
-                  ? html`<span class="account-spinner"
-                      ><span class="loading-spinner"></span
-                    ></span>`
-                  : isCurrent
-                    ? html`<span class="account-switcher-current-check"
-                        ><app-icon icon="circle-check"></app-icon
-                      ></span>`
-                    : html`<span class="account-switcher-chevron"
-                        ><app-icon icon="chevron-right-line"></app-icon
-                      ></span>`}
-              </button>
-            `;
-          })}
-          <button
-            type="button"
-            class="account-switcher-item account-switcher-add"
-            data-testid="saved-account-add"
-            ?disabled=${pendingDid !== null}
-            @click=${() => handleUseAnotherAccount()}
-          >
-            <span class="account-switcher-avatar account-switcher-add-icon">
-              <app-icon icon="user-plus-line"></app-icon>
-            </span>
-            <span class="account-switcher-names">
-              <span class="account-switcher-display-name"
-                >Use another account</span
-              >
-            </span>
-          </button>
-        </div>
+        ${accountSwitcherListTemplate({
+          accounts: savedAccounts,
+          profilesByDid,
+          currentDid,
+          pendingDid,
+          profilesLoading,
+          onSelect: handleSelectAccount,
+          onAdd: handleUseAnotherAccount,
+          addLabel: "Other account",
+        })}
         <div class="button-group">
           <button
             class="rounded-button rounded-button-secondary"

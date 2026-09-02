@@ -9093,6 +9093,11 @@ context-menu-item-group > context-menu-item > button {
   white-space: nowrap;
 }
 
+.account-switcher-display-name .verification-badge,
+.account-switcher-display-name .automated-account-badge {
+  margin-left: 4px;
+}
+
 .account-switcher-handle {
   font-size: 14px;
   color: var(--text-color-muted);
