@@ -47,6 +47,8 @@ export class DataStore extends ReactiveStore {
     this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
     this.$detailedProfiles = new SignalMap();
+    // did -> statusView, normalized from profiles
+    this.$profileStatuses = new SignalMap();
     this.$authorFeeds = new SignalMap();
     this.$unavailablePosts = new SignalMap();
     this.$reposts = new SignalMap();
@@ -103,6 +105,7 @@ export class DataStore extends ReactiveStore {
 
   // Merge into existing profile object if present
   mergeProfile(profile) {
+    // Check for handle to prevent tombstones from overriding records
     if (!profile?.did || !profile.handle) {
       return;
     }
@@ -114,16 +117,29 @@ export class DataStore extends ReactiveStore {
     this.$profiles.set(profile.did, merged);
   }
 
+  _saveStatusForProfile(profile) {
+    if (!profile?.did) {
+      return;
+    }
+    this.$profileStatuses.set(profile.did, profile.status ?? null);
+  }
+
   setDetailedProfile(profile) {
-    if (!profile?.did) return;
     this.$profiles.set(profile.did, profile);
     this.$detailedProfiles.set(profile.did, profile);
+    this._saveStatusForProfile(profile);
   }
 
   setProfiles(profiles) {
     for (const profile of profiles) {
       this.mergeProfile(profile);
+      this._saveStatusForProfile(profile);
     }
+  }
+
+  setCurrentUser(profile) {
+    this.$currentUser.set(profile);
+    this._saveStatusForProfile(profile);
   }
 
   // Save the convo and sync convo lists if necessary

@@ -21,7 +21,7 @@ export class PostComposerService {
     quotedPost = null,
   }) {
     if (!currentUser) {
-      console.warn("No current user");
+      console.warn("composePost: No current user");
       return;
     }
     if (this.currentPostComposer !== null) {

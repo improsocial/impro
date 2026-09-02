@@ -21,6 +21,8 @@ import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
+import "/js/components/go-live-dialog.js";
+import "/js/components/edit-live-dialog.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function profileView({
@@ -66,6 +68,29 @@ export default async function profileView({
     dialog.addEventListener("dialog-closed", () => {
       dialog.remove();
     });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  function handleGoLive(profile) {
+    const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
+    const dialog = document.createElement("go-live-dialog");
+    dialog.dataLayer = dataLayer;
+    // Prefill url from old status if present
+    if (liveStatus?.state === "inactive" && !liveStatus.isDisabled) {
+      dialog.initialUrl = liveStatus?.record?.embed?.external?.uri ?? "";
+    }
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  function handleEditLive(profile) {
+    const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
+    const dialog = document.createElement("edit-live-dialog");
+    dialog.dataLayer = dataLayer;
+    dialog.liveStatus = liveStatus;
+    dialog.addEventListener("close", () => dialog.remove());
     document.body.appendChild(dialog);
     dialog.open();
   }
@@ -313,6 +338,8 @@ export default async function profileView({
               profileInteractionHandler.handleReport(profile),
             onClickAddToLists: (profile) => handleAddToLists(profile),
             onClickEditProfile: () => handleEditProfile(profile),
+            onClickGoLive: () => handleGoLive(profile),
+            onClickEditLive: () => handleEditLive(profile),
             liveStatus,
             pluginService,
             isFollowPending: dataLayer.derived.$isFollowPending.get(
@@ -444,7 +471,9 @@ export default async function profileView({
       ? dataLayer.derived.$labelerInfo.get(profile.did)
       : null;
     // If labeler, require labeler info to be loaded
-    const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
+    const isCurrentUserLoaded = !isAuthenticated ? true : !!currentUser;
+    const isLoaded =
+      profile && isCurrentUserLoaded && (isLabeler ? !!labelerInfo : true);
     const activeTab = state.$activeTab.get();
     render(
       html`<div id="profile-view">
@@ -549,17 +578,14 @@ export default async function profileView({
       state.$activeTab.set("labeler-settings");
       dataLayer.requests.loadLabelerInfo(profile.did);
     }
+    const currentUserDid = isAuthenticated ? dataLayer.api.session.did : null;
+    const isCurrentUser = profile.did === currentUserDid;
     if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
-      const isCurrentUser =
-        profile.did === dataLayer.derived.$currentUser.get()?.did;
       loadAuthorFeed({ reload: true });
       preloadHiddenFeeds({ isCurrentUser, isLabeler });
     }
     // Load chat status
-    if (
-      isAuthenticated &&
-      profile.did !== dataLayer.derived.$currentUser.get()?.did
-    ) {
+    if (!isCurrentUser) {
       dataLayer.requests.loadProfileChatStatus(profile.did);
     }
   }

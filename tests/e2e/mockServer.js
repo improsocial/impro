@@ -126,6 +126,13 @@ export class MockServer {
     this.registerPushStatus = 200;
     this.slingshotUnreachable = false;
     this.pdsEndpoint = "http://localhost:8081";
+    // did -> { cid, value } for app.bsky.actor.status/self
+    this.statusRecords = new Map();
+    this.putStatusCalls = [];
+    this.deleteStatusCalls = [];
+    // Remaining InvalidSwap failures the next putStatusRecord calls will emit
+    this.invalidSwapRemaining = 0;
+    this.statusCounter = 0;
   }
 
   // Make slingshot fail to resolve identities, so the app falls back to
@@ -331,6 +338,20 @@ export class MockServer {
 
   setExternalLinkCard(url, meta) {
     this.externalLinkCards.set(url, meta);
+  }
+
+  // Seeds a status record for the given did (default: current user).
+  setStatusRecord(
+    record,
+    { did = userProfile.did, cid = "bafyreiseedstatus" } = {},
+  ) {
+    this.statusRecords.set(did, { cid, value: record });
+  }
+
+  // Makes the next N putStatusRecord calls fail with InvalidSwap before
+  // succeeding. Consumed one-per-call.
+  simulateInvalidSwap({ times = 1 } = {}) {
+    this.invalidSwapRemaining = times;
   }
 
   addNotifications(notifications, { cursor } = {}) {
@@ -2426,6 +2447,27 @@ export class MockServer {
       const collection = body?.collection;
       const rkey = body?.rkey;
 
+      if (collection === "app.bsky.actor.status") {
+        const repo = body?.repo;
+        this.deleteStatusCalls.push(body);
+        if (!this.statusRecords.has(repo)) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "RecordNotFound",
+              message: "Could not locate record",
+            }),
+          });
+        }
+        this.statusRecords.delete(repo);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "{}",
+        });
+      }
+
       if (collection === "app.bsky.feed.like") {
         const feedKey = `${userProfile.did}-likes`;
         const likes = this.authorFeeds.get(feedKey) || [];
@@ -2826,6 +2868,29 @@ export class MockServer {
           }),
         });
       }
+      if (collection === "app.bsky.actor.status" && rkey === "self") {
+        const repo = url.searchParams.get("repo");
+        const seeded = this.statusRecords.get(repo);
+        if (seeded) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              uri: `at://${repo}/${collection}/${rkey}`,
+              cid: seeded.cid,
+              value: seeded.value,
+            }),
+          });
+        }
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "RecordNotFound",
+            message: `Could not locate record: at://${repo}/${collection}/${rkey}`,
+          }),
+        });
+      }
       if (collection === "app.bsky.graph.list") {
         const repo = url.searchParams.get("repo");
         const listUri = `at://${repo}/${collection}/${rkey}`;
@@ -2926,6 +2991,33 @@ export class MockServer {
           : "bafyreiupdatedpostgate";
         calls.push(body);
         records.set(rkey, { cid, value: body?.record });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            uri: `at://${repo}/${collection}/${rkey}`,
+            cid,
+          }),
+        });
+      }
+      if (collection === "app.bsky.actor.status") {
+        const repo = body?.repo;
+        const rkey = body?.rkey ?? "self";
+        this.putStatusCalls.push(body);
+        if (this.invalidSwapRemaining > 0) {
+          this.invalidSwapRemaining -= 1;
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "InvalidSwap",
+              message: "Record swap CID does not match current CID",
+            }),
+          });
+        }
+        this.statusCounter += 1;
+        const cid = `bafyreistatus${this.statusCounter}`;
+        this.statusRecords.set(repo, { cid, value: body?.record });
         return route.fulfill({
           status: 200,
           contentType: "application/json",

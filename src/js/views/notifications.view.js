@@ -4,7 +4,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { displayRelativeTime, batch } from "/js/utils.js";
+import { formatRelativeTime, batch } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   bindToPage,
@@ -308,7 +308,7 @@ export default async function notificationsView({
   function followNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     return html`
       <div class="notification-item ${isUnread ? "unread" : ""}">
@@ -336,7 +336,7 @@ export default async function notificationsView({
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
     const post = notificationGroup.subject;
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     const profileLink = linkToProfile(post.author);
     return notificationItemTemplate({
@@ -366,7 +366,7 @@ export default async function notificationsView({
   function likeNotificationTemplate({ notificationGroup, isRepost = false }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
 
     // Get the liked post for preview
@@ -398,7 +398,7 @@ export default async function notificationsView({
   function repostNotificationTemplate({ notificationGroup, isRepost = false }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
 
     // Get the reposted post for preview
@@ -451,7 +451,7 @@ export default async function notificationsView({
   function feedgenLikeNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     const subjectUri = notificationGroup.subject;
     const { repo, rkey } = subjectUri ? parseUri(subjectUri) : {};
@@ -482,7 +482,7 @@ export default async function notificationsView({
   function starterpackJoinedNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     const subjectUri = notificationGroup.subject;
     const { repo, rkey } = subjectUri ? parseUri(subjectUri) : {};
@@ -514,7 +514,7 @@ export default async function notificationsView({
   function verifiedNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
 
     return html`
@@ -540,7 +540,7 @@ export default async function notificationsView({
   function unverifiedNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     const otherCount = notifications.length - 1;
 
@@ -568,7 +568,7 @@ export default async function notificationsView({
   function contactMatchNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+    const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     const displayName = getDisplayName(firstNotif.author);
     const profileLink = linkToProfile(firstNotif.author);

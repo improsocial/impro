@@ -9,6 +9,9 @@ import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { isAllowedLiveHost, isStatusValid } from "/js/dataHelpers.js";
+import { normalizeUrl, formatDuration } from "/js/utils.js";
+import { ApiError } from "/js/api.js";
+import { Mutations } from "/js/dataLayer/mutations.js";
 import {
   createLiveStatusView,
   createPost,
@@ -292,7 +295,10 @@ describe("live status", () => {
 
     it("re-arms for the new deadline when a rewrite extends the expiry", () => {
       const { derived, dataStore } = makeDerived();
-      addLiveProfile(dataStore, createLiveStatusView({ did }));
+      addLiveProfile(
+        dataStore,
+        createLiveStatusView({ did, expiresAt: futureExpiry() }),
+      );
       assert.equal(derived.$actorLiveStatus.get(did).state, "active");
 
       // A later write extends the expiry to 14:00; the next judgment re-arms
@@ -326,6 +332,263 @@ describe("live status", () => {
         derived.$hydratedDetailedProfiles.get(did).isLive,
         undefined,
       );
+    });
+  });
+
+  describe("normalizeUrl", () => {
+    it("prepends https:// to bare hosts and normalizes", () => {
+      assert.equal(normalizeUrl("twitch.tv/foo"), "https://twitch.tv/foo");
+      assert.equal(
+        normalizeUrl("  https://www.youtube.com/watch "),
+        "https://www.youtube.com/watch",
+      );
+    });
+    it("rejects strings without a valid TLD", () => {
+      assert.equal(normalizeUrl("nope"), null);
+      assert.equal(normalizeUrl("localhost/foo"), null);
+      assert.equal(normalizeUrl(""), null);
+      assert.equal(normalizeUrl(null), null);
+    });
+  });
+
+  describe("formatDuration", () => {
+    it("formats hours and minutes", () => {
+      assert.equal(formatDuration(5), "5 minutes");
+      assert.equal(formatDuration(60), "1 hour");
+      assert.equal(formatDuration(65), "1 hour 5 minutes");
+      assert.equal(formatDuration(120), "2 hours");
+      assert.equal(formatDuration(0), "0 minutes");
+    });
+  });
+
+  describe("mutations.setLiveStatus / clearLiveStatus", () => {
+    // Matches the placeholder linkMeta shape the dialog always passes,
+    // even on cardyb failure (title falls back to the URL).
+    function placeholderLinkMeta(url) {
+      return { url, title: url, description: "", image: null };
+    }
+
+    function makeApi(overrides = {}) {
+      const api = {
+        getStatusRecord: mock.fn(async () => {
+          const err = new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "RecordNotFound" },
+            headers: {},
+            url: "",
+          });
+          throw err;
+        }),
+        putStatusRecord: mock.fn(async (record) => ({
+          uri: "at://did:plc:live1/app.bsky.actor.status/self",
+          cid: "bafyputcid",
+          value: record,
+        })),
+        deleteStatusRecord: mock.fn(async () => ({})),
+        uploadBlob: mock.fn(async () => ({
+          mimeType: "image/jpeg",
+          ref: { $link: "bafthumbcid" },
+          size: 123,
+        })),
+        ...overrides,
+      };
+      return api;
+    }
+
+    function makeSetup(api = makeApi()) {
+      const dataStore = new DataStore(createSessionState(null));
+      dataStore.$currentUser.set({
+        did: "did:plc:live1",
+        handle: "live1.test",
+      });
+      const patchStore = new PatchStore();
+      const preferencesProvider = {
+        requirePreferences: () => Preferences.createLoggedOutPreferences(),
+        $preferences: new Signal.State(
+          Preferences.createLoggedOutPreferences(),
+        ),
+      };
+      const mutations = new Mutations(
+        api,
+        dataStore,
+        patchStore,
+        preferencesProvider,
+        { resolveHandle: async () => null },
+        new DraftMediaStore("test-media"),
+      );
+      return { mutations, dataStore, patchStore, api };
+    }
+
+    it("publishes a status, writes it to the current user, and clears patches", async () => {
+      const { mutations, dataStore, patchStore, api } = makeSetup();
+      await mutations.setLiveStatus({
+        durationMinutes: 60,
+        linkMeta: {
+          url: "https://www.twitch.tv/streamer",
+          title: "Cool Stream",
+          description: "",
+          image: null,
+        },
+      });
+      assert.equal(api.putStatusRecord.mock.calls.length, 1);
+      const [record, swapCid] = api.putStatusRecord.mock.calls[0].arguments;
+      assert.equal(record.status, "app.bsky.actor.status#live");
+      assert.equal(record.durationMinutes, 60);
+      assert.equal(record.embed.external.uri, "https://www.twitch.tv/streamer");
+      assert.equal(swapCid, null);
+      const status = dataStore.$profileStatuses.get("did:plc:live1");
+      assert.equal(status.status, "app.bsky.actor.status#live");
+      assert.equal(status.embed.external.uri, "https://www.twitch.tv/streamer");
+      assert.equal(status.cid, "bafyputcid");
+      // No profile-patch dance any more — $profileStatuses is written directly.
+      assert.equal(
+        patchStore.$profilePatches.get("did:plc:live1") ?? null,
+        null,
+      );
+    });
+
+    it("preserves createdAt on edit and threads durationMinutes through", async () => {
+      const { mutations, api } = makeSetup();
+      const createdAt = "2025-05-01T12:00:00.000Z";
+      await mutations.setLiveStatus({
+        durationMinutes: 30,
+        linkMeta: placeholderLinkMeta("https://www.twitch.tv/updated"),
+        createdAt,
+      });
+      const record = api.putStatusRecord.mock.calls[0].arguments[0];
+      assert.equal(record.createdAt, createdAt);
+      assert.equal(record.durationMinutes, 30);
+    });
+
+    it("retries on InvalidSwap and eventually succeeds", async () => {
+      let attempts = 0;
+      const api = makeApi({
+        putStatusRecord: mock.fn(async (record) => {
+          attempts += 1;
+          if (attempts < 3) {
+            throw new ApiError({
+              status: 400,
+              statusText: "Bad Request",
+              data: { error: "InvalidSwap" },
+              headers: {},
+              url: "",
+            });
+          }
+          return { uri: "at://x", cid: "cid3", value: record };
+        }),
+      });
+      const { mutations } = makeSetup(api);
+      await mutations.setLiveStatus({
+        durationMinutes: 60,
+        linkMeta: placeholderLinkMeta("https://www.twitch.tv/a"),
+      });
+      assert.equal(attempts, 3);
+      assert.equal(api.getStatusRecord.mock.calls.length, 3);
+    });
+
+    it("swallows thumb upload failures but still publishes", async () => {
+      const api = makeApi({
+        uploadBlob: mock.fn(async () => {
+          throw new Error("upload failed");
+        }),
+      });
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        blob: async () => new Blob(["x"], { type: "image/png" }),
+      });
+      try {
+        const { mutations } = makeSetup(api);
+        await mutations.setLiveStatus({
+          durationMinutes: 60,
+          linkMeta: {
+            url: "https://www.twitch.tv/a",
+            title: "t",
+            description: "",
+            image: "https://example.com/img.jpg",
+          },
+        });
+        assert.equal(api.putStatusRecord.mock.calls.length, 1);
+        const record = api.putStatusRecord.mock.calls[0].arguments[0];
+        assert.equal(record.embed.external.thumb, undefined);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it("clearLiveStatus writes explicit null and tolerates RecordNotFound", async () => {
+      const { mutations, dataStore, api } = makeSetup();
+      // Seed with a status first
+      dataStore.$profileStatuses.set(
+        "did:plc:live1",
+        createLiveStatusView({ did: "did:plc:live1" }),
+      );
+      api.deleteStatusRecord = mock.fn(async () => {
+        throw new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: { error: "RecordNotFound" },
+          headers: {},
+          url: "",
+        });
+      });
+      await mutations.clearLiveStatus();
+      assert.equal(dataStore.$profileStatuses.get("did:plc:live1"), null);
+    });
+  });
+
+  describe("cross-device convergence", () => {
+    it("setProfiles clears a stale status when the fresh payload omits it", () => {
+      const { derived, dataStore } = makeDerived();
+      addLiveProfile(
+        dataStore,
+        createLiveStatusView({ did, expiresAt: futureExpiry() }),
+      );
+      assert.equal(derived.$actorLiveStatus.get(did).state, "active");
+      // Fresh appview payload with no `status` field
+      const refreshed = createProfile({
+        did,
+        handle: "liveuser.bsky.social",
+        displayName: "Live User",
+      });
+      dataStore.setProfiles([refreshed]);
+      assert.equal(derived.$actorLiveStatus.get(did).state, "none");
+    });
+
+    it("mergeProfile from a post author path preserves an existing status", () => {
+      const { derived, dataStore } = makeDerived();
+      addLiveProfile(
+        dataStore,
+        createLiveStatusView({ did, expiresAt: futureExpiry() }),
+      );
+      assert.equal(derived.$actorLiveStatus.get(did).state, "active");
+      dataStore.mergeProfile({
+        did,
+        handle: "liveuser.bsky.social",
+        displayName: "Live User (from post)",
+      });
+      assert.equal(derived.$actorLiveStatus.get(did).state, "active");
+    });
+
+    it("cancels the per-DID expiry timer when the status transitions to none", () => {
+      const { derived, dataStore } = makeDerived();
+      addLiveProfile(
+        dataStore,
+        createLiveStatusView({ did, expiresAt: futureExpiry() }),
+      );
+      // Reading the computed schedules the timer
+      assert.equal(derived.$actorLiveStatus.get(did).state, "active");
+      assert.equal(derived.liveStatusScheduler.size, 1);
+      // Status vanishes
+      dataStore.setProfiles([
+        createProfile({
+          did,
+          handle: "liveuser.bsky.social",
+          displayName: "Live User",
+        }),
+      ]);
+      assert.equal(derived.$actorLiveStatus.get(did).state, "none");
+      assert.equal(derived.liveStatusScheduler.size, 0);
     });
   });
 });

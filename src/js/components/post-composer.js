@@ -1733,9 +1733,7 @@ class PostComposer extends Component {
     );
     const currentPosts = this._getPosts();
     // Replace posts with the latest versions
-    return posts.map((stale) =>
-      currentPosts.find((p) => p.id === stale.id),
-    );
+    return posts.map((stale) => currentPosts.find((p) => p.id === stale.id));
   }
 
   async send() {

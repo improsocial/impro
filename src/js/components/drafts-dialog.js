@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { displayRelativeTime } from "/js/utils.js";
+import { formatRelativeTime } from "/js/utils.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
@@ -90,7 +90,7 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
     >
       <div class="draft-item-main">
         <div class="draft-item-timestamp">
-          ${displayRelativeTime(draftView.updatedAt)}
+          ${formatRelativeTime(draftView.updatedAt)}
         </div>
         ${firstPost.text
           ? html`<div class="draft-item-text">${firstPost.text}</div>`

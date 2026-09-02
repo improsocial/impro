@@ -887,9 +887,15 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(3, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(5, {
       timeout: 5000,
     });
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-go-live"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
+    ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-search-posts"]'),
     ).toBeVisible();
