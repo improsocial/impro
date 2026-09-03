@@ -20,7 +20,6 @@ class AccountSwitcherDialog extends Component {
     this.state = new ReactiveStore("account-switcher-dialog");
     this.state.$currentDid = new Signal.State(null);
     this.state.$accounts = new Signal.State(null);
-    this.state.$profilesByDid = new Signal.State({});
     this.state.$profilesLoading = new Signal.State(true);
     this.state.$pendingAction = new Signal.State(null); // { type: "switch"|"add", did? }
     this.innerHTML = "";
@@ -54,16 +53,9 @@ class AccountSwitcherDialog extends Component {
     const accounts = await this.auth.listAccounts();
     this.state.$accounts.set(accounts);
     try {
-      const profiles = await this.dataLayer.declarative.ensureDetailedProfiles(
+      await this.dataLayer.declarative.ensureDetailedProfiles(
         accounts.map((account) => account.did),
       );
-      const profilesByDid = {};
-      for (const profile of profiles) {
-        if (profile) {
-          profilesByDid[profile.did] = profile;
-        }
-      }
-      this.state.$profilesByDid.set(profilesByDid);
     } catch {
       // pass
     } finally {
@@ -81,6 +73,15 @@ class AccountSwitcherDialog extends Component {
       ...accounts.filter((account) => account.did === currentDid),
       ...accounts.filter((account) => account.did !== currentDid),
     ];
+    const profilesByDid = {};
+    for (const account of orderedAccounts) {
+      const profile = this.dataLayer.derived.$hydratedDetailedProfiles.get(
+        account.did,
+      );
+      if (profile) {
+        profilesByDid[account.did] = profile;
+      }
+    }
     render(
       html`
         <dialog
@@ -123,7 +124,7 @@ class AccountSwitcherDialog extends Component {
             </div>
             ${accountSwitcherListTemplate({
               accounts: orderedAccounts,
-              profilesByDid: this.state.$profilesByDid.get(),
+              profilesByDid,
               currentDid,
               pendingDid:
                 pendingAction?.type === "switch" ? pendingAction.did : null,

@@ -110,7 +110,11 @@ function identityTemplate({ profile, account }) {
   return html`
     <span class="account-switcher-avatar">
       ${profile
-        ? avatarTemplate({ author: profile, clickAction: "none" })
+        ? avatarTemplate({
+            author: profile,
+            clickAction: "none",
+            showLiveBadge: false,
+          })
         : html`<div class="avatar-placeholder"></div>`}
     </span>
     <span class="account-switcher-names">
