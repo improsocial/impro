@@ -6933,7 +6933,7 @@ sidebar-search {
   padding: 0;
   padding-bottom: var(--safe-area-inset-bottom);
 
-  --secondary-button-color: light-dark(var(--lighter-gray), var(--light-gray));
+  --secondary-button-color: light-dark(var(--lightest-gray), var(--light-gray));
   --secondary-button-hover-color: light-dark(
     color-mix(in srgb, var(--lighter-gray) 80%, var(--text-color)),
     color-mix(in srgb, var(--light-gray) 80%, var(--white))
