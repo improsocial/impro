@@ -325,8 +325,9 @@ export default async function homeView({
             </div>`;
           })}
         </main>
-        ${currentUser
+        ${isAuthenticated
           ? floatingComposeButtonTemplate({
+              disabled: !currentUser,
               onClick: () => postComposerService.composePost({ currentUser }),
             })
           : ""}

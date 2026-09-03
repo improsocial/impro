@@ -364,16 +364,15 @@ export function sidebarTemplate({
         onClickActiveItem,
         pluginSidebarItems,
       })}
-      ${onClickComposeButton
-        ? html`<button
-            class="rounded-button rounded-button-primary sidebar-compose-button"
-            data-testid="sidebar-compose-button"
-            @click=${() => onClickComposeButton()}
-          >
-            <app-icon icon="edit-pen-2"></app-icon>
-            <span>New Post</span>
-          </button>`
-        : ""}
+      <button
+        class="rounded-button rounded-button-primary sidebar-compose-button"
+        data-testid="sidebar-compose-button"
+        ?disabled=${!currentUser}
+        @click=${() => onClickComposeButton()}
+      >
+        <app-icon icon="edit-pen-2"></app-icon>
+        <span>New Post</span>
+      </button>
       <div class="sidebar-spacer"></div>
     </animated-sidebar>
   `;

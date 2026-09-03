@@ -499,8 +499,9 @@ export default async function profileView({
             }
           })()}
         </main>
-        ${currentUser
+        ${isAuthenticated
           ? floatingComposeButtonTemplate({
+              disabled: !currentUser,
               onClick: () => postComposerService.composePost({ currentUser }),
             })
           : ""}

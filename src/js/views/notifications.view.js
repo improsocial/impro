@@ -823,8 +823,9 @@ export default async function notificationsView({
             })()}
           </div>
         </main>
-        ${currentUser
+        ${isAuthenticated
           ? floatingComposeButtonTemplate({
+              disabled: !currentUser,
               onClick: () => postComposerService.composePost({ currentUser }),
             })
           : ""}
