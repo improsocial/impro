@@ -1,7 +1,10 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../../shared/factories.js";
+import {
+  createProfile,
+  createLiveStatusView,
+} from "../../../shared/factories.js";
 
 const profileUser = createProfile({
   did: "did:plc:profileuser1",
@@ -233,6 +236,50 @@ test.describe("Profile following view", () => {
     await followButton.click();
     await expect(followButton).toHaveAttribute("data-teststate", "following", {
       timeout: 10000,
+    });
+  });
+
+  test.describe("Live status", () => {
+    test("shows live ring and pill for a followed profile with an active status", async ({
+      page,
+    }) => {
+      const liveFollow = createProfile({
+        did: "did:plc:livefollow1",
+        handle: "livefollow.bsky.social",
+        displayName: "Live Follow",
+        status: createLiveStatusView({
+          did: "did:plc:livefollow1",
+          url: "https://www.twitch.tv/otheruser",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      const mockServer = new MockServer();
+      mockServer.addProfile(profileUser);
+      mockServer.addProfileFollows(profileUser.did, [liveFollow, alice]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto(`/profile/${profileUser.did}/following`);
+
+      const view = page.locator("#profile-following-view");
+      const liveRow = view
+        .locator(".profile-list-item")
+        .filter({ hasText: "Live Follow" });
+      const nonLiveRow = view
+        .locator(".profile-list-item")
+        .filter({ hasText: "Alice" });
+
+      await expect(
+        liveRow.locator('[data-testid="avatar"] .avatar-live'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(liveRow.locator('[data-testid="live-badge"]')).toBeVisible();
+
+      await expect(
+        nonLiveRow.locator('[data-testid="avatar"] .avatar-live'),
+      ).toHaveCount(0);
+      await expect(
+        nonLiveRow.locator('[data-testid="live-badge"]'),
+      ).toHaveCount(0);
     });
   });
 

@@ -160,11 +160,11 @@ test.describe("Login view", () => {
 
       await page.goto("/login");
       await expect(
-        page.locator('[data-testid="saved-accounts-list"]'),
+        page.locator('[data-testid="account-switcher-list"]'),
       ).toHaveCount(0);
     });
 
-    test("renders a row per saved account and a 'Use another account' row", async ({
+    test("renders a row per saved account and an 'Other account' row", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -187,13 +187,13 @@ test.describe("Login view", () => {
 
       await page.goto("/login");
 
-      const list = page.locator('[data-testid="saved-accounts-list"]');
+      const list = page.locator('[data-testid="account-switcher-list"]');
       await expect(list).toBeVisible();
       await expect(
-        list.locator('[data-testid="saved-account-row"]'),
+        list.locator('[data-testid="account-switcher-item"]'),
       ).toHaveCount(2);
       await expect(
-        list.locator('[data-testid="saved-account-add"]'),
+        list.locator('[data-testid="account-switcher-add"]'),
       ).toBeVisible();
     });
 
@@ -210,11 +210,11 @@ test.describe("Login view", () => {
       await page.goto("/login");
 
       const row = page.locator(
-        `[data-testid="saved-account-row"][data-handle="${userProfile.handle}"]`,
+        `[data-testid="account-switcher-item"][data-did="${userProfile.did}"]`,
       );
       await expect(row).toHaveAttribute("data-teststate", "reauth");
       await expect(
-        row.locator('[data-testid="saved-account-reauth-hint"]'),
+        row.locator('[data-testid="account-switcher-reauth-hint"]'),
       ).toBeVisible();
 
       await page.route("**/plc.directory/**", (route) =>
@@ -227,7 +227,7 @@ test.describe("Login view", () => {
       await expect(page).not.toHaveURL(/addAccount=1/);
     });
 
-    test("'Use another account' clears and focuses the handle input", async ({
+    test("'Other account' clears and focuses the handle input", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -239,13 +239,13 @@ test.describe("Login view", () => {
 
       await page.goto("/login");
       await expect(
-        page.locator('[data-testid="saved-accounts-list"]'),
+        page.locator('[data-testid="account-switcher-list"]'),
       ).toBeVisible();
       await expect(page.locator("#login-form")).toBeHidden();
 
-      await page.locator('[data-testid="saved-account-add"]').click();
+      await page.locator('[data-testid="account-switcher-add"]').click();
       await expect(
-        page.locator('[data-testid="saved-accounts-list"]'),
+        page.locator('[data-testid="account-switcher-list"]'),
       ).toBeHidden();
       await expect(page.locator("#login-form")).toBeVisible();
       await expect(page.locator('input[name="handle"]')).toHaveValue("");
@@ -263,12 +263,12 @@ test.describe("Login view", () => {
       ]);
 
       await page.goto("/login");
-      await page.locator('[data-testid="saved-account-add"]').click();
+      await page.locator('[data-testid="account-switcher-add"]').click();
       await expect(page.locator("#login-form")).toBeVisible();
 
       await page.getByRole("button", { name: "Back" }).click();
       await expect(
-        page.locator('[data-testid="saved-accounts-list"]'),
+        page.locator('[data-testid="account-switcher-list"]'),
       ).toBeVisible();
       await expect(page.locator("#login-form")).toBeHidden();
       await expect(page).toHaveURL(/\/login/);
@@ -286,7 +286,7 @@ test.describe("Login view", () => {
 
       await page.goto("/login");
       await expect(
-        page.locator('[data-testid="saved-accounts-list"]'),
+        page.locator('[data-testid="account-switcher-list"]'),
       ).toBeVisible();
 
       await page.locator('[data-testid="saved-accounts-back"]').click();

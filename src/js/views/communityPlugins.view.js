@@ -6,8 +6,7 @@ import {
   onPageShow,
 } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
+import "/js/components/app-icon.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToCommunityPlugin, linkToLogin } from "/js/navigation.js";
 
@@ -47,7 +46,9 @@ export default async function communityPluginsView({
                 data-testid="community-plugins-intro"
               >
                 <div class="plugins-intro-header">
-                  <span class="plugins-intro-icon">${globeIconTemplate()}</span>
+                  <span class="plugins-intro-icon"
+                    ><app-icon icon="globe-grid-line"></app-icon
+                  ></span>
                   <div class="plugins-intro-title">
                     Extend Impro with plugins
                   </div>
@@ -130,8 +131,8 @@ export default async function communityPluginsView({
                               </div>
                             </div>
                             <span class="plugin-list-item-arrow"
-                              >${chevronRightIconTemplate()}</span
-                            >
+                              ><app-icon icon="chevron-right-line"></app-icon
+                            ></span>
                           </a>
                         </li>
                       `;

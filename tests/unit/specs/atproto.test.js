@@ -5,6 +5,7 @@ import {
   resolveIdentity,
   resolveIdentityEndpoint,
   getServiceEndpointForHandle,
+  resolveDidFromHandleOrDid,
   HandleNotFoundError,
   IdentityResolver,
   computeRecordCid,
@@ -346,6 +347,61 @@ describe("atproto handle resolution", () => {
       assert.deepEqual(
         await resolver.resolveHandle("alice.example"),
         "did:plc:aaaa",
+      );
+    });
+  });
+
+  describe("resolveDidFromHandleOrDid", () => {
+    function makeResolver(resolve) {
+      const calls = [];
+      const resolver = new IdentityResolver({
+        providers: [
+          {
+            name: "test",
+            resolve: (handle) => {
+              calls.push(handle);
+              return resolve(handle);
+            },
+          },
+        ],
+      });
+      return { resolver, calls };
+    }
+
+    it("returns a DID identifier without consulting providers", async () => {
+      const { resolver, calls } = makeResolver(async () => "did:plc:aaaa");
+      assert.deepEqual(
+        await resolveDidFromHandleOrDid("did:plc:zzzz", resolver),
+        "did:plc:zzzz",
+      );
+      assert.deepEqual(calls, []);
+    });
+
+    it("resolves a handle to its DID", async () => {
+      const { resolver } = makeResolver(async () => "did:plc:aaaa");
+      assert.deepEqual(
+        await resolveDidFromHandleOrDid("alice.example", resolver),
+        "did:plc:aaaa",
+      );
+    });
+
+    it("throws HandleNotFoundError when the handle does not resolve", async () => {
+      const { resolver } = makeResolver(async () => null);
+      await assert.rejects(
+        () => resolveDidFromHandleOrDid("alice.example", resolver),
+        (error) => error instanceof HandleNotFoundError,
+      );
+    });
+
+    it("propagates provider failures unchanged", async () => {
+      const { resolver } = makeResolver(async () => {
+        throw new Error("network down");
+      });
+      await assert.rejects(
+        () => resolveDidFromHandleOrDid("alice.example", resolver),
+        (error) =>
+          !(error instanceof HandleNotFoundError) &&
+          /network down/.test(error.message),
       );
     });
   });

@@ -47,6 +47,8 @@ export class DataStore extends ReactiveStore {
     this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
     this.$detailedProfiles = new SignalMap();
+    // did -> statusView, normalized from profiles
+    this.$profileStatuses = new SignalMap();
     this.$authorFeeds = new SignalMap();
     this.$unavailablePosts = new SignalMap();
     this.$reposts = new SignalMap();
@@ -86,6 +88,7 @@ export class DataStore extends ReactiveStore {
 
       const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
       this.mergeProfile(normalizedQuotedPost.author);
+      this._saveStatusForProfile(normalizedQuotedPost.author);
       if (!this.$posts.has(quotedPost.uri)) {
         this.$embeddedPosts.set(quotedPost.uri, normalizedQuotedPost);
       }
@@ -94,6 +97,7 @@ export class DataStore extends ReactiveStore {
 
     for (const post of posts) {
       this.mergeProfile(post.author);
+      this._saveStatusForProfile(post.author);
       this.$posts.set(post.uri, post);
       // Delete matching embedded post, since they're only used as previews
       this.$embeddedPosts.delete(post.uri);
@@ -103,6 +107,7 @@ export class DataStore extends ReactiveStore {
 
   // Merge into existing profile object if present
   mergeProfile(profile) {
+    // Check for handle to prevent tombstones from overriding records
     if (!profile?.did || !profile.handle) {
       return;
     }
@@ -114,16 +119,29 @@ export class DataStore extends ReactiveStore {
     this.$profiles.set(profile.did, merged);
   }
 
+  _saveStatusForProfile(profile) {
+    if (!profile?.did) {
+      return;
+    }
+    this.$profileStatuses.set(profile.did, profile.status ?? null);
+  }
+
   setDetailedProfile(profile) {
-    if (!profile?.did) return;
     this.$profiles.set(profile.did, profile);
     this.$detailedProfiles.set(profile.did, profile);
+    this._saveStatusForProfile(profile);
   }
 
   setProfiles(profiles) {
     for (const profile of profiles) {
       this.mergeProfile(profile);
+      this._saveStatusForProfile(profile);
     }
+  }
+
+  setCurrentUser(profile) {
+    this.$currentUser.set(profile);
+    this._saveStatusForProfile(profile);
   }
 
   // Save the convo and sync convo lists if necessary

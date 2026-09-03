@@ -1,7 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { normalizeThreadgateAllowSettings } from "/js/dataHelpers.js";
-import { usersIconTemplate } from "/js/templates/icons/usersIcon.template.js";
-import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
+import "/js/components/app-icon.js";
 
 export function whoCanReplyBadgeTemplate({ post, linkStyle = false, onClick }) {
   const settings = normalizeThreadgateAllowSettings(
@@ -12,13 +11,13 @@ export function whoCanReplyBadgeTemplate({ post, linkStyle = false, onClick }) {
   let icon;
   if (isEverybody) {
     label = "Everybody can reply";
-    icon = globeIconTemplate();
+    icon = html`<app-icon icon="globe-grid-line"></app-icon>`;
   } else if (settings.some((rule) => rule.type === "nobody")) {
     label = "Replies disabled";
-    icon = usersIconTemplate();
+    icon = html`<app-icon icon="users-line"></app-icon>`;
   } else {
     label = "Some people can reply";
-    icon = usersIconTemplate();
+    icon = html`<app-icon icon="users-line"></app-icon>`;
   }
   return html`
     <button

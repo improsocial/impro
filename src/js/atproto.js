@@ -238,6 +238,17 @@ export class IdentityResolver {
   }
 }
 
+export async function resolveDidFromHandleOrDid(handleOrDid, identityResolver) {
+  if (handleOrDid.startsWith("did:")) {
+    return handleOrDid;
+  }
+  const did = await identityResolver.resolveHandle(handleOrDid);
+  if (!did) {
+    throw new HandleNotFoundError("DID not found for handle: " + handleOrDid);
+  }
+  return did;
+}
+
 export async function getServiceEndpointForHandle(handle, resolver) {
   const result = await resolver.resolveEndpoint(handle);
   if (!result) {

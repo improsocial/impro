@@ -3,13 +3,13 @@ import { effect } from "/js/signals.js";
 import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
-import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { PLUGIN_PREVIEW_QUERY_PARAM } from "/js/plugins/pluginService.js";
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/trending-pane.js";
 import "/js/components/sidebar-search.js";
 import "/js/components/pinned-feeds-pane.js";
+import "/js/components/app-icon.js";
 
 function exitPluginPreview() {
   const url = new URL(window.location.href);
@@ -32,7 +32,9 @@ function pluginPreviewBannerTemplate({ plugins }) {
   });
   return html`
     <div class="plugin-preview-banner" data-testid="plugin-preview-banner">
-      <div class="plugin-preview-banner-icon">${eyeIconTemplate()}</div>
+      <div class="plugin-preview-banner-icon">
+        <app-icon icon="eye-line"></app-icon>
+      </div>
       <div class="plugin-preview-banner-body">
         <div class="plugin-preview-banner-title">Preview mode</div>
         <div class="plugin-preview-banner-subtitle">

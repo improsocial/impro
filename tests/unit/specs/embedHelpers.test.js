@@ -1,5 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import { HandleNotFoundError } from "/js/atproto.js";
 import {
   getGifFromPost,
   parseAltFromGifDescription,
@@ -204,6 +205,19 @@ describe("resolveRecordFromLink", () => {
     assert.deepEqual(
       thrown?.message,
       "Not a record link: https://example.com/profile/alice.test/post/3abc",
+    );
+  });
+
+  it("throws HandleNotFoundError when the link's handle does not resolve", async () => {
+    const deps = makeDeps();
+    deps.identityResolver.resolveHandle = async () => null;
+    await assert.rejects(
+      () =>
+        resolveRecordFromLink(
+          "https://bsky.app/profile/gone.test/post/3abc",
+          deps,
+        ),
+      (error) => error instanceof HandleNotFoundError,
     );
   });
 

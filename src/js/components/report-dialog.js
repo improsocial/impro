@@ -5,10 +5,9 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { kebabCase } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
 import { getDisplayName } from "/js/dataHelpers.js";
+import "/js/components/app-icon.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
 const BSKY_ONLY_REASON_TYPES = [
@@ -360,7 +359,7 @@ function selectedItemTemplate({ title, onClear }) {
     <div class="report-selected-item">
       <span class="report-selected-title">${title}</span>
       <button class="report-selected-clear" @click=${onClear}>
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
     </div>
   `;
@@ -390,7 +389,9 @@ function stepTemplate({ stepIndex, currentStepIndex, title, renderStep }) {
               ? "completed"
               : ""}"
         >
-          ${isCompleted ? checkIconTemplate() : stepIndex + 1}
+          ${isCompleted
+            ? html`<app-icon icon="check"></app-icon>`
+            : stepIndex + 1}
         </div>
         <div class="report-step-title ${isActive ? "active" : ""}">
           ${title}
@@ -667,7 +668,7 @@ class ReportDialog extends Component {
         >
           <div class="report-dialog-content">
             <button class="report-dialog-close" @click=${() => this.close()}>
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div class="report-dialog-body">
               ${stepTemplate({

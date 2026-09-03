@@ -32,7 +32,9 @@ describe("showToast", () => {
     await showToast("msg", { timeout: 0 });
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("default"));
-    assert(toast.querySelector(".toast-icon .circle-check-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='circle-check']") !== null,
+    );
   });
 
   it("should use circle-check icon for the success style", async () => {
@@ -40,7 +42,9 @@ describe("showToast", () => {
     await showToast("msg", { style: "success", timeout: 0 });
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("success"));
-    assert(toast.querySelector(".toast-icon .circle-check-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='circle-check']") !== null,
+    );
   });
 
   it("should use alert icon for the error style", async () => {
@@ -48,7 +52,10 @@ describe("showToast", () => {
     await showToast("msg", { style: "error", timeout: 0 });
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("error"));
-    assert(toast.querySelector(".toast-icon .alert-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='alert-circle-line']") !==
+        null,
+    );
   });
 
   it("should use alert icon for the warning style", async () => {
@@ -56,7 +63,10 @@ describe("showToast", () => {
     await showToast("msg", { style: "warning", timeout: 0 });
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("warning"));
-    assert(toast.querySelector(".toast-icon .alert-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='alert-circle-line']") !==
+        null,
+    );
   });
 
   it("should use info icon for the info style", async () => {
@@ -64,14 +74,19 @@ describe("showToast", () => {
     await showToast("msg", { style: "info", timeout: 0 });
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("info"));
-    assert(toast.querySelector(".toast-icon .info-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='info-circle-line']") !==
+        null,
+    );
   });
 
   it("should fall back to the default icon for an unknown style", async () => {
     clearDOM();
     await showToast("msg", { style: "bogus", timeout: 0 });
     const toast = document.querySelector(".toast");
-    assert(toast.querySelector(".toast-icon .circle-check-icon") !== null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='circle-check']") !== null,
+    );
   });
 
   it("should use the custom iconTemplate when provided", async () => {
@@ -82,7 +97,9 @@ describe("showToast", () => {
     const toast = document.querySelector(".toast");
     assert(toast.querySelector(".toast-icon .custom-test-icon") !== null);
     // The default style icon should not be rendered when overridden.
-    assert(toast.querySelector(".toast-icon .circle-check-icon") === null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='circle-check']") === null,
+    );
   });
 
   it("should let custom iconTemplate override a style's default icon", async () => {
@@ -97,7 +114,10 @@ describe("showToast", () => {
     const toast = document.querySelector(".toast");
     assert(toast.classList.contains("error"));
     assert(toast.querySelector(".toast-icon .custom-test-icon") !== null);
-    assert(toast.querySelector(".toast-icon .alert-icon") === null);
+    assert(
+      toast.querySelector(".toast-icon app-icon[icon='alert-circle-line']") ===
+        null,
+    );
   });
 });
 

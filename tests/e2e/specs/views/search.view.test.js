@@ -5,6 +5,7 @@ import {
   createPost,
   createProfile,
   createFeedGenerator,
+  createLiveStatusView,
 } from "../../../shared/factories.js";
 
 test.describe("Search view", () => {
@@ -1625,6 +1626,97 @@ test.describe("Search view", () => {
       await expect
         .poll(() => mockServer.searchHistory?.profiles, { timeout: 10000 })
         .toEqual(["did:plc:recent1"]);
+    });
+  });
+
+  test.describe("Live status", () => {
+    test("profile search results show ring and pill for a live actor", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const liveProfile = createProfile({
+        did: "did:plc:liveperson1",
+        handle: "liveperson.bsky.social",
+        displayName: "Live Person",
+        status: createLiveStatusView({
+          did: "did:plc:liveperson1",
+          url: "https://www.twitch.tv/liveperson",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      mockServer.addSearchProfiles([liveProfile]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=live&tab=profiles");
+
+      const view = page.locator("#search-view");
+      const row = view.locator(".profile-list-item");
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="avatar"] .avatar-live'),
+      ).toBeVisible();
+      await expect(row.locator('[data-testid="live-badge"]')).toBeVisible();
+    });
+
+    test("search typeahead rows show ring and pill for a live actor", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const liveProfile = createProfile({
+        did: "did:plc:liveperson1",
+        handle: "liveperson.bsky.social",
+        displayName: "Live Person",
+        status: createLiveStatusView({
+          did: "did:plc:liveperson1",
+          url: "https://www.twitch.tv/liveperson",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      mockServer.addTypeaheadProfiles([liveProfile]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("live");
+
+      const row = view.locator('[data-testid="search-typeahead-result"]');
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="avatar"] .avatar-live'),
+      ).toBeVisible();
+      await expect(row.locator('[data-testid="live-badge"]')).toBeVisible();
+    });
+
+    test("expired-status actor shows neither ring nor pill in search results", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const expiredProfile = createProfile({
+        did: "did:plc:expiredperson1",
+        handle: "expiredperson.bsky.social",
+        displayName: "Expired Person",
+        status: createLiveStatusView({
+          did: "did:plc:expiredperson1",
+          url: "https://www.twitch.tv/expiredperson",
+          expiresAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      mockServer.addSearchProfiles([expiredProfile]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=expired&tab=profiles");
+
+      const view = page.locator("#search-view");
+      const row = view.locator(".profile-list-item");
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="avatar"] .avatar-live'),
+      ).toHaveCount(0);
+      await expect(row.locator('[data-testid="live-badge"]')).toHaveCount(0);
     });
   });
 });

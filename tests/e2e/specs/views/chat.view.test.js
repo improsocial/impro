@@ -4,6 +4,7 @@ import { MockServer } from "../../mockServer.js";
 import {
   createConvo,
   createGroupConvo,
+  createLiveStatusView,
   createMessage,
   createProfile,
   createSystemMessage,
@@ -586,6 +587,140 @@ test.describe("Chat view", () => {
       "There was an error loading conversations.",
       { timeout: 10000 },
     );
+  });
+
+  test.describe("Live status", () => {
+    function createLiveMember({ status } = {}) {
+      return createProfile({
+        did: "did:plc:liveuser1",
+        handle: "liveuser.bsky.social",
+        displayName: "Live User",
+        ...(status ? { status } : {}),
+      });
+    }
+
+    async function seedProfileAndGoto(page, did, path) {
+      await page.goto(`/profile/${did}`);
+      await expect(page.locator('[data-testid="profile-name"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await page.evaluate((target) => window.router.load(target), path);
+    }
+
+    test("shows the live ring and badge on the convo row for a live participant", async ({
+      page,
+    }) => {
+      const liveStatus = createLiveStatusView({
+        did: "did:plc:liveuser1",
+        url: "https://www.twitch.tv/liveuser",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      });
+      const liveMember = createLiveMember({ status: liveStatus });
+      const mockServer = new MockServer();
+      mockServer.addProfile(liveMember);
+      mockServer.addConvos([
+        createConvo({
+          id: "convo-live-1",
+          otherMember: liveMember,
+          lastMessage: createMessage({
+            id: "msg-1",
+            text: "Hi",
+            senderDid: liveMember.did,
+          }),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await seedProfileAndGoto(page, liveMember.did, "/messages");
+
+      const chatView = page.locator("#chat-view");
+      const row = chatView.locator('[data-testid="convo-item-direct"]');
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="avatar"] .avatar-live'),
+      ).toBeVisible();
+      await expect(row.locator('[data-testid="live-badge"]')).toBeVisible();
+    });
+
+    test("shows no live ring or badge on the convo row for an expired status", async ({
+      page,
+    }) => {
+      const expiredStatus = createLiveStatusView({
+        did: "did:plc:liveuser1",
+        url: "https://www.twitch.tv/liveuser",
+        expiresAt: "2025-01-15T13:00:00.000Z",
+      });
+      const expiredMember = createLiveMember({ status: expiredStatus });
+      const mockServer = new MockServer();
+      mockServer.addProfile(expiredMember);
+      mockServer.addConvos([
+        createConvo({
+          id: "convo-expired-1",
+          otherMember: expiredMember,
+          lastMessage: createMessage({
+            id: "msg-1",
+            text: "Hi",
+            senderDid: expiredMember.did,
+          }),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await seedProfileAndGoto(page, expiredMember.did, "/messages");
+
+      const chatView = page.locator("#chat-view");
+      const row = chatView.locator('[data-testid="convo-item-direct"]');
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="avatar"] .avatar-live'),
+      ).toHaveCount(0);
+      await expect(row.locator('[data-testid="live-badge"]')).toHaveCount(0);
+    });
+
+    test("shows the live ring and badge on the chat detail header for a live participant, and not on the pre-chat info panel", async ({
+      page,
+    }) => {
+      const liveStatus = createLiveStatusView({
+        did: "did:plc:liveuser1",
+        url: "https://www.twitch.tv/liveuser",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      });
+      const liveMember = createLiveMember({ status: liveStatus });
+      const mockServer = new MockServer();
+      mockServer.addProfile(liveMember);
+      // No lastMessage so the empty state renders the info panel
+      mockServer.addConvos([
+        createConvo({
+          id: "convo-live-1",
+          otherMember: liveMember,
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await seedProfileAndGoto(page, liveMember.did, "/messages/convo-live-1");
+
+      const chatDetail = page.locator("#chat-detail-view");
+      const header = chatDetail.locator('[data-testid="header"]');
+      await expect(
+        header.locator('[data-testid="header-title"]'),
+      ).toContainText("Live User", { timeout: 10000 });
+      await expect(
+        header.locator('[data-testid="avatar"] .avatar-live'),
+      ).toBeVisible();
+      await expect(header.locator('[data-testid="live-badge"]')).toBeVisible();
+
+      const infoPanel = chatDetail.locator('[data-testid="chat-info-panel"]');
+      await expect(infoPanel).toBeVisible({ timeout: 10000 });
+      await expect(
+        infoPanel.locator('[data-testid="avatar"] .avatar-live'),
+      ).toHaveCount(0);
+      await expect(infoPanel.locator('[data-testid="live-badge"]')).toHaveCount(
+        0,
+      );
+    });
   });
 
   test.describe("Logged-out behavior", () => {

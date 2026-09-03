@@ -9,9 +9,8 @@ import { cdnImageUrl, getDisplayName } from "/js/dataHelpers.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
-import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
+import "/js/components/app-icon.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import {
   formatLargeNumber,
   classnames,
@@ -99,6 +98,29 @@ function profileDescriptionTemplate({
 // Match the default banner color in social-app
 const LABELER_BANNER_FALLBACK_COLOR = "rgb(105, 0, 255)";
 
+function goLiveMenuItem({ liveStatus, onClickGoLive, onClickEditLive }) {
+  const state = liveStatus?.state ?? "none";
+  const isActive = state === "active";
+  const isDisabled = state === "inactive" && liveStatus?.isDisabled;
+  const teststate = isActive ? "live" : isDisabled ? "disabled" : "off";
+  const label = isActive ? "Edit live status" : "Go live";
+  return html`<context-menu-item
+    data-testid="menu-action-profile-go-live"
+    data-teststate=${teststate}
+    icon="broadcast-line"
+    ?disabled=${isDisabled}
+    @click=${() => {
+      if (isActive) {
+        onClickEditLive();
+      } else {
+        onClickGoLive();
+      }
+    }}
+  >
+    ${label}
+  </context-menu-item>`;
+}
+
 function profileContextMenuTemplate({
   profile,
   isAuthenticated,
@@ -110,6 +132,9 @@ function profileContextMenuTemplate({
   onClickBlock,
   onClickAddToLists,
   onClickReport,
+  onClickGoLive,
+  onClickEditLive,
+  liveStatus,
 }) {
   const isFollowing = profile.viewer?.following;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
@@ -137,15 +162,26 @@ function profileContextMenuTemplate({
     </context-menu-item-group>
     ${isAuthenticated
       ? html`
-          <context-menu-item
-            data-testid="menu-action-profile-search-posts"
-            icon="search-line"
-            @click=${() => {
-              router.go(linkToSearchPostsByProfile(profile));
-            }}
-          >
-            Search posts
-          </context-menu-item>
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-profile-search-posts"
+              icon="search-line"
+              @click=${() => {
+                router.go(linkToSearchPostsByProfile(profile));
+              }}
+            >
+              Search posts
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-profile-add-to-lists"
+              icon="checkbox-list-line"
+              @click=${() => {
+                onClickAddToLists(profile);
+              }}
+            >
+              Add to Lists
+            </context-menu-item>
+          </context-menu-item-group>
         `
       : null}
     ${isAuthenticated && !isCurrentUser
@@ -165,15 +201,6 @@ function profileContextMenuTemplate({
               `
             : null}
           <context-menu-item-group>
-            <context-menu-item
-              data-testid="menu-action-profile-add-to-lists"
-              icon="checkbox-list-line"
-              @click=${() => {
-                onClickAddToLists(profile);
-              }}
-            >
-              Add to Lists
-            </context-menu-item>
             <context-menu-item
               data-testid="menu-action-profile-mute"
               data-teststate=${profile.viewer?.muted ? "muted" : "unmuted"}
@@ -211,6 +238,11 @@ function profileContextMenuTemplate({
             </context-menu-item>
           </context-menu-item-group>
         `
+      : null}
+    ${isCurrentUser && isAuthenticated
+      ? html`<context-menu-item-group>
+          ${goLiveMenuItem({ liveStatus, onClickGoLive, onClickEditLive })}
+        </context-menu-item-group>`
       : null}
     ${pluginGroups.map(
       (group) => html`
@@ -267,6 +299,8 @@ export function profileCardTemplate({
   onClickAddToLists = noop,
   onClickReport = noop,
   onClickEditProfile = noop,
+  onClickGoLive = noop,
+  onClickEditLive = noop,
   liveStatus = null,
   pluginService = null,
   isFollowPending = false,
@@ -291,7 +325,7 @@ export function profileCardTemplate({
                 src="${cdnImageUrl(profile.banner)}"
                 alt="${getDisplayName(profile)} banner"
                 class=${classnames("profile-banner", {
-                  "profile-banner--blurred": !!profile.blurLabel,
+                  "is-blurred": !!profile.blurLabel,
                 })}
               />
             </lightbox-image-group>
@@ -302,10 +336,7 @@ export function profileCardTemplate({
       <div class="profile-top-row">
         ${avatarTemplate({
           author: profile,
-          clickAction:
-            liveStatus?.state === "active" && !isCurrentUser
-              ? "live"
-              : "lightbox",
+          clickAction: liveStatus?.state === "active" ? "live" : "lightbox",
         })}
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
           ? html` ${isFollowing
@@ -319,7 +350,8 @@ export function profileCardTemplate({
                     onClickPostNotifications(profile);
                   }}
                 >
-                  ${notificationsIconTemplate({
+                  ${fillableIconTemplate({
+                    icon: "bell",
                     filled: !!activitySubscription?.post,
                   })}
                 </button>`
@@ -334,7 +366,7 @@ export function profileCardTemplate({
                     onClickChat(profile);
                   }}
                 >
-                  ${chatIconTemplate()}
+                  <app-icon icon="chat-dots-line"></app-icon>
                 </button>`
               : ""}`
           : null}
@@ -403,8 +435,8 @@ export function profileCardTemplate({
             ${isFollowing
               ? "Following"
               : isFollowedBy
-                ? html`${plusIconTemplate()} Follow back`
-                : html`${plusIconTemplate()} Follow`}
+                ? html`<app-icon icon="plus-line"></app-icon> Follow back`
+                : html`<app-icon icon="plus-line"></app-icon> Follow`}
           </button>`;
         })()}
         <button
@@ -421,6 +453,9 @@ export function profileCardTemplate({
               onClickBlock,
               onClickAddToLists,
               onClickReport,
+              onClickGoLive,
+              onClickEditLive,
+              liveStatus,
             });
           }}
         >

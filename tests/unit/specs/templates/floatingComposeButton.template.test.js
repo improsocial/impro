@@ -17,5 +17,21 @@ describe("floatingComposeButtonTemplate", () => {
     button.click();
 
     assert.deepEqual(onClick.mock.callCount(), 1);
+    assert(!button.disabled);
+  });
+
+  it("renders the button as disabled when disabled is true", () => {
+    const onClick = mock.fn();
+    const container = document.createElement("div");
+    render(
+      floatingComposeButtonTemplate({ onClick, disabled: true }),
+      container,
+    );
+
+    const button = container.querySelector(
+      "[data-testid='floating-compose-button']",
+    );
+    assert(button !== null);
+    assert(button.disabled);
   });
 });

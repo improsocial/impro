@@ -84,6 +84,22 @@ const labelerView = createLabelerView({
 });
 
 test.describe("Profile view", () => {
+  test("should rewrite the URL to the user's handle when visiting /profile", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto("/profile");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      userProfile.displayName,
+      { timeout: 10000 },
+    );
+    await expect(page).toHaveURL(`/profile/${userProfile.handle}`);
+  });
+
   test("should display profile name, handle, and stats", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
@@ -871,9 +887,15 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(3, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(5, {
       timeout: 5000,
     });
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-go-live"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
+    ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-search-posts"]'),
     ).toBeVisible();
@@ -1369,9 +1391,7 @@ test.describe("Profile view", () => {
         '[data-testid="post-notifications-button"]',
       );
       await expect(bellButton).toBeVisible({ timeout: 10000 });
-      await expect(
-        bellButton.locator(".notifications-icon:not(.filled)"),
-      ).toBeVisible();
+      await expect(bellButton.locator(".icon:not(.filled)")).toBeVisible();
     });
 
     test("should show filled bell icon when subscribed", async ({ page }) => {
@@ -1394,9 +1414,7 @@ test.describe("Profile view", () => {
         '[data-testid="post-notifications-button"]',
       );
       await expect(bellButton).toBeVisible({ timeout: 10000 });
-      await expect(
-        bellButton.locator(".notifications-icon.filled"),
-      ).toBeVisible();
+      await expect(bellButton.locator(".icon.filled")).toBeVisible();
     });
 
     test("should open post notifications dialog when bell button is clicked", async ({
@@ -1579,9 +1597,7 @@ test.describe("Profile view", () => {
       const bellButton = view.locator(
         '[data-testid="post-notifications-button"]',
       );
-      await expect(
-        bellButton.locator(".notifications-icon.filled"),
-      ).toBeVisible();
+      await expect(bellButton.locator(".icon.filled")).toBeVisible();
     });
 
     test("should close dialog when close button is clicked", async ({

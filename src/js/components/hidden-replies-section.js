@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
-import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
+import "/js/components/app-icon.js";
 import { classnames } from "/js/utils.js";
 
 class HiddenRepliesSection extends Component {
@@ -39,7 +39,7 @@ class HiddenRepliesSection extends Component {
             }}
           >
             <div class="hidden-replies-button-icon">
-              ${eyeSlashIconTemplate()}
+              <app-icon icon="eye-off-line"></app-icon>
             </div>
             <span>Show more replies</span>
           </div>

@@ -5,8 +5,8 @@ import { classnames } from "/js/utils.js";
 import { choiceModal } from "/js/modals/choice.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import "/js/components/toggle-switch.js";
+import "/js/components/app-icon.js";
 
 function consumePushNotificationServiceCallbackParams() {
   const params = new URLSearchParams(window.location.search);
@@ -244,7 +244,10 @@ export default async function settingsNotificationsView({
             ${showReauthWarning
               ? html`
                   <div class="warning-area" data-testid="push-reauth-warning">
-                    <h4>${alertIconTemplate()} Authorization needed</h4>
+                    <h4>
+                      <app-icon icon="alert-circle-line"></app-icon>
+                      Authorization needed
+                    </h4>
                     The notification service no longer accepts this device's
                     registration, so push notifications aren't being delivered.
                     Disable and reenable the setting to re-authorize.

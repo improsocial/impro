@@ -5,7 +5,7 @@ import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
 
 class AddToListsDialog extends Component {
@@ -123,7 +123,7 @@ class AddToListsDialog extends Component {
               aria-label="Close"
               @click=${() => this.close()}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
             <div class="add-to-lists-dialog-body">
               <div class="add-to-lists-dialog-header">

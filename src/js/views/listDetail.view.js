@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
@@ -6,8 +7,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
-import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
+import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
   bindToPage,
@@ -40,12 +40,10 @@ export default async function listDetailView({
 
   const { handleOrDid, rkey } = params;
 
-  let profileDid = null;
-  if (handleOrDid.startsWith("did:")) {
-    profileDid = handleOrDid;
-  } else {
-    profileDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const profileDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
   const listUri = `at://${profileDid}/app.bsky.graph.list/${rkey}`;
 
   const {
@@ -150,7 +148,7 @@ export default async function listDetailView({
                           !isPinned,
                         )}
                     >
-                      ${pinIconTemplate({ filled: isPinned })}
+                      ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
                     </button>`
                   : listSubscriptionButtonTemplate({
                       list,
@@ -304,7 +302,8 @@ export default async function listDetailView({
                             data-testid="list-empty-add-people-button"
                             @click=${() => handleAddPeople(list)}
                           >
-                            ${userPlusIconTemplate()} Add people to list
+                            <app-icon icon="user-plus-line"></app-icon> Add
+                            people to list
                           </button>`
                         : ""}
                     </div>`
@@ -327,7 +326,8 @@ export default async function listDetailView({
                             data-testid="list-empty-add-people-button"
                             @click=${() => handleAddPeople(list)}
                           >
-                            ${userPlusIconTemplate()} Add people to list
+                            <app-icon icon="user-plus-line"></app-icon> Add
+                            people to list
                           </button>`
                         : ""}
                     </div>`}

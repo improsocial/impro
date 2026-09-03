@@ -4,7 +4,7 @@ import { classnames, graphemeCount } from "/js/utils.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 
 class ImageAltTextDialog extends Component {
   connectedCallback() {
@@ -77,7 +77,7 @@ class ImageAltTextDialog extends Component {
               data-testid="alt-text-close"
               @click=${() => this.close()}
             >
-              ${closeIconTemplate()}
+              <app-icon icon="close-line"></app-icon>
             </button>
           </div>
           <div class="image-alt-text-dialog-body sheet-scroll-region">

@@ -978,6 +978,52 @@ test.describe("List Detail view", () => {
     });
   });
 
+  test("should show not-found state when the handle can't be resolved", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/nonexistent.example.com/lists/mylist");
+
+    const errorState = page.locator('[data-testid="account-not-found"]');
+    await expect(errorState).toBeVisible({ timeout: 10000 });
+    await expect(errorState).toContainText("@nonexistent.example.com");
+    await expect(
+      errorState.locator('[data-testid="go-home-link"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="list-detail-loading"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should offer Go back when the unresolvable handle is reached in-app", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+    await expect(
+      page.locator('[data-testid="list-detail-name"]'),
+    ).toContainText("My Curated List", { timeout: 10000 });
+
+    await page.evaluate(() =>
+      window.router.go("/profile/nonexistent.example.com/lists/mylist"),
+    );
+
+    const errorState = page.locator('[data-testid="account-not-found"]');
+    await expect(errorState).toBeVisible({ timeout: 10000 });
+    await errorState.locator('[data-testid="go-back-button"]').click();
+    await expect(
+      page.locator('[data-testid="list-detail-name"]'),
+    ).toContainText("My Curated List");
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

@@ -5,13 +5,13 @@ import {
   formatFullTimestamp,
   formatLargeNumber,
 } from "/js/utils.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import {
   isBlockedPost,
   isNotFoundPost,
   isUnavailablePost,
   doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
+import "/js/components/app-icon.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
@@ -69,8 +69,8 @@ function followButtonTemplate({ profile, isFollowPending, onClick }) {
     ${isFollowing
       ? "Following"
       : isFollowedBy
-        ? html`${plusIconTemplate()} Follow back`
-        : html`${plusIconTemplate()} Follow`}
+        ? html`<app-icon icon="plus-line"></app-icon> Follow back`
+        : html`<app-icon icon="plus-line"></app-icon> Follow`}
   </button>`;
 }
 

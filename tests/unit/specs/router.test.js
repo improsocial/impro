@@ -207,6 +207,11 @@ describe("matchPath (static method)", () => {
     assert.deepEqual(params, { handle: "alice/evil", rkey: "abc123" });
   });
 
+  it("should fall back to the raw segment for malformed percent-encoding", () => {
+    const params = Router.matchPath("/profile/%zz", "/profile/:handle");
+    assert.deepEqual(params, { handle: "%zz" });
+  });
+
   it("should preserve colons in DID parameters", () => {
     const params = Router.matchPath(
       "/profile/did:plc:abc123/post/key456",
@@ -236,6 +241,14 @@ describe("match", () => {
     assert.deepEqual(result.params, { id: "123" });
   });
 
+  it("should match with the raw segment for malformed percent-encoding", () => {
+    const router = new Router();
+    router.addRoute("/profile/:handle", () => "view");
+    const result = router.match("/profile/%zz");
+    assert.deepEqual(result.route, "/profile/:handle");
+    assert.deepEqual(result.params, { handle: "%zz" });
+  });
+
   it("should return notFoundView for non-matching path", () => {
     const router = new Router();
     const notFoundView = () => "404";
@@ -263,6 +276,61 @@ describe("renderRoute", () => {
     const renderFunc = () => {};
     router.renderRoute(renderFunc);
     assert.deepEqual(router.renderFunc, renderFunc);
+  });
+});
+
+describe("setErrorViewResolver", () => {
+  function setupRouter() {
+    const router = new Router();
+    mountRouter(router);
+    router.renderRoute(({ view, params, container }) =>
+      view({ root: container, params }),
+    );
+    return router;
+  }
+
+  it("renders the resolved error view in place of a view that throws", async () => {
+    const router = setupRouter();
+    const failure = new Error("boom");
+    router.addRoute("/broken/:id", () => async ({ root }) => {
+      root.appendChild(document.createElement("span"));
+      throw failure;
+    });
+    const errorView = mock.fn(async ({ root }) => {
+      root.textContent = "error page";
+    });
+    const seenErrors = [];
+    router.setErrorViewResolver((error) => {
+      seenErrors.push(error);
+      return () => errorView;
+    });
+
+    await router.load("/broken/123");
+
+    assert.deepEqual(seenErrors, [failure]);
+    assert.deepEqual(errorView.mock.callCount(), 1);
+    assert.deepEqual(errorView.mock.calls[0].arguments[0].params, {
+      id: "123",
+    });
+    assert.deepEqual(router.currentPage.textContent, "error page");
+    assert.deepEqual(router.currentPage.querySelectorAll("span").length, 0);
+  });
+
+  it("rethrows when no error view resolver is set", async () => {
+    const router = setupRouter();
+    router.addRoute("/broken", () => async () => {
+      throw new Error("boom");
+    });
+    await assert.rejects(() => router.load("/broken"), /boom/);
+  });
+
+  it("rethrows when the resolver returns no view", async () => {
+    const router = setupRouter();
+    router.addRoute("/broken", () => async () => {
+      throw new Error("boom");
+    });
+    router.setErrorViewResolver(() => null);
+    await assert.rejects(() => router.load("/broken"), /boom/);
   });
 });
 
@@ -957,6 +1025,46 @@ describe("redirect routes", () => {
     window.history.replaceState({ previousRoute: "/prior" }, "", "/old");
     await router.load("/old");
     assert.deepEqual(window.history.state?.previousRoute, "/prior");
+  });
+
+  it("awaits an async redirect resolver", async () => {
+    const router = createRouter();
+    router.addRedirects({ "/async-old": async () => "/new" });
+
+    await router.load("/async-old");
+
+    assert.deepEqual(window.location.pathname, "/new");
+    assert.deepEqual(router.$currentRoute.get().route, "/new");
+  });
+
+  it("falls through to the matched route when an async resolver returns null", async () => {
+    const router = createRouter();
+    router.addRedirects({ "/new": async () => null });
+
+    await router.load("/new");
+
+    assert.deepEqual(router.currentPath, "/new");
+    assert.deepEqual(router.$currentRoute.get().route, "/new");
+  });
+
+  it("abandons a pending async redirect when another load starts", async () => {
+    const router = createRouter();
+    let resolveRedirect;
+    router.addRedirects({
+      "/slow-old": () =>
+        new Promise((resolve) => {
+          resolveRedirect = resolve;
+        }),
+    });
+
+    const slowLoad = router.load("/slow-old");
+    await router.load("/new");
+    resolveRedirect("/new/123");
+    await slowLoad;
+
+    assert.deepEqual(router.currentPath, "/new");
+    assert.deepEqual(router.$currentRoute.get().route, "/new");
+    assert.notDeepEqual(window.location.pathname, "/new/123");
   });
 });
 

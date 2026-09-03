@@ -1,20 +1,18 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
-import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { wait, raf } from "/js/utils.js";
+import "/js/components/app-icon.js";
 
 const TOAST_GAP_PX = 8;
 const activeToasts = [];
 const mountedToasts = new Set();
 
 const STYLE_ICONS = {
-  default: circleCheckIconTemplate,
-  success: circleCheckIconTemplate,
-  error: alertIconTemplate,
-  warning: alertIconTemplate,
-  info: infoIconTemplate,
+  default: () => html`<app-icon icon="circle-check"></app-icon>`,
+  success: () => html`<app-icon icon="circle-check"></app-icon>`,
+  error: () => html`<app-icon icon="alert-circle-line"></app-icon>`,
+  warning: () => html`<app-icon icon="alert-circle-line"></app-icon>`,
+  info: () => html`<app-icon icon="info-circle-line"></app-icon>`,
 };
 
 function restackToasts() {

@@ -3164,6 +3164,142 @@ describe("post-composer", () => {
     });
   });
 
+  describe("PostComposer - join link embeds", () => {
+    let element;
+    const inviteUrl = "https://bsky.app/chat/PlDhtB8";
+    const availablePreview = {
+      $type: "chat.bsky.group.defs#joinLinkPreviewView",
+      code: "PlDhtB8",
+      name: "Cool Group",
+      memberCount: 3,
+      memberLimit: 100,
+      requireApproval: false,
+      owner: {
+        did: "did:plc:owner",
+        handle: "owner.test",
+        displayName: "Owner",
+        avatar: "https://cdn.bsky.app/owner-avatar.png",
+      },
+    };
+    const unavailablePreview = {
+      $type: "chat.bsky.group.defs#joinLinkPreviewNotFoundView",
+      code: "PlDhtB8",
+    };
+
+    function seedPreview(preview) {
+      element.dataLayer.dataStore.$joinLinkPreviewsByCode.set(
+        preview.code,
+        preview,
+      );
+    }
+
+    beforeEach(() => {
+      globalThis.fetch = () => Promise.resolve({ ok: false });
+      element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.declarative,
+        "ensureJoinLinkPreview",
+        async (code) => {
+          const existing =
+            element.dataLayer.dataStore.$joinLinkPreviewsByCode.get(code);
+          if (existing) return existing;
+          seedPreview(availablePreview);
+          return availablePreview;
+        },
+      );
+      connectElement(element);
+    });
+
+    afterEach(() => {
+      delete globalThis.fetch;
+    });
+
+    function pasteInvite() {
+      element.handleInput(getFirstPost(element).id, {
+        detail: {
+          text: inviteUrl,
+          facets: [makeLinkFacet(inviteUrl)],
+          inputType: "insertFromPaste",
+        },
+      });
+    }
+
+    it("populates the shared preview cache and fills the external embed with social-app's shape", async () => {
+      pasteInvite();
+      // preliminary external set synchronously so hasContent flips on
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, inviteUrl);
+      await waitFor(
+        () =>
+          element.dataLayer.dataStore.$joinLinkPreviewsByCode.get("PlDhtB8") !==
+          null,
+      );
+      // matches social-app's outgoing shape: title=name, description="N/M", no thumb
+      assert.deepEqual(getFirstPost(element).external, {
+        url: inviteUrl,
+        title: "Cool Group",
+        description: "3/100",
+        image: "",
+      });
+    });
+
+    it("renders the chat join link embed card by reading the shared preview cache", async () => {
+      seedPreview(availablePreview);
+      pasteInvite();
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="join-link-embed"]'),
+        "join link embed card should be rendered",
+      );
+      assert.equal(
+        element
+          .querySelector('[data-testid="join-link-embed"]')
+          .getAttribute("data-teststate"),
+        "available",
+      );
+    });
+
+    it("renders the unavailable state when the preview resolves as not found", async () => {
+      seedPreview(unavailablePreview);
+      pasteInvite();
+      await nextFrame();
+      assert.equal(
+        element
+          .querySelector('[data-testid="join-link-embed"]')
+          .getAttribute("data-teststate"),
+        "unavailable",
+      );
+    });
+
+    it("blocks send while an unavailable invite is attached", async () => {
+      seedPreview(unavailablePreview);
+      pasteInvite();
+      assert(element.isSendBlocked());
+    });
+
+    it("does not block send while the preview is still loading", async () => {
+      // Override the mock to hang so nothing lands in the cache
+      mock.method(
+        element.dataLayer.declarative,
+        "ensureJoinLinkPreview",
+        () => new Promise(() => {}),
+      );
+      pasteInvite();
+      assert(!element.isSendBlocked());
+    });
+
+    it("clears the external embed when the join link card is closed", async () => {
+      seedPreview(availablePreview);
+      pasteInvite();
+      await waitFor(() => getFirstPost(element).external !== null);
+      element.handleExternalLinkEmbedPreviewClose(getFirstPost(element).id);
+      const post = getFirstPost(element);
+      assert.equal(post.external, null);
+      assert.equal(post.externalLinkUrl, null);
+      assert(post.rejectedLinkEmbeds.has(inviteUrl));
+    });
+  });
+
   describe("PostComposer - send lifecycle", () => {
     it("dispatches a single empty post when nothing has content", async () => {
       const element = createPostComposer();

@@ -409,7 +409,7 @@ describe("sidebarTemplate - notification badges", () => {
 });
 
 describe("sidebarTemplate - compose button", () => {
-  it("should render compose button when onClickComposeButton is provided", () => {
+  it("should render an enabled compose button when currentUser is loaded", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
       currentUser: mockUser,
@@ -417,23 +417,26 @@ describe("sidebarTemplate - compose button", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(
-      container.querySelector("[data-testid='sidebar-compose-button']") !==
-        null,
+    const button = container.querySelector(
+      "[data-testid='sidebar-compose-button']",
     );
+    assert(button !== null);
+    assert(!button.disabled);
   });
 
-  it("should not render compose button when onClickComposeButton is not provided", () => {
+  it("should render a disabled compose button when currentUser is not loaded", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
+      currentUser: null,
+      onClickComposeButton: () => {},
     });
     const container = document.createElement("div");
     render(result, container);
-    assert.deepEqual(
-      container.querySelector("[data-testid='sidebar-compose-button']"),
-      null,
+    const button = container.querySelector(
+      "[data-testid='sidebar-compose-button']",
     );
+    assert(button !== null);
+    assert(button.disabled);
   });
 
   it("should call onClickComposeButton when compose button is clicked", () => {

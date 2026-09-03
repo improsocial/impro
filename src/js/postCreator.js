@@ -1,6 +1,7 @@
-import { getPostLangs, isNil, readFileAsDataUrl, wait } from "/js/utils.js";
+import { getPostLangs, isNil, wait } from "/js/utils.js";
 import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
+import { fetchAndCompressImage } from "/js/embedHelpers.js";
 import {
   getUnresolvedFacetsFromText,
   resolveFacets,
@@ -271,20 +272,15 @@ export class PostCreator {
     // If there's an external link, upload the preview image
     if (externalImage) {
       try {
-        const imageRes = await fetch(externalImage, { signal });
-        const imageBlob = await imageRes.blob();
-        const dataUrl = await readFileAsDataUrl(imageBlob);
-        const compressedImage =
-          await this.imageCompressor.compressImage(dataUrl);
-        const blob = await this.api.uploadBlob(compressedImage.blob, {
+        const compressed = await fetchAndCompressImage(externalImage, {
           signal,
+          imageCompressor: this.imageCompressor,
         });
+        const blob = await this.api.uploadBlob(compressed.blob, { signal });
         externalEmbed.external.thumb = {
           $type: "blob",
           mimeType: blob.mimeType,
-          ref: {
-            $link: blob.ref.$link,
-          },
+          ref: { $link: blob.ref.$link },
           size: blob.size,
         };
       } catch (error) {

@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { isAutomatedAccount } from "/js/dataHelpers.js";
-import { automatedAccountIconTemplate } from "/js/templates/icons/automatedAccountIcon.template.js";
+import "/js/components/app-icon.js";
 import { alertModal } from "/js/modals/alert.modal.js";
 
 export function automatedAccountBadgeTemplate({ profile }) {
@@ -18,6 +18,6 @@ export function automatedAccountBadgeTemplate({ profile }) {
       });
     }}
   >
-    ${automatedAccountIconTemplate()}
+    <app-icon icon="robot-line"></app-icon>
   </button>`;
 }

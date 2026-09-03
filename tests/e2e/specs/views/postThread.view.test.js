@@ -2082,7 +2082,9 @@ test.describe("Post thread view", () => {
       });
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
       await expect(badge).toHaveText("Everybody can reply");
-      await expect(badge.locator(".globe-icon")).toBeVisible();
+      await expect(
+        badge.locator('app-icon[icon="globe-grid-line"]'),
+      ).toBeVisible();
     });
 
     test("shows 'Replies disabled' and modal for empty allow", async ({

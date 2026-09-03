@@ -67,6 +67,44 @@ test.describe("Post likes view", () => {
     await expect(view).toContainText("Charlie");
   });
 
+  test("should keep the final profile above the mobile footer", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const profiles = Array.from({ length: 12 }, (_, index) =>
+      createProfile({
+        did: `did:plc:liker${index}`,
+        handle: `liker${index}.bsky.social`,
+        displayName: `Liker ${index}`,
+        description: `Profile ${index}`,
+      }),
+    );
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    mockServer.addPostLikes(
+      postUri,
+      profiles.map((actor) => ({
+        actor,
+        createdAt: "2025-01-15T12:00:00.000Z",
+      })),
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123/likes");
+    const rows = page.locator("#post-likes-view .profile-list-item");
+    await expect(rows).toHaveCount(profiles.length, { timeout: 10000 });
+    await page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+
+    const lastRow = await rows.last().boundingBox();
+    const footer = await page.locator(".footer-nav").boundingBox();
+    expect(lastRow).not.toBeNull();
+    expect(footer).not.toBeNull();
+    expect(lastRow.y + lastRow.height).toBeLessThanOrEqual(footer.y + 1);
+  });
+
   test("should display singular 'like' for count of 1", async ({ page }) => {
     const singleLikePost = createPost({
       uri: postUri,

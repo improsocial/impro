@@ -18,6 +18,8 @@ import profileKnownFollowersView from "/js/views/profileKnownFollowers.view.js";
 import searchView from "/js/views/search.view.js";
 import hashtagView from "/js/views/hashtag.view.js";
 import notFoundView from "/js/views/notFound.view.js";
+import pageErrorView from "/js/views/pageError.view.js";
+import accountNotFoundView from "/js/views/accountNotFound.view.js";
 import settingsView from "/js/views/settings.view.js";
 import settingsAppearanceView from "/js/views/settings/appearance.view.js";
 import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
@@ -36,7 +38,7 @@ import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
-import { IdentityResolver } from "/js/atproto.js";
+import { IdentityResolver, HandleNotFoundError } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { installIOSFixedLayerResync } from "/js/iosFixedLayerResync.js";
@@ -58,6 +60,7 @@ import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import { isInAppLinkHostname } from "/js/dataHelpers.js";
+import { linkToProfile } from "/js/navigation.js";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import {
   getAppViewConfig,
@@ -332,8 +335,7 @@ export async function main() {
     "/profile/:handleOrDid/following",
     () => profileFollowingView,
   );
-  // "/profile" with no param is the current user's profile
-  router.addRoute(["/profile/:handleOrDid", "/profile"], () => profileView, {
+  router.addRoute("/profile/:handleOrDid", () => profileView, {
     layoutOptions: {
       activeNavItem: (params) => (isOwnProfile(params) ? "profile" : null),
       isNavItemPage: (params) => isOwnProfile(params),
@@ -401,6 +403,16 @@ export async function main() {
     pluginsRouteOptions,
   );
   router.addRedirects({
+    // Current user profile shortcut
+    "/profile": async () => {
+      if (!session) return "/";
+      try {
+        const currentUser = await dataLayer.declarative.ensureCurrentUser();
+        return linkToProfile(currentUser);
+      } catch {
+        return "/";
+      }
+    },
     // Old community plugin URLs
     "/settings/plugins/community": () => "/plugins/community",
     "/settings/plugins/community/:pluginId": (params) =>
@@ -411,6 +423,14 @@ export async function main() {
       `/plugin/${encodeURIComponent(params.pluginId)}/settings`,
   });
   router.setNotFoundView(() => notFoundView);
+  router.setErrorViewResolver((error) => {
+    // This can happen if a page URL has an invalid handle
+    if (error instanceof HandleNotFoundError) {
+      return () => accountNotFoundView;
+    }
+    console.error(error);
+    return () => pageErrorView;
+  });
 
   router.renderRoute(({ view, params, container, layout }) => {
     return view({
@@ -484,7 +504,9 @@ export async function main() {
     }
   });
 
-  await router.load(window.location.pathname ?? "/");
+  router.load(window.location.pathname ?? "/").catch((error) => {
+    console.error("Error loading initial route:", error);
+  });
 
   // Sometimes clicks get swallowed after swipe-back navigations on iOS safari
   // Adding a global touchstart listener fixes this for some reason

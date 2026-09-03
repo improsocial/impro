@@ -6,11 +6,11 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { avatarThumbnailUrl, cdnImageUrl } from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
+import "/js/components/app-icon.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
-import { cameraIconTemplate } from "/js/templates/icons/cameraIcon.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 
 const MAX_DISPLAY_NAME_LENGTH = 64;
@@ -208,7 +208,7 @@ class EditProfileDialog extends Component {
                     <div
                       class="form-dialog-camera-button form-dialog-camera-button-banner"
                     >
-                      ${cameraIconTemplate()}
+                      <app-icon icon="camera"></app-icon>
                     </div>
                   </div>
 
@@ -229,7 +229,7 @@ class EditProfileDialog extends Component {
                     <div
                       class="form-dialog-camera-button form-dialog-camera-button-avatar"
                     >
-                      ${cameraIconTemplate()}
+                      <app-icon icon="camera"></app-icon>
                     </div>
                   </div>
                 </div>

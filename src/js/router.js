@@ -104,11 +104,13 @@ export class Router extends EventEmitter {
     this.redirects = {};
     this.notFoundView = () => {};
     this.notFoundOptions = {};
+    this.errorViewResolver = null;
     this.renderFunc = () => {};
     this.layout = null;
     this.containers = { default: null, bare: null, layout: null };
     this.currentPage = null;
     this.currentPath = null;
+    this._latestLoadToken = null;
     this.$currentRoute = new Signal.State(null);
     this.pages = new BoundedMap(MAX_PAGES, {
       policy: "lru",
@@ -169,6 +171,10 @@ export class Router extends EventEmitter {
     this.notFoundOptions = options;
   }
 
+  setErrorViewResolver(resolveErrorView) {
+    this.errorViewResolver = resolveErrorView;
+  }
+
   setLayout(layout) {
     this.layout = layout;
   }
@@ -214,7 +220,14 @@ export class Router extends EventEmitter {
     const params = {};
     for (let i = 0; i < routeParts.length; i++) {
       if (routeParts[i].startsWith(":")) {
-        params[routeParts[i].slice(1)] = decodeURIComponent(pathParts[i]);
+        let value;
+        try {
+          value = decodeURIComponent(pathParts[i]);
+        } catch {
+          // Fall back to the raw segment
+          value = pathParts[i];
+        }
+        params[routeParts[i].slice(1)] = value;
       } else {
         if (pathParts[i] !== routeParts[i]) {
           return null;
@@ -248,14 +261,23 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isRestore = false } = {}) {
+    this._latestLoadToken = Symbol("load");
     const [pathnameForRedirect, query] = path.split("?");
-    const redirectTarget = this.matchRedirect(pathnameForRedirect);
-    if (redirectTarget !== null) {
-      const redirectPath = query
-        ? `${redirectTarget}?${query}`
-        : redirectTarget;
-      window.history.replaceState(window.history.state, "", redirectPath);
-      return this.load(redirectPath, { isRestore });
+    const redirectResult = this.matchRedirect(pathnameForRedirect);
+    if (redirectResult !== null) {
+      const loadToken = this._latestLoadToken;
+      // Resolvers can be async, so check that the load token matches after awaiting
+      const redirectTarget = await redirectResult;
+      if (this._latestLoadToken !== loadToken) {
+        return;
+      }
+      if (redirectTarget != null) {
+        const redirectPath = query
+          ? `${redirectTarget}?${query}`
+          : redirectTarget;
+        window.history.replaceState(window.history.state, "", redirectPath);
+        return this.load(redirectPath, { isRestore });
+      }
     }
     // Save the scroll position of the page we're leaving before swapping it out
     if (this.currentPath != null) {
@@ -333,12 +355,28 @@ export class Router extends EventEmitter {
     this.currentPage = newPage;
     this.pages.set(path, { el: newPage, routeInfo });
     window.scrollTo(0, 0);
-    await this.renderFunc({
-      view,
-      params,
-      layout: options.layout === false ? null : this.layout,
-      container: this.currentPage,
-    });
+    const layout = options.layout === false ? null : this.layout;
+    try {
+      await this.renderFunc({
+        view,
+        params,
+        layout,
+        container: newPage,
+      });
+    } catch (error) {
+      const errorViewGetter = this.errorViewResolver?.(error, routeInfo);
+      if (!errorViewGetter) {
+        throw error;
+      }
+      const errorView = await errorViewGetter();
+      newPage.replaceChildren();
+      await this.renderFunc({
+        view: errorView,
+        params,
+        layout,
+        container: newPage,
+      });
+    }
     this.currentPage.classList.remove("page-hidden");
     this.currentPage.classList.add("page-visible");
     outgoingPage?.classList.remove("page-visible");

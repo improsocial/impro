@@ -206,6 +206,18 @@ export class Declarative {
     return convo;
   }
 
+  async ensureJoinLinkPreview(code) {
+    let preview = this.derived.$joinLinkPreviewsByCode.get(code);
+    if (!preview) {
+      await this.requests._loadJoinLinkPreviews([code]);
+      preview = this.derived.$joinLinkPreviewsByCode.get(code);
+    }
+    if (!preview) {
+      throw new Error("Join link preview not found");
+    }
+    return preview;
+  }
+
   async ensureConvoForProfile(profileDid) {
     let convo = this.derived.$convoForProfile.get(profileDid);
     if (!convo) {

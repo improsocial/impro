@@ -279,7 +279,7 @@ export class Requests {
       );
       profile = await this.loadCurrentUserFromRecord(session);
     }
-    this.dataStore.$currentUser.set(profile);
+    this.dataStore.setCurrentUser(profile);
   }
 
   async loadCurrentUserFromRecord(session) {

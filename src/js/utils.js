@@ -115,7 +115,7 @@ window.addEventListener("visibilitychange", () => {
   }
 });
 
-export function displayRelativeTime(timestamp) {
+export function formatRelativeTime(timestamp) {
   // e.g. "2025-09-11T15:08:11.414Z" -> "7h"
   const now = relativeTimeBase;
   const then = new Date(timestamp);
@@ -228,6 +228,14 @@ export function formatFullDate(timestamp) {
     month: "long",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+// E.g. 3:44 PM
+export function formatShortTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
@@ -1199,4 +1207,36 @@ export function requireArg(method, name, value) {
   if (!value) {
     throw new Error(`${method} requires a ${name}`);
   }
+}
+
+// E.g. "twitch.tv/foo" -> "https://twitch.tv/foo".
+// Returns null if the input clearly isn't an url
+export function normalizeUrl(input) {
+  const trimmed = (input ?? "").trim();
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  let parsed;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  const labels = parsed.hostname.split(".").filter(Boolean);
+  if (labels.length < 2) return null;
+  const tld = labels[labels.length - 1];
+  if (!/^[a-z]{2,}$/i.test(tld)) return null;
+  return parsed.href;
+}
+
+// e.g. "1 hour", "30 minutes", "1 hour 5 minutes"
+export function formatDuration(minutes) {
+  const total = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+  if (mins > 0) parts.push(`${mins} ${mins === 1 ? "minute" : "minutes"}`);
+  return parts.join(" ") || "0 minutes";
 }

@@ -36,7 +36,6 @@ export function enableErrorLogs() {
   left: 0;
   right: 0;
   max-height: 200px;
-  overflow-y: auto;
   font-family: monospace;
   font-size: 12px;
   z-index: 9999999;
@@ -44,12 +43,40 @@ export function enableErrorLogs() {
 `;
   document.body.appendChild(errorLog);
 
+  const entriesContainer = document.createElement("div");
+  entriesContainer.style.cssText = `
+  max-height: 200px;
+  overflow-y: auto;
+`;
+  errorLog.appendChild(entriesContainer);
+
+  const clearAllButton = document.createElement("button");
+  clearAllButton.textContent = "Clear all";
+  clearAllButton.style.cssText = `
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 4px 8px;
+  border: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 1;
+`;
+  clearAllButton.addEventListener("click", () => {
+    entriesContainer.replaceChildren();
+    errorLog.style.display = "none";
+  });
+  errorLog.appendChild(clearAllButton);
+
   function showMessage(message, level = "error") {
     const { background, color } = LEVEL_STYLES[level];
     errorLog.style.display = "block";
     const entry = document.createElement("div");
     entry.dataset.logLevel = level;
-    errorLog.appendChild(entry);
+    entriesContainer.appendChild(entry);
     render(
       html`
         <div style="padding:15px;background:${background};color:${color};">

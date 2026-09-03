@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import "/js/components/app-icon.js";
 
 export function notFoundPostTemplate() {
   return html`<div
@@ -7,7 +7,7 @@ export function notFoundPostTemplate() {
     data-testid="post-tombstone-not-found"
   >
     <div class="missing-post-indicator">
-      ${trashCanIconTemplate()} Post not found
+      <app-icon icon="delete-bin-line"></app-icon> Post not found
     </div>
   </div> `;
 }

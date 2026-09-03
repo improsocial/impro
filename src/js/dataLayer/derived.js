@@ -139,6 +139,9 @@ export class Derived extends ReactiveStore {
     this.$showLessInteractions = new ComputedMap(
       (feedUri) => this.dataStore.$showLessInteractions.get(feedUri) ?? [],
     );
+    this.$joinLinkPreviewsByCode = new ComputedMap(
+      (code) => this.dataStore.$joinLinkPreviewsByCode.get(code) ?? null,
+    );
     this.$isFollowPending = new ComputedMap((did) =>
       this.patchStore.hasPendingProfilePatch(did, [
         "followProfile",
@@ -180,21 +183,23 @@ export class Derived extends ReactiveStore {
     });
     // { state: "none" | "active" | "inactive" }
     this.$actorLiveStatus = new ComputedMap((did) => {
+      const statusView = this.dataStore.$profileStatuses.get(did);
+      if (!statusView || typeof statusView !== "object") {
+        this.liveStatusScheduler.cancel(did);
+        return { state: "none" };
+      }
       const profile =
         this.$patchedDetailedProfiles.get(did) ??
         this.$patchedProfiles.get(did);
-      const statusView = profile?.status;
-      if (!statusView || typeof statusView !== "object") {
-        return { state: "none" };
-      }
-      const viewer = profile.viewer;
+      const viewer = profile?.viewer;
       const preferences = this.$preferences.get();
       if (
         viewer?.blocking ||
         viewer?.blockedBy ||
         viewer?.muted ||
-        (preferences && preferences.getProfileBlurLabel(profile))
+        (profile && preferences && preferences.getProfileBlurLabel(profile))
       ) {
+        this.liveStatusScheduler.cancel(did);
         return { state: "none" };
       }
       if (isStatusValid(statusView)) {
@@ -848,7 +853,7 @@ export class Derived extends ReactiveStore {
   attachJoinLinkPreview(item) {
     const code = getJoinLinkCodeFromEmbed(item?.embed);
     if (!code) return item;
-    const preview = this.dataStore.$joinLinkPreviewsByCode.get(code);
+    const preview = this.$joinLinkPreviewsByCode.get(code);
     if (!preview) return item;
     const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
     if (!updated) return item;

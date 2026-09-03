@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { wait } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
@@ -14,12 +15,14 @@ import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
-import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
+import "/js/components/app-icon.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
+import "/js/components/go-live-dialog.js";
+import "/js/components/edit-live-dialog.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 export default async function profileView({
@@ -49,16 +52,10 @@ export default async function profileView({
   state.$activeTab = new Signal.State("posts");
 
   const { handleOrDid } = params;
-  let profileDid = null;
-  // If no handle or did is provided, use the current user
-  if (!handleOrDid) {
-    const currentUser = await dataLayer.declarative.ensureCurrentUser();
-    profileDid = currentUser.did;
-  } else if (handleOrDid.startsWith("did:")) {
-    profileDid = handleOrDid;
-  } else {
-    profileDid = await identityResolver.resolveHandle(handleOrDid);
-  }
+  const profileDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
 
   const { postInteractionHandler, profileInteractionHandler } =
     interactionHandlers;
@@ -71,6 +68,29 @@ export default async function profileView({
     dialog.addEventListener("dialog-closed", () => {
       dialog.remove();
     });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  function handleGoLive(profile) {
+    const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
+    const dialog = document.createElement("go-live-dialog");
+    dialog.dataLayer = dataLayer;
+    // Prefill url from old status if present
+    if (liveStatus?.state === "inactive" && !liveStatus.isDisabled) {
+      dialog.initialUrl = liveStatus?.record?.embed?.external?.uri ?? "";
+    }
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  function handleEditLive(profile) {
+    const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
+    const dialog = document.createElement("edit-live-dialog");
+    dialog.dataLayer = dataLayer;
+    dialog.liveStatus = liveStatus;
+    dialog.addEventListener("close", () => dialog.remove());
     document.body.appendChild(dialog);
     dialog.open();
   }
@@ -318,6 +338,8 @@ export default async function profileView({
               profileInteractionHandler.handleReport(profile),
             onClickAddToLists: (profile) => handleAddToLists(profile),
             onClickEditProfile: () => handleEditProfile(profile),
+            onClickGoLive: () => handleGoLive(profile),
+            onClickEditLive: () => handleEditLive(profile),
             liveStatus,
             pluginService,
             isFollowPending: dataLayer.derived.$isFollowPending.get(
@@ -449,13 +471,15 @@ export default async function profileView({
       ? dataLayer.derived.$labelerInfo.get(profile.did)
       : null;
     // If labeler, require labeler info to be loaded
-    const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
+    const isCurrentUserLoaded = !isAuthenticated ? true : !!currentUser;
+    const isLoaded =
+      profile && isCurrentUserLoaded && (isLabeler ? !!labelerInfo : true);
     const activeTab = state.$activeTab.get();
     render(
       html`<div id="profile-view">
         <main style="position: relative;">
           <button class="floating-back-button" @click=${() => router.back()}>
-            ${arrowLeftIconTemplate()}
+            <app-icon icon="arrow-left-line"></app-icon>
           </button>
           ${(() => {
             if (profileRequestStatus.error) {
@@ -475,8 +499,9 @@ export default async function profileView({
             }
           })()}
         </main>
-        ${currentUser
+        ${isAuthenticated
           ? floatingComposeButtonTemplate({
+              disabled: !currentUser,
               onClick: () => postComposerService.composePost({ currentUser }),
             })
           : ""}
@@ -554,17 +579,14 @@ export default async function profileView({
       state.$activeTab.set("labeler-settings");
       dataLayer.requests.loadLabelerInfo(profile.did);
     }
+    const currentUserDid = isAuthenticated ? dataLayer.api.session.did : null;
+    const isCurrentUser = profile.did === currentUserDid;
     if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
-      const isCurrentUser =
-        profile.did === dataLayer.derived.$currentUser.get()?.did;
       loadAuthorFeed({ reload: true });
       preloadHiddenFeeds({ isCurrentUser, isLabeler });
     }
     // Load chat status
-    if (
-      isAuthenticated &&
-      profile.did !== dataLayer.derived.$currentUser.get()?.did
-    ) {
+    if (!isCurrentUser) {
       dataLayer.requests.loadProfileChatStatus(profile.did);
     }
   }

@@ -38,6 +38,7 @@ import {
   wait,
   raf,
   differenceInMinutes,
+  formatShortTime,
   isMobileViewport,
   canHover,
   pinScrollPosition,
@@ -50,9 +51,6 @@ import {
   linkToGroupChatDetails,
   linkToProfile,
 } from "/js/navigation.js";
-import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -183,7 +181,7 @@ export default async function chatDetailView({
         data-testid="message-embed-preview-remove"
         @click=${() => clearStagedRecordEmbed()}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
       ${body}
     </div>`;
@@ -222,7 +220,7 @@ export default async function chatDetailView({
         data-testid="reply-preview-clear"
         @click=${() => clearReply()}
       >
-        ${closeIconTemplate()}
+        <app-icon icon="close-line"></app-icon>
       </button>
     </div>`;
   }
@@ -914,8 +912,8 @@ export default async function chatDetailView({
       }}
     >
       <span class="message-reply-caption-arrow" aria-hidden="true"
-        >${cornerDownRightIconTemplate()}</span
-      >
+        ><app-icon icon="corner-down-right-line"></app-icon
+      ></span>
       <span>${captionText}</span>
     </div>`;
   }
@@ -1012,7 +1010,7 @@ export default async function chatDetailView({
                     handleEmojiTriggerClick(e, message.id);
                   }}
                 >
-                  ${emojiIconTemplate()}
+                  <app-icon icon="emoji-smile-line"></app-icon>
                 </button>
                 <button
                   class="message-more-trigger"
@@ -1033,14 +1031,6 @@ export default async function chatDetailView({
           : ""}
       </div>
     `;
-  }
-
-  function formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
   }
 
   function systemMessageTemplate({ message, convo }) {
@@ -1119,7 +1109,7 @@ export default async function chatDetailView({
             ? "message-group-time-sent"
             : "message-group-time-received"}"
         >
-          ${formatTime(group.lastSentAt)}
+          ${formatShortTime(group.lastSentAt)}
         </div>
       </div>
     `;
@@ -1129,7 +1119,7 @@ export default async function chatDetailView({
     const isToday = isSameDate(date, new Date());
     return html`<div class="message-day-title">
       <strong>${isToday ? "Today" : getDayOfWeek(date)}</strong> at
-      ${formatTime(startTime)}
+      ${formatShortTime(startTime)}
     </div>`;
   }
 
@@ -1139,7 +1129,7 @@ export default async function chatDetailView({
       !profile.viewer?.blocking &&
       !profile.viewer?.blockedBy;
     return html`<div class="chat-info-panel" data-testid="chat-info-panel">
-      ${avatarTemplate({ author: profile })}
+      ${avatarTemplate({ author: profile, showLiveStatus: false })}
       <div class="chat-info-panel-name">
         ${getDisplayName(profile)}${verificationBadgeTemplate({
           profile,

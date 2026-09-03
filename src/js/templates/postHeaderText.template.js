@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { displayRelativeTime } from "/js/utils.js";
+import { formatRelativeTime } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
@@ -42,7 +42,7 @@ export function postHeaderTextTemplate({
     ${includeTime
       ? html`<span class="post-separator">·</span
           ><span class="post-time" data-testid="post-time"
-            >${displayRelativeTime(timestamp)}</span
+            >${formatRelativeTime(timestamp)}</span
           >`
       : ""}
   </div>`;

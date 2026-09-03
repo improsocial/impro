@@ -6,7 +6,7 @@ import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
-import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import "/js/components/app-icon.js";
 
 class ReactionsDialog extends Component {
   connectedCallback() {
@@ -149,7 +149,7 @@ class ReactionsDialog extends Component {
                 aria-label="Close reactions"
                 @click=${() => this._close()}
               >
-                ${closeIconTemplate()}
+                <app-icon icon="close-line"></app-icon>
               </button>
             </div>
             <div

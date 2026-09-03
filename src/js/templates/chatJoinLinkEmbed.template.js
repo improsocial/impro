@@ -1,11 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
-import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
-import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
-import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
-import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
-import { linkIconTemplate } from "/js/templates/icons/linkIcon.template.js";
+import "/js/components/app-icon.js";
 import { getDisplayName, isAvailableJoinLinkPreview } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
 
@@ -71,11 +66,11 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
 }
 
 const ACTION_ICONS = {
-  link: linkIconTemplate,
-  "arrow-right": chevronRightIconTemplate,
-  join: userPlusIconTemplate,
-  check: checkIconTemplate,
-  hand: lockIconTemplate,
+  link: () => html`<app-icon icon="link-line"></app-icon>`,
+  "arrow-right": () => html`<app-icon icon="chevron-right-line"></app-icon>`,
+  join: () => html`<app-icon icon="user-plus-line"></app-icon>`,
+  check: () => html`<app-icon icon="check"></app-icon>`,
+  hand: () => html`<app-icon icon="lock-line"></app-icon>`,
 };
 
 function unavailableTemplate() {
@@ -83,7 +78,7 @@ function unavailableTemplate() {
     class="chat-join-link-embed-unavailable"
     data-testid="join-link-embed-unavailable"
   >
-    ${infoIconTemplate()}
+    <app-icon icon="info-circle-line"></app-icon>
     <span>Chat invite link no longer available</span>
   </div>`;
 }
