@@ -7,8 +7,7 @@ import { getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
-import { getDisplayName } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
 import "/js/components/app-icon.js";
 
 class AccountSwitcherDialog extends Component {
@@ -74,6 +73,15 @@ class AccountSwitcherDialog extends Component {
       ...accounts.filter((account) => account.did === currentDid),
       ...accounts.filter((account) => account.did !== currentDid),
     ];
+    const profilesByDid = {};
+    for (const account of orderedAccounts) {
+      const profile = this.dataLayer.derived.$hydratedDetailedProfiles.get(
+        account.did,
+      );
+      if (profile) {
+        profilesByDid[account.did] = profile;
+      }
+    }
     render(
       html`
         <dialog
@@ -114,122 +122,18 @@ class AccountSwitcherDialog extends Component {
                 <app-icon icon="close-line"></app-icon>
               </button>
             </div>
-            <div
-              class="account-switcher-list"
-              data-testid="account-switcher-list"
-            >
-              ${orderedAccounts.map((account) => {
-                const profile =
-                  this.dataLayer.derived.$hydratedDetailedProfiles.get(
-                    account.did,
-                  ) ?? null;
-                const isCurrent = account.did === currentDid;
-                const isPendingRow =
-                  pendingAction?.type === "switch" &&
-                  pendingAction.did === account.did;
-                const handle = profile?.handle ?? account.handle;
-                const showSkeleton = profile === null && profilesLoading;
-                return html`
-                  <button
-                    class="account-switcher-item ${account.needsReauth
-                      ? "account-switcher-item-reauth"
-                      : ""} ${isPendingRow ? "is-pending" : ""}"
-                    data-testid="account-switcher-item"
-                    data-did=${account.did}
-                    data-teststate=${isPendingRow
-                      ? "pending"
-                      : isCurrent
-                        ? "current"
-                        : account.needsReauth
-                          ? "reauth"
-                          : "other"}
-                    ?disabled=${pendingAction !== null}
-                    @click=${() => this._onSelect(account)}
-                  >
-                    ${showSkeleton
-                      ? html`
-                          <span class="account-switcher-avatar">
-                            <span
-                              class="skeleton-avatar skeleton-animate"
-                            ></span>
-                          </span>
-                          <span
-                            class="account-switcher-names account-switcher-names-skeleton"
-                            data-testid="account-switcher-skeleton"
-                          >
-                            <span
-                              class="skeleton-line-short skeleton-animate"
-                            ></span>
-                            <span
-                              class="skeleton-line-shorter skeleton-animate"
-                            ></span>
-                          </span>
-                        `
-                      : html`
-                          <span class="account-switcher-avatar">
-                            ${profile
-                              ? avatarTemplate({
-                                  author: profile,
-                                  clickAction: "none",
-                                  showLiveBadge: false,
-                                })
-                              : html`<div class="avatar-placeholder"></div>`}
-                          </span>
-                          <span class="account-switcher-names">
-                            <span class="account-switcher-display-name">
-                              ${profile
-                                ? getDisplayName(profile)
-                                : (account.handle ?? account.did)}
-                            </span>
-                            ${handle
-                              ? html`<span class="account-switcher-handle"
-                                  >@${handle}</span
-                                >`
-                              : null}
-                            ${account.needsReauth
-                              ? html`<span class="account-switcher-reauth-hint"
-                                  >Sign in again</span
-                                >`
-                              : null}
-                          </span>
-                        `}
-                    ${isPendingRow
-                      ? html`<span
-                          class="account-spinner"
-                          data-testid="account-spinner"
-                          ><span class="loading-spinner"></span
-                        ></span>`
-                      : isCurrent
-                        ? html`<span class="account-switcher-current-check"
-                            ><app-icon icon="circle-check"></app-icon
-                          ></span>`
-                        : html`<span class="account-switcher-chevron"
-                            ><app-icon icon="chevron-right-line"></app-icon
-                          ></span>`}
-                  </button>
-                `;
-              })}
-              <button
-                class="account-switcher-item account-switcher-add"
-                data-testid="account-switcher-add"
-                ?disabled=${pendingAction !== null}
-                @click=${() => this._onAdd()}
-              >
-                <span class="account-switcher-avatar account-switcher-add-icon">
-                  <app-icon icon="user-plus-line"></app-icon>
-                </span>
-                <span class="account-switcher-names">
-                  <span class="account-switcher-display-name">Add account</span>
-                </span>
-                ${pendingAction?.type === "add"
-                  ? html`<span
-                      class="account-spinner"
-                      data-testid="account-spinner"
-                      ><span class="loading-spinner"></span
-                    ></span>`
-                  : null}
-              </button>
-            </div>
+            ${accountSwitcherListTemplate({
+              accounts: orderedAccounts,
+              profilesByDid,
+              currentDid,
+              pendingDid:
+                pendingAction?.type === "switch" ? pendingAction.did : null,
+              profilesLoading,
+              onSelect: (account) => this._onSelect(account),
+              onAdd: () => this._onAdd(),
+              addLabel: "Add account",
+              addPending: pendingAction?.type === "add",
+            })}
           </div>
         </dialog>
       `,

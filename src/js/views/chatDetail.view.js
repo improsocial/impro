@@ -38,6 +38,7 @@ import {
   wait,
   raf,
   differenceInMinutes,
+  formatShortTime,
   isMobileViewport,
   canHover,
   pinScrollPosition,
@@ -1032,14 +1033,6 @@ export default async function chatDetailView({
     `;
   }
 
-  function formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  }
-
   function systemMessageTemplate({ message, convo }) {
     const memberDid = message.data?.member?.did;
     const memberProfile = memberDid ? getMemberProfile(convo, memberDid) : null;
@@ -1116,7 +1109,7 @@ export default async function chatDetailView({
             ? "message-group-time-sent"
             : "message-group-time-received"}"
         >
-          ${formatTime(group.lastSentAt)}
+          ${formatShortTime(group.lastSentAt)}
         </div>
       </div>
     `;
@@ -1126,7 +1119,7 @@ export default async function chatDetailView({
     const isToday = isSameDate(date, new Date());
     return html`<div class="message-day-title">
       <strong>${isToday ? "Today" : getDayOfWeek(date)}</strong> at
-      ${formatTime(startTime)}
+      ${formatShortTime(startTime)}
     </div>`;
   }
 

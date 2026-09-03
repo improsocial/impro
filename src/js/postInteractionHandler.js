@@ -250,7 +250,7 @@ export class PostInteractionHandler {
   async handleQuotePost(post) {
     const currentUser = this.dataLayer.derived.$currentUser.get();
     if (!currentUser) {
-      console.warn("No current user");
+      console.warn("handleQuotePost: No current user");
       return;
     }
     try {

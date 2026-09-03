@@ -213,8 +213,9 @@ export class MainLayout extends Layout {
             chatNotificationService?.$numNotifications.get() ?? null,
           onClickActiveNavItem,
           children: slot,
-          onClickComposeButton: () =>
-            postComposerService.composePost({ currentUser }),
+          onClickComposeButton: currentUser
+            ? () => postComposerService.composePost({ currentUser })
+            : null,
           pluginService,
           previewingPlugins,
           onLongPressProfile,
