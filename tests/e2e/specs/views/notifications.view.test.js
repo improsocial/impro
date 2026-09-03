@@ -2,6 +2,7 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import {
+  createLiveStatusView,
   createNotification,
   createPost,
   createProfile,
@@ -1747,5 +1748,66 @@ test.describe("Notifications view", () => {
     await expect(items.nth(2)).toContainText("verified you");
     await expect(items.nth(3)).toContainText("removed their verification");
     await expect(items.nth(4)).toContainText("is on Bluesky");
+  });
+
+  test("shows live ring and pill on a stacked notification avatar for a live actor", async ({
+    page,
+  }) => {
+    const liveAlice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+      status: createLiveStatusView({
+        did: "did:plc:alice1",
+        url: "https://www.twitch.tv/alice",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }),
+    });
+
+    const likedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/popular2",
+      text: "Popular post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([likedPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "like",
+        author: liveAlice,
+        reasonSubject: likedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "like",
+        author: bob,
+        reasonSubject: likedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "like",
+        author: charlie,
+        reasonSubject: likedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+
+    const liveAvatar = item
+      .locator(".notification-avatar")
+      .filter({ has: page.locator('[alt="Alice profile picture"]') });
+    await expect(liveAvatar.locator(".avatar-live")).toBeVisible();
+    await expect(
+      liveAvatar.locator('[data-testid="live-badge"]'),
+    ).toBeVisible();
   });
 });

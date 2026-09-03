@@ -21,7 +21,6 @@ class AccountSwitcherDialog extends Component {
     this.state = new ReactiveStore("account-switcher-dialog");
     this.state.$currentDid = new Signal.State(null);
     this.state.$accounts = new Signal.State(null);
-    this.state.$profilesByDid = new Signal.State({});
     this.state.$profilesLoading = new Signal.State(true);
     this.state.$pendingAction = new Signal.State(null); // { type: "switch"|"add", did? }
     this.innerHTML = "";
@@ -55,16 +54,9 @@ class AccountSwitcherDialog extends Component {
     const accounts = await this.auth.listAccounts();
     this.state.$accounts.set(accounts);
     try {
-      const profiles = await this.dataLayer.declarative.ensureDetailedProfiles(
+      await this.dataLayer.declarative.ensureDetailedProfiles(
         accounts.map((account) => account.did),
       );
-      const profilesByDid = {};
-      for (const profile of profiles) {
-        if (profile) {
-          profilesByDid[profile.did] = profile;
-        }
-      }
-      this.state.$profilesByDid.set(profilesByDid);
     } catch {
       // pass
     } finally {
@@ -128,7 +120,9 @@ class AccountSwitcherDialog extends Component {
             >
               ${orderedAccounts.map((account) => {
                 const profile =
-                  this.state.$profilesByDid.get()[account.did] ?? null;
+                  this.dataLayer.derived.$hydratedDetailedProfiles.get(
+                    account.did,
+                  ) ?? null;
                 const isCurrent = account.did === currentDid;
                 const isPendingRow =
                   pendingAction?.type === "switch" &&
@@ -177,6 +171,7 @@ class AccountSwitcherDialog extends Component {
                               ? avatarTemplate({
                                   author: profile,
                                   clickAction: "none",
+                                  showLiveBadge: false,
                                 })
                               : html`<div class="avatar-placeholder"></div>`}
                           </span>

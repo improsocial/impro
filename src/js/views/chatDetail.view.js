@@ -1136,7 +1136,7 @@ export default async function chatDetailView({
       !profile.viewer?.blocking &&
       !profile.viewer?.blockedBy;
     return html`<div class="chat-info-panel" data-testid="chat-info-panel">
-      ${avatarTemplate({ author: profile })}
+      ${avatarTemplate({ author: profile, showLiveStatus: false })}
       <div class="chat-info-panel-name">
         ${getDisplayName(profile)}${verificationBadgeTemplate({
           profile,

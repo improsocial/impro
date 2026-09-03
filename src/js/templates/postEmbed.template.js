@@ -217,6 +217,7 @@ export function quotedPostTemplate({
             ${avatarTemplate({
               author: quotedPost.author,
               lazyLoad: lazyLoadImages,
+              showLiveBadge: false,
             })}
             ${postHeaderTextTemplate({
               author: quotedPost.author,

@@ -11,7 +11,6 @@ export function avatarGroupTemplate({ authors }) {
     return avatarTemplate({
       author: authors[0],
       clickAction: "none",
-      showLiveStatus: false,
     });
   }
   const shownAuthors = authors.slice(0, 4);
@@ -25,7 +24,7 @@ export function avatarGroupTemplate({ authors }) {
           ${avatarTemplate({
             author,
             clickAction: "none",
-            showLiveStatus: false,
+            showLiveBadge: false,
           })}
         </div>`,
     )}
