@@ -735,9 +735,12 @@ export function postEmbedTemplate({
       return moderationWarningWrapperTemplate({ mediaLabel, children });
     }
     case "app.bsky.embed.external#view":
-      return externalTemplate({
-        external: embed.external,
-        lazyLoadImages,
+      return moderationWarningWrapperTemplate({
+        mediaLabel,
+        children: externalTemplate({
+          external: embed.external,
+          lazyLoadImages,
+        }),
       });
     case "chat.bsky.embed.joinLink#view":
       return chatJoinLinkEmbedTemplate({ embed, currentConvoId });

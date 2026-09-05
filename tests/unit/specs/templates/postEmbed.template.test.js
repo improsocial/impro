@@ -331,6 +331,37 @@ describe("postEmbedTemplate - gif presentation video", () => {
 });
 
 describe("postEmbedTemplate - external links", () => {
+  it("wraps the link card in a moderation warning when the post has a media label", () => {
+    const embed = {
+      $type: "app.bsky.embed.external#view",
+      external: {
+        uri: "https://example.com",
+        title: "Example",
+        description: "Test description",
+        thumb: "https://example.com/thumb.jpg",
+      },
+    };
+    const mediaLabel = {
+      visibility: "hide",
+      label: { val: "porn", src: "did:plc:labeler" },
+      labelDefinition: {
+        identifier: "porn",
+        blurs: "media",
+        severity: "none",
+        defaultSetting: "hide",
+        locales: [{ lang: "en", name: "Adult Content", description: "" }],
+      },
+      labeler: null,
+    };
+    const result = postEmbedTemplate({ embed, mediaLabel, isAuthenticated: true });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assert.equal(warning.getAttribute("label"), "Adult Content");
+    assert(warning.querySelector("[data-testid='external-link']") !== null);
+  });
+
   it("should render external link embed", () => {
     const embed = {
       $type: "app.bsky.embed.external#view",
