@@ -1330,6 +1330,29 @@ test.describe("Profile view", () => {
       ).not.toBeVisible();
     });
 
+    test("should not show bell button when the user disallows subscriptions", async ({
+      page,
+    }) => {
+      const closedUser = {
+        ...followedUser,
+        associated: { activitySubscription: { allowSubscriptions: "none" } },
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(closedUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${closedUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="chat-button"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).not.toBeVisible();
+    });
+
     test("should not show bell button on own profile", async ({ page }) => {
       const currentUserProfile = {
         ...userProfile,
