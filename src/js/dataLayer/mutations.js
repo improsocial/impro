@@ -12,7 +12,7 @@ import {
   buildCdnUrl,
 } from "/js/dataHelpers.js";
 import { batch, getCurrentTimestamp } from "/js/utils.js";
-import { fetchAndCompressImage } from "/js/embedHelpers.js";
+import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 
@@ -1053,7 +1053,7 @@ export class Mutations {
     let thumbBlob = null;
     if (linkMeta.image) {
       try {
-        const compressed = await fetchAndCompressImage(linkMeta.image);
+        const compressed = await fetchAndCompressLinkCardImage(linkMeta.image);
         const uploaded = await this.api.uploadBlob(compressed.blob);
         thumbBlob = {
           $type: "blob",

@@ -10,7 +10,7 @@ import { ImageCompressor } from "/js/imageCompressor.js";
 
 // Fetch a remote image and return a compressed { blob, ... } ready for
 // api.uploadBlob.
-export async function fetchAndCompressImage(
+export async function fetchAndCompressLinkCardImage(
   url,
   { signal, imageCompressor } = {},
 ) {
@@ -18,7 +18,8 @@ export async function fetchAndCompressImage(
   const imageBlob = await imageRes.blob();
   const dataUrl = await readFileAsDataUrl(imageBlob);
   const compressor = imageCompressor ?? new ImageCompressor();
-  return compressor.compressImage(dataUrl);
+  // Limit for link card images is 1MB
+  return compressor.compressImage(dataUrl, { maxSize: 1000000 });
 }
 
 export async function getLinkCardMeta(url, { timeoutMs = 15000 } = {}) {

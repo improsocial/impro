@@ -1,7 +1,7 @@
 import { getPostLangs, isNil, wait } from "/js/utils.js";
 import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
-import { fetchAndCompressImage } from "/js/embedHelpers.js";
+import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
 import {
   getUnresolvedFacetsFromText,
   resolveFacets,
@@ -272,7 +272,7 @@ export class PostCreator {
     // If there's an external link, upload the preview image
     if (externalImage) {
       try {
-        const compressed = await fetchAndCompressImage(externalImage, {
+        const compressed = await fetchAndCompressLinkCardImage(externalImage, {
           signal,
           imageCompressor: this.imageCompressor,
         });
