@@ -7,14 +7,13 @@ import {
   getDefaultLikeColor,
   getDefaultColorScheme,
 } from "/js/theme.js";
-import { displayPreferences } from "/js/displayPreferences.js";
 import "/js/components/toggle-switch.js";
 
 export default async function settingsAppearanceView({
   root,
   router,
   layout,
-  context: { auth },
+  context: { auth, dataLayer },
 }) {
   await auth.requireAuth();
 
@@ -31,7 +30,7 @@ export default async function settingsAppearanceView({
   }
 
   function handleTrendingChange(shown) {
-    displayPreferences.$trendingHidden.set(!shown);
+    dataLayer.mutations.setTrendingHidden(!shown);
   }
 
   bindPageTitle(root, () => "Appearance");
@@ -42,7 +41,7 @@ export default async function settingsAppearanceView({
     const currentLikeColor = theme.$likeColor.get();
     const defaultLikeColor = getDefaultLikeColor();
     const currentColorScheme = theme.$colorScheme.get();
-    const trendingHidden = displayPreferences.$trendingHidden.get();
+    const trendingHidden = dataLayer.derived.$trendingHidden.get();
     render(
       html`<div id="settings-appearance-view">
         ${headerTemplate({

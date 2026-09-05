@@ -208,10 +208,9 @@ describe("component integration", () => {
   });
 });
 
-describe("selected feed persistence", () => {
+describe("session state integration", () => {
   // createMockApi's authenticated session did
   const sessionStateKey = "session-state:did:plc:testuser";
-  const legacyKey = "home-view-currentFeedUri";
 
   // PersistedReactiveStore saves via an effect, which flushes on a double
   // requestAnimationFrame
@@ -223,53 +222,23 @@ describe("selected feed persistence", () => {
 
   function cleanup() {
     localStorage.removeItem(sessionStateKey);
-    localStorage.removeItem(legacyKey);
-  }
-
-  function createAuthedDataLayer() {
-    return createDataLayer(createMockApi({ isAuthenticated: true }));
   }
 
   beforeEach(cleanup);
   afterEach(cleanup);
 
-  it("restores the stored selection for the account", () => {
+  it("exposes the account's session state through derived", () => {
     localStorage.setItem(
       sessionStateKey,
-      JSON.stringify({ selectedFeedUri: "following" }),
+      JSON.stringify({ selectedFeedUri: "following", trendingHidden: true }),
     );
-    const dataLayer = createAuthedDataLayer();
-    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
-  });
-
-  it("migrates a selection stored under the legacy key", () => {
-    localStorage.setItem(legacyKey, JSON.stringify("following"));
-    const dataLayer = createAuthedDataLayer();
-    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
-    assert.deepEqual(localStorage.getItem(legacyKey), null);
-  });
-
-  it("prefers the session-state key over the legacy key", () => {
-    localStorage.setItem(
-      sessionStateKey,
-      JSON.stringify({ selectedFeedUri: "following" }),
-    );
-    localStorage.setItem(legacyKey, JSON.stringify("stale"));
-    const dataLayer = createAuthedDataLayer();
-    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), "following");
-  });
-
-  it("persists selection changes", async () => {
-    const dataLayer = createAuthedDataLayer();
-    dataLayer.mutations.setSelectedFeedUri("following");
-    await flushEffects();
-    assert.deepEqual(JSON.parse(localStorage.getItem(sessionStateKey)), {
-      selectedFeedUri: "following",
-    });
+    const dataLayer = createDataLayer(createMockApi({ isAuthenticated: true }));
+    assert.deepEqual(dataLayer.derived.$selectedFeedUri.get(), "following");
+    assert.deepEqual(dataLayer.derived.$trendingHidden.get(), true);
   });
 
   it("persists a fallback applied by setPinnedItems", async () => {
-    const dataLayer = createAuthedDataLayer();
+    const dataLayer = createDataLayer(createMockApi({ isAuthenticated: true }));
     dataLayer.mutations.setSelectedFeedUri(
       "at://did:test/app.bsky.feed.generator/gone",
     );
@@ -280,14 +249,5 @@ describe("selected feed persistence", () => {
     assert.deepEqual(JSON.parse(localStorage.getItem(sessionStateKey)), {
       selectedFeedUri: "following",
     });
-  });
-
-  it("neither restores nor persists without a session", async () => {
-    localStorage.setItem(legacyKey, JSON.stringify("following"));
-    const dataLayer = createDataLayer(createMockApi());
-    assert.deepEqual(dataLayer.dataStore.$selectedFeedUri.get(), null);
-    dataLayer.mutations.setSelectedFeedUri("following");
-    await flushEffects();
-    assert.deepEqual(localStorage.getItem(sessionStateKey), null);
   });
 });

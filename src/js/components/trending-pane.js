@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
-import { displayPreferences } from "/js/displayPreferences.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
@@ -82,7 +81,7 @@ class TrendingPane extends Component {
     this.$failed = new Signal.State(false);
     this._disposers = [
       effect(() => {
-        const hidden = displayPreferences.$trendingHidden.get();
+        const hidden = this.dataLayer.derived.$trendingHidden.get();
         const failed = this.$failed.get();
         const trends = this.dataLayer.derived.$trends.get();
         const isLoading = !failed && trends === null;
@@ -126,7 +125,7 @@ class TrendingPane extends Component {
     await confirmModal("You can turn this back on in Appearance settings.", {
       title: "Hide trending topics?",
       confirmButtonText: "Hide",
-      onConfirm: () => displayPreferences.$trendingHidden.set(true),
+      onConfirm: () => this.dataLayer.mutations.setTrendingHidden(true),
     });
   }
 }

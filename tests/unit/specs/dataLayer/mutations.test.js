@@ -25,6 +25,7 @@ function makeMutations(api, dataStore, patchStore, preferencesProvider) {
   return new Mutations(
     api,
     dataStore,
+    dataStore.sessionState,
     patchStore,
     preferencesProvider,
     mockIdentityResolver,
@@ -69,6 +70,7 @@ function makeDerived(
       };
   const derived = new Derived(
     dataStore,
+    dataStore.sessionState,
     patchStore,
     provider,
     new HiddenFeedItemsStore(),
@@ -5063,9 +5065,12 @@ describe("setSelectedFeedUri", () => {
     const dataStore = new DataStore(createSessionState(null));
     const mutations = makeMutations({}, dataStore, new PatchStore(), {});
     mutations.setSelectedFeedUri("following");
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
+    assert.deepEqual(
+      dataStore.sessionState.$selectedFeedUri.get(),
+      "following",
+    );
     mutations.setSelectedFeedUri(null);
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+    assert.deepEqual(dataStore.sessionState.$selectedFeedUri.get(), null);
   });
 });
 

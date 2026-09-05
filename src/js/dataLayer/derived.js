@@ -119,6 +119,7 @@ function filterBlockedReactions(reactions, memberProfiles) {
 export class Derived extends ReactiveStore {
   constructor(
     dataStore,
+    sessionState,
     patchStore,
     preferencesProvider,
     hiddenFeedItemsStore,
@@ -128,6 +129,7 @@ export class Derived extends ReactiveStore {
   ) {
     super("derived");
     this.dataStore = dataStore;
+    this.sessionState = sessionState;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -457,7 +459,10 @@ export class Derived extends ReactiveStore {
       this.dataStore.$chatActorStatus.get(),
     );
     this.$selectedFeedUri = new Signal.Computed(() =>
-      this.dataStore.$selectedFeedUri.get(),
+      this.sessionState.$selectedFeedUri.get(),
+    );
+    this.$trendingHidden = new Signal.Computed(() =>
+      this.sessionState.$trendingHidden.get(),
     );
     this.$postSearchResultsTop = new Signal.Computed(() =>
       this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
