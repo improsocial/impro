@@ -6836,7 +6836,7 @@ sidebar-search {
   background-color: var(--error-subtle-color);
 }
 
-.composer-error-banner app-icon {
+.composer-error-banner > app-icon {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -6845,7 +6845,6 @@ sidebar-search {
 
 .composer-error-banner-message {
   flex: 1;
-  align-self: center;
   font-size: 14px;
   line-height: 1.4;
 }
