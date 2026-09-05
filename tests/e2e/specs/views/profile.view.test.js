@@ -1616,7 +1616,7 @@ test.describe("Profile view", () => {
 
       await expect(page.locator(".post-notifications-dialog")).toBeVisible();
 
-      await page.locator(".post-notifications-dialog-close").click();
+      await page.locator('[data-testid="post-notifications-dialog-close"]').click();
 
       await expect(
         page.locator(".post-notifications-dialog"),

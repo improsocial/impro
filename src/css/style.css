@@ -794,6 +794,48 @@ plugin-slot:empty {
   height: 24px;
 }
 
+.image-preview-remove-button app-icon,
+.message-reply-preview-clear app-icon,
+.alt-text-dialog-close app-icon,
+.lightbox-close app-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.dialog-close-button {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 4px 8px;
+  opacity: 0.6;
+}
+
+.dialog-close-button-floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+@media (min-width: 800px) {
+  .dialog-close-button {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (hover: hover) {
+  .dialog-close-button:hover {
+    opacity: 1;
+  }
+}
+
+.dialog-close-button app-icon {
+  width: 24px;
+  height: 24px;
+}
+
 @media (hover: hover) {
   .icon-button:not(:disabled):hover {
     background-color: var(--back-button-hover-color);
@@ -3211,13 +3253,6 @@ animated-button {
   }
 }
 
-.image-preview-remove-button span {
-  font-size: 18px;
-  line-height: 1;
-  position: relative;
-  top: -1px;
-}
-
 .video-preview-item {
   position: relative;
   width: 100%;
@@ -3508,6 +3543,11 @@ image-carousel {
   height: 20px;
 }
 
+.hidden-replies-button-icon app-icon {
+  width: 100%;
+  height: 100%;
+}
+
 .hidden-replies-button {
   display: flex;
   align-items: center;
@@ -3538,6 +3578,11 @@ image-carousel {
 .muted-parent-toggle-button-icon {
   width: 20px;
   height: 20px;
+}
+
+.muted-parent-toggle-button-icon app-icon {
+  width: 100%;
+  height: 100%;
 }
 
 .muted-parent-toggle-button {
@@ -5506,22 +5551,6 @@ chat-input .rich-text-input-placeholder {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-}
-
-.reactions-dialog-close {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 0 8px;
-}
-
-@media (min-width: 800px) {
-  .reactions-dialog-close {
-    display: inline-flex;
-    align-items: center;
-  }
 }
 
 .reactions-tabs {
@@ -8220,29 +8249,6 @@ context-menu-item-group > context-menu-item > button {
   font-weight: 600;
 }
 
-.image-alt-text-dialog-close {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 0 8px;
-  opacity: 0.6;
-}
-
-@media (min-width: 800px) {
-  .image-alt-text-dialog-close {
-    display: inline-flex;
-    align-items: center;
-  }
-}
-
-@media (hover: hover) {
-  .image-alt-text-dialog-close:hover {
-    opacity: 1;
-  }
-}
-
 .image-alt-text-dialog-body {
   display: flex;
   flex-direction: column;
@@ -9084,6 +9090,11 @@ context-menu-item-group > context-menu-item > button {
   background-color: var(--secondary-background-color);
 }
 
+.draft-item-video-placeholder app-icon {
+  width: 24px;
+  height: 24px;
+}
+
 .draft-item-footer {
   display: flex;
   align-items: center;
@@ -9149,22 +9160,6 @@ context-menu-item-group > context-menu-item > button {
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-}
-
-.account-switcher-close {
-  display: none;
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--text-color-muted);
-  cursor: pointer;
-}
-
-@media (min-width: 800px) {
-  .account-switcher-close {
-    display: flex;
-    align-items: center;
-  }
 }
 
 .account-switcher-list {
@@ -9280,6 +9275,11 @@ context-menu-item-group > context-menu-item > button {
 .account-switcher-chevron {
   color: var(--text-color-muted);
   flex-shrink: 0;
+}
+
+.account-switcher-chevron app-icon {
+  width: 24px;
+  height: 24px;
 }
 
 moderation-warning {
@@ -9794,26 +9794,12 @@ moderation-warning .toggle-content {
 }
 
 .report-dialog-close {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
   padding: 0;
   width: 32px;
   height: 32px;
-  align-items: center;
   justify-content: center;
   border-radius: var(--icon-button-border-radius);
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
-
-@media (min-width: 800px) {
-  .report-dialog-close {
-    display: flex;
-  }
+  opacity: 1;
 }
 
 .report-dialog-body {
@@ -10124,32 +10110,6 @@ label:has(toggle-switch[disabled]) {
   }
 }
 
-.post-notifications-dialog-close {
-  display: none;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 4px 8px;
-  opacity: 0.6;
-}
-
-@media (min-width: 800px) {
-  .post-notifications-dialog-close {
-    display: flex;
-    align-items: center;
-  }
-}
-
-@media (hover: hover) {
-  .post-notifications-dialog-close:hover {
-    opacity: 1;
-  }
-}
-
 .post-notifications-dialog-body {
   display: flex;
   flex-direction: column;
@@ -10225,32 +10185,6 @@ label:has(toggle-switch[disabled]) {
 @media (min-width: 800px) {
   .add-to-lists-dialog-content {
     padding-top: 24px;
-  }
-}
-
-.add-to-lists-dialog-close {
-  display: none;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 4px 8px;
-  opacity: 0.6;
-}
-
-@media (min-width: 800px) {
-  .add-to-lists-dialog-close {
-    display: flex;
-    align-items: center;
-  }
-}
-
-@media (hover: hover) {
-  .add-to-lists-dialog-close:hover {
-    opacity: 1;
   }
 }
 
@@ -10368,33 +10302,6 @@ label:has(toggle-switch[disabled]) {
 @media (min-width: 800px) {
   .post-interaction-settings-dialog-content {
     padding-top: 24px;
-  }
-}
-
-.post-interaction-settings-dialog-close {
-  display: none;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 4px 8px;
-  opacity: 0.6;
-  font-size: 24px;
-}
-
-@media (min-width: 800px) {
-  .post-interaction-settings-dialog-close {
-    display: flex;
-    align-items: center;
-  }
-}
-
-@media (hover: hover) {
-  .post-interaction-settings-dialog-close:hover {
-    opacity: 1;
   }
 }
 
@@ -10642,29 +10549,6 @@ label:has(toggle-switch[disabled]) {
   font-size: 1.3rem;
   font-weight: 700;
   margin: 0;
-}
-
-.search-dialog-close {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 4px 8px;
-  opacity: 0.6;
-}
-
-@media (min-width: 800px) {
-  .search-dialog-close {
-    display: flex;
-    align-items: center;
-  }
-}
-
-@media (hover: hover) {
-  .search-dialog-close:hover {
-    opacity: 1;
-  }
 }
 
 .search-dialog-input-container {
