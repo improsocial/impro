@@ -440,10 +440,9 @@ trending-pane {
   padding-bottom: 12px;
 }
 
-.trending-pane-header app-icon svg {
+.trending-pane-header app-icon {
   width: 18px;
   height: 18px;
-  display: block;
 }
 
 .trending-pane-title {
@@ -9602,10 +9601,9 @@ moderation-warning .toggle-content {
   color: var(--text-link-color);
 }
 
-.try-again-button app-icon svg {
+.try-again-button app-icon {
   width: 18px;
   height: 18px;
-  display: block;
 }
 
 #profile-view .error-state {
@@ -10873,10 +10871,6 @@ label:has(toggle-switch[disabled]) {
 }
 
 .new-group-member-toggle app-icon {
-  line-height: 0;
-}
-
-.new-group-member-toggle app-icon svg {
   width: 14px;
   height: 14px;
 }
