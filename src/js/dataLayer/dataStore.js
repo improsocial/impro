@@ -17,7 +17,6 @@ export class DataStore extends ReactiveStore {
     this.$mentionNotifications = new Signal.State(null);
     this.$notificationsLastSeenAt = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
-    this.$selectedFeedUri = this.sessionState.$selectedFeedUri;
     this.$bookmarks = new Signal.State(null);
     this.$drafts = new Signal.State(null);
     this.$convoList = new Signal.State(null);
@@ -186,7 +185,7 @@ export class DataStore extends ReactiveStore {
   // a selection that's no longer pinned falls back to the first pinned item.
   setPinnedItems(pinnedItems) {
     this.$pinnedItems.set(pinnedItems);
-    const selectedFeedUri = this.$selectedFeedUri.get();
+    const selectedFeedUri = this.sessionState.$selectedFeedUri.get();
     if (!selectedFeedUri) {
       return;
     }
@@ -194,7 +193,7 @@ export class DataStore extends ReactiveStore {
       (item) => item.data.uri === selectedFeedUri,
     );
     if (!isPinned) {
-      this.$selectedFeedUri.set(pinnedItems[0]?.data.uri ?? null);
+      this.sessionState.$selectedFeedUri.set(pinnedItems[0]?.data.uri ?? null);
     }
   }
 }

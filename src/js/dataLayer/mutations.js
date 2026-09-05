@@ -21,6 +21,7 @@ export class Mutations {
   constructor(
     api,
     dataStore,
+    sessionState,
     patchStore,
     preferencesProvider,
     identityResolver,
@@ -28,6 +29,7 @@ export class Mutations {
   ) {
     this.api = api;
     this.dataStore = dataStore;
+    this.sessionState = sessionState;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
@@ -507,7 +509,11 @@ export class Mutations {
   }
 
   setSelectedFeedUri(feedUri) {
-    this.dataStore.$selectedFeedUri.set(feedUri);
+    this.sessionState.$selectedFeedUri.set(feedUri);
+  }
+
+  setTrendingHidden(hidden) {
+    this.sessionState.$trendingHidden.set(hidden);
   }
 
   async hidePost(post) {
