@@ -2801,6 +2801,11 @@ animated-button {
   object-fit: cover;
 }
 
+.post-video video:fullscreen {
+  object-fit: contain;
+  background: var(--black);
+}
+
 .post-video img {
   position: absolute;
   inset: 0;
