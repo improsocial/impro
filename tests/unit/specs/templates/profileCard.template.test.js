@@ -357,6 +357,92 @@ describe("profileCardTemplate - post notifications button", () => {
     );
   });
 
+  it("should not render post notifications button when the profile allows no subscriptions", () => {
+    const profile = {
+      ...mockProfile,
+      associated: { activitySubscription: { allowSubscriptions: "none" } },
+      viewer: { following: true, followedBy: true },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
+  it("should render post notifications button for mutuals only when followed back", () => {
+    const mutualsProfile = {
+      ...mockProfile,
+      associated: { activitySubscription: { allowSubscriptions: "mutuals" } },
+    };
+    const renderWith = (viewer) => {
+      const container = document.createElement("div");
+      render(
+        profileCardTemplate({
+          profile: { ...mutualsProfile, viewer },
+          isAuthenticated: true,
+          isCurrentUser: false,
+          onClickPostNotifications: () => {},
+        }),
+        container,
+      );
+      return container.querySelector(
+        "[data-testid='post-notifications-button']",
+      );
+    };
+    assert.deepEqual(renderWith({ following: true, followedBy: false }), null);
+    assert(renderWith({ following: true, followedBy: true }) !== null);
+  });
+
+  it("should render post notifications button for followers when the declaration is followers", () => {
+    const profile = {
+      ...mockProfile,
+      associated: { activitySubscription: { allowSubscriptions: "followers" } },
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='post-notifications-button']") !==
+        null,
+    );
+  });
+
+  it("should not render post notifications button for an unknown declaration value", () => {
+    const profile = {
+      ...mockProfile,
+      associated: {
+        activitySubscription: { allowSubscriptions: "something-new" },
+      },
+      viewer: { following: true, followedBy: true },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
   it("should call onClickPostNotifications when bell clicked", () => {
     let notificationsCallArg = null;
     const profile = {
