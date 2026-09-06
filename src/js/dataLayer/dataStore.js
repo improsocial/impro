@@ -44,6 +44,8 @@ export class DataStore extends ReactiveStore {
     this.$embeddedPosts = new SignalMap();
     this.$postThreads = new SignalMap();
     this.$postThreadOthers = new SignalMap();
+    // uri -> { index, count } as numbered by the appview in feed responses
+    this.$feedPostNumbering = new SignalMap();
     this.$profiles = new SignalMap();
     this.$detailedProfiles = new SignalMap();
     // did -> statusView, normalized from profiles
