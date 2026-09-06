@@ -11,6 +11,12 @@ const LEVEL_STYLES = {
   },
 };
 
+const SUPPRESSED_TAGS = ["[plugins:perf]"];
+
+function isSuppressed(message) {
+  return SUPPRESSED_TAGS.some((tag) => message.startsWith(tag));
+}
+
 function formatArg(arg) {
   if (typeof arg === "string") {
     return arg;
@@ -112,7 +118,10 @@ export function enableErrorLogs() {
 
   const consoleWarn = console.warn;
   console.warn = (...args) => {
-    showMessage(args.map(formatArg).join(" "), "warn");
+    const message = args.map(formatArg).join(" ");
+    if (!isSuppressed(message)) {
+      showMessage(message, "warn");
+    }
     consoleWarn(...args);
   };
 

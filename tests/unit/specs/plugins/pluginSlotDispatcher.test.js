@@ -621,8 +621,22 @@ describe("PluginSlotDispatcher - invocation monitor", () => {
       ),
     );
     assert.deepEqual(warnings.length, 1);
+    assert(warnings[0].startsWith("[plugins:perf]"));
     assert(warnings[0].includes("100 times in 5s across 100 contexts"));
     assert(warnings[0].includes("Declare a cacheKey"));
+  });
+
+  it("tags hints about local dev plugins separately", async () => {
+    const { registration } = register(makeDispatcher(), {
+      pluginId: "my-plugin__LOCAL",
+    });
+    await Promise.all(
+      Array.from({ length: 100 }, (_, index) =>
+        registration.request({ did: `did:${index}` }),
+      ),
+    );
+    assert.deepEqual(warnings.length, 1);
+    assert(warnings[0].startsWith('[plugins:perf:local] "my-plugin__LOCAL"'));
   });
 
   it("points at an over-specific cacheKey when one is already declared", async () => {

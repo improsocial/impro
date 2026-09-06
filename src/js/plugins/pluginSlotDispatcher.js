@@ -164,6 +164,14 @@ function invocationAdvice(cacheKey) {
   return `Its cacheKey (${cacheKey.join(", ")}) may be too specific to share results.`;
 }
 
+// Hints for local dev plugins get their own tag so the dev error overlay can
+// show them while suppressing hints about third-party plugins
+function perfTag(pluginId) {
+  return pluginId.endsWith("__LOCAL")
+    ? "[plugins:perf:local]"
+    : "[plugins:perf]";
+}
+
 const INVOCATION_WINDOW_MS = 5000;
 const TOTAL_INVOCATION_LIMIT = 100;
 
@@ -183,7 +191,7 @@ export class SlotInvocationMonitor {
     const seconds = INVOCATION_WINDOW_MS / 1000;
     const advice = invocationAdvice(registration.cacheKey);
     console.warn(
-      `[plugins] "${registration.pluginId}" slot "${name}" ran ${exceeded.total} times in ${seconds}s across ${exceeded.distinct} contexts. ${advice}`,
+      `${perfTag(registration.pluginId)} "${registration.pluginId}" slot "${name}" ran ${exceeded.total} times in ${seconds}s across ${exceeded.distinct} contexts. ${advice}`,
     );
   }
 }
