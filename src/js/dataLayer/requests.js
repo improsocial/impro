@@ -18,7 +18,7 @@ import {
   buildProfileFromRecord,
 } from "/js/dataHelpers.js";
 import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
-import { unique, isNil } from "/js/utils.js";
+import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError, isRecordNotFoundError } from "/js/api.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
@@ -327,7 +327,7 @@ export class Requests {
     }
 
     // Save post thread
-    this.dataStore.$postThreads.set(postURI, postThread);
+    this.dataStore.setPostThread(postURI, postThread);
     this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
     // Note - this return value is used by loadParentChain
     return postThread;
@@ -500,18 +500,6 @@ export class Requests {
     return loadedReplies;
   }
 
-  _saveFeedPostNumbering(feed) {
-    for (const feedItem of feed.feed) {
-      const { opThreadPostIndex: index, opThreadPostCount: count } = feedItem;
-      if (!isNil(index) && !isNil(count)) {
-        this.dataStore.$feedPostNumbering.set(feedItem.post.uri, {
-          index,
-          count,
-        });
-      }
-    }
-  }
-
   async loadNextFeedPage({ type, uri }, { reload = false, limit = 31 } = {}) {
     const cursor = reload
       ? ""
@@ -533,7 +521,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    this._saveFeedPostNumbering(feed);
+    this.dataStore.setPostNumberingForFeed(feed);
     await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
     writePageToCollection(this.dataStore.$feeds, "feed", feed, {
       key: uri,
@@ -865,7 +853,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    this._saveFeedPostNumbering(feed);
+    this.dataStore.setPostNumberingForFeed(feed);
     // Save feed
     writePageToCollection(this.dataStore.$authorFeeds, "feed", feed, {
       key: feedURI,

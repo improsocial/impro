@@ -6,6 +6,7 @@ import {
   buildProfileFromRecord,
   cdnImageUrl,
   getPostNumberingForPostThread,
+  createNestedThreadViewPost,
   getRKey,
   getIsLiked,
   isListFeed,
@@ -2542,6 +2543,33 @@ describe("getLocalRefsFromDraft", () => {
 
   it("returns an empty array for drafts with no media", () => {
     assert.deepEqual(getLocalRefsFromDraft({ posts: [{ text: "hi" }] }), []);
+  });
+});
+
+describe("createNestedThreadViewPost", () => {
+  it("should nest each post under the previous one", () => {
+    const posts = [{ uri: "p1" }, { uri: "p2" }, { uri: "p3" }];
+    assert.deepEqual(createNestedThreadViewPost(posts), {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: posts[0],
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: posts[1],
+          replies: [
+            {
+              $type: "app.bsky.feed.defs#threadViewPost",
+              post: posts[2],
+              replies: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("should return null for an empty list", () => {
+    assert.equal(createNestedThreadViewPost([]), null);
   });
 });
 

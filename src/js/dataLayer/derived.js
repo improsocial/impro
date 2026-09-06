@@ -26,7 +26,6 @@ import {
   getJoinLinkCodeFromEmbed,
   isFollowingFeedUri,
   isStatusValid,
-  getPostNumberingForPostThread,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
@@ -328,25 +327,17 @@ export class Derived extends ReactiveStore {
         return postThread;
       }
       const hiddenReplyUris = new Set(postThreadOther.map((item) => item.uri));
-      const postNumberingMap = getPostNumberingForPostThread(postThread);
-      const hydrated = this.hydratePostThreadNode(
-        postThread,
-        hiddenReplyUris,
-        postNumberingMap,
-      );
+      const hydrated = this.hydratePostThreadNode(postThread, hiddenReplyUris);
       if (!hydrated) {
         return null;
       }
       if (postThread.parent) {
-        hydrated.parent = this.hydratePostThreadParent(
-          postThread.parent,
-          postNumberingMap,
-        );
+        hydrated.parent = this.hydratePostThreadParent(postThread.parent);
       }
       return hydrated;
     });
-    this.$feedPostNumbering = new ComputedMap((uri) => {
-      return this.dataStore.$feedPostNumbering.get(uri) ?? null;
+    this.$postNumbering = new ComputedMap((uri) => {
+      return this.dataStore.$postNumbering.get(uri) ?? null;
     });
     this.$hydratedHashtagFeeds = new ComputedMap((hashtagKey) => {
       const data = this.dataStore.$hashtagFeeds.get(hashtagKey);
@@ -978,9 +969,7 @@ export class Derived extends ReactiveStore {
   }
 
   hydrateFeedItem(feedItem) {
-    const postNumbering = this.dataStore.$feedPostNumbering.get(
-      feedItem.post.uri,
-    );
+    const postNumbering = this.dataStore.$postNumbering.get(feedItem.post.uri);
     const hydratedFeedItem = {
       ...feedItem,
       post: this.$hydratedPosts.get(feedItem.post.uri),
@@ -1019,14 +1008,14 @@ export class Derived extends ReactiveStore {
     return hydratedFeedItem;
   }
 
-  hydratePostThreadNode(node, hiddenReplyUris, postNumberingMap) {
+  hydratePostThreadNode(node, hiddenReplyUris) {
     if (!node || isEmptyPost(node)) return node;
     const post = this.$hydratedPosts.get(node.post.uri);
     if (!post) return null;
     // NOTE: LEXICON DEVIATION
     const hydrated = {
       post,
-      postNumbering: postNumberingMap.get(node.post.uri) ?? null,
+      postNumbering: this.dataStore.$postNumbering.get(node.post.uri) ?? null,
     };
     if (hiddenReplyUris.has(node.post.uri)) {
       // NOTE: LEXICON DEVIATION
@@ -1035,11 +1024,7 @@ export class Derived extends ReactiveStore {
     if (node.replies) {
       hydrated.replies = node.replies.map((reply) => {
         if (reply.$type === "app.bsky.feed.defs#threadViewPost") {
-          return this.hydratePostThreadNode(
-            reply,
-            hiddenReplyUris,
-            postNumberingMap,
-          );
+          return this.hydratePostThreadNode(reply, hiddenReplyUris);
         }
         return reply;
       });
@@ -1047,7 +1032,7 @@ export class Derived extends ReactiveStore {
     return hydrated;
   }
 
-  hydratePostThreadParent(parent, postNumberingMap) {
+  hydratePostThreadParent(parent) {
     if (this.dataStore.$unavailablePosts.get(parent.uri) !== null) {
       return createUnavailablePost(parent.uri);
     }
@@ -1061,13 +1046,10 @@ export class Derived extends ReactiveStore {
       $type: "app.bsky.feed.defs#threadViewPost",
       post: this.$hydratedPosts.get(parent.post.uri),
       // NOTE: LEXICON DEVIATION
-      postNumbering: postNumberingMap.get(parent.post.uri) ?? null,
+      postNumbering: this.dataStore.$postNumbering.get(parent.post.uri) ?? null,
     };
     if (parent.parent) {
-      hydratedParent.parent = this.hydratePostThreadParent(
-        parent.parent,
-        postNumberingMap,
-      );
+      hydratedParent.parent = this.hydratePostThreadParent(parent.parent);
     }
     return hydratedParent;
   }

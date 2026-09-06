@@ -140,7 +140,7 @@ describe("$hydratedFeeds post numbering", () => {
 
   function seedThreadFeed(dataStore, { reason, root, parent, post } = {}) {
     dataStore.setPosts([root, parent, post]);
-    dataStore.$feedPostNumbering.set(post.uri, { index: 3, count: 5 });
+    dataStore.$postNumbering.set(post.uri, { index: 3, count: 5 });
     dataStore.$feeds.set(feedURI, {
       feed: [
         createFeedItem({
@@ -177,7 +177,7 @@ describe("$hydratedFeeds post numbering", () => {
     const parent = opPost("p2", { parent: root, root });
     const post = opPost("p3", { parent, root });
     seedThreadFeed(dataStore, { root, parent, post });
-    dataStore.$feedPostNumbering.set(post.uri, { index: 2, count: 5 });
+    dataStore.$postNumbering.set(post.uri, { index: 2, count: 5 });
 
     const item = derived.$hydratedFeeds.get(feedURI).feed[0];
     assert.deepEqual(item.reply.rootPostNumbering, { index: 1, count: 5 });
@@ -261,7 +261,7 @@ describe("$hydratedAuthorFeeds post numbering", () => {
       authorHandle: "op.test",
     });
     dataStore.setPosts([post]);
-    dataStore.$feedPostNumbering.set(post.uri, { index: 1, count: 2 });
+    dataStore.$postNumbering.set(post.uri, { index: 1, count: 2 });
     dataStore.$authorFeeds.set("did:plc:op-posts", {
       feed: [createFeedItem({ post })],
       cursor: "",
@@ -271,13 +271,13 @@ describe("$hydratedAuthorFeeds post numbering", () => {
   });
 });
 
-describe("$feedPostNumbering", () => {
+describe("$postNumbering", () => {
   it("reads the cached feed numbering for a post", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    assert.equal(derived.$feedPostNumbering.get("uri1"), null);
-    dataStore.$feedPostNumbering.set("uri1", { index: 2, count: 3 });
-    assert.deepEqual(derived.$feedPostNumbering.get("uri1"), {
+    assert.equal(derived.$postNumbering.get("uri1"), null);
+    dataStore.$postNumbering.set("uri1", { index: 2, count: 3 });
+    assert.deepEqual(derived.$postNumbering.get("uri1"), {
       index: 2,
       count: 3,
     });
@@ -1971,7 +1971,7 @@ describe("$hydratedPostThreads", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), null);
-    dataStore.$postThreads.set(threadUri, {
+    dataStore.setPostThread(threadUri, {
       $type: "app.bsky.feed.defs#threadViewPost",
       post: { uri: threadUri },
     });
@@ -1986,7 +1986,7 @@ describe("$hydratedPostThreads", () => {
       $type: "app.bsky.feed.defs#notFoundPost",
       uri: threadUri,
     };
-    dataStore.$postThreads.set(threadUri, notFound);
+    dataStore.setPostThread(threadUri, notFound);
     dataStore.$postThreadOthers.set(threadUri, []);
     assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), notFound);
   });
@@ -1994,7 +1994,7 @@ describe("$hydratedPostThreads", () => {
   it("should return null when the thread root post is not loaded", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    dataStore.$postThreads.set(threadUri, {
+    dataStore.setPostThread(threadUri, {
       $type: "app.bsky.feed.defs#threadViewPost",
       post: { uri: threadUri },
     });
@@ -2015,7 +2015,7 @@ describe("$hydratedPostThreads", () => {
       record: { text: "root" },
     });
     dataStore.$posts.set("reply1", { uri: "reply1", record: { text: "r1" } });
-    dataStore.$postThreads.set(threadUri, {
+    dataStore.setPostThread(threadUri, {
       $type: "app.bsky.feed.defs#threadViewPost",
       post: { uri: threadUri },
       replies: [
@@ -2039,7 +2039,7 @@ describe("$hydratedPostThreads", () => {
       uri: threadUri,
       record: { text: "root" },
     });
-    dataStore.$postThreads.set(threadUri, {
+    dataStore.setPostThread(threadUri, {
       $type: "app.bsky.feed.defs#threadViewPost",
       post: { uri: threadUri },
       parent,
@@ -2128,7 +2128,7 @@ describe("$hydratedPostThreads post numbering", () => {
       },
     });
     dataStore.setPosts([root, second, third, other]);
-    dataStore.$postThreads.set(
+    dataStore.setPostThread(
       second.uri,
       createThreadViewPost({
         post: second,
@@ -2153,7 +2153,7 @@ describe("$hydratedPostThreads post numbering", () => {
     const { derived } = makeDerived(dataStore);
     const root = opPost("p1", { replyCount: 1 });
     dataStore.setPosts([root]);
-    dataStore.$postThreads.set(
+    dataStore.setPostThread(
       root.uri,
       createThreadViewPost({ post: root, replies: [] }),
     );
