@@ -5,6 +5,7 @@ import {
   hasDisableEmbeddingRule,
   createNotFoundPost,
   createStatusView,
+  createNestedThreadViewPost,
   addFeedItemToFeed,
   pinPostInFeed,
   unpinPostInFeed,
@@ -1528,14 +1529,10 @@ export class Mutations {
       if (replyTo) {
         const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
         if (replyPostThread) {
-          this.dataStore.$postThreads.set(replyTo.uri, {
+          this.dataStore.setPostThread(replyTo.uri, {
             ...replyPostThread,
             replies: [
-              {
-                $type: "app.bsky.feed.defs#threadViewPost",
-                post: rootPost,
-                replies: [],
-              },
+              createNestedThreadViewPost(hydratedPosts),
               ...replyPostThread.replies,
             ],
           });

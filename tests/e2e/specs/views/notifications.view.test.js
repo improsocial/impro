@@ -1130,6 +1130,124 @@ test.describe("Notifications view", () => {
     );
   });
 
+  function createPagedLikeNotifications(count) {
+    const likedPosts = [];
+    const notifications = [];
+    for (let i = 1; i <= count; i++) {
+      const post = createPost({
+        uri: `at://did:plc:testuser123/app.bsky.feed.post/notifpost${i}`,
+        text: `Notification post ${i}`,
+        authorHandle: "testuser.bsky.social",
+        authorDisplayName: "Test User",
+      });
+      likedPosts.push(post);
+      notifications.push(
+        createNotification({
+          reason: "like",
+          author: createProfile({
+            did: `did:plc:liker${i}`,
+            handle: `liker${i}.bsky.social`,
+            displayName: `Liker ${i}`,
+          }),
+          reasonSubject: post.uri,
+          indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+        }),
+      );
+    }
+    return { likedPosts, notifications };
+  }
+
+  async function failListNotifications(page, { onlyWithCursor }) {
+    let failing = true;
+    await page.route(
+      "**/xrpc/app.bsky.notification.listNotifications*",
+      (route) => {
+        const hasCursor = !!new URL(route.request().url()).searchParams.get(
+          "cursor",
+        );
+        if (!failing || (onlyWithCursor && !hasCursor)) {
+          return route.fallback();
+        }
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        });
+      },
+    );
+    return {
+      stop() {
+        failing = false;
+      },
+    };
+  }
+
+  test("should show an inline error with retry when loading more fails", async ({
+    page,
+  }) => {
+    const { likedPosts, notifications } = createPagedLikeNotifications(60);
+    const mockServer = new MockServer();
+    mockServer.addPosts(likedPosts);
+    mockServer.addNotifications(notifications);
+    await mockServer.setup(page);
+    const failure = await failListNotifications(page, { onlyWithCursor: true });
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    const initialCount = await items.count();
+
+    await items.last().scrollIntoViewIfNeeded();
+
+    const loadMoreError = view.locator(
+      '[data-testid="notifications-load-more-error"]',
+    );
+    await expect(loadMoreError).toBeVisible({ timeout: 10000 });
+    await expect(items).toHaveCount(initialCount);
+
+    failure.stop();
+    await loadMoreError.locator(".try-again-button").click();
+
+    await expect(items).toHaveCount(60, { timeout: 10000 });
+    await expect(loadMoreError).toHaveCount(0);
+  });
+
+  test("should keep notifications and show a toast when a refresh fails", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(1, { timeout: 10000 });
+
+    await failListNotifications(page, { onlyWithCursor: false });
+    await view.locator(".tab-bar-button").nth(0).click();
+
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(items).toHaveCount(1);
+    await expect(
+      view.locator('[data-testid="notifications-load-more-error"]'),
+    ).toHaveCount(0);
+    await expect(view.locator(".error-state")).toHaveCount(0);
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,
@@ -1341,6 +1459,109 @@ test.describe("Notifications view", () => {
       // Both follow and mention should be visible again
       await expect(view).toContainText("followed you", { timeout: 10000 });
       await expect(view).toContainText("A mention post");
+    });
+
+    function createPagedMentionNotifications(count) {
+      const mentionPosts = [];
+      const notifications = [];
+      for (let i = 1; i <= count; i++) {
+        const uri = `at://did:plc:bob1/app.bsky.feed.post/mention${i}`;
+        const text = `Mention post ${i}`;
+        mentionPosts.push(
+          createPost({
+            uri,
+            text,
+            authorHandle: "bob.bsky.social",
+            authorDisplayName: "Bob",
+          }),
+        );
+        notifications.push(
+          createNotification({
+            reason: "mention",
+            author: bob,
+            uri,
+            record: {
+              $type: "app.bsky.feed.post",
+              text,
+              createdAt: new Date().toISOString(),
+            },
+            indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+          }),
+        );
+      }
+      return { mentionPosts, notifications };
+    }
+
+    test("should show an inline error with retry when loading more mentions fails", async ({
+      page,
+    }) => {
+      const { mentionPosts, notifications } =
+        createPagedMentionNotifications(60);
+      const mockServer = new MockServer();
+      mockServer.addPosts(mentionPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+      const failure = await failListNotifications(page, {
+        onlyWithCursor: true,
+      });
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      const activePanel = view.locator(".notifications-feed:not([hidden])");
+      const items = activePanel.locator(".notification-reply-wrapper");
+      await expect(items.first()).toBeVisible({ timeout: 10000 });
+      const initialCount = await items.count();
+
+      await items.last().scrollIntoViewIfNeeded();
+
+      const loadMoreError = activePanel.locator(
+        '[data-testid="notifications-load-more-error"]',
+      );
+      await expect(loadMoreError).toBeVisible({ timeout: 10000 });
+      await expect(items).toHaveCount(initialCount);
+
+      failure.stop();
+      await loadMoreError.locator(".try-again-button").click();
+
+      await expect(items).toHaveCount(60, { timeout: 10000 });
+      await expect(loadMoreError).toHaveCount(0);
+    });
+
+    test("should keep mentions and show a toast when a refresh fails", async ({
+      page,
+    }) => {
+      const { mentionPosts, notifications } =
+        createPagedMentionNotifications(1);
+      const mockServer = new MockServer();
+      mockServer.addPosts(mentionPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      const activePanel = view.locator(".notifications-feed:not([hidden])");
+      const items = activePanel.locator(".notification-reply-wrapper");
+      await expect(items).toHaveCount(1, { timeout: 10000 });
+
+      await failListNotifications(page, { onlyWithCursor: false });
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(items).toHaveCount(1);
+      await expect(
+        activePanel.locator('[data-testid="notifications-load-more-error"]'),
+      ).toHaveCount(0);
+      await expect(activePanel.locator(".error-state")).toHaveCount(0);
     });
 
     test("should reload when clicking the already-active tab", async ({

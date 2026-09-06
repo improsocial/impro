@@ -31,19 +31,23 @@ function trendingSkeletonTemplate() {
   </div>`;
 }
 
-function trendingPaneTemplate({ rows, isLoading, onHide }) {
+function trendingHideButtonTemplate({ onClick }) {
+  return html`<button
+    class="trending-hide-button"
+    data-testid="trending-hide-button"
+    aria-label="Trending options"
+    @click=${onClick}
+  >
+    <app-icon icon="more-menu-line"></app-icon>
+  </button>`;
+}
+
+function trendingPaneTemplate({ rows, isLoading, isAuthenticated, onHide }) {
   return html`<section class="trending-pane" data-testid="trending-pane">
     <header class="trending-pane-header">
       <app-icon icon="pulse-line"></app-icon>
       <h2 class="trending-pane-title">Trending</h2>
-      <button
-        class="trending-hide-button"
-        data-testid="trending-hide-button"
-        aria-label="Trending options"
-        @click=${onHide}
-      >
-        <app-icon icon="more-menu-line"></app-icon>
-      </button>
+      ${isAuthenticated ? trendingHideButtonTemplate({ onClick: onHide }) : ""}
     </header>
     <div class="trending-list">
       ${isLoading
@@ -94,6 +98,7 @@ class TrendingPane extends Component {
           trendingPaneTemplate({
             rows,
             isLoading,
+            isAuthenticated: this.isAuthenticated,
             onHide: () => this.handleHide(),
           }),
           this,

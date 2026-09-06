@@ -84,6 +84,24 @@ export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   return sorted;
 }
 
+// Returns the first element with the lowest value, or null for an empty array
+export function minBy(array, fnOrKey) {
+  let fn = fnOrKey;
+  if (typeof fnOrKey === "string") {
+    fn = (item) => item[fnOrKey];
+  }
+  let minItem = null;
+  let minValue = null;
+  for (const item of array) {
+    const value = fn(item);
+    if (minItem === null || value < minValue) {
+      minItem = item;
+      minValue = value;
+    }
+  }
+  return minItem;
+}
+
 // Returns the first element with the highest value, or null for an empty array
 export function maxBy(array, fnOrKey) {
   let fn = fnOrKey;

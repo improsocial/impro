@@ -4,7 +4,8 @@ import {
   richTextTemplate,
   richTextTokensTemplate,
 } from "/js/templates/richText.template.js";
-import { render } from "/js/lib/lit-html.js";
+import { render, html } from "/js/lib/lit-html.js";
+import { tokenizeRichText } from "/js/richTextHelpers.js";
 
 describe("richTextTemplate", () => {
   it("should render plain text", () => {
@@ -345,5 +346,34 @@ describe("richTextTokensTemplate", () => {
     const richText = container.querySelector("[data-testid='rich-text']");
     assert.deepEqual(richText.textContent, "hello");
     assert.deepEqual(richText.querySelector("code"), null);
+  });
+});
+
+describe("richTextTokensTemplate suffix", () => {
+  it("appends the suffix after the text, separated by a space", () => {
+    const tokens = tokenizeRichText({ text: "Hello world", facets: [] });
+    const result = richTextTokensTemplate({
+      tokens,
+      suffix: html`<span data-testid="suffix">2/3</span>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert.equal(richText.textContent, "Hello world 2/3");
+    assert(richText.querySelector("[data-testid='suffix']") !== null);
+    assert.equal(richText.lastElementChild.dataset.testid, "suffix");
+  });
+
+  it("keeps the suffix inside an emoji-only wrapper", () => {
+    const tokens = tokenizeRichText({ text: "🎉", facets: [] });
+    const result = richTextTokensTemplate({
+      tokens,
+      suffix: html`<span data-testid="suffix">2/3</span>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-teststate='emoji-only']");
+    assert(richText !== null);
+    assert(richText.querySelector("[data-testid='suffix']") !== null);
   });
 });

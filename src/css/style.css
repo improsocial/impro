@@ -95,6 +95,7 @@ html {
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
   --callout-color: light-dark(var(--lightest-gray), var(--mid-gray));
   --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
+  --image-placeholder-color: var(--background-color-secondary);
   --context-menu-background-color: light-dark(var(--white), var(--mid-gray));
   --context-menu-item-hover-color: light-dark(
     var(--off-white),
@@ -1144,7 +1145,7 @@ input[type="color"]::-moz-color-swatch {
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -1229,7 +1230,7 @@ input[type="color"]::-moz-color-swatch {
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
 }
 
 header {
@@ -1974,6 +1975,12 @@ button.sidebar-plugin-nav-item {
   text-align: center;
 }
 
+.notifications-load-more-error,
+.post-thread-load-error,
+.feed-load-more-error {
+  padding: 32px 16px;
+}
+
 .feed-feedback-message {
   font-size: 13px;
   color: var(--text-color-muted);
@@ -2175,6 +2182,25 @@ container-link {
   margin-top: -4px;
 }
 
+.post-number-badge {
+  display: inline-block;
+  border-radius: var(--label-badge-border-radius);
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  user-select: none;
+  color: var(--text-color-muted);
+  background-color: var(--callout-color);
+  vertical-align: 1px;
+}
+
+.post-number-badge-standalone {
+  margin-bottom: 6px;
+}
+
 .large-post {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
@@ -2346,7 +2372,7 @@ container-link {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2755,6 +2781,11 @@ animated-button {
   border-radius: var(--image-border-radius);
   background-color: var(--background-color);
   object-fit: cover;
+}
+
+.post-image.post-image-contain {
+  object-fit: contain;
+  background-color: var(--image-placeholder-color);
 }
 
 .post-image-container .alt-indicator {
@@ -5311,7 +5342,7 @@ chat-input .rich-text-input-placeholder {
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 1.91 / 1;
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
 }
 
 .live-status-thumb-image {
@@ -5710,7 +5741,7 @@ emoji-picker-dialog emoji-picker,
   position: relative;
   width: 100%;
   height: 150px;
-  background-color: light-dark(var(--lightest-gray), var(--gray));
+  background-color: var(--image-placeholder-color);
 }
 
 .profile-banner {
@@ -7877,8 +7908,15 @@ context-menu-item-group > context-menu-item {
   margin-bottom: 0;
 }
 
-context-menu-item-group > context-menu-item:not(:last-child) {
-  border-bottom: var(--hair) solid var(--post-border-color);
+/* workaround for iOS Safari subpixel rounding */
+context-menu-item-group > context-menu-item:not(:last-child)::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 1px;
+  background-color: var(--post-border-color);
+  transform: scaleY(0.5);
+  transform-origin: bottom;
 }
 
 context-menu-item-group > context-menu-item > button {
@@ -7969,8 +8007,8 @@ context-menu-item-group > context-menu-item > button {
     margin-bottom: 0;
   }
 
-  context-menu-item-group > context-menu-item:not(:last-child) {
-    border-bottom: none;
+  context-menu-item-group > context-menu-item:not(:last-child)::after {
+    display: none;
   }
 
   context-menu-item-group:not(:last-child) {
@@ -10899,7 +10937,7 @@ label:has(toggle-switch[disabled]) {
   overflow: hidden;
   /* Visible while the gif image is still loading (the tile is already sized
      by its inline aspect-ratio) */
-  background: var(--skeleton-color);
+  background: var(--image-placeholder-color);
   cursor: pointer;
 }
 

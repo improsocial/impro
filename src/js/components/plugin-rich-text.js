@@ -27,6 +27,15 @@ class PluginRichText extends Component {
     this.$transformContext?.set(value);
   }
 
+  // Inline template appended after the text. Changing it re-renders the
+  // current tokens without re-requesting plugin transforms.
+  set suffix(value) {
+    this._suffix = value;
+    if (this._lastRenderProps) {
+      this._renderTokens(this._lastRenderProps);
+    }
+  }
+
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
@@ -54,6 +63,7 @@ class PluginRichText extends Component {
     this.disposeRender?.();
     this.disposeRender = null;
     this._currentRequest = null;
+    this._lastRenderProps = null;
     if (this._claimedFacetFallbackTimer) {
       clearTimeout(this._claimedFacetFallbackTimer);
       this._claimedFacetFallbackTimer = null;
@@ -154,10 +164,12 @@ class PluginRichText extends Component {
   }
 
   _renderTokens({ tokens, truncateUrls, placeholderFacetTypes }) {
+    this._lastRenderProps = { tokens, truncateUrls, placeholderFacetTypes };
     render(
       richTextTokensTemplate({
         tokens,
         truncateUrls,
+        suffix: this._suffix ?? null,
         placeholderFacetTypes,
         renderNodeToken: (token) =>
           this.pluginService.renderRichTextNodeToken(token, this),

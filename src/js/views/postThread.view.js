@@ -85,12 +85,26 @@ export default async function postThreadView({
     return !author.viewer?.following || hasFollowedInView;
   }
 
-  function postThreadErrorTemplate({ error }) {
-    if (
+  function isNotFoundError(error) {
+    return (
       error instanceof ApiError &&
       error.status === 400 &&
       error.data?.error === "NotFound"
-    ) {
+    );
+  }
+
+  function threadLoadErrorTemplate({ onRetry }) {
+    return html`<div
+      class="error-state post-thread-load-error"
+      data-testid="thread-load-error"
+    >
+      <div>Couldn't load this thread.</div>
+      ${tryAgainButtonTemplate({ onClick: onRetry })}
+    </div>`;
+  }
+
+  function postThreadErrorTemplate({ error }) {
+    if (isNotFoundError(error)) {
       return html`<div class="error-state" data-testid="post-not-found">
         <div>Post not found</div>
         ${tryAgainButtonTemplate()}
@@ -227,6 +241,7 @@ export default async function postThreadView({
           isUserPost: currentUser?.did === post.author?.did,
           postInteractionHandler,
           replyContext: getReplyContext(i, numReplies),
+          postNumbering: reply.postNumbering,
           lazyLoadImages,
           pluginService,
         });
@@ -375,7 +390,12 @@ export default async function postThreadView({
     </div>`;
   }
 
-  function threadTemplate({ postThread, currentUser, hasFollowedInView }) {
+  function threadTemplate({
+    postThread,
+    currentUser,
+    hasFollowedInView,
+    loadError,
+  }) {
     try {
       const mainPost = isEmptyPost(postThread) ? postThread : postThread.post;
       const parents = flattenParents(postThread);
@@ -421,6 +441,7 @@ export default async function postThreadView({
                 isUserPost: currentUser?.did === parentPost.author?.did,
                 postInteractionHandler,
                 replyContext,
+                postNumbering: parent.postNumbering,
                 ignoreMuteWarning: true,
                 pluginService,
               }),
@@ -453,6 +474,7 @@ export default async function postThreadView({
                   pluginService,
                   isUserPost: currentUser?.did === mainPost?.author?.did,
                   postInteractionHandler,
+                  postNumbering: postThread.postNumbering,
                   showFollowButton: doShowFollowButton(
                     postAuthor,
                     rootPost,
@@ -515,6 +537,9 @@ export default async function postThreadView({
                 `
               : ""}
             ${(() => {
+              if (loadError) {
+                return threadLoadErrorTemplate({ onRetry: retryLoadPostThread });
+              }
               if (hiddenUnauthenticated) {
                 return "";
               }
@@ -563,6 +588,7 @@ export default async function postThreadView({
       return {
         __isPrefill: true,
         post,
+        postNumbering: dataLayer.derived.$postNumbering.get(postUri),
         parent: null,
         replies: null,
       };
@@ -612,15 +638,15 @@ export default async function postThreadView({
         ${headerTemplate({ title: "Post" })}
         <main>
           ${(() => {
-            if (postThreadRequestStatus.error) {
-              return postThreadErrorTemplate({
-                error: postThreadRequestStatus.error,
-              });
+            const loadError = postThreadRequestStatus.error;
+            if (loadError && (!postThread || isNotFoundError(loadError))) {
+              return postThreadErrorTemplate({ error: loadError });
             } else if (postThread) {
               return threadTemplate({
                 postThread,
                 currentUser,
                 hasFollowedInView,
+                loadError,
               });
             } else {
               return threadSkeletonTemplate();
@@ -676,6 +702,10 @@ export default async function postThreadView({
     // Revalidate
     await dataLayer.requests.loadPostThread(postUri);
   });
+
+  async function retryLoadPostThread() {
+    await dataLayer.requests.loadPostThread(postUri);
+  }
 
   onPageHide(root, () => {
     state.$hasFollowedInView.set(false);

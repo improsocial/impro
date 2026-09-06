@@ -520,4 +520,48 @@ describe("largePostTemplate - plugin context menu items", () => {
     );
     container.remove();
   });
+
+  describe("post numbering", () => {
+    it("should render a standalone badge above the embed when the post has no text", () => {
+      const imageOnlyPost = {
+        ...post,
+        record: { ...post.record, text: "" },
+        embed: {
+          $type: "app.bsky.embed.images#view",
+          images: [
+            {
+              thumb: "https://cdn.bsky.app/img/thumb.jpg",
+              fullsize: "https://cdn.bsky.app/img/full.jpg",
+              alt: "",
+            },
+          ],
+        },
+      };
+      const container = document.createElement("div");
+      render(
+        largePostTemplate({
+          post: imageOnlyPost,
+          ...baseProps,
+          postNumbering: { index: 3, count: 3 },
+        }),
+        container,
+      );
+      const badge = container.querySelector(
+        "[data-testid='post-number-badge']",
+      );
+      assert(badge !== null);
+      assert.equal(badge.textContent, "3/3");
+      assert.equal(badge.getAttribute("data-teststate"), "standalone");
+      assert(badge.nextElementSibling?.classList.contains("post-embed"));
+    });
+
+    it("should render no badge without numbering", () => {
+      const container = document.createElement("div");
+      render(largePostTemplate({ post, ...baseProps }), container);
+      assert.equal(
+        container.querySelector("[data-testid='post-number-badge']"),
+        null,
+      );
+    });
+  });
 });

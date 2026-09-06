@@ -223,6 +223,88 @@ describe("mergeProfile", () => {
   });
 });
 
+describe("setPostNumberingForFeed", () => {
+  it("should save the numbering carried by feed items", () => {
+    const dataStore = new DataStore(createSessionState(null));
+
+    dataStore.setPostNumberingForFeed({
+      feed: [
+        { post: { uri: "post1" }, opThreadPostIndex: 2, opThreadPostCount: 3 },
+        { post: { uri: "post2" } },
+        { post: { uri: "post3" }, opThreadPostIndex: 1 },
+      ],
+      cursor: "",
+    });
+
+    assert.deepEqual(dataStore.$postNumbering.get("post1"), {
+      index: 2,
+      count: 3,
+    });
+    assert.equal(dataStore.$postNumbering.get("post2"), null);
+    assert.equal(dataStore.$postNumbering.get("post3"), null);
+  });
+});
+
+describe("setPostThread", () => {
+  const opDid = "did:plc:op";
+  const root = {
+    uri: `at://${opDid}/app.bsky.feed.post/p1`,
+    cid: "cid-p1",
+    author: { did: opDid },
+    record: { text: "one" },
+    replyCount: 1,
+  };
+  const second = {
+    uri: `at://${opDid}/app.bsky.feed.post/p2`,
+    cid: "cid-p2",
+    author: { did: opDid },
+    record: {
+      text: "two",
+      reply: {
+        parent: { uri: root.uri, cid: root.cid },
+        root: { uri: root.uri, cid: root.cid },
+      },
+    },
+    replyCount: 0,
+  };
+  const threadViewPost = (post, extra) => ({
+    $type: "app.bsky.feed.defs#threadViewPost",
+    post,
+    ...extra,
+  });
+
+  it("should save the thread and the numbering of its OP run", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const postThread = threadViewPost(root, {
+      replies: [threadViewPost(second, { replies: [] })],
+    });
+
+    dataStore.setPostThread(root.uri, postThread);
+
+    assert.deepEqual(dataStore.$postThreads.get(root.uri), postThread);
+    assert.deepEqual(dataStore.$postNumbering.get(root.uri), {
+      index: 1,
+      count: 2,
+    });
+    assert.deepEqual(dataStore.$postNumbering.get(second.uri), {
+      index: 2,
+      count: 2,
+    });
+  });
+
+  it("should leave existing numbering alone when the thread has no OP run", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$postNumbering.set(root.uri, { index: 1, count: 5 });
+
+    dataStore.setPostThread(root.uri, threadViewPost(root, { replies: [] }));
+
+    assert.deepEqual(dataStore.$postNumbering.get(root.uri), {
+      index: 1,
+      count: 5,
+    });
+  });
+});
+
 describe("setConvo", () => {
   it("should save the convo and prepend it to the loaded convo list", () => {
     const dataStore = new DataStore(createSessionState(null));

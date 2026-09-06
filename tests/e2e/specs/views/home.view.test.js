@@ -6,6 +6,7 @@ import {
   createList,
   createLiveStatusView,
   createPost,
+  createFeedItem,
 } from "../../../shared/factories.js";
 import { userProfile } from "../../testData.js";
 
@@ -499,6 +500,66 @@ test.describe("Home view", () => {
     });
     await expect(view).toContainText("Timeline post 42");
     await expect(view).toContainText("Timeline post 60");
+  });
+
+  test("shows an inline error when a later feed page fails to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const posts = [];
+    for (let i = 1; i <= 60; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+          text: `Timeline post ${i}`,
+          authorHandle: `author${i}.bsky.social`,
+          authorDisplayName: `Author ${i}`,
+        }),
+      );
+    }
+    mockServer.addTimelinePosts(posts);
+    await mockServer.setup(page);
+
+    let failPagedRequests = true;
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) => {
+      const hasCursor = new URL(route.request().url()).searchParams.get(
+        "cursor",
+      );
+      if (failPagedRequests && hasCursor) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41, {
+      timeout: 10000,
+    });
+
+    await view
+      .locator('[data-testid="feed-item"]')
+      .last()
+      .scrollIntoViewIfNeeded();
+
+    const loadMoreError = view.locator('[data-testid="feed-load-more-error"]');
+    await expect(loadMoreError).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41);
+    await expect(view.locator('[data-testid="feed-error-view-profile"]')).toHaveCount(0);
+
+    failPagedRequests = false;
+    await loadMoreError.locator("button").click();
+
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(60, {
+      timeout: 10000,
+    });
+    await expect(loadMoreError).not.toBeAttached();
   });
 
   test("should display empty state when Following feed has no posts", async ({
@@ -1502,6 +1563,71 @@ test.describe("Home view", () => {
 
       // Still on the home view — the tap did not navigate to the profile
       await expect(page.locator("#home-view")).toBeVisible();
+    });
+  });
+
+  test.describe("OP thread numbering", () => {
+    const opDid = "did:plc:author1";
+
+    function opPost(rkey, { text, parent, root } = {}) {
+      return createPost({
+        uri: `at://${opDid}/app.bsky.feed.post/${rkey}`,
+        text,
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        ...(parent
+          ? {
+              reply: {
+                parent: { uri: parent.uri, cid: parent.cid },
+                root: { uri: root.uri, cid: root.cid },
+              },
+            }
+          : {}),
+      });
+    }
+
+    test("should number the feed post and its root and parent context rows", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/threads",
+        displayName: "Threads",
+        creatorHandle: "creator1.bsky.social",
+      });
+      const root = opPost("root1", { text: "Thread root" });
+      const parent = opPost("second1", {
+        text: "Second post",
+        parent: root,
+        root,
+      });
+      const post = opPost("third1", { text: "Third post", parent, root });
+      mockServer.addFeedGenerators([feed]);
+      mockServer.setPinnedFeeds([feed.uri]);
+      mockServer.addPosts([root, parent, post]);
+      mockServer.setFeedItems(feed.uri, [
+        createFeedItem({
+          post,
+          reply: {
+            root: { $type: "app.bsky.feed.defs#postView", ...root },
+            parent: { $type: "app.bsky.feed.defs#postView", ...parent },
+          },
+          opThreadPostIndex: 3,
+          opThreadPostCount: 4,
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await view.locator(".tab-bar-button", { hasText: "Threads" }).click();
+      const visibleFeed = view.locator(".feed-container:not([hidden])");
+      const feedItem = visibleFeed.locator('[data-testid="feed-item"]');
+      await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+      const badges = feedItem.locator('[data-testid="post-number-badge"]');
+      await expect(badges).toHaveText(["1/4", "2/4", "3/4"]);
     });
   });
 });

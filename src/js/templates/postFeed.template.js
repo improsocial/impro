@@ -80,6 +80,7 @@ function replyContextTemplate({
               isAuthenticated,
               isUserPost: root.author?.did === currentUser?.did,
               replyContext: "root",
+              postNumbering: reply.rootPostNumbering,
               hiddenPostUris,
               postInteractionHandler,
               onClickShowLess,
@@ -112,6 +113,7 @@ function replyContextTemplate({
               showReplyToLabel: showParentReplyToLabel,
               replyToAuthor: grandparentAuthor,
               replyToBlocked,
+              postNumbering: reply.parentPostNumbering,
               hiddenPostUris,
               postInteractionHandler,
               onClickShowLess,
@@ -191,6 +193,7 @@ function feedItemTemplate({
         hiddenPostUris,
         isUserPost: currentUser?.did === post.author?.did,
         replyContext: showReplyContext ? "reply" : null,
+        postNumbering: feedItem.postNumbering,
         postInteractionHandler,
         onClickShowLess,
         onClickShowMore,
@@ -214,6 +217,16 @@ function feedSkeletonTemplate() {
   </div>`;
 }
 
+function feedLoadMoreErrorTemplate({ onRetry }) {
+  return html`<div
+    class="error-state feed-load-more-error"
+    data-testid="feed-load-more-error"
+  >
+    <div>Couldn't load more posts.</div>
+    ${tryAgainButtonTemplate({ onClick: onRetry })}
+  </div>`;
+}
+
 export function postFeedTemplate({
   feed,
   currentUser,
@@ -227,6 +240,7 @@ export function postFeedTemplate({
   enableFeedFeedback = false,
   emptyMessage = null,
   showEndMessage = false,
+  loadMoreError = null,
   pluginService,
 }) {
   if (!feed) {
@@ -244,6 +258,7 @@ export function postFeedTemplate({
     return html`
       <infinite-scroll-container
         lookahead="2500px"
+        ?disabled=${!!loadMoreError}
         @load-more=${async (e) => {
           if (hasMore && onLoadMore) {
             await onLoadMore();
@@ -280,22 +295,23 @@ export function postFeedTemplate({
             if (i < feed.feed.length - 1) {
               return content;
             }
-            // if it's the last item, add a loading indicator
-            const endingElement = hasMore
-              ? html`<div
-                  class="feed-loading-indicator"
-                  data-testid="feed-loading-indicator"
-                >
-                  <div class="loading-spinner"></div>
-                </div>`
-              : showEndMessage
+            const endingElement = loadMoreError
+              ? feedLoadMoreErrorTemplate({ onRetry: onLoadMore })
+              : hasMore
                 ? html`<div
-                    class="feed-end-message"
-                    data-testid="feed-end-message"
+                    class="feed-loading-indicator"
+                    data-testid="feed-loading-indicator"
                   >
-                    End of feed
+                    <div class="loading-spinner"></div>
                   </div>`
-                : null;
+                : showEndMessage
+                  ? html`<div
+                      class="feed-end-message"
+                      data-testid="feed-end-message"
+                    >
+                      End of feed
+                    </div>`
+                  : null;
             return html`<div>${content}${endingElement}</div>`;
           })}
         </div>

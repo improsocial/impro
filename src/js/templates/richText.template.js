@@ -63,11 +63,14 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
 // placeholderFacetTypes: Set of facet feature $types to render as
 // invisible-but-space-preserving spans (used while a rich-text transform
 // that claims the type is still pending, to avoid flashing plaintext).
+// suffix: optional inline template appended after the last token, separated
+// by a space so it can wrap onto its own line.
 export function richTextTokensTemplate({
   tokens,
   truncateUrls = false,
   renderNodeToken = () => null,
   placeholderFacetTypes = null,
+  suffix = null,
 }) {
   const isEmojiOnly = isEmojiOnlyTokens(tokens);
   const parts = [];
@@ -122,6 +125,9 @@ export function richTextTokensTemplate({
       }
     }
   });
+  if (suffix) {
+    parts.push(" ", suffix);
+  }
   if (isEmojiOnly) {
     // prettier-ignore
     return html`<div class="rich-text rich-text-emoji-only" data-testid="rich-text" data-teststate="emoji-only">${parts}</div>`;

@@ -231,14 +231,16 @@ export default async function homeView({
     const feedRequestStatus = dataLayer.requests.statusStore.$statuses.get(
       "loadNextFeedPage-" + item.uri,
     );
-    if (feedRequestStatus.error) {
+    const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
+    if (feedRequestStatus.error && !feed) {
       return feedErrorTemplate({ feedGenerator: item });
     }
     const hiddenPostUris = dataLayer.derived.$showLessInteractions
       .get(item.uri)
       .map((interaction) => interaction.item);
     return postFeedTemplate({
-      feed: dataLayer.derived.$hydratedFeeds.get(item.uri),
+      feed,
+      loadMoreError: feedRequestStatus.error,
       currentUser,
       isAuthenticated,
       feedGenerator: item,

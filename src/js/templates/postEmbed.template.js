@@ -283,15 +283,19 @@ function postVideoSizingStyle(aspectRatio) {
 }
 
 function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
+  const aspectRatio = doCalculateAspectRatio
+    ? getPostMediaAspectRatio(image)
+    : null;
+  // Without aspect ratio metadata, show the whole image inside the square
+  // bounding box rather than cropping it
+  const doContain = doCalculateAspectRatio && aspectRatio === null;
   return html`<div class="post-image-container">
     <img
-      class="post-image"
+      class="post-image ${doContain ? "post-image-contain" : ""}"
       src="${cdnImageUrl(image.thumb)}"
       data-lightbox-src="${cdnImageUrl(image.fullsize ?? image.thumb)}"
       alt=${image.alt}
-      style=${doCalculateAspectRatio
-        ? `aspect-ratio: ${getPostMediaAspectRatio(image) ?? 1};`
-        : ""}
+      style=${doCalculateAspectRatio ? `aspect-ratio: ${aspectRatio ?? 1};` : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
     ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}

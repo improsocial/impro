@@ -241,6 +241,11 @@ export class MockServer {
     );
   }
 
+  // For feed items that need more than a bare post (reply context, numbering)
+  setFeedItems(feedUri, feedItems) {
+    this.feeds.set(feedUri, feedItems);
+  }
+
   addLists(lists) {
     this.lists.push(...lists);
   }

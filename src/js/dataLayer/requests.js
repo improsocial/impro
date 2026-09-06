@@ -327,7 +327,7 @@ export class Requests {
     }
 
     // Save post thread
-    this.dataStore.$postThreads.set(postURI, postThread);
+    this.dataStore.setPostThread(postURI, postThread);
     this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
     // Note - this return value is used by loadParentChain
     return postThread;
@@ -521,6 +521,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
+    this.dataStore.setPostNumberingForFeed(feed);
     await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
     writePageToCollection(this.dataStore.$feeds, "feed", feed, {
       key: uri,
@@ -852,6 +853,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
+    this.dataStore.setPostNumberingForFeed(feed);
     // Save feed
     writePageToCollection(this.dataStore.$authorFeeds, "feed", feed, {
       key: feedURI,

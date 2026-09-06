@@ -1,7 +1,10 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../../shared/factories.js";
+import {
+  createPost,
+  createThreadViewPost,
+} from "../../../shared/factories.js";
 
 const postUri = "at://did:plc:author1/app.bsky.feed.post/abc123";
 
@@ -943,6 +946,133 @@ test.describe("Post thread view", () => {
     const view = page.locator("#post-detail-view");
     await expect(view.locator('[data-testid="thread-error"]')).toBeVisible({
       timeout: 10000,
+    });
+  });
+
+  test.describe("thread load errors with a previewed post", () => {
+    async function failPostThreadRequests(page) {
+      await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        }),
+      );
+    }
+
+    test("keeps the feed-cached post and shows an inline error", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([mainPost]);
+      await mockServer.setup(page);
+      await failPostThreadRequests(page);
+
+      await login(page);
+      await page.goto("/");
+      await page.locator('[data-testid="small-post"]').first().click();
+
+      const view = page.locator("#post-detail-view");
+      await expect(page).toHaveURL(/\/post\/abc123$/, { timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This is the main post");
+      await expect(
+        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="thread-load-error"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+    });
+
+    test("keeps an embedded quote post and shows an inline error", async ({
+      page,
+    }) => {
+      const quotingPost = createPost({
+        uri: "at://did:plc:quoter/app.bsky.feed.post/quoting1",
+        text: "Look at this post",
+        authorHandle: "quoter.bsky.social",
+        authorDisplayName: "Quoter",
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            uri: postUri,
+            cid: mainPost.cid,
+            author: mainPost.author,
+            value: mainPost.record,
+            labels: [],
+            likeCount: 0,
+            replyCount: 0,
+            repostCount: 0,
+            quoteCount: 0,
+            indexedAt: "2025-01-01T00:00:00.000Z",
+            embeds: [],
+          },
+        },
+      });
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([quotingPost]);
+      await mockServer.setup(page);
+      await failPostThreadRequests(page);
+
+      await login(page);
+      await page.goto("/");
+      await page.locator(".quoted-post-link").first().click();
+
+      const view = page.locator("#post-detail-view");
+      await expect(page).toHaveURL(/\/post\/abc123$/, { timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This is the main post");
+      await expect(
+        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+      ).not.toBeAttached();
+      await expect(
+        view.locator('[data-testid="thread-load-error"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+    });
+
+    test("retrying from the inline error loads the thread", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([mainPost]);
+      await mockServer.setup(page);
+      let shouldFail = true;
+      await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) => {
+        if (shouldFail) {
+          return route.fulfill({
+            status: 500,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "InternalServerError" }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await login(page);
+      await page.goto("/");
+      await page.locator('[data-testid="small-post"]').first().click();
+
+      const view = page.locator("#post-detail-view");
+      const inlineError = view.locator('[data-testid="thread-load-error"]');
+      await expect(inlineError).toBeVisible({ timeout: 10000 });
+
+      shouldFail = false;
+      await inlineError.locator("button").click();
+
+      await expect(inlineError).not.toBeAttached({ timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible();
+      await expect(view).toContainText("This is the main post");
     });
   });
 
@@ -2256,6 +2386,163 @@ test.describe("Post thread view", () => {
         view.locator('[data-testid="thread-error"]'),
       ).not.toBeAttached();
       await expect(view.locator(".post-thread-reply-prompt")).not.toBeVisible();
+    });
+  });
+
+  test.describe("OP thread numbering", () => {
+    const opDid = "did:plc:author1";
+
+    function opPost(rkey, { text = rkey, parent, root, replyCount = 0 } = {}) {
+      return createPost({
+        uri: `at://${opDid}/app.bsky.feed.post/${rkey}`,
+        text,
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount,
+        ...(parent
+          ? {
+              reply: {
+                parent: { uri: parent.uri, cid: parent.cid },
+                root: { uri: root.uri, cid: root.cid },
+              },
+            }
+          : {}),
+      });
+    }
+
+    test("should number the anchor, its parent, and OP replies but not other replies", async ({
+      page,
+    }) => {
+      const root = opPost("root1", { text: "Thread root", replyCount: 1 });
+      const second = opPost("abc123", {
+        text: "Second post",
+        parent: root,
+        root,
+        replyCount: 2,
+      });
+      const third = opPost("third1", { text: "Third post", parent: second, root });
+      const other = createPost({
+        uri: "at://did:plc:other/app.bsky.feed.post/other1",
+        text: "Someone else's reply",
+        authorHandle: "other.bsky.social",
+        authorDisplayName: "Other",
+        reply: {
+          parent: { uri: second.uri, cid: second.cid },
+          root: { uri: root.uri, cid: root.cid },
+        },
+      });
+      const mockServer = new MockServer();
+      mockServer.addPosts([root, second, third, other]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: second,
+          parent: createThreadViewPost({ post: root }),
+          replies: [
+            createThreadViewPost({ post: other, replies: [] }),
+            createThreadViewPost({ post: third, replies: [] }),
+          ],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(
+        largePost.locator('[data-testid="post-number-badge"]'),
+      ).toHaveText("2/3", { timeout: 10000 });
+      const badges = view.locator('[data-testid="post-number-badge"]');
+      await expect(badges).toHaveCount(3);
+      await expect(badges).toHaveText(["1/3", "2/3", "3/3"]);
+
+      const otherReply = view.locator('[data-testid="small-post"]', {
+        has: page.locator("text=Someone else's reply"),
+      });
+      await expect(otherReply).toBeVisible();
+      await expect(
+        otherReply.locator('[data-testid="post-number-badge"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should show a standalone badge on a media-only OP post", async ({
+      page,
+    }) => {
+      const root = opPost("root1", { text: "Thread root", replyCount: 1 });
+      const imageOnly = createPost({
+        uri: postUri,
+        text: "",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        reply: {
+          parent: { uri: root.uri, cid: root.cid },
+          root: { uri: root.uri, cid: root.cid },
+        },
+        embed: {
+          $type: "app.bsky.embed.images#view",
+          images: [
+            {
+              thumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/thumb.jpg",
+              fullsize: "https://cdn.bsky.app/img/feed_fullsize/plain/full.jpg",
+              alt: "A picture",
+            },
+          ],
+        },
+      });
+      const mockServer = new MockServer();
+      mockServer.addPosts([root, imageOnly]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: imageOnly,
+          parent: createThreadViewPost({ post: root }),
+          replies: [],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const largePost = page.locator('[data-testid="large-post"]');
+      const badge = largePost.locator('[data-testid="post-number-badge"]');
+      await expect(badge).toHaveText("2/2", { timeout: 10000 });
+      await expect(badge).toHaveAttribute("data-teststate", "standalone");
+    });
+
+    test("should show no badges when the OP run continues past the fetched depth", async ({
+      page,
+    }) => {
+      const root = opPost("abc123", { text: "Thread root", replyCount: 1 });
+      const second = opPost("second1", {
+        text: "Second post",
+        parent: root,
+        root,
+        replyCount: 1,
+      });
+      const mockServer = new MockServer();
+      mockServer.addPosts([root, second]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: root,
+          replies: [createThreadViewPost({ post: second })],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view.locator('[data-testid="small-post"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="post-number-badge"]'),
+      ).toHaveCount(0);
     });
   });
 });

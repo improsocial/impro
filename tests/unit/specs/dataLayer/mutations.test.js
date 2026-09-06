@@ -2848,7 +2848,12 @@ describe("createThread", () => {
   const currentUserDid = "did:plc:me";
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
 
-  function setup({ replyPostThread, authorFeed, replyAuthorFeed } = {}) {
+  function setup({
+    replyPostThread,
+    authorFeed,
+    replyAuthorFeed,
+    extraPosts = [],
+  } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
     const mockPreferencesProvider = {
@@ -2869,12 +2874,12 @@ describe("createThread", () => {
     };
     mutations.postCreator = {
       createThread: async () => ({
-        uris: [fullPost.uri],
-        posts: [fullPost],
+        uris: [fullPost, ...extraPosts].map((post) => post.uri),
+        posts: [fullPost, ...extraPosts],
       }),
     };
     if (replyPostThread) {
-      dataStore.$postThreads.set(replyPostThread.post.uri, replyPostThread);
+      dataStore.setPostThread(replyPostThread.post.uri, replyPostThread);
     }
     if (authorFeed) {
       dataStore.$authorFeeds.set(`${currentUserDid}-posts`, authorFeed);
@@ -2940,6 +2945,105 @@ describe("createThread", () => {
     const repliesFeed = dataStore.$authorFeeds.get(`${currentUserDid}-replies`);
     assert.deepEqual(repliesFeed.feed.length, 1);
     assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
+  });
+
+  it("should extend the OP run numbering when the OP replies to their own thread", async () => {
+    const replyTo = {
+      uri: `at://${currentUserDid}/app.bsky.feed.post/root`,
+      cid: "cid-root",
+      author: { did: currentUserDid },
+      record: { text: "root" },
+      replyCount: 0,
+    };
+    const replyPostThread = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: replyTo,
+      replies: [],
+    };
+    const { mutations, dataStore, fullPost } = setup({ replyPostThread });
+    fullPost.record.reply = {
+      parent: { uri: replyTo.uri, cid: replyTo.cid },
+      root: { uri: replyTo.uri, cid: replyTo.cid },
+    };
+    assert.equal(dataStore.$postNumbering.get(replyTo.uri), null);
+
+    await mutations.createThread({
+      posts: [{ postText: "more" }],
+      replyTo,
+      replyRoot: replyTo,
+    });
+
+    assert.deepEqual(dataStore.$postNumbering.get(replyTo.uri), {
+      index: 1,
+      count: 2,
+    });
+    assert.deepEqual(dataStore.$postNumbering.get(newPostUri), {
+      index: 2,
+      count: 2,
+    });
+  });
+
+  it("should nest a multi-post reply thread under the parent's post thread", async () => {
+    const replyTo = {
+      uri: `at://${currentUserDid}/app.bsky.feed.post/root`,
+      cid: "cid-root",
+      author: { did: currentUserDid },
+      record: { text: "root" },
+      replyCount: 0,
+    };
+    const replyPostThread = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: replyTo,
+      replies: [],
+    };
+    const secondUri = `at://${currentUserDid}/app.bsky.feed.post/second`;
+    const secondPost = {
+      uri: secondUri,
+      cid: "cid-second",
+      author: { did: currentUserDid, viewer: {} },
+      record: {
+        text: "second",
+        reply: {
+          parent: { uri: newPostUri, cid: "cid-new" },
+          root: { uri: replyTo.uri, cid: replyTo.cid },
+        },
+      },
+      viewer: {},
+    };
+    const { mutations, dataStore, fullPost } = setup({
+      replyPostThread,
+      extraPosts: [secondPost],
+    });
+    fullPost.record.reply = {
+      parent: { uri: replyTo.uri, cid: replyTo.cid },
+      root: { uri: replyTo.uri, cid: replyTo.cid },
+    };
+
+    await mutations.createThread({
+      posts: [{ postText: "hello" }, { postText: "second" }],
+      replyTo,
+      replyRoot: replyTo,
+    });
+
+    const updatedThread = dataStore.$postThreads.get(replyTo.uri);
+    assert.deepEqual(updatedThread.replies.length, 1);
+    const firstNode = updatedThread.replies[0];
+    assert.deepEqual(firstNode.post.uri, newPostUri);
+    assert.deepEqual(firstNode.replies.length, 1);
+    assert.deepEqual(firstNode.replies[0].post.uri, secondUri);
+    assert.deepEqual(firstNode.replies[0].replies, []);
+    assert.deepEqual(dataStore.$postNumbering.get(replyTo.uri), {
+      index: 1,
+      count: 3,
+    });
+    assert.deepEqual(dataStore.$postNumbering.get(newPostUri), {
+      index: 2,
+      count: 3,
+    });
+    assert.deepEqual(dataStore.$postNumbering.get(secondUri), {
+      index: 3,
+      count: 3,
+    });
   });
 
   it("still resolves with uris when the app view fetch fails, without mutating stores", async () => {
