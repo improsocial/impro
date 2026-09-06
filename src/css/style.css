@@ -1974,6 +1974,10 @@ button.sidebar-plugin-nav-item {
   text-align: center;
 }
 
+.notifications-load-more-error {
+  padding: 32px 16px;
+}
+
 .feed-feedback-message {
   font-size: 13px;
   color: var(--text-color-muted);

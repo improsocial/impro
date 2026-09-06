@@ -33,6 +33,7 @@ import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { showToast } from "/js/toasts.js";
 
 function notificationItemTemplate({ href, isUnread, children }) {
   const unreadClass = isUnread ? "unread" : "";
@@ -145,6 +146,8 @@ export default async function notificationsView({
   state.$activeTab = new Signal.State("all");
   state.$isReloadingNotifications = new Signal.State(false);
   state.$isReloadingMentionNotifications = new Signal.State(false);
+  state.$loadMoreError = new Signal.State(null);
+  state.$mentionLoadMoreError = new Signal.State(null);
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -662,11 +665,22 @@ export default async function notificationsView({
     </div>`;
   }
 
+  function loadMoreErrorTemplate({ onRetry }) {
+    return html`<div
+      class="error-state notifications-load-more-error"
+      data-testid="notifications-load-more-error"
+    >
+      <div>There was an error loading notifications.</div>
+      ${tryAgainButtonTemplate({ onClick: onRetry })}
+    </div>`;
+  }
+
   function notificationsTemplate({
     groupedNotifications,
     hasMore,
     currentUser,
     loadMore,
+    loadMoreError,
   }) {
     if (groupedNotifications.length === 0) {
       return html`<div class="feed-end-message">
@@ -676,6 +690,7 @@ export default async function notificationsView({
     try {
       return html`
         <infinite-scroll-container
+          ?disabled=${!!loadMoreError}
           @load-more=${async (e) => {
             if (hasMore) {
               await loadMore();
@@ -686,9 +701,17 @@ export default async function notificationsView({
           ${groupedNotifications.map((notificationGroup) =>
             notificationGroupTemplate({ notificationGroup, currentUser }),
           )}
-          ${!hasMore
-            ? html`<div class="feed-end-message">No more notifications</div>`
-            : Array.from({ length: 10 }).map(() => postSkeletonTemplate())}
+          ${(() => {
+            if (loadMoreError) {
+              return loadMoreErrorTemplate({ onRetry: loadMore });
+            }
+            if (!hasMore) {
+              return html`<div class="feed-end-message">
+                No more notifications
+              </div>`;
+            }
+            return Array.from({ length: 10 }).map(() => postSkeletonTemplate());
+          })()}
         </infinite-scroll-container>
       `;
     } catch (error) {
@@ -704,14 +727,14 @@ export default async function notificationsView({
     if (state.$activeTab.get() === "all") {
       state.$isReloadingNotifications.set(true);
       try {
-        await loadNotifications({ reload: true });
+        await reloadNotifications();
       } finally {
         state.$isReloadingNotifications.set(false);
       }
     } else {
       state.$isReloadingMentionNotifications.set(true);
       try {
-        await loadMentionNotifications({ reload: true });
+        await reloadMentionNotifications();
       } finally {
         state.$isReloadingMentionNotifications.set(false);
       }
@@ -786,7 +809,7 @@ export default async function notificationsView({
         <main>
           <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
             ${(() => {
-              if (notificationsRequestStatus.error) {
+              if (notificationsRequestStatus.error && !groupedNotifications) {
                 return notificationsErrorTemplate({
                   error: notificationsRequestStatus.error,
                 });
@@ -795,7 +818,8 @@ export default async function notificationsView({
                   groupedNotifications,
                   currentUser,
                   hasMore,
-                  loadMore: loadNotifications,
+                  loadMore: loadMoreNotifications,
+                  loadMoreError: state.$loadMoreError.get(),
                 });
               } else {
                 return notificationsSkeletonTemplate();
@@ -804,7 +828,10 @@ export default async function notificationsView({
           </div>
           <div class="notifications-feed" ?hidden=${activeTab !== "mentions"}>
             ${(() => {
-              if (mentionNotificationsRequestStatus.error) {
+              if (
+                mentionNotificationsRequestStatus.error &&
+                !groupedMentionNotifications
+              ) {
                 return notificationsErrorTemplate({
                   error: mentionNotificationsRequestStatus.error,
                 });
@@ -813,7 +840,8 @@ export default async function notificationsView({
                   groupedNotifications: groupedMentionNotifications,
                   currentUser,
                   hasMore: mentionHasMore,
-                  loadMore: loadMentionNotifications,
+                  loadMore: loadMoreMentionNotifications,
+                  loadMoreError: state.$mentionLoadMoreError.get(),
                 });
               } else if (activeTab === "mentions") {
                 return notificationsSkeletonTemplate();
@@ -850,10 +878,50 @@ export default async function notificationsView({
     });
   }
 
+  async function loadMoreNotifications() {
+    await loadNotifications();
+    const loadError =
+      dataLayer.requests.statusStore.getError("loadNotifications");
+    state.$loadMoreError.set(loadError);
+  }
+
+  async function loadMoreMentionNotifications() {
+    await loadMentionNotifications();
+    const loadError = dataLayer.requests.statusStore.getError(
+      "loadMentionNotifications",
+    );
+    state.$mentionLoadMoreError.set(loadError);
+  }
+
+  async function reloadNotifications() {
+    const hadNotifications = !!dataLayer.derived.$notifications.get();
+    await loadNotifications({ reload: true });
+    const loadError =
+      dataLayer.requests.statusStore.getError("loadNotifications");
+    if (hadNotifications && loadError) {
+      showToast("Couldn't refresh notifications", { style: "error" });
+    } else {
+      state.$loadMoreError.set(null);
+    }
+  }
+
+  async function reloadMentionNotifications() {
+    const hadNotifications = !!dataLayer.derived.$mentionNotifications.get();
+    await loadMentionNotifications({ reload: true });
+    const loadError = dataLayer.requests.statusStore.getError(
+      "loadMentionNotifications",
+    );
+    if (hadNotifications && loadError) {
+      showToast("Couldn't refresh notifications", { style: "error" });
+    } else {
+      state.$mentionLoadMoreError.set(null);
+    }
+  }
+
   onPageShow(root, async ({ scrollY }) => {
     if (scrollY <= 200) {
       window.scrollTo(0, 0);
-      await loadNotifications({ reload: true });
+      await reloadNotifications();
     }
   });
 }
