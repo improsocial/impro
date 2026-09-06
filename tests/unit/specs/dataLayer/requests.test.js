@@ -7,6 +7,7 @@ import { DraftMediaStore } from "/js/drafts.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
 import { EventEmitter } from "/js/eventEmitter.js";
+import { createPost, createThreadViewPost } from "../../../shared/factories.js";
 
 const stubConstellation = { getLinks: async () => [] };
 
@@ -73,6 +74,45 @@ describe("loadPostThread", () => {
     assert.deepEqual(dataStore.$posts.get("reply1"), normalizedPosts[1]);
   });
 
+  it("should cache post numbering for the loaded thread's OP run", async () => {
+    const opDid = "did:plc:op";
+    const root = createPost({
+      uri: `at://${opDid}/app.bsky.feed.post/p1`,
+      authorHandle: "op.test",
+      replyCount: 1,
+    });
+    const second = createPost({
+      uri: `at://${opDid}/app.bsky.feed.post/p2`,
+      authorHandle: "op.test",
+      reply: {
+        parent: { uri: root.uri, cid: root.cid },
+        root: { uri: root.uri, cid: root.cid },
+      },
+    });
+    const mockApi = {
+      getPostThread: async () =>
+        createThreadViewPost({
+          post: second,
+          parent: createThreadViewPost({ post: root }),
+          replies: [],
+        }),
+      getPostThreadOther: async () => [],
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPostThread(second.uri);
+
+    assert.deepEqual(dataStore.$postNumbering.get(root.uri), {
+      index: 1,
+      count: 2,
+    });
+    assert.deepEqual(dataStore.$postNumbering.get(second.uri), {
+      index: 2,
+      count: 2,
+    });
+  });
+
   it("should handle empty post thread", async () => {
     const emptyPostThread = {
       post: { uri: postURI, content: "Lonely post" },
@@ -111,7 +151,11 @@ describe("loadNextFeedPage", () => {
     const mockApi = {
       getFeed: async () => ({
         feed: [
-          { post: { uri: "post1" }, opThreadPostIndex: 2, opThreadPostCount: 3 },
+          {
+            post: { uri: "post1" },
+            opThreadPostIndex: 2,
+            opThreadPostCount: 3,
+          },
           { post: { uri: "post2" } },
           { post: { uri: "post3" }, opThreadPostIndex: 1 },
         ],
@@ -123,12 +167,12 @@ describe("loadNextFeedPage", () => {
 
     await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
-    assert.deepEqual(dataStore.$feedPostNumbering.get("post1"), {
+    assert.deepEqual(dataStore.$postNumbering.get("post1"), {
       index: 2,
       count: 3,
     });
-    assert.equal(dataStore.$feedPostNumbering.get("post2"), null);
-    assert.equal(dataStore.$feedPostNumbering.get("post3"), null);
+    assert.equal(dataStore.$postNumbering.get("post2"), null);
+    assert.equal(dataStore.$postNumbering.get("post3"), null);
   });
 
   it("should load initial feed page", async () => {

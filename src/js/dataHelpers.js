@@ -256,6 +256,19 @@ export function createThreadViewPostFromPost(post) {
   };
 }
 
+// Transforms a flat list of posts into a nested threadViewPost chain
+export function createNestedThreadViewPost(posts) {
+  let current = null;
+  for (const post of posts.toReversed()) {
+    current = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post,
+      replies: current ? [current] : [],
+    };
+  }
+  return current;
+}
+
 export function flattenParents(postThread) {
   const parents = [];
   let current = postThread.parent;

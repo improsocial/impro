@@ -588,7 +588,7 @@ export default async function postThreadView({
       return {
         __isPrefill: true,
         post,
-        postNumbering: dataLayer.derived.$feedPostNumbering.get(postUri),
+        postNumbering: dataLayer.derived.$postNumbering.get(postUri),
         parent: null,
         replies: null,
       };

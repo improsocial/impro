@@ -1,5 +1,10 @@
 import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
-import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
+import { isNil } from "/js/utils.js";
+import {
+  getQuotedPost,
+  embedViewRecordToPostView,
+  getPostNumberingForPostThread,
+} from "/js/dataHelpers.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.
 export class DataStore extends ReactiveStore {
@@ -44,8 +49,8 @@ export class DataStore extends ReactiveStore {
     this.$embeddedPosts = new SignalMap();
     this.$postThreads = new SignalMap();
     this.$postThreadOthers = new SignalMap();
-    // uri -> { index, count } as numbered by the appview in feed responses
-    this.$feedPostNumbering = new SignalMap();
+    // uri -> { index, count }
+    this.$postNumbering = new SignalMap();
     this.$profiles = new SignalMap();
     this.$detailedProfiles = new SignalMap();
     // did -> statusView, normalized from profiles
@@ -118,6 +123,22 @@ export class DataStore extends ReactiveStore {
       return;
     }
     this.$profiles.set(profile.did, merged);
+  }
+
+  setPostNumberingForFeed(feed) {
+    for (const feedItem of feed.feed) {
+      const { opThreadPostIndex: index, opThreadPostCount: count } = feedItem;
+      if (!isNil(index) && !isNil(count)) {
+        this.$postNumbering.set(feedItem.post.uri, { index, count });
+      }
+    }
+  }
+
+  setPostThread(postURI, postThread) {
+    this.$postThreads.set(postURI, postThread);
+    for (const [uri, numbering] of getPostNumberingForPostThread(postThread)) {
+      this.$postNumbering.set(uri, numbering);
+    }
   }
 
   _saveStatusForProfile(profile) {
