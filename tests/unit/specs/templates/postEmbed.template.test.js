@@ -81,6 +81,43 @@ describe("postEmbedTemplate - images", () => {
     render(result, container);
     assert.deepEqual(container.querySelector(".alt-indicator"), null);
   });
+
+  function renderSingleImage(image) {
+    return renderEmbed({
+      $type: "app.bsky.embed.images#view",
+      images: [image],
+    }).querySelector(".post-image");
+  }
+
+  it("sizes a single image from its aspect ratio metadata and crops to fill", () => {
+    const img = renderSingleImage({
+      thumb: "https://example.com/image.jpg",
+      alt: "",
+      aspectRatio: { width: 4, height: 3 },
+    });
+    assert.deepEqual(img.style.aspectRatio, String(4 / 3));
+    assert(!img.classList.contains("post-image-contain"));
+  });
+
+  it("shows the whole image in a square box when aspect ratio metadata is missing", () => {
+    const img = renderSingleImage({
+      thumb: "https://example.com/image.jpg",
+      alt: "",
+    });
+    assert.deepEqual(img.style.aspectRatio, "1");
+    assert(img.classList.contains("post-image-contain"));
+  });
+
+  it("does not apply the contain fallback to multi-image grids", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.images#view",
+      images: [
+        { thumb: "https://example.com/a.jpg", alt: "" },
+        { thumb: "https://example.com/b.jpg", alt: "" },
+      ],
+    });
+    assert.deepEqual(container.querySelector(".post-image-contain"), null);
+  });
 });
 
 function renderEmbed(embed) {

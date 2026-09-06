@@ -95,6 +95,7 @@ html {
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
   --callout-color: light-dark(var(--lightest-gray), var(--mid-gray));
   --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
+  --image-placeholder-color: var(--background-color-secondary);
   --context-menu-background-color: light-dark(var(--white), var(--mid-gray));
   --context-menu-item-hover-color: light-dark(
     var(--off-white),
@@ -1144,7 +1145,7 @@ input[type="color"]::-moz-color-swatch {
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -1229,7 +1230,7 @@ input[type="color"]::-moz-color-swatch {
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
 }
 
 header {
@@ -2352,7 +2353,7 @@ container-link {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2761,6 +2762,11 @@ animated-button {
   border-radius: var(--image-border-radius);
   background-color: var(--background-color);
   object-fit: cover;
+}
+
+.post-image.post-image-contain {
+  object-fit: contain;
+  background-color: var(--image-placeholder-color);
 }
 
 .post-image-container .alt-indicator {
@@ -5317,7 +5323,7 @@ chat-input .rich-text-input-placeholder {
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 1.91 / 1;
-  background-color: var(--skeleton-color);
+  background-color: var(--image-placeholder-color);
 }
 
 .live-status-thumb-image {
@@ -5716,7 +5722,7 @@ emoji-picker-dialog emoji-picker,
   position: relative;
   width: 100%;
   height: 150px;
-  background-color: light-dark(var(--lightest-gray), var(--gray));
+  background-color: var(--image-placeholder-color);
 }
 
 .profile-banner {
@@ -10912,7 +10918,7 @@ label:has(toggle-switch[disabled]) {
   overflow: hidden;
   /* Visible while the gif image is still loading (the tile is already sized
      by its inline aspect-ratio) */
-  background: var(--skeleton-color);
+  background: var(--image-placeholder-color);
   cursor: pointer;
 }
 
