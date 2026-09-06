@@ -946,6 +946,133 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test.describe("thread load errors with a previewed post", () => {
+    async function failPostThreadRequests(page) {
+      await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        }),
+      );
+    }
+
+    test("keeps the feed-cached post and shows an inline error", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([mainPost]);
+      await mockServer.setup(page);
+      await failPostThreadRequests(page);
+
+      await login(page);
+      await page.goto("/");
+      await page.locator('[data-testid="small-post"]').first().click();
+
+      const view = page.locator("#post-detail-view");
+      await expect(page).toHaveURL(/\/post\/abc123$/, { timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This is the main post");
+      await expect(
+        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="thread-load-error"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+    });
+
+    test("keeps an embedded quote post and shows an inline error", async ({
+      page,
+    }) => {
+      const quotingPost = createPost({
+        uri: "at://did:plc:quoter/app.bsky.feed.post/quoting1",
+        text: "Look at this post",
+        authorHandle: "quoter.bsky.social",
+        authorDisplayName: "Quoter",
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            uri: postUri,
+            cid: mainPost.cid,
+            author: mainPost.author,
+            value: mainPost.record,
+            labels: [],
+            likeCount: 0,
+            replyCount: 0,
+            repostCount: 0,
+            quoteCount: 0,
+            indexedAt: "2025-01-01T00:00:00.000Z",
+            embeds: [],
+          },
+        },
+      });
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([quotingPost]);
+      await mockServer.setup(page);
+      await failPostThreadRequests(page);
+
+      await login(page);
+      await page.goto("/");
+      await page.locator(".quoted-post-link").first().click();
+
+      const view = page.locator("#post-detail-view");
+      await expect(page).toHaveURL(/\/post\/abc123$/, { timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This is the main post");
+      await expect(
+        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+      ).not.toBeAttached();
+      await expect(
+        view.locator('[data-testid="thread-load-error"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+    });
+
+    test("retrying from the inline error loads the thread", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTimelinePosts([mainPost]);
+      await mockServer.setup(page);
+      let shouldFail = true;
+      await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) => {
+        if (shouldFail) {
+          return route.fulfill({
+            status: 500,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "InternalServerError" }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await login(page);
+      await page.goto("/");
+      await page.locator('[data-testid="small-post"]').first().click();
+
+      const view = page.locator("#post-detail-view");
+      const inlineError = view.locator('[data-testid="thread-load-error"]');
+      await expect(inlineError).toBeVisible({ timeout: 10000 });
+
+      shouldFail = false;
+      await inlineError.locator("button").click();
+
+      await expect(inlineError).not.toBeAttached({ timeout: 10000 });
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible();
+      await expect(view).toContainText("This is the main post");
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should render thread and replies publicly", async ({ page }) => {
       const postWithReplies = createPost({

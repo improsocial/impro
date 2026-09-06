@@ -1974,7 +1974,8 @@ button.sidebar-plugin-nav-item {
   text-align: center;
 }
 
-.notifications-load-more-error {
+.notifications-load-more-error,
+.post-thread-load-error {
   padding: 32px 16px;
 }
 
