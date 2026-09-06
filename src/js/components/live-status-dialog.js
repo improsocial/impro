@@ -135,7 +135,6 @@ class LiveStatusDialog extends Component {
                 </button>
               </div>
             </div>
-            <div class="live-status-footer">Live feature is in beta</div>
           </div>
         </dialog>
       `,
