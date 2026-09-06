@@ -7883,8 +7883,15 @@ context-menu-item-group > context-menu-item {
   margin-bottom: 0;
 }
 
-context-menu-item-group > context-menu-item:not(:last-child) {
-  border-bottom: var(--hair) solid var(--post-border-color);
+/* workaround for iOS Safari subpixel rounding */
+context-menu-item-group > context-menu-item:not(:last-child)::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 1px;
+  background-color: var(--post-border-color);
+  transform: scaleY(0.5);
+  transform-origin: bottom;
 }
 
 context-menu-item-group > context-menu-item > button {
@@ -7975,8 +7982,8 @@ context-menu-item-group > context-menu-item > button {
     margin-bottom: 0;
   }
 
-  context-menu-item-group > context-menu-item:not(:last-child) {
-    border-bottom: none;
+  context-menu-item-group > context-menu-item:not(:last-child)::after {
+    display: none;
   }
 
   context-menu-item-group:not(:last-child) {
