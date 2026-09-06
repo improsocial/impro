@@ -10,9 +10,10 @@ describe("trending-pane", () => {
     return makeTestDataLayer({ api: { getTrends } });
   }
 
-  function mount(dataLayer) {
+  function mount(dataLayer, { isAuthenticated = true } = {}) {
     const element = document.createElement("trending-pane");
     element.dataLayer = dataLayer;
+    element.isAuthenticated = isAuthenticated;
     document.body.appendChild(element);
     return element;
   }
@@ -148,6 +149,20 @@ describe("trending-pane", () => {
 
     assert.deepEqual(
       element.querySelector("[data-testid='trending-pane']"),
+      null,
+    );
+  });
+
+  it("omits the hide button when logged out", async () => {
+    const dataLayer = makeDataLayer(async () => ({
+      trends: [createTrend({ topic: "gardening" })],
+    }));
+    const element = mount(dataLayer, { isAuthenticated: false });
+    await flushMicrotasks();
+
+    assert(element.querySelector("[data-testid='trending-pane']"));
+    assert.deepEqual(
+      element.querySelector("[data-testid='trending-hide-button']"),
       null,
     );
   });

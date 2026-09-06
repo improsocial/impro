@@ -117,7 +117,10 @@ export function mainLayoutTemplate({
                 ?more-feeds-active=${activeNavItem === "feeds"}
               ></pinned-feeds-pane>`
             : ""}
-          <trending-pane .dataLayer=${dataLayer}></trending-pane>
+          <trending-pane
+            .dataLayer=${dataLayer}
+            .isAuthenticated=${isAuthenticated}
+          ></trending-pane>
         </div>
       </div>
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
