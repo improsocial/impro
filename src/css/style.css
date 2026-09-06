@@ -1975,7 +1975,8 @@ button.sidebar-plugin-nav-item {
 }
 
 .notifications-load-more-error,
-.post-thread-load-error {
+.post-thread-load-error,
+.feed-load-more-error {
   padding: 32px 16px;
 }
 

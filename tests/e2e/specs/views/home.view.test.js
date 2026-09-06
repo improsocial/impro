@@ -501,6 +501,66 @@ test.describe("Home view", () => {
     await expect(view).toContainText("Timeline post 60");
   });
 
+  test("shows an inline error when a later feed page fails to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const posts = [];
+    for (let i = 1; i <= 60; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+          text: `Timeline post ${i}`,
+          authorHandle: `author${i}.bsky.social`,
+          authorDisplayName: `Author ${i}`,
+        }),
+      );
+    }
+    mockServer.addTimelinePosts(posts);
+    await mockServer.setup(page);
+
+    let failPagedRequests = true;
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) => {
+      const hasCursor = new URL(route.request().url()).searchParams.get(
+        "cursor",
+      );
+      if (failPagedRequests && hasCursor) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41, {
+      timeout: 10000,
+    });
+
+    await view
+      .locator('[data-testid="feed-item"]')
+      .last()
+      .scrollIntoViewIfNeeded();
+
+    const loadMoreError = view.locator('[data-testid="feed-load-more-error"]');
+    await expect(loadMoreError).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41);
+    await expect(view.locator('[data-testid="feed-error-view-profile"]')).toHaveCount(0);
+
+    failPagedRequests = false;
+    await loadMoreError.locator("button").click();
+
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(60, {
+      timeout: 10000,
+    });
+    await expect(loadMoreError).not.toBeAttached();
+  });
+
   test("should display empty state when Following feed has no posts", async ({
     page,
   }) => {
