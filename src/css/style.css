@@ -2569,6 +2569,11 @@ container-link {
   gap: 7px;
 }
 
+.post-actions-skeleton .post-action-button {
+  cursor: default;
+  color: var(--skeleton-color);
+}
+
 .post-actions-primary {
   display: flex;
   flex: 1;
