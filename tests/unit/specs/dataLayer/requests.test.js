@@ -107,6 +107,30 @@ describe("loadPostThread", () => {
 describe("loadNextFeedPage", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
+  it("should cache post numbering from feed items that carry it", async () => {
+    const mockApi = {
+      getFeed: async () => ({
+        feed: [
+          { post: { uri: "post1" }, opThreadPostIndex: 2, opThreadPostCount: 3 },
+          { post: { uri: "post2" } },
+          { post: { uri: "post3" }, opThreadPostIndex: 1 },
+        ],
+        cursor: "",
+      }),
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+
+    assert.deepEqual(dataStore.$feedPostNumbering.get("post1"), {
+      index: 2,
+      count: 3,
+    });
+    assert.equal(dataStore.$feedPostNumbering.get("post2"), null);
+    assert.equal(dataStore.$feedPostNumbering.get("post3"), null);
+  });
+
   it("should load initial feed page", async () => {
     const mockFeed = {
       feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],

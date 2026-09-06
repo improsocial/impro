@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { makeTestPluginService } from "../../testHelpers.js";
 import "/js/components/plugin-rich-text.js";
+import { html } from "/js/lib/lit-html.js";
 
 describe("plugin-rich-text", () => {
   const originalSetTimeout = globalThis.setTimeout;
@@ -63,6 +64,7 @@ describe("plugin-rich-text", () => {
     facets = [],
     transformContext = makeTransformContext(),
     truncateUrls = false,
+    suffix = null,
     pluginService = makePluginService(),
   } = {}) {
     const element = document.createElement("plugin-rich-text");
@@ -70,6 +72,7 @@ describe("plugin-rich-text", () => {
     element.text = text;
     element.facets = facets;
     element.transformContext = transformContext;
+    element.suffix = suffix;
     if (truncateUrls) element.setAttribute("truncate-urls", "");
     document.body.appendChild(element);
     return element;
@@ -153,6 +156,52 @@ describe("plugin-rich-text", () => {
       element.querySelector("[data-testid='rich-text']").textContent,
       "use npm i",
     );
+  });
+
+  function badge(text) {
+    return html`<span data-testid="suffix">${text}</span>`;
+  }
+
+  it("renders the suffix after the text", () => {
+    const element = mount({ suffix: badge("2/3") });
+    const richText = element.querySelector("[data-testid='rich-text']");
+    assert.deepEqual(richText.textContent, "hello 2/3");
+    assert(richText.querySelector("[data-testid='suffix']") !== null);
+  });
+
+  it("keeps the suffix after a transform resolves", async () => {
+    const pluginService = makePluginService({
+      result: [
+        { type: "text", value: "use " },
+        {
+          type: "inline",
+          pluginId: "p1",
+          node: { tag: "code", text: "npm i" },
+        },
+      ],
+    });
+    const element = mount({ pluginService, suffix: badge("2/3") });
+    await flushEffects();
+    assert(element.querySelector("code") !== null);
+    assert.deepEqual(
+      element.querySelector("[data-testid='rich-text']").textContent,
+      "use npm i 2/3",
+    );
+  });
+
+  it("re-renders on a suffix change without re-requesting transforms", async () => {
+    const pluginService = makePluginService();
+    const element = mount({ pluginService });
+    await flushEffects();
+    assert.deepEqual(pluginService.calls.length, 1);
+    assert.deepEqual(element.querySelector("[data-testid='suffix']"), null);
+    element.suffix = badge("1/2");
+    assert.deepEqual(
+      element.querySelector("[data-testid='suffix']").textContent,
+      "1/2",
+    );
+    await flushEffects();
+    assert.deepEqual(pluginService.calls.length, 1);
   });
 
   it("keeps the base render when the request resolves null", async () => {

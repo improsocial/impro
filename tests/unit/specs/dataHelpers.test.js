@@ -5,6 +5,7 @@ import {
   avatarThumbnailUrl,
   buildProfileFromRecord,
   cdnImageUrl,
+  getPostNumberingForPostThread,
   getRKey,
   getIsLiked,
   isListFeed,
@@ -57,6 +58,7 @@ import {
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
+import { createPost, createThreadViewPost } from "../../shared/factories.js";
 
 describe("buildProfileFromRecord", () => {
   const did = "did:plc:me";
@@ -2540,5 +2542,211 @@ describe("getLocalRefsFromDraft", () => {
 
   it("returns an empty array for drafts with no media", () => {
     assert.deepEqual(getLocalRefsFromDraft({ posts: [{ text: "hi" }] }), []);
+  });
+});
+
+describe("getPostNumberingForPostThread", () => {
+  const opDid = "did:plc:op";
+  const otherDid = "did:plc:other";
+
+  function threadPost(rkey, did, { parent, root, replyCount = 0 } = {}) {
+    return createPost({
+      uri: `at://${did}/app.bsky.feed.post/${rkey}`,
+      text: rkey,
+      authorHandle: `${did}.test`,
+      replyCount,
+      ...(parent
+        ? {
+            reply: {
+              parent: { uri: parent.uri, cid: parent.cid },
+              root: { uri: root.uri, cid: root.cid },
+            },
+          }
+        : {}),
+    });
+  }
+
+  function numberingOf(map) {
+    return Object.fromEntries(
+      [...map.entries()].map(([uri, numbering]) => [
+        uri.split("/").pop(),
+        `${numbering.index}/${numbering.count}`,
+      ]),
+    );
+  }
+
+  it("numbers a root-anchored OP run above and below the anchor", () => {
+    const root = threadPost("p1", opDid, { replyCount: 1 });
+    const second = threadPost("p2", opDid, {
+      parent: root,
+      root,
+      replyCount: 2,
+    });
+    const third = threadPost("p3", opDid, {
+      parent: second,
+      root,
+      replyCount: 1,
+    });
+    const otherReply = threadPost("r1", otherDid, { parent: second, root });
+    const fourth = threadPost("p4", opDid, { parent: third, root });
+    const thread = createThreadViewPost({
+      post: second,
+      parent: createThreadViewPost({ post: root }),
+      replies: [
+        createThreadViewPost({ post: otherReply, replies: [] }),
+        createThreadViewPost({
+          post: third,
+          replies: [createThreadViewPost({ post: fourth, replies: [] })],
+        }),
+      ],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {
+      p1: "1/4",
+      p2: "2/4",
+      p3: "3/4",
+      p4: "4/4",
+    });
+  });
+
+  it("does not number an OP sub-thread that starts below another author", () => {
+    const root = threadPost("p1", otherDid, { replyCount: 1 });
+    const opPost = threadPost("o1", opDid, {
+      parent: root,
+      root,
+      replyCount: 1,
+    });
+    const opChild = threadPost("o2", opDid, { parent: opPost, root });
+    const thread = createThreadViewPost({
+      post: root,
+      replies: [
+        createThreadViewPost({
+          post: opPost,
+          replies: [createThreadViewPost({ post: opChild, replies: [] })],
+        }),
+      ],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {});
+  });
+
+  it("stops the run at a reply by another author", () => {
+    const root = threadPost("p1", opDid, { replyCount: 1 });
+    const other = threadPost("r1", otherDid, {
+      parent: root,
+      root,
+      replyCount: 1,
+    });
+    const opBelowOther = threadPost("o1", opDid, { parent: other, root });
+    const thread = createThreadViewPost({
+      post: root,
+      replies: [
+        createThreadViewPost({
+          post: other,
+          replies: [createThreadViewPost({ post: opBelowOther, replies: [] })],
+        }),
+      ],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {});
+  });
+
+  it("returns nothing for a root with no OP replies", () => {
+    const root = threadPost("p1", opDid);
+    const thread = createThreadViewPost({ post: root, replies: [] });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {});
+  });
+
+  it("returns nothing when the run continues past the fetched depth", () => {
+    const root = threadPost("p1", opDid, { replyCount: 1 });
+    const second = threadPost("p2", opDid, {
+      parent: root,
+      root,
+      replyCount: 1,
+    });
+    const thread = createThreadViewPost({
+      post: root,
+      replies: [createThreadViewPost({ post: second })],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {});
+  });
+
+  it("returns nothing when a parent in the chain is blocked or missing", () => {
+    const root = threadPost("p1", opDid, { replyCount: 1 });
+    const second = threadPost("p2", opDid, {
+      parent: root,
+      root,
+      replyCount: 1,
+    });
+    const third = threadPost("p3", opDid, { parent: second, root });
+    const thread = createThreadViewPost({
+      post: third,
+      parent: createThreadViewPost({
+        post: second,
+        parent: { $type: "app.bsky.feed.defs#blockedPost", uri: root.uri },
+      }),
+      replies: [],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {});
+  });
+
+  it("numbers the run above a non-OP anchor only when the run provably ends", () => {
+    const root = threadPost("p1", opDid, { replyCount: 1 });
+    const second = threadPost("p2", opDid, {
+      parent: root,
+      root,
+      replyCount: 1,
+    });
+    const other = threadPost("r1", otherDid, { parent: second, root });
+    const thread = createThreadViewPost({
+      post: other,
+      parent: createThreadViewPost({
+        post: second,
+        parent: createThreadViewPost({ post: root }),
+      }),
+      replies: [],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {
+      p1: "1/2",
+      p2: "2/2",
+    });
+
+    const busySecond = { ...second, replyCount: 3 };
+    const ambiguousThread = createThreadViewPost({
+      post: other,
+      parent: createThreadViewPost({
+        post: busySecond,
+        parent: createThreadViewPost({ post: root }),
+      }),
+      replies: [],
+    });
+    assert.deepEqual(
+      numberingOf(getPostNumberingForPostThread(ambiguousThread)),
+      {},
+    );
+  });
+
+  it("follows the OP reply with the earliest rkey when the OP replied twice to one post", () => {
+    const root = threadPost("p1", opDid, { replyCount: 2 });
+    const later = threadPost("3lb", opDid, { parent: root, root });
+    const earlier = threadPost("3la", opDid, { parent: root, root });
+    const thread = createThreadViewPost({
+      post: root,
+      replies: [
+        createThreadViewPost({ post: later, replies: [] }),
+        createThreadViewPost({ post: earlier, replies: [] }),
+      ],
+    });
+    assert.deepEqual(numberingOf(getPostNumberingForPostThread(thread)), {
+      p1: "1/2",
+      "3la": "2/2",
+    });
+  });
+
+  it("returns nothing for a tombstone thread", () => {
+    assert.deepEqual(
+      getPostNumberingForPostThread({
+        $type: "app.bsky.feed.defs#notFoundPost",
+        uri: "at://did:plc:op/app.bsky.feed.post/gone",
+      }),
+      new Map(),
+    );
   });
 });

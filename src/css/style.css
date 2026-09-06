@@ -2182,6 +2182,25 @@ container-link {
   margin-top: -4px;
 }
 
+.post-number-badge {
+  display: inline-block;
+  border-radius: var(--label-badge-border-radius);
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  user-select: none;
+  color: var(--text-color-muted);
+  background-color: var(--callout-color);
+  vertical-align: 1px;
+}
+
+.post-number-badge-standalone {
+  margin-bottom: 6px;
+}
+
 .large-post {
   border-bottom: var(--hair) solid var(--post-border-color);
 }

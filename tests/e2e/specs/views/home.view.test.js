@@ -6,6 +6,7 @@ import {
   createList,
   createLiveStatusView,
   createPost,
+  createFeedItem,
 } from "../../../shared/factories.js";
 import { userProfile } from "../../testData.js";
 
@@ -1562,6 +1563,71 @@ test.describe("Home view", () => {
 
       // Still on the home view — the tap did not navigate to the profile
       await expect(page.locator("#home-view")).toBeVisible();
+    });
+  });
+
+  test.describe("OP thread numbering", () => {
+    const opDid = "did:plc:author1";
+
+    function opPost(rkey, { text, parent, root } = {}) {
+      return createPost({
+        uri: `at://${opDid}/app.bsky.feed.post/${rkey}`,
+        text,
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        ...(parent
+          ? {
+              reply: {
+                parent: { uri: parent.uri, cid: parent.cid },
+                root: { uri: root.uri, cid: root.cid },
+              },
+            }
+          : {}),
+      });
+    }
+
+    test("should number the feed post and its root and parent context rows", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/threads",
+        displayName: "Threads",
+        creatorHandle: "creator1.bsky.social",
+      });
+      const root = opPost("root1", { text: "Thread root" });
+      const parent = opPost("second1", {
+        text: "Second post",
+        parent: root,
+        root,
+      });
+      const post = opPost("third1", { text: "Third post", parent, root });
+      mockServer.addFeedGenerators([feed]);
+      mockServer.setPinnedFeeds([feed.uri]);
+      mockServer.addPosts([root, parent, post]);
+      mockServer.setFeedItems(feed.uri, [
+        createFeedItem({
+          post,
+          reply: {
+            root: { $type: "app.bsky.feed.defs#postView", ...root },
+            parent: { $type: "app.bsky.feed.defs#postView", ...parent },
+          },
+          opThreadPostIndex: 3,
+          opThreadPostCount: 4,
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await view.locator(".tab-bar-button", { hasText: "Threads" }).click();
+      const visibleFeed = view.locator(".feed-container:not([hidden])");
+      const feedItem = visibleFeed.locator('[data-testid="feed-item"]');
+      await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+      const badges = feedItem.locator('[data-testid="post-number-badge"]');
+      await expect(badges).toHaveText(["1/4", "2/4", "3/4"]);
     });
   });
 });

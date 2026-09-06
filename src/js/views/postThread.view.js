@@ -241,6 +241,7 @@ export default async function postThreadView({
           isUserPost: currentUser?.did === post.author?.did,
           postInteractionHandler,
           replyContext: getReplyContext(i, numReplies),
+          postNumbering: reply.postNumbering,
           lazyLoadImages,
           pluginService,
         });
@@ -440,6 +441,7 @@ export default async function postThreadView({
                 isUserPost: currentUser?.did === parentPost.author?.did,
                 postInteractionHandler,
                 replyContext,
+                postNumbering: parent.postNumbering,
                 ignoreMuteWarning: true,
                 pluginService,
               }),
@@ -472,6 +474,7 @@ export default async function postThreadView({
                   pluginService,
                   isUserPost: currentUser?.did === mainPost?.author?.did,
                   postInteractionHandler,
+                  postNumbering: postThread.postNumbering,
                   showFollowButton: doShowFollowButton(
                     postAuthor,
                     rootPost,
@@ -585,6 +588,7 @@ export default async function postThreadView({
       return {
         __isPrefill: true,
         post,
+        postNumbering: dataLayer.derived.$feedPostNumbering.get(postUri),
         parent: null,
         replies: null,
       };

@@ -456,12 +456,25 @@ export function createFeedItem({
   feedContext = "test-context",
   reply,
   reason,
+  opThreadPostIndex,
+  opThreadPostCount,
 }) {
   return {
     post,
     ...(reply ? { reply } : {}),
     ...(reason ? { reason } : {}),
     feedContext,
+    ...(opThreadPostIndex !== undefined ? { opThreadPostIndex } : {}),
+    ...(opThreadPostCount !== undefined ? { opThreadPostCount } : {}),
+  };
+}
+
+export function createThreadViewPost({ post, parent, replies }) {
+  return {
+    $type: "app.bsky.feed.defs#threadViewPost",
+    post,
+    ...(parent ? { parent } : {}),
+    ...(replies ? { replies } : {}),
   };
 }
 

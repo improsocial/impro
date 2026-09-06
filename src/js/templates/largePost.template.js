@@ -23,6 +23,7 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
+import { postNumberBadgeTemplate } from "/js/templates/postNumberBadge.template.js";
 import { WhoCanReplyModal } from "/js/modals/whoCanReply.modal.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
@@ -148,6 +149,7 @@ export function largePostTemplate({
   showFollowButton = false,
   isFollowPending = false,
   onClickFollow = noop,
+  postNumbering = null,
   pluginService,
 }) {
   if (isBlockedPost(post)) {
@@ -217,10 +219,21 @@ export function largePostTemplate({
                       uri: post.uri,
                       did: post.author?.did ?? null,
                     }}
+                    .suffix=${postNumbering
+                      ? postNumberBadgeTemplate({
+                          numbering: postNumbering,
+                          inline: true,
+                        })
+                      : null}
                     truncate-urls
                   ></plugin-rich-text>
                 </div>`
-              : ""}
+              : postNumbering
+                ? postNumberBadgeTemplate({
+                    numbering: postNumbering,
+                    inline: false,
+                  })
+                : ""}
             ${embed
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({

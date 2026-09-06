@@ -1,4 +1,4 @@
-import { isNil, unique } from "/js/utils.js";
+import { isNil, unique, minBy } from "/js/utils.js";
 import {
   CDN_URL,
   FOLLOWING_FEED_URI,
@@ -264,6 +264,80 @@ export function flattenParents(postThread) {
     current = current.parent;
   }
   return parents;
+}
+
+function isThreadViewPost(node) {
+  return node?.$type === "app.bsky.feed.defs#threadViewPost" && !!node.post;
+}
+
+// The contiguous run of posts by the thread's original poster starting at the root
+function getOpThreadRun(postThread) {
+  const chain = [...flattenParents(postThread), postThread];
+  if (!chain.every(isThreadViewPost)) {
+    return null;
+  }
+  const root = chain[0];
+  const mainPostReplyRoot = getReplyRootFromPost(postThread.post);
+  if (root.post.record?.reply || root.post.uri !== mainPostReplyRoot.uri) {
+    return null;
+  }
+  const opDid = root.post.author?.did;
+  if (!opDid) {
+    return null;
+  }
+  const run = [root];
+  let chainIndex = 1;
+  while (
+    chainIndex < chain.length &&
+    chain[chainIndex].post.author?.did === opDid
+  ) {
+    run.push(chain[chainIndex]);
+    chainIndex++;
+  }
+  if (chainIndex < chain.length) {
+    // This means the run ends above the main post.
+    // The replies of the last post aren't loaded,
+    // so if it has any we just bail
+    const lastRunNode = run[run.length - 1];
+    if ((lastRunNode.post.replyCount ?? 0) !== 1) {
+      return null;
+    }
+    return run;
+  }
+  let current = postThread;
+  while (true) {
+    const replies = current.replies;
+    if (!replies) {
+      if ((current.post.replyCount ?? 0) > 0) {
+        return null;
+      }
+      return run;
+    }
+    const opReplies = replies.filter(
+      (reply) => isThreadViewPost(reply) && reply.post.author?.did === opDid,
+    );
+    if (opReplies.length === 0) {
+      return run;
+    }
+    const next = minBy(opReplies, (reply) => getRKey(reply.post));
+    run.push(next);
+    current = next;
+  }
+}
+
+export function getPostNumberingForPostThread(postThread) {
+  const numbering = new Map();
+  const opThreadRun = getOpThreadRun(postThread);
+  if (!opThreadRun || opThreadRun.length < 2) {
+    return numbering;
+  }
+  opThreadRun.forEach((node, index) => {
+    numbering.set(node.post.uri, {
+      index: index + 1,
+      count: opThreadRun.length,
+    });
+  });
+  return numbering;
 }
 
 export function getParentPosts(postThread) {

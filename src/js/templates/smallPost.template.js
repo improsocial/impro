@@ -19,6 +19,7 @@ import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
+import { postNumberBadgeTemplate } from "/js/templates/postNumberBadge.template.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
@@ -103,6 +104,7 @@ export function smallPostTemplate({
   replyToAuthor = null,
   replyToBlocked = false,
   lazyLoadImages = false,
+  postNumbering = null,
   pluginService,
 }) {
   if (isBlockedPost(post)) {
@@ -191,10 +193,21 @@ export function smallPostTemplate({
                             uri: post.uri,
                             did: post.author?.did ?? null,
                           }}
+                          .suffix=${postNumbering
+                            ? postNumberBadgeTemplate({
+                                numbering: postNumbering,
+                                inline: true,
+                              })
+                            : null}
                           truncate-urls
                         ></plugin-rich-text>
                       </div>`
-                    : ""}
+                    : postNumbering
+                      ? postNumberBadgeTemplate({
+                          numbering: postNumbering,
+                          inline: false,
+                        })
+                      : ""}
                   ${post.embed
                     ? html`<div class="post-embed">
                         ${postEmbedTemplate({
