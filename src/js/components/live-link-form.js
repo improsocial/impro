@@ -149,8 +149,7 @@ class LiveLinkForm extends Component {
       this._linkMeta = null;
       this._linkMetaLoading = false;
       this._linkMetaFailed = false;
-      this._urlError =
-        "This service is not supported while the Live feature is in beta.";
+      this._urlError = "This service is not supported.";
       this.render();
       this._notifyChange();
       return;
