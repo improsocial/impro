@@ -335,6 +335,38 @@ function repostMenuTemplate({
   `;
 }
 
+function skeletonActionTemplate(icon) {
+  return html`<div class="post-action">
+    <div class="post-action-button">
+      <div class="post-action-icon">${icon}</div>
+    </div>
+  </div>`;
+}
+
+export function postActionBarSkeletonTemplate() {
+  return html`
+    <div
+      class="post-actions post-actions-skeleton"
+      data-testid="post-action-bar-skeleton"
+    >
+      <div class="post-actions-primary">
+        ${skeletonActionTemplate(html`<app-icon icon="reply"></app-icon>`)}
+        ${skeletonActionTemplate(html`<app-icon icon="repost"></app-icon>`)}
+        ${skeletonActionTemplate(fillableIconTemplate({ icon: "like" }))}
+      </div>
+      <div class="post-actions-secondary">
+        ${skeletonActionTemplate(fillableIconTemplate({ icon: "bookmark" }))}
+        ${skeletonActionTemplate(html`<app-icon icon="share-line"></app-icon>`)}
+        <div class="post-action">
+          <div class="post-action-button text-button">
+            <span class="text-button-text">...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function postActionBarTemplate({
   post,
   isAuthenticated,

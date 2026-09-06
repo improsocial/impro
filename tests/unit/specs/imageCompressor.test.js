@@ -242,5 +242,36 @@ describe("imageCompressor", () => {
         `expected multiple quality probes, got ${calls.encodeCount}`,
       );
     });
+
+    it("accepts output under the default 2MB limit", async () => {
+      // ~1.5MB decoded: over 1MB, under 2MB.
+      const midsized = `data:image/jpeg;base64,${"A".repeat(2_000_000)}`;
+      installImageStubs(() => midsized);
+
+      const result = await compressImage("data:image/jpeg;base64,AAAA");
+      assert(result.blob instanceof Blob, "expected a Blob");
+    });
+
+    it("rejects output over a custom maxSize", async () => {
+      const midsized = `data:image/jpeg;base64,${"A".repeat(2_000_000)}`;
+      installImageStubs(() => midsized);
+
+      await assert.rejects(
+        compressImage("data:image/jpeg;base64,AAAA", { maxSize: 1_000_000 }),
+        { message: "Unable to compress image" },
+      );
+    });
+
+    it("constrains output to a custom maxDimension", async () => {
+      const small = `data:image/jpeg;base64,${"A".repeat(16)}`;
+      const calls = installImageStubs(() => small);
+
+      const result = await compressImage("data:image/jpeg;base64,AAAA", {
+        maxDimension: 1000,
+      });
+      assert.deepEqual(calls.drawnSizes, [{ width: 1000, height: 1000 }]);
+      assert.deepEqual(result.width, 1000);
+      assert.deepEqual(result.height, 1000);
+    });
   });
 });

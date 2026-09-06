@@ -1,4 +1,4 @@
-import { describe, it, mock } from "node:test";
+import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { HandleNotFoundError } from "/js/atproto.js";
 import {
@@ -15,10 +15,49 @@ import {
   restoreGifFromDraftUri,
   isValidGif,
   createMinimalGifObject,
+  fetchAndCompressLinkCardImage,
 } from "/js/embedHelpers.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 import { makeTestDataLayer, stubRecordLinkResolution } from "../testHelpers.js";
 import { createPost, createGif } from "../../shared/factories.js";
+
+describe("fetchAndCompressLinkCardImage", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("compresses the fetched image with a 1MB size limit", async () => {
+    const compressed = {
+      blob: new Blob(["x"], { type: "image/jpeg" }),
+      width: 10,
+      height: 10,
+    };
+    const imageCompressor = {
+      compressImage: mock.fn(async () => compressed),
+    };
+
+    const result = await fetchAndCompressLinkCardImage(
+      "https://example.com/preview.png",
+      { imageCompressor },
+    );
+
+    assert.deepEqual(imageCompressor.compressImage.mock.callCount(), 1);
+    const [dataUrl, options] =
+      imageCompressor.compressImage.mock.calls[0].arguments;
+    assert(dataUrl.startsWith("data:image/png"));
+    assert.deepEqual(options, { maxSize: 1000000 });
+    assert.deepEqual(result, compressed);
+  });
+});
 
 describe("parseRecordLink", () => {
   it("parses a post link", () => {

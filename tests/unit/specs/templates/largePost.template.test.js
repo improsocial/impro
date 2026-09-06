@@ -79,16 +79,23 @@ describe("largePostTemplate", () => {
     container.remove();
   });
 
-  it("should omit actions when rendering a prefill", () => {
+  it("should render action counts and an action bar skeleton for an embedded prefill", () => {
     const result = largePostTemplate({
       post,
       ...baseProps,
-      showActions: false,
+      showActionBar: false,
     });
     const container = document.createElement("div");
     render(result, container);
-    assert.deepEqual(container.querySelector(".post-action-counts"), null);
-    assert.deepEqual(container.querySelector(".post-actions"), null);
+    assert(container.querySelector(".post-action-counts") !== null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='reply-button']"),
+      null,
+    );
+    assert(
+      container.querySelector("[data-testid='post-action-bar-skeleton']") !==
+        null,
+    );
   });
 
   it("should render with reply context line when replyContext is parent", () => {

@@ -72,7 +72,7 @@ class ImageAltTextDialog extends Component {
           <div class="image-alt-text-dialog-header">
             <h2>Add alt text</h2>
             <button
-              class="image-alt-text-dialog-close"
+              class="dialog-close-button"
               aria-label="Close"
               data-testid="alt-text-close"
               @click=${() => this.close()}

@@ -12,7 +12,7 @@ import {
   buildCdnUrl,
 } from "/js/dataHelpers.js";
 import { batch, getCurrentTimestamp } from "/js/utils.js";
-import { fetchAndCompressImage } from "/js/embedHelpers.js";
+import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 
@@ -21,6 +21,7 @@ export class Mutations {
   constructor(
     api,
     dataStore,
+    sessionState,
     patchStore,
     preferencesProvider,
     identityResolver,
@@ -28,6 +29,7 @@ export class Mutations {
   ) {
     this.api = api;
     this.dataStore = dataStore;
+    this.sessionState = sessionState;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
@@ -507,7 +509,11 @@ export class Mutations {
   }
 
   setSelectedFeedUri(feedUri) {
-    this.dataStore.$selectedFeedUri.set(feedUri);
+    this.sessionState.$selectedFeedUri.set(feedUri);
+  }
+
+  setTrendingHidden(hidden) {
+    this.sessionState.$trendingHidden.set(hidden);
   }
 
   async hidePost(post) {
@@ -1047,7 +1053,7 @@ export class Mutations {
     let thumbBlob = null;
     if (linkMeta.image) {
       try {
-        const compressed = await fetchAndCompressImage(linkMeta.image);
+        const compressed = await fetchAndCompressLinkCardImage(linkMeta.image);
         const uploaded = await this.api.uploadBlob(compressed.blob);
         thumbBlob = {
           $type: "blob",

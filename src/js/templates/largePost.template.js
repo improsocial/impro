@@ -15,7 +15,10 @@ import "/js/components/app-icon.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
-import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
+import {
+  postActionBarSkeletonTemplate,
+  postActionBarTemplate,
+} from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
@@ -138,7 +141,7 @@ export function largePostTemplate({
   postInteractionHandler,
   onClickReply = noop,
   replyContext,
-  showActions = true,
+  showActionBar = true,
   afterDelete = null,
   afterHide = null,
   afterBlock = null,
@@ -246,15 +249,15 @@ export function largePostTemplate({
               })
             : null}
         </div>
-        ${showActions
+        ${postActionCountsTemplate({
+          repostCount: post.repostCount,
+          quoteCount: post.quoteCount,
+          likeCount: post.likeCount,
+          bookmarkCount: post.bookmarkCount,
+          post,
+        })}
+        ${showActionBar
           ? html`
-              ${postActionCountsTemplate({
-                repostCount: post.repostCount,
-                quoteCount: post.quoteCount,
-                likeCount: post.likeCount,
-                bookmarkCount: post.bookmarkCount,
-                post,
-              })}
               ${postActionBarTemplate({
                 post,
                 isUserPost,
@@ -302,7 +305,7 @@ export function largePostTemplate({
                 pluginService,
               })}
             `
-          : ""}
+          : postActionBarSkeletonTemplate()}
       </div>
     </div>
   </div>`;

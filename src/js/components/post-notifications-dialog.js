@@ -51,7 +51,8 @@ class PostNotificationsDialog extends Component {
         >
           <div class="post-notifications-dialog-content">
             <button
-              class="post-notifications-dialog-close"
+              class="dialog-close-button dialog-close-button-floating"
+              data-testid="post-notifications-dialog-close"
               @click=${() => this.close()}
             >
               <app-icon icon="close-line"></app-icon>

@@ -77,7 +77,7 @@ function gifPickerHeaderTemplate({ query, onInput, onClear, onCloseDialog }) {
         : ""}
     </div>
     <button
-      class="search-dialog-close gif-picker-close"
+      class="dialog-close-button gif-picker-close"
       aria-label="Close"
       data-testid="gif-picker-close"
       @click=${() => onCloseDialog()}

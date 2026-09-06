@@ -317,28 +317,34 @@ describe("setPinnedItems", () => {
 
   it("should keep a selected feed that is still pinned", () => {
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.sessionState.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([followingItem, feedItem]);
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), feedItem.data.uri);
+    assert.deepEqual(
+      dataStore.sessionState.$selectedFeedUri.get(),
+      feedItem.data.uri,
+    );
   });
 
   it("should reset a no-longer-pinned selected feed to the first pinned item", () => {
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.sessionState.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([followingItem]);
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), "following");
+    assert.deepEqual(
+      dataStore.sessionState.$selectedFeedUri.get(),
+      "following",
+    );
   });
 
   it("should leave a null selected feed alone", () => {
     const dataStore = new DataStore(createSessionState(null));
     dataStore.setPinnedItems([followingItem]);
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+    assert.deepEqual(dataStore.sessionState.$selectedFeedUri.get(), null);
   });
 
   it("should clear the selected feed when nothing is pinned", () => {
     const dataStore = new DataStore(createSessionState(null));
-    dataStore.$selectedFeedUri.set(feedItem.data.uri);
+    dataStore.sessionState.$selectedFeedUri.set(feedItem.data.uri);
     dataStore.setPinnedItems([]);
-    assert.deepEqual(dataStore.$selectedFeedUri.get(), null);
+    assert.deepEqual(dataStore.sessionState.$selectedFeedUri.get(), null);
   });
 });

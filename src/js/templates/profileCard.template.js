@@ -279,6 +279,20 @@ async function openProfileContextMenu(event, props) {
     .addEventListener("close", () => menu.remove(), { once: true });
 }
 
+function canSubscribeToActivity(profile) {
+  const isFollowing = !!profile.viewer?.following;
+  const allowSubscriptions =
+    profile.associated?.activitySubscription?.allowSubscriptions ?? "followers";
+  switch (allowSubscriptions) {
+    case "followers":
+      return isFollowing;
+    case "mutuals":
+      return isFollowing && !!profile.viewer?.followedBy;
+    default:
+      return false;
+  }
+}
+
 export function profileCardTemplate({
   profile,
   identityResolver,
@@ -311,6 +325,7 @@ export function profileCardTemplate({
   const isBlocking = !!profile.viewer?.blocking;
   const isBlockedBy = !!profile.viewer?.blockedBy;
   const canChat = profileChatStatus?.canChat || !!profileChatStatus?.convo;
+  const canSubscribe = canSubscribeToActivity(profile);
   return html`<div class="profile-card">
     <div
       class="profile-banner-container"
@@ -339,7 +354,7 @@ export function profileCardTemplate({
           clickAction: liveStatus?.state === "active" ? "live" : "lightbox",
         })}
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
-          ? html` ${isFollowing
+          ? html` ${canSubscribe
               ? html`<button
                   class="rounded-button bell-button"
                   data-testid="post-notifications-button"

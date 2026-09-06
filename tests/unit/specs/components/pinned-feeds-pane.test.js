@@ -108,7 +108,7 @@ describe("pinned-feeds-pane", () => {
 
   it("highlights the selected feed while on the home route", async () => {
     dataLayer.dataStore.$pinnedItems.set(pinnedItems);
-    dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
+    dataLayer.sessionState.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
 
@@ -122,11 +122,11 @@ describe("pinned-feeds-pane", () => {
 
   it("moves the highlight when the selected feed changes", async () => {
     dataLayer.dataStore.$pinnedItems.set(pinnedItems);
-    dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
+    dataLayer.sessionState.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
 
-    dataLayer.dataStore.$selectedFeedUri.set(list.uri);
+    dataLayer.sessionState.$selectedFeedUri.set(list.uri);
     await flushMicrotasks();
 
     const active = element.querySelectorAll(".pinned-feeds-item.active");
@@ -139,7 +139,7 @@ describe("pinned-feeds-pane", () => {
 
   it("does not highlight any feed when show-selected is absent", async () => {
     dataLayer.dataStore.$pinnedItems.set(pinnedItems);
-    dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
+    dataLayer.sessionState.$selectedFeedUri.set(feedGenerator.uri);
     mount({ showSelected: false });
     await flushMicrotasks();
 
@@ -151,7 +151,7 @@ describe("pinned-feeds-pane", () => {
 
   it("re-renders the highlight when the show-selected attribute changes", async () => {
     dataLayer.dataStore.$pinnedItems.set(pinnedItems);
-    dataLayer.dataStore.$selectedFeedUri.set(feedGenerator.uri);
+    dataLayer.sessionState.$selectedFeedUri.set(feedGenerator.uri);
     mount();
     await flushMicrotasks();
     assert.deepEqual(
@@ -207,7 +207,8 @@ describe("pinned-feeds-pane", () => {
     window.addEventListener("home-feed-select", listener);
     let selectedFeedUriAtNavigation = null;
     routerGo.mock.mockImplementation(async () => {
-      selectedFeedUriAtNavigation = dataLayer.dataStore.$selectedFeedUri.get();
+      selectedFeedUriAtNavigation =
+        dataLayer.sessionState.$selectedFeedUri.get();
     });
 
     element.querySelectorAll("[data-testid='pinned-feeds-item']")[0].click();

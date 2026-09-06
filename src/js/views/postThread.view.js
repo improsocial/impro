@@ -484,7 +484,7 @@ export default async function postThreadView({
                     await handleClickReply(mainPost, root, currentUser);
                   },
                   replyContext: hasParent ? "reply" : null,
-                  showActions: !postThread.__isEmbeddedPrefill,
+                  showActionBar: !postThread.__isEmbeddedPrefill,
                 })}
             <plugin-slot
               name="post-thread-view:after-main"

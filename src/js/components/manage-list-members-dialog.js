@@ -195,7 +195,7 @@ class ManageListMembersDialog extends Component {
             <div class="search-dialog-header">
               <h2 class="search-dialog-title">Add people to list</h2>
               <button
-                class="search-dialog-close"
+                class="dialog-close-button"
                 aria-label="Close"
                 data-testid="manage-list-members-close"
                 @click=${() => this.close()}

@@ -1,5 +1,5 @@
-const MAX_IMAGE_DIMENSION = 4000;
-const MAX_IMAGE_SIZE = 2000000; // 2MB
+const DEFAULT_MAX_IMAGE_DIMENSION = 4000;
+const DEFAULT_MAX_IMAGE_SIZE = 2000000; // 2MB
 
 export class ImageCompressor {
   async loadImageFromDataUrl(dataUrl) {
@@ -51,13 +51,19 @@ export class ImageCompressor {
     return new Blob([array], { type: mimeType });
   }
 
-  async compressImage(dataUrl) {
+  async compressImage(
+    dataUrl,
+    {
+      maxDimension = DEFAULT_MAX_IMAGE_DIMENSION,
+      maxSize = DEFAULT_MAX_IMAGE_SIZE,
+    } = {},
+  ) {
     const img = await this.loadImageFromDataUrl(dataUrl);
 
     // Same as social-app: binary search on JPEG quality, and if that bottoms out
     // without fitting under the size limit, shrink dimensions and retry.
     let attempts = 0;
-    let maxDimension = MAX_IMAGE_DIMENSION;
+    let currentMaxDimension = maxDimension;
     let minQuality = 0;
     let maxQuality = 101; // exclusive
     let bestDataUrl = null;
@@ -77,15 +83,15 @@ export class ImageCompressor {
         minQuality = 0;
         maxQuality = 101;
         attempts++;
-        maxDimension = Math.floor(maxDimension * 0.8);
+        currentMaxDimension = Math.floor(currentMaxDimension * 0.8);
         continue;
       }
 
       const { width, height } = this.constrainImageSize({
         width: img.width,
         height: img.height,
-        maxWidth: maxDimension,
-        maxHeight: maxDimension,
+        maxWidth: currentMaxDimension,
+        maxHeight: currentMaxDimension,
       });
 
       if (
@@ -100,7 +106,7 @@ export class ImageCompressor {
 
       const result = resizedCanvas.toDataURL("image/jpeg", quality / 100);
 
-      if (this.estimateDataUrlSize(result) <= MAX_IMAGE_SIZE) {
+      if (this.estimateDataUrlSize(result) <= maxSize) {
         bestDataUrl = result;
         bestWidth = width;
         bestHeight = height;

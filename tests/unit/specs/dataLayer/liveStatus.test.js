@@ -31,6 +31,7 @@ function makeDerived({ preferences } = {}) {
   };
   const derived = new Derived(
     dataStore,
+    dataStore.sessionState,
     patchStore,
     preferencesProvider,
     new HiddenFeedItemsStore(),
@@ -411,6 +412,7 @@ describe("live status", () => {
       const mutations = new Mutations(
         api,
         dataStore,
+        dataStore.sessionState,
         patchStore,
         preferencesProvider,
         { resolveHandle: async () => null },

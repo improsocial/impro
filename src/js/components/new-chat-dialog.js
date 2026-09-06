@@ -219,7 +219,7 @@ function dialogHeaderTemplate({ title, onBack = null, action = "" }) {
   return html`<div class="search-dialog-header">
     ${onBack
       ? html`<button
-          class="search-dialog-close new-group-back-button"
+          class="dialog-close-button new-group-back-button"
           aria-label="Back"
           data-testid="new-group-back-button"
           @click=${onBack}
@@ -348,7 +348,7 @@ function chatStepTemplate({
     ${dialogHeaderTemplate({
       title: "Start a new chat",
       action: html`<button
-        class="search-dialog-close"
+        class="dialog-close-button"
         aria-label="Close"
         data-testid="new-chat-dialog-close"
         @click=${onClose}

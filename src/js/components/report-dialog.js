@@ -667,7 +667,7 @@ class ReportDialog extends Component {
           }}
         >
           <div class="report-dialog-content">
-            <button class="report-dialog-close" @click=${() => this.close()}>
+            <button class="dialog-close-button dialog-close-button-floating report-dialog-close" @click=${() => this.close()}>
               <app-icon icon="close-line"></app-icon>
             </button>
             <div class="report-dialog-body">

@@ -1,7 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/trending-pane.js";
-import { displayPreferences } from "/js/displayPreferences.js";
 import { ApiError } from "/js/api.js";
 import { makeTestDataLayer, respondToConfirm } from "../../testHelpers.js";
 import { createTrend } from "../../../shared/factories.js";
@@ -33,12 +32,10 @@ describe("trending-pane", () => {
 
   beforeEach(() => {
     document.body.innerHTML = "";
-    displayPreferences.$trendingHidden.set(false);
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
-    displayPreferences.$trendingHidden.set(false);
   });
 
   it("renders skeleton rows before trends resolve", () => {
@@ -129,10 +126,10 @@ describe("trending-pane", () => {
   });
 
   it("renders nothing when trending is hidden", async () => {
-    displayPreferences.$trendingHidden.set(true);
     const dataLayer = makeDataLayer(async () => ({
       trends: [createTrend({ topic: "gardening" })],
     }));
+    dataLayer.mutations.setTrendingHidden(true);
     const element = mount(dataLayer);
     await flushMicrotasks();
 
@@ -166,7 +163,7 @@ describe("trending-pane", () => {
     await respondToConfirm(true);
     await flushMicrotasks();
 
-    assert(displayPreferences.$trendingHidden.get());
+    assert(dataLayer.derived.$trendingHidden.get());
     assert.deepEqual(
       element.querySelector("[data-testid='trending-pane']"),
       null,

@@ -144,7 +144,7 @@ class ReactionsDialog extends Component {
                 Reactions
               </h2>
               <button
-                class="reactions-dialog-close"
+                class="dialog-close-button"
                 data-testid="reactions-dialog-close"
                 aria-label="Close reactions"
                 @click=${() => this._close()}

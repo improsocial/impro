@@ -113,7 +113,7 @@ class AccountSwitcherDialog extends Component {
                 Switch account
               </h2>
               <button
-                class="account-switcher-close"
+                class="dialog-close-button"
                 data-testid="account-switcher-close"
                 aria-label="Close"
                 ?disabled=${pendingAction !== null}

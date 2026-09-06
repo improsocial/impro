@@ -39,6 +39,7 @@ export class DataLayer extends EventEmitter {
     this.mutations = new Mutations(
       this.api,
       this.dataStore,
+      this.sessionState,
       this.patchStore,
       this.preferencesProvider,
       this.identityResolver,
@@ -46,6 +47,7 @@ export class DataLayer extends EventEmitter {
     );
     this.derived = new Derived(
       this.dataStore,
+      this.sessionState,
       this.patchStore,
       this.preferencesProvider,
       this.hiddenFeedItemsStore,

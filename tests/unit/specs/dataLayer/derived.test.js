@@ -28,6 +28,7 @@ function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const derived = new Derived(
     dataStore,
+    dataStore.sessionState,
     patchStore,
     preferencesProvider,
     hiddenFeedItemsStore,

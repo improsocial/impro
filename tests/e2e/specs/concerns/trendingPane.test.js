@@ -2,6 +2,7 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createTrend } from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("Trending pane", () => {
   let mockServer;
@@ -80,5 +81,52 @@ test.describe("Trending pane", () => {
     await page.reload();
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
     await expect(page.locator('[data-testid="trending-pane"]')).toHaveCount(0);
+
+    const sessionState = await page.evaluate(
+      (did) => JSON.parse(localStorage.getItem(`session-state:${did}`)),
+      userProfile.did,
+    );
+    expect(sessionState.trendingHidden).toBe(true);
+  });
+
+  test("stays visible when another account hid it", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() => {
+      localStorage.setItem(
+        "session-state:did:plc:someoneelse",
+        JSON.stringify({ trendingHidden: true }),
+      );
+    });
+    await page.reload();
+    await expect(page.locator('[data-testid="trending-pane"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+});
+
+test.describe("Trending pane when logged out", () => {
+  test("always shows, even with a stale hidden preference", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addTrends([createTrend({ topic: "gardening" })]);
+    await mockServer.setup(page);
+
+    await page.goto("/");
+    await page.evaluate((did) => {
+      localStorage.setItem(
+        `session-state:${did}`,
+        JSON.stringify({ trendingHidden: true }),
+      );
+      localStorage.setItem(
+        "display-preferences",
+        JSON.stringify({ trendingHidden: true }),
+      );
+    }, userProfile.did);
+    await page.reload();
+
+    await expect(page.locator('[data-testid="trending-pane"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 });

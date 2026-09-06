@@ -526,7 +526,7 @@ class PostInteractionSettingsDialog extends Component {
         >
           <div class="post-interaction-settings-dialog-content">
             <button
-              class="post-interaction-settings-dialog-close"
+              class="dialog-close-button dialog-close-button-floating"
               aria-label="Close"
               @click=${() => this.close()}
             >

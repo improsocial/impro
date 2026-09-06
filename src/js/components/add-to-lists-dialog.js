@@ -119,7 +119,7 @@ class AddToListsDialog extends Component {
         >
           <div class="add-to-lists-dialog-content">
             <button
-              class="add-to-lists-dialog-close"
+              class="dialog-close-button dialog-close-button-floating"
               aria-label="Close"
               @click=${() => this.close()}
             >
