@@ -12,7 +12,11 @@ import {
   bindPageTitle,
   onPageShow,
 } from "/js/router.js";
-import { linkToPost, linkToProfile } from "/js/navigation.js";
+import {
+  linkToPost,
+  linkToProfile,
+  linkToStarterPack,
+} from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
   cdnImageUrl,
@@ -188,9 +192,13 @@ export default async function notificationsView({
 
       const isFollowBackNotif = isFollowBackNotification(notification);
       const type = isFollowBackNotif ? "follow-back" : reason;
+      const starterPack = notification.starterPack ?? null;
 
       const existingGroup = notificationGroups.find(
-        (group) => group.type === type && group.subject === subject,
+        (group) =>
+          group.type === type &&
+          group.subject === subject &&
+          group.starterPack?.uri === starterPack?.uri,
       );
 
       if (existingGroup && GROUPED_NOTIFICATION_TYPES.includes(type)) {
@@ -199,6 +207,7 @@ export default async function notificationsView({
         notificationGroups.push({
           type,
           subject,
+          starterPack,
           notifications: [notification],
         });
       }
@@ -330,7 +339,31 @@ export default async function notificationsView({
               : "followed you"}
             <span class="notification-time">· ${timeAgo}</span>
           </div>
+          ${followedViaStarterPackTemplate({
+            starterPack: notificationGroup.starterPack,
+          })}
         </div>
+      </div>
+    `;
+  }
+
+  function followedViaStarterPackTemplate({ starterPack }) {
+    if (!starterPack) return "";
+    return html`
+      <div
+        class="notification-via-starter-pack"
+        data-testid="notification-via-starter-pack"
+      >
+        via Starter Pack
+        <a
+          class="notification-starter-pack-link"
+          href="${linkToStarterPack(starterPack)}"
+          ><img
+            class="notification-starter-pack-icon"
+            src="/img/starter-pack-avatar-fallback.svg"
+            alt=""
+          />${starterPack.record.name}</a
+        >
       </div>
     `;
   }
