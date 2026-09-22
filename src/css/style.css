@@ -6661,6 +6661,7 @@ sidebar-search {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 4px;
 }
 
 .feeds-list-item-description {
@@ -6690,7 +6691,7 @@ sidebar-search {
   display: block;
   width: 100%;
   height: 100%;
-  border: 2px solid var(--background-color);
+  /* border: 2px solid var(--background-color); */
 }
 
 .starter-pack-list-item-member-count {
