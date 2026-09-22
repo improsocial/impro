@@ -34,6 +34,7 @@ import communityPluginsView from "/js/views/communityPlugins.view.js";
 import communityPluginListingView from "/js/views/communityPluginListing.view.js";
 import feedDetailView from "/js/views/feedDetail.view.js";
 import listDetailView from "/js/views/listDetail.view.js";
+import starterPackDetailView from "/js/views/starterPackDetail.view.js";
 import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
@@ -308,6 +309,14 @@ export async function main() {
   router.addRoute("/hashtag/:tag", () => hashtagView);
   router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
   router.addRoute("/profile/:handleOrDid/lists/:rkey", () => listDetailView);
+  router.addRoute(
+    [
+      "/profile/:handleOrDid/starter-pack/:rkey",
+      "/starter-pack/:handleOrDid/:rkey",
+      "/start/:handleOrDid/:rkey",
+    ],
+    () => starterPackDetailView,
+  );
   router.addRoute(
     "/profile/:handleOrDid/post/:rkey/likes",
     () => postLikesView,

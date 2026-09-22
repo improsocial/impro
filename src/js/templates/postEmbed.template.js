@@ -14,7 +14,7 @@ import "/js/components/plugin-rich-text.js";
 import "/js/components/app-icon.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
-import { linkToPost, linkToFeed } from "/js/navigation.js";
+import { linkToPost, linkToFeed, linkToStarterPack } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/container-link.js";
 import {
@@ -295,7 +295,9 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
       src="${cdnImageUrl(image.thumb)}"
       data-lightbox-src="${cdnImageUrl(image.fullsize ?? image.thumb)}"
       alt=${image.alt}
-      style=${doCalculateAspectRatio ? `aspect-ratio: ${aspectRatio ?? 1};` : ""}
+      style=${doCalculateAspectRatio
+        ? `aspect-ratio: ${aspectRatio ?? 1};`
+        : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
     ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
@@ -570,12 +572,7 @@ function getStarterPackThumbnail(starterPack) {
 
 function starterPackTemplate({ starterPack }) {
   return html`<div class="starter-pack-embed embed-card">
-    <a
-      href="https://bsky.app/starter-pack/${starterPack.creator
-        .handle}/${getRKey(starterPack)}"
-      target="_blank"
-      @click=${(e) => e.stopPropagation()}
-    >
+    <a href="${linkToStarterPack(starterPack)}">
       <div class="starter-pack-embed-content">
         <img
           class="starter-pack-embed-image"

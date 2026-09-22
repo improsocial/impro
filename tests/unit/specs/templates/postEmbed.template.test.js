@@ -390,7 +390,11 @@ describe("postEmbedTemplate - external links", () => {
       },
       labeler: null,
     };
-    const result = postEmbedTemplate({ embed, mediaLabel, isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      mediaLabel,
+      isAuthenticated: true,
+    });
     const container = document.createElement("div");
     render(result, container);
     const warning = container.querySelector("moderation-warning");
@@ -1208,6 +1212,11 @@ describe("postEmbedTemplate - record embeds", () => {
     });
     const card = container.querySelector(".starter-pack-embed");
     assert(card !== null);
+    assert.deepEqual(
+      card.querySelector("a").getAttribute("href"),
+      "/profile/creator.bsky.social/starter-pack/cool-pack",
+    );
+    assert.deepEqual(card.querySelector("a").getAttribute("target"), null);
     assert(card.textContent.includes("Cool Pack"));
     assert(card.textContent.includes("People to follow"));
     assert(card.textContent.includes("@creator.bsky.social"));

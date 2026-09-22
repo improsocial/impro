@@ -317,9 +317,32 @@ export function createList({
   };
 }
 
-export function createStarterPack({ uri, name, creatorHandle, description }) {
+export function createStarterPack({
+  uri,
+  name,
+  creatorHandle,
+  description,
+  list,
+  feeds,
+}) {
   const creatorDid = uri.split("/")[2];
   const rkey = uri.split("/").pop();
+  const listUri = `at://${creatorDid}/app.bsky.graph.list/${rkey}`;
+  const fullView = {};
+  if (list) {
+    fullView.list =
+      list === true
+        ? createList({
+            uri: listUri,
+            name,
+            creatorHandle,
+            purpose: "app.bsky.graph.defs#referencelist",
+          })
+        : list;
+  }
+  if (feeds) {
+    fullView.feeds = feeds;
+  }
   return {
     uri,
     cid: "bafyreitest" + rkey,
@@ -327,7 +350,7 @@ export function createStarterPack({ uri, name, creatorHandle, description }) {
       $type: "app.bsky.graph.starterpack",
       name,
       description: description || "",
-      list: `at://${creatorDid}/app.bsky.graph.list/${rkey}`,
+      list: listUri,
       createdAt: "2025-01-01T00:00:00.000Z",
     },
     creator: {
@@ -344,6 +367,7 @@ export function createStarterPack({ uri, name, creatorHandle, description }) {
     joinedAllTimeCount: 0,
     indexedAt: "2025-01-01T00:00:00.000Z",
     labels: [],
+    ...fullView,
   };
 }
 

@@ -2293,6 +2293,25 @@ describe("$listMembers", () => {
     assert.deepEqual(result.members.length, 1);
     assert.deepEqual(result.members[0].handle, "member.test");
     assert.deepEqual(result.cursor, "lc");
+    assert.deepEqual(result.optedOutDids, []);
+  });
+
+  it("should list the dids of members who opted out", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    dataStore.setProfiles([
+      createProfile({ did: "did:plc:in", handle: "in.test" }),
+      createProfile({ did: "did:plc:out", handle: "out.test" }),
+    ]);
+    dataStore.$listMembers.set(listUri, {
+      items: [
+        { subject: { did: "did:plc:in" } },
+        { subject: { did: "did:plc:out" }, subjectOptedOut: true },
+      ],
+      cursor: null,
+    });
+    const result = derived.$listMembers.get(listUri);
+    assert.deepEqual(result.optedOutDids, ["did:plc:out"]);
   });
 });
 

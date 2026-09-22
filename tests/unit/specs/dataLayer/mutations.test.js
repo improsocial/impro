@@ -367,6 +367,137 @@ describe("followProfile", () => {
   });
 });
 
+describe("followAllStarterPackMembers", () => {
+  const starterPack = {
+    uri: "at://did:plc:creator/app.bsky.graph.starterpack/pack",
+    cid: "bafypack",
+    list: { uri: "at://did:plc:creator/app.bsky.graph.list/pack" },
+  };
+
+  function makeItem(did, viewer = {}) {
+    return {
+      uri: `li-${did}`,
+      subject: { did, handle: did + ".test", viewer },
+    };
+  }
+
+  function setup({ listItems, applyWrites }) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const applyWritesCalls = [];
+    const api = {
+      session: { did: "did:plc:me" },
+      getAllListItems: async () => listItems,
+      applyWrites:
+        applyWrites ??
+        (async (writes) => {
+          applyWritesCalls.push(writes);
+          return {};
+        }),
+    };
+    const mutations = makeMutations(api, dataStore, patchStore, {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { dataStore, mutations, applyWritesCalls };
+  }
+
+  it("should follow only eligible members with the pack as via", async () => {
+    const listItems = [
+      makeItem("did:plc:a"),
+      makeItem("did:plc:me"),
+      makeItem("did:plc:blocking", { blocking: "at://block" }),
+      makeItem("did:plc:blockedby", { blockedBy: true }),
+      makeItem("did:plc:muted", { muted: true }),
+      makeItem("did:plc:mutedbylist", { mutedByList: { uri: "l" } }),
+      makeItem("did:plc:following", { following: "at://follow" }),
+      makeItem("did:plc:b"),
+    ];
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    const count = await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(count, 2);
+    assert.deepEqual(applyWritesCalls.length, 1);
+    const writes = applyWritesCalls[0];
+    assert.deepEqual(
+      writes.map((write) => write.value.subject),
+      ["did:plc:a", "did:plc:b"],
+    );
+    for (const write of writes) {
+      assert.deepEqual(write.$type, "com.atproto.repo.applyWrites#create");
+      assert.deepEqual(write.collection, "app.bsky.graph.follow");
+      assert.deepEqual(typeof write.rkey, "string");
+      assert.deepEqual(write.value.$type, "app.bsky.graph.follow");
+      assert.deepEqual(write.value.via, {
+        uri: starterPack.uri,
+        cid: starterPack.cid,
+      });
+    }
+  });
+
+  it("should chunk writes at fifty", async () => {
+    const listItems = Array.from({ length: 120 }, (_, index) =>
+      makeItem(`did:plc:m${index}`),
+    );
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(
+      applyWritesCalls.map((writes) => writes.length),
+      [50, 50, 20],
+    );
+  });
+
+  it("should skip the api call when nobody is eligible", async () => {
+    const listItems = [makeItem("did:plc:following", { following: "at://f" })];
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    const count = await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(count, 0);
+    assert.deepEqual(applyWritesCalls.length, 0);
+  });
+
+  it("should mark cached profiles as followed", async () => {
+    const listItems = [makeItem("did:plc:a"), makeItem("did:plc:b")];
+    const { dataStore, mutations } = setup({ listItems });
+    dataStore.setProfiles([{ did: "did:plc:a", handle: "a.test", viewer: {} }]);
+    dataStore.$detailedProfiles.set("did:plc:a", {
+      did: "did:plc:a",
+      handle: "a.test",
+      followersCount: 4,
+      viewer: {},
+    });
+
+    await mutations.followAllStarterPackMembers(starterPack);
+
+    const profile = dataStore.$profiles.get("did:plc:a");
+    assert.match(
+      profile.viewer.following,
+      /^at:\/\/did:plc:me\/app\.bsky\.graph\.follow\/[a-z2-7]{13}$/,
+    );
+    const detailed = dataStore.$detailedProfiles.get("did:plc:a");
+    assert.deepEqual(detailed.followersCount, 5);
+    assert.deepEqual(detailed.viewer.following, profile.viewer.following);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b"), null);
+  });
+
+  it("should rethrow api failures", async () => {
+    const { mutations } = setup({
+      listItems: [makeItem("did:plc:a")],
+      applyWrites: async () => {
+        throw new Error("boom");
+      },
+    });
+
+    await assert.rejects(
+      () => mutations.followAllStarterPackMembers(starterPack),
+      /boom/,
+    );
+  });
+});
+
 describe("unfollowProfile", () => {
   const testProfile = {
     uri: "did:test:profile",

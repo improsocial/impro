@@ -1025,15 +1025,37 @@ test.describe("List Detail view", () => {
   });
 
   test.describe("Logged-out behavior", () => {
-    test("should redirect to /login when not authenticated", async ({
+    test("should render the list without pin or follow buttons when not authenticated", async ({
       page,
     }) => {
-      const loggedOutMockServer = new MockServer();
-      await loggedOutMockServer.setup(page);
+      const mockServer = new MockServer();
+      setupList(mockServer);
+      const member = createProfile({
+        did: "did:plc:member1",
+        handle: "member1.bsky.social",
+        displayName: "Member One",
+      });
+      mockServer.addListMembers(LIST_URI, [member]);
+      await mockServer.setup(page);
 
       await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
-      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
+      const view = page.locator("#list-detail-view");
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText("My Curated List", { timeout: 10000 });
+      await expect(view.locator('[data-testid="pin-list-button"]')).toHaveCount(
+        0,
+      );
+
+      await view.locator('[data-testid="tab-people"]').click();
+      const memberRow = view
+        .locator(".profile-list-item")
+        .filter({ hasText: "member1.bsky.social" });
+      await expect(memberRow).toBeVisible();
+      await expect(
+        memberRow.locator('[data-testid="follow-button"]'),
+      ).toHaveCount(0);
     });
   });
 });

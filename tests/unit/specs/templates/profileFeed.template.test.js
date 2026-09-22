@@ -406,6 +406,48 @@ describe("profileFeedTemplate", () => {
     );
   });
 
+  it("should hide no-unauthenticated profiles when not authenticated", () => {
+    const hiddenActor = {
+      ...mockActor,
+      did: "did:plc:hidden",
+      handle: "hidden.bsky.social",
+      labels: [{ val: "!no-unauthenticated", src: "did:plc:hidden" }],
+    };
+    render(
+      profileFeedTemplate({
+        profiles: [mockActor, hiddenActor],
+        hasMore: false,
+        isAuthenticated: false,
+      }),
+      container,
+    );
+    const items = container.querySelectorAll(".profile-list-item");
+    assert.deepEqual(items.length, 1);
+    assert(container.textContent.includes("testuser.bsky.social"));
+    assert(!container.textContent.includes("hidden.bsky.social"));
+  });
+
+  it("should show no-unauthenticated profiles when authenticated", () => {
+    const hiddenActor = {
+      ...mockActor,
+      did: "did:plc:hidden",
+      handle: "hidden.bsky.social",
+      labels: [{ val: "!no-unauthenticated", src: "did:plc:hidden" }],
+    };
+    render(
+      profileFeedTemplate({
+        profiles: [mockActor, hiddenActor],
+        hasMore: false,
+        isAuthenticated: true,
+      }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelectorAll(".profile-list-item").length,
+      2,
+    );
+  });
+
   it("should render 10 skeletons by default when loading", () => {
     const result = profileFeedTemplate({ profiles: null, hasMore: false });
     render(result, container);

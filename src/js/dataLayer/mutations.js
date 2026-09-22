@@ -16,6 +16,7 @@ import { batch, getCurrentTimestamp } from "/js/utils.js";
 import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
+import { generateTid } from "/js/atproto.js";
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -294,6 +295,57 @@ export class Mutations {
       // clear patch
       this.patchStore.removeProfilePatch(profile.did, patchId);
     }
+  }
+
+  async followAllStarterPackMembers(starterPack) {
+    const currentUserDid = this.api.session.did;
+    const listItems = await this.api.getAllListItems(starterPack.list.uri);
+    const dids = listItems
+      .map((item) => item.subject)
+      .filter(
+        (profile) =>
+          profile.did !== currentUserDid &&
+          !profile.viewer?.blocking &&
+          !profile.viewer?.blockedBy &&
+          !profile.viewer?.muted &&
+          !profile.viewer?.mutedByList &&
+          !profile.viewer?.following,
+      )
+      .map((profile) => profile.did);
+    const writes = dids.map((did) => ({
+      $type: "com.atproto.repo.applyWrites#create",
+      collection: "app.bsky.graph.follow",
+      rkey: generateTid(),
+      value: {
+        $type: "app.bsky.graph.follow",
+        subject: did,
+        createdAt: getCurrentTimestamp(),
+        via: { uri: starterPack.uri, cid: starterPack.cid },
+      },
+    }));
+    for (const chunk of batch(writes, 50)) {
+      await this.api.applyWrites(chunk);
+    }
+    for (const write of writes) {
+      const did = write.value.subject;
+      const followUri = `at://${currentUserDid}/app.bsky.graph.follow/${write.rkey}`;
+      const profile = this.dataStore.$profiles.get(did);
+      if (profile && !profile.viewer?.following) {
+        this.dataStore.$profiles.set(did, {
+          ...profile,
+          viewer: { ...profile.viewer, following: followUri },
+        });
+      }
+      const detailed = this.dataStore.$detailedProfiles.get(did);
+      if (detailed && !detailed.viewer?.following) {
+        this.dataStore.$detailedProfiles.set(did, {
+          ...detailed,
+          followersCount: detailed.followersCount + 1,
+          viewer: { ...detailed.viewer, following: followUri },
+        });
+      }
+    }
+    return dids.length;
   }
 
   async addProfileToList(profile, list) {

@@ -288,15 +288,37 @@ test.describe("Feed Detail view", () => {
   });
 
   test.describe("Logged-out behavior", () => {
-    test("should redirect to /login when not authenticated", async ({
+    test("should render the feed without the pin button when not authenticated", async ({
       page,
     }) => {
-      const loggedOutMockServer = new MockServer();
-      await loggedOutMockServer.setup(page);
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+        displayName: "Trending",
+        creatorHandle: "creator1.bsky.social",
+      });
+      const post = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "First trending post",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        loggedOut: true,
+      });
+      mockServer.addFeedGenerators([feed]);
+      mockServer.addFeedItems(feed.uri, [post]);
+      await mockServer.setup(page);
 
       await page.goto("/profile/creator1.bsky.social/feed/trending");
 
-      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
+      const view = page.locator("#feed-detail-view");
+      await expect(view.locator('[data-testid="header-title"]')).toContainText(
+        "Trending",
+        { timeout: 10000 },
+      );
+      await expect(view.locator(".post-text").first()).toContainText(
+        "First trending post",
+      );
+      await expect(view.locator(".pin-feed-button")).toHaveCount(0);
     });
   });
 });

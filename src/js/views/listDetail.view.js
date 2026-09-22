@@ -28,7 +28,6 @@ export default async function listDetailView({
   root,
   params,
   context: {
-    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -36,8 +35,6 @@ export default async function listDetailView({
     interactionHandlers,
   },
 }) {
-  await auth.requireAuth();
-
   const { handleOrDid, rkey } = params;
 
   const profileDid = await resolveDidFromHandleOrDid(
@@ -135,25 +132,30 @@ export default async function listDetailView({
         ${headerTemplate({
           rightItemTemplate: list
             ? () => html`
-                ${isCurateList
-                  ? html`<button
-                      class=${classnames("pin-feed-button", {
-                        pinned: isPinned,
+                ${!isAuthenticated
+                  ? ""
+                  : isCurateList
+                    ? html`<button
+                        class=${classnames("pin-feed-button", {
+                          pinned: isPinned,
+                        })}
+                        data-testid="pin-list-button"
+                        data-teststate=${isPinned ? "pinned" : "not-pinned"}
+                        @click=${() =>
+                          listInteractionHandler.handlePinList(
+                            listUri,
+                            !isPinned,
+                          )}
+                      >
+                        ${fillableIconTemplate({
+                          icon: "pin",
+                          filled: isPinned,
+                        })}
+                      </button>`
+                    : listSubscriptionButtonTemplate({
+                        list,
+                        listInteractionHandler,
                       })}
-                      data-testid="pin-list-button"
-                      data-teststate=${isPinned ? "pinned" : "not-pinned"}
-                      @click=${() =>
-                        listInteractionHandler.handlePinList(
-                          listUri,
-                          !isPinned,
-                        )}
-                    >
-                      ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
-                    </button>`
-                  : listSubscriptionButtonTemplate({
-                      list,
-                      listInteractionHandler,
-                    })}
                 <button
                   class="context-menu-button"
                   @click=${function (e) {
