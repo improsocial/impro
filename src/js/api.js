@@ -503,6 +503,18 @@ export class Api {
     return res.data;
   }
 
+  async searchStarterPacks(query, { limit = 25, cursor = "" } = {}) {
+    const queryParams = { q: query, limit };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
+    const res = await this.appViewRequest(
+      `app.bsky.graph.searchStarterPacksV2`,
+      { query: queryParams },
+    );
+    return res.data;
+  }
+
   async getTrends({ limit = 5 } = {}) {
     const res = await this.appViewRequest(`app.bsky.unspecced.getTrends`, {
       query: { limit },

@@ -154,6 +154,7 @@ const OPTIONAL_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.draft.updateDraft",
   "rpc:app.bsky.draft.deleteDraft",
   "rpc:chat.bsky.group.createGroup",
+  "rpc:app.bsky.graph.searchStarterPacksV2",
 ];
 
 function expandScope(scope) {

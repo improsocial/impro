@@ -13,6 +13,7 @@ import {
   linkToFeed,
   linkToProfile,
   linkToProfileByDid,
+  linkToStarterPack,
 } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
@@ -24,8 +25,18 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 export default async function searchView({
   root,
   layout,
-  context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
+  context: {
+    auth,
+    dataLayer,
+    isAuthenticated,
+    pluginService,
+    interactionHandlers,
+  },
 }) {
+  const starterPackSearchEnabled =
+    isAuthenticated &&
+    (await auth.hasScope("rpc:app.bsky.graph.searchStarterPacksV2"));
+
   function getUrlQuery() {
     return (new URLSearchParams(window.location.search).get("q") ?? "").trim();
   }
@@ -48,6 +59,8 @@ export default async function searchView({
     latest: (query) =>
       dataLayer.requests.loadPostSearchLatest(query, { limit: 25 }),
     feeds: (query) => dataLayer.requests.loadFeedSearch(query, { limit: 15 }),
+    starterPacks: (query) =>
+      dataLayer.requests.loadStarterPackSearch(query, { limit: 25 }),
   };
 
   const TAB_STATUS_PREFIXES = {
@@ -55,6 +68,7 @@ export default async function searchView({
     top: "loadPostSearchTop-",
     latest: "loadPostSearchLatest-",
     feeds: "loadFeedSearch-",
+    starterPacks: "loadStarterPackSearch-",
   };
 
   function loadTabIfNeeded(tab) {
@@ -102,6 +116,9 @@ export default async function searchView({
       dataLayer.requests.loadPostSearchTop("");
       dataLayer.requests.loadPostSearchLatest("");
       dataLayer.requests.loadFeedSearch("");
+    }
+    if (starterPackSearchEnabled) {
+      dataLayer.requests.loadStarterPackSearch("");
     }
   }
 
@@ -210,8 +227,8 @@ export default async function searchView({
 
   function loadPageData() {
     const query = new URLSearchParams(window.location.search);
-    if (query.get("tab")) {
-      const tab = query.get("tab");
+    const tab = query.get("tab");
+    if (tab && (tab !== "starterPacks" || starterPackSearchEnabled)) {
       state.$activeTab.set(tab === "posts" ? "top" : tab);
     }
     const q = getUrlQuery();
@@ -275,6 +292,15 @@ export default async function searchView({
       limit: 15,
       cursor,
     });
+  }
+
+  async function loadMoreStarterPacks() {
+    const cursor = dataLayer.derived.$starterPackSearchCursor.get();
+    if (!cursor) return;
+    await dataLayer.requests.loadStarterPackSearch(
+      state.$committedQuery.get(),
+      { limit: 25, cursor },
+    );
   }
 
   const {
@@ -590,6 +616,111 @@ export default async function searchView({
     </infinite-scroll-container>`;
   }
 
+  function starterPackListItemTemplate({ starterPack, currentUser }) {
+    const { record, creator } = starterPack;
+    const isOwner = currentUser?.did === creator.did;
+    const sampleProfiles = (starterPack.listItemsSample ?? [])
+      .slice(0, 8)
+      .map((item) => item.subject);
+    const remainingCount =
+      (starterPack.listItemCount ?? 0) - sampleProfiles.length;
+    return html`<container-link
+      class="feeds-list-item starter-pack-list-item clickable"
+      data-testid="starter-pack-search-result"
+      href=${linkToStarterPack(starterPack)}
+    >
+      <div class="feeds-list-item-avatar">
+        <img
+          src="/img/starter-pack-avatar-fallback.svg"
+          alt=${record.name}
+          class="feed-avatar"
+        />
+      </div>
+      <div class="feeds-list-item-content">
+        <div class="feeds-list-item-title">${record.name}</div>
+        <div class="feeds-list-item-creator">
+          Starter pack by ${isOwner ? "you" : html`@${creator.handle}`}
+        </div>
+        ${record.description
+          ? // prettier-ignore
+            html`<div class="feeds-list-item-description">${record.description}</div>`
+          : ""}
+        ${sampleProfiles.length > 0
+          ? html`<div
+              class="starter-pack-list-item-members"
+              data-testid="starter-pack-members"
+            >
+              ${sampleProfiles.map((profile) =>
+                keyed(
+                  profile.did,
+                  html`<div class="starter-pack-list-item-member">
+                    ${avatarTemplate({
+                      author: profile,
+                      clickAction: "none",
+                      showLiveBadge: false,
+                    })}
+                  </div>`,
+                ),
+              )}
+              ${remainingCount > 0
+                ? html`<div class="starter-pack-list-item-member-count">
+                    +${remainingCount}
+                  </div>`
+                : ""}
+            </div>`
+          : ""}
+      </div>
+    </container-link>`;
+  }
+
+  function starterPackSearchResultsTemplate({
+    status,
+    starterPackSearchResults,
+    starterPackSearchHasMore,
+    currentUser,
+  }) {
+    if (!starterPackSearchResults && status.loading) {
+      return html`<div class="search-status-message">
+        Searching starter packs…
+      </div>`;
+    }
+    if (status.error) {
+      return html`<div class="search-status-message error">
+        Failed to search starter packs
+        ${status.error.message ? html`(${status.error.message})` : ""}.
+      </div>`;
+    }
+    if (!starterPackSearchResults || starterPackSearchResults.length === 0) {
+      return html`<div class="search-status-message" data-testid="empty-state">
+        No starter packs found.
+      </div>`;
+    }
+    return html`<infinite-scroll-container
+      lookahead="2500px"
+      @load-more=${async (event) => {
+        if (starterPackSearchHasMore) {
+          await loadMoreStarterPacks();
+          event.detail.resume();
+        }
+      }}
+      ?disabled=${!starterPackSearchHasMore}
+    >
+      <div class="feeds-list">
+        ${starterPackSearchResults.map((starterPack) =>
+          keyed(
+            starterPack.uri,
+            starterPackListItemTemplate({ starterPack, currentUser }),
+          ),
+        )}
+        ${starterPackSearchHasMore
+          ? html`<div class="feed-loading-indicator">
+              <div class="loading-spinner"></div>
+            </div>`
+          : ""}
+      </div>
+    </infinite-scroll-container>`;
+  }
+
   function getActivePanelTemplate(activeTab, committedQuery, currentUser) {
     const status = dataLayer.requests.statusStore.$statuses.get(
       TAB_STATUS_PREFIXES[activeTab] + committedQuery,
@@ -627,6 +758,17 @@ export default async function searchView({
             feedSearchResults: dataLayer.derived.$feedSearchResults.get(),
             feedSearchHasMore: !!dataLayer.derived.$feedSearchCursor.get(),
             preferences: dataLayer.derived.$preferences.get(),
+          })}
+        </div>`;
+      case "starterPacks":
+        return html`<div class="search-results-panel">
+          ${starterPackSearchResultsTemplate({
+            status,
+            starterPackSearchResults:
+              dataLayer.derived.$starterPackSearchResults.get(),
+            starterPackSearchHasMore:
+              !!dataLayer.derived.$starterPackSearchCursor.get(),
+            currentUser,
           })}
         </div>`;
       default:
@@ -770,9 +912,11 @@ export default async function searchView({
                         { value: "latest", label: "Latest" },
                         { value: "profiles", label: "People" },
                         { value: "feeds", label: "Feeds" },
+                        ...(starterPackSearchEnabled
+                          ? [{ value: "starterPacks", label: "Starter Packs" }]
+                          : []),
                       ]}
                       active-tab=${activeTab}
-                      full-width
                       @tab-click=${(event) => handleTabChange(event.detail)}
                     ></tab-bar>
                   `

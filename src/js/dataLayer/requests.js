@@ -219,6 +219,10 @@ export class Requests {
       this.loadFeedSearch,
       (query) => "loadFeedSearch-" + query,
     );
+    this.enableStatus(
+      this.loadStarterPackSearch,
+      (query) => "loadStarterPackSearch-" + query,
+    );
     this.enableStatus(this.loadTrends, "loadTrends");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
@@ -780,6 +784,52 @@ export class Requests {
     } else {
       this.dataStore.$feedSearchResults.set({
         feeds,
+        cursor: searchData.cursor,
+      });
+    }
+  }
+
+  async loadStarterPackSearch(query, { limit = 25, cursor = "" } = {}) {
+    if (!query) {
+      this.dataStore.$latestStarterPackSearchRequestTime.set(null);
+      this.dataStore.$starterPackSearchResults.set(null);
+      return;
+    }
+    if (!cursor) {
+      this.dataStore.$starterPackSearchResults.set(null);
+    }
+    const requestTime = Date.now();
+    this.dataStore.$latestStarterPackSearchRequestTime.set(requestTime);
+    const searchData = await this.api.searchStarterPacks(query, {
+      limit,
+      cursor,
+    });
+    if (
+      requestTime !== this.dataStore.$latestStarterPackSearchRequestTime.get()
+    ) {
+      return;
+    }
+    const existingResults = this.dataStore.$starterPackSearchResults.get();
+    const existingUris = new Set(
+      existingResults && cursor
+        ? existingResults.starterPacks.map((starterPack) => starterPack.uri)
+        : [],
+    );
+    const starterPacks = [];
+    for (const starterPack of searchData.starterPacks || []) {
+      if (existingUris.has(starterPack.uri)) continue;
+      existingUris.add(starterPack.uri);
+      starterPacks.push(starterPack);
+      this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
+    }
+    if (existingResults && cursor) {
+      this.dataStore.$starterPackSearchResults.set({
+        starterPacks: [...existingResults.starterPacks, ...starterPacks],
+        cursor: searchData.cursor,
+      });
+    } else {
+      this.dataStore.$starterPackSearchResults.set({
+        starterPacks,
         cursor: searchData.cursor,
       });
     }

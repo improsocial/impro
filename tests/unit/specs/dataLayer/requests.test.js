@@ -1512,6 +1512,98 @@ describe("loadFeedSearch", () => {
   });
 });
 
+describe("loadStarterPackSearch", () => {
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$starterPackSearchResults.set({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "c",
+    });
+    const mockApi = {
+      searchStarterPacks: async () => ({ starterPacks: [], cursor: null }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("");
+
+    assert.deepEqual(dataStore.$starterPackSearchResults.get(), null);
+  });
+
+  it("should store starter packs and cache them by uri", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mockApi = {
+      searchStarterPacks: async () => ({
+        starterPacks: [{ uri: "sp1", record: { name: "Pack One" } }],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("science");
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(stored.starterPacks.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+    assert.deepEqual(
+      dataStore.$starterPacks.get("sp1").record.name,
+      "Pack One",
+    );
+  });
+
+  it("should discard stale responses", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    let resolveFirst;
+    const firstPromise = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    let callIndex = 0;
+    const mockApi = {
+      searchStarterPacks: async () => {
+        callIndex += 1;
+        if (callIndex === 1) {
+          await firstPromise;
+          return { starterPacks: [{ uri: "stale" }], cursor: "stale" };
+        }
+        return { starterPacks: [{ uri: "fresh" }], cursor: "fresh" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const firstCall = requests.loadStarterPackSearch("query");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadStarterPackSearch("query");
+    resolveFirst();
+    await firstCall;
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(stored.starterPacks[0].uri, "fresh");
+  });
+
+  it("should append when cursor is provided, skipping duplicates", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$starterPackSearchResults.set({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "c1",
+    });
+    const mockApi = {
+      searchStarterPacks: async () => ({
+        starterPacks: [{ uri: "sp1" }, { uri: "sp2" }],
+        cursor: "c2",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("query", { cursor: "c1" });
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(
+      stored.starterPacks.map((starterPack) => starterPack.uri),
+      ["sp1", "sp2"],
+    );
+    assert.deepEqual(stored.cursor, "c2");
+  });
+});
+
 describe("loadNotifications", () => {
   it("should set notifications and cursor on first load", async () => {
     const dataStore = new DataStore(createSessionState(null));
