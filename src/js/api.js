@@ -352,6 +352,37 @@ export class Api {
     return res.data;
   }
 
+  async createReferenceListOptOutRecord(listUri) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.referencelistoptout",
+        record: {
+          createdAt: getCurrentTimestamp(),
+          subject: listUri,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async deleteReferenceListOptOutRecord(optOutUri) {
+    const { collection, rkey } = parseUri(optOutUri);
+    if (collection !== "app.bsky.graph.referencelistoptout" || !rkey) {
+      throw new Error(`Invalid reference list opt-out uri: ${optOutUri}`);
+    }
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.referencelistoptout",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
   async getListItems({ limit = 100, cursor = "" } = {}) {
     const query = {
       repo: this.session.did,

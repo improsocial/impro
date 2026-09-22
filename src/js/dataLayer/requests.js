@@ -272,6 +272,10 @@ export class Requests {
       (starterPackUri) => "loadStarterPack-" + starterPackUri,
     );
     this.enableStatus(
+      this.loadStarterPackUriForList,
+      (list) => "loadStarterPackUriForList-" + list.uri,
+    );
+    this.enableStatus(
       this.loadAllListMembers,
       (listUri) => "loadAllListMembers-" + listUri,
     );
@@ -1253,6 +1257,27 @@ export class Requests {
   async loadList(listUri) {
     const data = await this.api.getList(listUri, { limit: 1 });
     this.dataStore.$lists.set(listUri, data.list);
+  }
+
+  async loadStarterPackUriForList(list) {
+    const backlinks = await this.constellation.getLinks({
+      subject: list.uri,
+      source: "app.bsky.graph.starterpack:list",
+      timeout: 2000,
+    });
+    const backlink = backlinks.find(
+      (candidate) => candidate.did === list.creator.did,
+    );
+    this.dataStore.$starterPackUrisByList.set(
+      list.uri,
+      backlink
+        ? buildUri({
+            repo: backlink.did,
+            collection: backlink.collection,
+            rkey: backlink.rkey,
+          })
+        : null,
+    );
   }
 
   async loadStarterPack(starterPackUri) {

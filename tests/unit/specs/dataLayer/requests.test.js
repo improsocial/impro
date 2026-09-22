@@ -4222,6 +4222,60 @@ describe("_loadPostDependencies", () => {
   });
 });
 
+describe("loadStarterPackUriForList", () => {
+  const list = {
+    uri: "at://did:plc:creator/app.bsky.graph.list/pack",
+    creator: { did: "did:plc:creator" },
+  };
+
+  it("stores the creator's starter pack uri found via backlinks", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const calls = [];
+    const constellation = {
+      getLinks: async (params) => {
+        calls.push(params);
+        return [
+          {
+            did: "did:plc:someoneelse",
+            collection: "app.bsky.graph.starterpack",
+            rkey: "forged",
+          },
+          {
+            did: "did:plc:creator",
+            collection: "app.bsky.graph.starterpack",
+            rkey: "pack",
+          },
+        ];
+      },
+    };
+    const requests = makeRequestsWithConstellation(
+      {},
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadStarterPackUriForList(list);
+
+    assert.deepEqual(calls[0].subject, list.uri);
+    assert.deepEqual(calls[0].source, "app.bsky.graph.starterpack:list");
+    assert.deepEqual(
+      dataStore.$starterPackUrisByList.get(list.uri),
+      "at://did:plc:creator/app.bsky.graph.starterpack/pack",
+    );
+  });
+
+  it("stores null when no starter pack references the list", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequestsWithConstellation({}, dataStore, {
+      getLinks: async () => [],
+    });
+
+    await requests.loadStarterPackUriForList(list);
+
+    assert.deepEqual(dataStore.$starterPackUrisByList.get(list.uri), null);
+  });
+});
+
 describe("loadFeedGenerator / loadList / loadStarterPack", () => {
   it("should store the feed generator by uri", async () => {
     const dataStore = new DataStore(createSessionState(null));

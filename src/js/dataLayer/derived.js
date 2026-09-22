@@ -361,10 +361,18 @@ export class Derived extends ReactiveStore {
       this.dataStore.$feedGenerators.get(feedUri),
     );
     this.$lists = new ComputedMap((listUri) =>
-      this.dataStore.$lists.get(listUri),
+      this.applyReferenceListOptOut(this.dataStore.$lists.get(listUri)),
     );
-    this.$starterPacks = new ComputedMap((starterPackUri) =>
-      this.dataStore.$starterPacks.get(starterPackUri),
+    this.$starterPacks = new ComputedMap((starterPackUri) => {
+      const starterPack = this.dataStore.$starterPacks.get(starterPackUri);
+      if (!starterPack?.list) return starterPack;
+      return {
+        ...starterPack,
+        list: this.applyReferenceListOptOut(starterPack.list),
+      };
+    });
+    this.$starterPackUriForList = new ComputedMap(
+      (listUri) => this.dataStore.$starterPackUrisByList.get(listUri) ?? null,
     );
     this.$listMembers = new ComputedMap((listUri) => {
       const data = this.dataStore.$listMembers.get(listUri);
@@ -832,6 +840,18 @@ export class Derived extends ReactiveStore {
     const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
     if (!updated) return item;
     return { ...item, embed: updated };
+  }
+
+  applyReferenceListOptOut(list) {
+    if (!list) return list;
+    if (!this.dataStore.$referenceListOptOuts.has(list.uri)) return list;
+    return {
+      ...list,
+      viewer: {
+        ...list.viewer,
+        referenceListOptOut: this.dataStore.$referenceListOptOuts.get(list.uri),
+      },
+    };
   }
 
   hydrateProfile(profile) {

@@ -72,6 +72,10 @@ export class MockServer {
     this.starterPacks = [];
     this.listMembers = new Map();
     this.currentUserListItems = [];
+    this.referenceListOptOutRecords = [];
+    this.referenceListOptOutLag = 0;
+    this.referenceListOptOutLagRemaining = 0;
+    this.staleReferenceListOptOuts = new Map();
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -262,6 +266,50 @@ export class MockServer {
 
   addCurrentUserListItem({ uri, listUri, subjectDid }) {
     this.currentUserListItems.push({ uri, listUri, subjectDid });
+  }
+
+  addReferenceListOptOut({ uri, listUri }) {
+    this.referenceListOptOutRecords.push({ uri, subject: listUri });
+  }
+
+  // Number of AppView list reads (getList / getStarterPack) after an opt-out
+  // write that still report the pre-write state.
+  setReferenceListOptOutLag(reads) {
+    this.referenceListOptOutLag = reads;
+  }
+
+  _snapshotReferenceListOptOut(listUri) {
+    this.staleReferenceListOptOuts.set(
+      listUri,
+      this._currentReferenceListOptOut(listUri),
+    );
+    this.referenceListOptOutLagRemaining = this.referenceListOptOutLag;
+  }
+
+  _currentReferenceListOptOut(listUri) {
+    return (
+      this.referenceListOptOutRecords.find(
+        (record) => record.subject === listUri,
+      )?.uri ?? null
+    );
+  }
+
+  _withReferenceListOptOut(list) {
+    if (!list?.uri) return list;
+    let optOutUri;
+    if (this.referenceListOptOutLagRemaining > 0) {
+      this.referenceListOptOutLagRemaining--;
+      optOutUri = this.staleReferenceListOptOuts.get(list.uri) ?? null;
+    } else {
+      optOutUri = this._currentReferenceListOptOut(list.uri);
+    }
+    const viewer = { ...list.viewer };
+    if (optOutUri) {
+      viewer.referenceListOptOut = optOutUri;
+    } else {
+      delete viewer.referenceListOptOut;
+    }
+    return { ...list, viewer };
   }
 
   addListFeedItems(listUri, posts) {
@@ -2117,7 +2165,9 @@ export class MockServer {
     await page.route("**/xrpc/app.bsky.graph.getList*", (route) => {
       const url = new URL(route.request().url());
       const listUri = url.searchParams.get("list");
-      const list = this.lists.find((l) => l.uri === listUri) || {};
+      const list = this._withReferenceListOptOut(
+        this.lists.find((l) => l.uri === listUri) || {},
+      );
       const members = this.listMembers.get(listUri) || [];
       const items = members.map((profile) => ({ subject: profile }));
       return route.fulfill({
@@ -2154,8 +2204,11 @@ export class MockServer {
     await page.route("**/xrpc/app.bsky.graph.getStarterPack?*", (route) => {
       const url = new URL(route.request().url());
       const starterPackUri = url.searchParams.get("starterPack");
-      const starterPack =
+      const found =
         this.starterPacks.find((s) => s.uri === starterPackUri) || {};
+      const starterPack = found.list
+        ? { ...found, list: this._withReferenceListOptOut(found.list) }
+        : found;
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -2504,6 +2557,28 @@ export class MockServer {
         });
       }
 
+      if (collection === "app.bsky.graph.referencelistoptout") {
+        const uri = `at://${userProfile.did}/${collection}/${rkey}`;
+        const record = this.referenceListOptOutRecords.find(
+          (candidate) => candidate.uri === uri,
+        );
+        if (!record) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "RecordNotFound",
+              message: "Could not locate record",
+            }),
+          });
+        }
+        this._snapshotReferenceListOptOut(record.subject);
+        this.referenceListOptOutRecords =
+          this.referenceListOptOutRecords.filter(
+            (candidate) => candidate.uri !== uri,
+          );
+      }
+
       if (collection === "app.bsky.feed.like") {
         const feedKey = `${userProfile.did}-likes`;
         const likes = this.authorFeeds.get(feedKey) || [];
@@ -2770,6 +2845,12 @@ export class MockServer {
         if (list) {
           list.viewer = { ...list.viewer, blocked: uri };
         }
+      }
+
+      if (collection === "app.bsky.graph.referencelistoptout") {
+        const subject = body?.record?.subject;
+        this._snapshotReferenceListOptOut(subject);
+        this.referenceListOptOutRecords.push({ uri, subject });
       }
 
       return route.fulfill({

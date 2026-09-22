@@ -1,5 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import { MockServer } from "../../mockServer.js";
 import { userProfile } from "../../testData.js";
 import {
@@ -499,5 +500,120 @@ test.describe("Starter Pack Detail view", () => {
         '#starter-pack-detail-view [data-testid="starter-pack-name"]',
       ),
     ).toHaveText("Cool Pack", { timeout: 10000 });
+  });
+
+  test.describe("Opt out menu item", () => {
+    test("should show the opt-out item to an authenticated non-owner", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      await mockServer.setup(page);
+
+      const view = await openPack(page);
+
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
+      ).toHaveAttribute("data-teststate", "opted-in");
+    });
+
+    test("should show undo when the viewer already opted out", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      mockServer.addReferenceListOptOut({
+        uri: `at://${userProfile.did}/app.bsky.graph.referencelistoptout/existing`,
+        listUri: LIST_URI,
+      });
+      await mockServer.setup(page);
+
+      const view = await openPack(page);
+
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
+      ).toHaveAttribute("data-teststate", "opted-out");
+    });
+
+    test("should hide the opt-out item on the owner's pack", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addStarterPacks([
+        createStarterPack({
+          uri: OWN_PACK_URI,
+          name: "My Pack",
+          creatorHandle: userProfile.handle,
+          list: true,
+        }),
+      ]);
+      setupMembers(mockServer, OWN_LIST_URI);
+      await mockServer.setup(page);
+
+      const view = await openPack(
+        page,
+        `/profile/${userProfile.handle}/starter-pack/mine`,
+      );
+
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should hide the opt-out item without the opt-out scope", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      await mockServer.setup(page);
+
+      const scopeWithoutOptOut = OAUTH_SCOPES.split(" ")
+        .filter((scope) => !scope.includes("referencelistoptout"))
+        .join(" ");
+      await login(page, { scope: scopeWithoutOptOut });
+      await page.goto(PACK_PATH);
+
+      const view = page.locator("#starter-pack-detail-view");
+      await expect(
+        view.locator('[data-testid="starter-pack-name"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should hide the opt-out item when logged out", async ({ page }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      await mockServer.setup(page);
+
+      await page.goto(PACK_PATH);
+
+      const view = page.locator("#starter-pack-detail-view");
+      await expect(
+        view.locator('[data-testid="starter-pack-name"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
+      ).toHaveCount(0);
+    });
   });
 });

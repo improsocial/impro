@@ -1,10 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { MockServer } from "../../mockServer.js";
+import { MockServer, MockConstellation } from "../../mockServer.js";
 import {
   createList,
   createPost,
   createProfile,
+  createStarterPack,
 } from "../../../shared/factories.js";
 
 const LIST_URI = "at://did:plc:creator1/app.bsky.graph.list/mylist";
@@ -1055,6 +1056,135 @@ test.describe("List Detail view", () => {
       await expect(memberRow).toBeVisible();
       await expect(
         memberRow.locator('[data-testid="follow-button"]'),
+      ).toHaveCount(0);
+    });
+  });
+
+  test.describe("Reference lists", () => {
+    const REFERENCE_LIST_URI =
+      "at://did:plc:creator1/app.bsky.graph.list/reflist";
+
+    function setupReferenceList(mockServer, { withStarterPack = true } = {}) {
+      const referenceList = createList({
+        uri: REFERENCE_LIST_URI,
+        name: "Pack List",
+        creatorHandle: "creator1.bsky.social",
+        purpose: "app.bsky.graph.defs#referencelist",
+      });
+      mockServer.addLists([referenceList]);
+      mockServer.addListMembers(REFERENCE_LIST_URI, [
+        createProfile({
+          did: "did:plc:member1",
+          handle: "member1.bsky.social",
+          displayName: "Member One",
+        }),
+      ]);
+      if (withStarterPack) {
+        mockServer.addStarterPacks([
+          createStarterPack({
+            uri: "at://did:plc:creator1/app.bsky.graph.starterpack/coolpack",
+            name: "Cool Pack",
+            creatorHandle: "creator1.bsky.social",
+            list: referenceList,
+          }),
+        ]);
+      }
+      return referenceList;
+    }
+
+    test("should render as a starter pack member list linking to its pack", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReferenceList(mockServer);
+      await mockServer.setup(page);
+      const mockConstellation = new MockConstellation();
+      mockConstellation.setBacklinks(REFERENCE_LIST_URI, [
+        {
+          did: "did:plc:creator1",
+          collection: "app.bsky.graph.starterpack",
+          rkey: "coolpack",
+        },
+      ]);
+      await mockConstellation.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/reflist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(
+        view.locator('[data-testid="list-detail-creator"]'),
+      ).toContainText("by @creator1.bsky.social", { timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="list-detail-starter-pack-link"]'),
+      ).toHaveAttribute(
+        "href",
+        "/profile/creator1.bsky.social/starter-pack/coolpack",
+      );
+      await expect(view.locator('[data-testid="tab-posts"]')).toHaveCount(0);
+      await expect(view.locator('[data-testid="pin-list-button"]')).toHaveCount(
+        0,
+      );
+      await expect(
+        view.locator('[data-testid="subscribe-list-button"]'),
+      ).toHaveCount(0);
+      const rows = view.locator(".profile-list-item");
+      await expect(rows).toHaveCount(1);
+      await expect(rows.locator('[data-testid="follow-button"]')).toHaveCount(
+        1,
+      );
+    });
+
+    test("should show a plain label when no starter pack references the list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReferenceList(mockServer, { withStarterPack: false });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/reflist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="list-detail-starter-pack-link"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should offer opt-out only on another user's reference list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReferenceList(mockServer);
+      const curateList = setupList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/reflist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-opt-out"]'),
+      ).toHaveAttribute("data-teststate", "opted-in");
+      await page.keyboard.press("Escape");
+
+      await page.goto(`/profile/creator1.bsky.social/lists/mylist`);
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText(curateList.name, { timeout: 10000 });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-list-opt-out"]'),
       ).toHaveCount(0);
     });
   });

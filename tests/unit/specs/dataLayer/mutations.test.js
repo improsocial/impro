@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
@@ -364,6 +364,167 @@ describe("followProfile", () => {
 
     const hydratedPost = derived.$hydratedPosts.get(postUri);
     assert.deepEqual(hydratedPost.author.viewer.following, "follow-123");
+  });
+});
+
+describe("reference list opt-out", () => {
+  const listUri = "at://did:plc:creator/app.bsky.graph.list/pack";
+  const createdUri =
+    "at://did:plc:me/app.bsky.graph.referencelistoptout/created";
+  const indexedUri =
+    "at://did:plc:me/app.bsky.graph.referencelistoptout/indexed";
+  const originalSetTimeout = globalThis.setTimeout;
+
+  beforeEach(() => {
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
+  function setup({ listReads = [], createRecord, deleteRecord } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const calls = { create: [], delete: [], getList: 0 };
+    const api = {
+      session: { did: "did:plc:me" },
+      createReferenceListOptOutRecord:
+        createRecord ??
+        (async (uri) => {
+          calls.create.push(uri);
+          return { uri: createdUri, cid: "cid" };
+        }),
+      deleteReferenceListOptOutRecord:
+        deleteRecord ??
+        (async (uri) => {
+          calls.delete.push(uri);
+          return {};
+        }),
+      getList: async () => {
+        const read = listReads[Math.min(calls.getList, listReads.length - 1)];
+        calls.getList++;
+        return {
+          list: { uri: listUri, viewer: { referenceListOptOut: read } },
+          items: [],
+        };
+      },
+    };
+    const mutations = makeMutations(api, dataStore, new PatchStore(), {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { dataStore, mutations, calls };
+  }
+
+  describe("optOutOfReferenceList", () => {
+    it("creates a record and stops polling once the appview reflects it", async () => {
+      const { dataStore, mutations, calls } = setup({
+        listReads: [null, indexedUri],
+      });
+      const list = { uri: listUri, viewer: {} };
+
+      await mutations.optOutOfReferenceList(list);
+
+      assert.deepEqual(calls.create, [listUri]);
+      assert.deepEqual(calls.getList, 2);
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        createdUri,
+      );
+    });
+
+    it("still stores the created uri when the appview never converges", async () => {
+      const { dataStore, mutations, calls } = setup({ listReads: [null] });
+
+      await mutations.optOutOfReferenceList({ uri: listUri, viewer: {} });
+
+      assert.deepEqual(calls.getList, 5);
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        createdUri,
+      );
+    });
+
+    it("leaves the store untouched and rethrows when the write fails", async () => {
+      const { dataStore, mutations } = setup({
+        createRecord: async () => {
+          throw new Error("write failed");
+        },
+      });
+
+      await assert.rejects(
+        () => mutations.optOutOfReferenceList({ uri: listUri, viewer: {} }),
+        /write failed/,
+      );
+      assert.deepEqual(dataStore.$referenceListOptOuts.has(listUri), false);
+    });
+  });
+
+  describe("undoReferenceListOptOut", () => {
+    it("deletes the viewer's record and clears the entry", async () => {
+      const { dataStore, mutations, calls } = setup({
+        listReads: [indexedUri, null],
+      });
+
+      await mutations.undoReferenceListOptOut({
+        uri: listUri,
+        viewer: { referenceListOptOut: indexedUri },
+      });
+
+      assert.deepEqual(calls.delete, [indexedUri]);
+      assert.deepEqual(calls.getList, 2);
+      assert.deepEqual(dataStore.$referenceListOptOuts.get(listUri), null);
+    });
+
+    it("treats a missing record as already undone", async () => {
+      const { dataStore, mutations } = setup({
+        deleteRecord: async () => {
+          throw new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "RecordNotFound" },
+          });
+        },
+        listReads: [null],
+      });
+
+      await mutations.undoReferenceListOptOut({
+        uri: listUri,
+        viewer: { referenceListOptOut: indexedUri },
+      });
+
+      assert.deepEqual(dataStore.$referenceListOptOuts.get(listUri), null);
+    });
+
+    it("does nothing when there is no record to delete", async () => {
+      const { dataStore, mutations, calls } = setup();
+
+      await mutations.undoReferenceListOptOut({ uri: listUri, viewer: {} });
+
+      assert.deepEqual(calls.delete, []);
+      assert.deepEqual(dataStore.$referenceListOptOuts.has(listUri), false);
+    });
+
+    it("leaves the entry alone when the delete fails", async () => {
+      const { dataStore, mutations } = setup({
+        deleteRecord: async () => {
+          throw new Error("delete failed");
+        },
+      });
+      dataStore.$referenceListOptOuts.set(listUri, indexedUri);
+
+      await assert.rejects(
+        () =>
+          mutations.undoReferenceListOptOut({
+            uri: listUri,
+            viewer: { referenceListOptOut: indexedUri },
+          }),
+        /delete failed/,
+      );
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        indexedUri,
+      );
+    });
   });
 });
 

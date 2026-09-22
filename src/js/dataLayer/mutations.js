@@ -12,7 +12,7 @@ import {
   valueForPinnedItem,
   buildCdnUrl,
 } from "/js/dataHelpers.js";
-import { batch, getCurrentTimestamp } from "/js/utils.js";
+import { batch, getCurrentTimestamp, wait } from "/js/utils.js";
 import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
@@ -1007,6 +1007,52 @@ export class Mutations {
       console.error(error);
       throw error;
     }
+  }
+
+  async optOutOfReferenceList(list) {
+    try {
+      const created = await this.api.createReferenceListOptOutRecord(list.uri);
+      await this._pollReferenceListOptOut(list.uri, true);
+      this.dataStore.$referenceListOptOuts.set(list.uri, created.uri);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async undoReferenceListOptOut(list) {
+    const optOutUri = list.viewer?.referenceListOptOut;
+    if (!optOutUri) return;
+    try {
+      try {
+        await this.api.deleteReferenceListOptOutRecord(optOutUri);
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      await this._pollReferenceListOptOut(list.uri, false);
+      this.dataStore.$referenceListOptOuts.set(list.uri, null);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  // Check that opted out state has reached the appview
+  async _pollReferenceListOptOut(listUri, expectOptedOut) {
+    const maxTries = 5;
+    for (let tries = 0; tries < maxTries; tries++) {
+      try {
+        const data = await this.api.getList(listUri, { limit: 1 });
+        const isOptedOut = !!data.list?.viewer?.referenceListOptOut;
+        if (isOptedOut === expectOptedOut) return true;
+      } catch (error) {
+        console.warn(error);
+      }
+      if (tries < maxTries - 1) {
+        await wait(1000);
+      }
+    }
+    return false;
   }
 
   async updateProfile(

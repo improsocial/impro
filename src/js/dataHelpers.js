@@ -13,6 +13,14 @@ export function isModerationList(list) {
   return list?.purpose === "app.bsky.graph.defs#modlist";
 }
 
+export function isReferenceList(list) {
+  return list?.purpose === "app.bsky.graph.defs#referencelist";
+}
+
+export function isCurateList(list) {
+  return list?.purpose === "app.bsky.graph.defs#curatelist";
+}
+
 export function hasValidHandle(profile) {
   return (
     !!profile.handle &&
