@@ -429,6 +429,19 @@ export class Api {
     return res.data;
   }
 
+  async getAllListItems(listUri) {
+    const MAX_PAGES = 6;
+    const items = [];
+    let cursor = "";
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const data = await this.getList(listUri, { limit: 50, cursor });
+      items.push(...(data.items ?? []));
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    return items;
+  }
+
   async getListFeed(listURI, { limit = 31, cursor = "" } = {}) {
     const query = { list: listURI, limit };
     if (cursor) {

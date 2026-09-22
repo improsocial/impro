@@ -263,6 +263,14 @@ export class Requests {
     );
     this.enableStatus(this.loadGifs, (query) => "loadGifs-" + query);
     this.enableStatus(this.loadDrafts, "loadDrafts");
+    this.enableStatus(
+      this.loadStarterPack,
+      (starterPackUri) => "loadStarterPack-" + starterPackUri,
+    );
+    this.enableStatus(
+      this.loadAllListMembers,
+      (listUri) => "loadAllListMembers-" + listUri,
+    );
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
@@ -1217,6 +1225,17 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadAllListMembers(listUri) {
+    const items = await this.api.getAllListItems(listUri);
+    this.dataStore.setProfiles(items.map((item) => item.subject));
+    writePageToCollection(
+      this.dataStore.$listMembers,
+      "items",
+      { items, cursor: null },
+      { key: listUri, overwrite: true },
+    );
   }
 
   async loadTrends({ limit = 5 } = {}) {

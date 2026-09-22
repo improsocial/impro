@@ -2072,3 +2072,48 @@ describe("uploadVideoBlob", () => {
     assert.deepEqual(thrownError.status, 500);
   });
 });
+
+describe("getAllListItems", () => {
+  function createPagingApi(pages) {
+    const calls = [];
+    const api = new Api(createMockSession({}));
+    api.getList = async (listUri, { limit, cursor }) => {
+      calls.push({ listUri, limit, cursor });
+      return pages[calls.length - 1];
+    };
+    return { api, calls };
+  }
+
+  it("should page until the response has no cursor", async () => {
+    const { api, calls } = createPagingApi([
+      { items: [{ uri: "a" }], cursor: "c1" },
+      { items: [{ uri: "b" }], cursor: "c2" },
+      { items: [{ uri: "c" }] },
+    ]);
+
+    const items = await api.getAllListItems("at://did/app.bsky.graph.list/1");
+
+    assert.deepEqual(
+      items.map((item) => item.uri),
+      ["a", "b", "c"],
+    );
+    assert.deepEqual(
+      calls.map((call) => call.cursor),
+      ["", "c1", "c2"],
+    );
+    assert.deepEqual(calls[0].limit, 50);
+  });
+
+  it("should stop after six pages", async () => {
+    const pages = Array.from({ length: 10 }, (_, index) => ({
+      items: [{ uri: String(index) }],
+      cursor: "c" + index,
+    }));
+    const { api, calls } = createPagingApi(pages);
+
+    const items = await api.getAllListItems("at://did/app.bsky.graph.list/1");
+
+    assert.deepEqual(items.length, 6);
+    assert.deepEqual(calls.length, 6);
+  });
+});

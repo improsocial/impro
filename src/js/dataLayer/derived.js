@@ -373,6 +373,9 @@ export class Derived extends ReactiveStore {
         members: data.items.map((item) =>
           this.$hydratedProfiles.get(item.subject.did),
         ),
+        optedOutDids: data.items
+          .filter((item) => item.subjectOptedOut)
+          .map((item) => item.subject.did),
         cursor: data.cursor,
       };
     });

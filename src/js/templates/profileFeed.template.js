@@ -6,7 +6,10 @@ import { verificationBadgeTemplate } from "/js/templates/verificationBadge.templ
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import {
+  getDisplayName,
+  doHideAuthorOnUnauthenticated,
+} from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
 
@@ -227,6 +230,11 @@ export function profileFeedTemplate({
         profileListItemSkeletonTemplate({ compact }),
       )}
     </div>`;
+  }
+  if (!isAuthenticated) {
+    profiles = profiles.filter(
+      (profile) => !doHideAuthorOnUnauthenticated(profile),
+    );
   }
   if (profiles.length === 0) {
     return html`<div class="feed-end-message" data-testid="feed-end-message">

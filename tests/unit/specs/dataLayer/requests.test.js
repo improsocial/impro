@@ -4173,6 +4173,26 @@ describe("loadFeedGenerator / loadList / loadStarterPack", () => {
 
     assert.deepEqual(dataStore.$starterPacks.get(starterPack.uri), starterPack);
   });
+
+  it("should record a starter pack load failure in the status store", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const error = new ApiError({ status: 400, data: { error: "NotFound" } });
+    const mockApi = {
+      getStarterPack: async () => {
+        throw error;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+    const uri = "at://did/app.bsky.graph.starterpack/sp";
+
+    await requests.loadStarterPack(uri);
+
+    assert.deepEqual(
+      requests.statusStore.getError("loadStarterPack-" + uri),
+      error,
+    );
+    assert.deepEqual(dataStore.$starterPacks.get(uri), null);
+  });
 });
 
 describe("loadListMembers", () => {
@@ -4238,6 +4258,54 @@ describe("loadListMembers", () => {
     const stored = dataStore.$listMembers.get(listUri);
     assert.deepEqual(stored.items.length, 1);
     assert.deepEqual(stored.items[0].uri, "li2");
+  });
+});
+
+describe("loadAllListMembers", () => {
+  const listUri = "at://did/app.bsky.graph.list/1";
+
+  it("should store every item with no cursor and hydrate profiles", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$listMembers.set(listUri, {
+      items: [{ uri: "stale", subject: { did: "did:plc:stale" } }],
+      cursor: "next",
+    });
+    const mockApi = {
+      getAllListItems: async () => [
+        { uri: "li1", subject: { did: "did:plc:a", handle: "a" } },
+        { uri: "li2", subject: { did: "did:plc:b", handle: "b" } },
+      ],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadAllListMembers(listUri);
+
+    const stored = dataStore.$listMembers.get(listUri);
+    assert.deepEqual(
+      stored.items.map((item) => item.uri),
+      ["li1", "li2"],
+    );
+    assert.deepEqual(stored.cursor, null);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b").handle, "b");
+  });
+
+  it("should record an api failure in the status store", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const error = new ApiError({ status: 500, data: { error: "Boom" } });
+    const mockApi = {
+      getAllListItems: async () => {
+        throw error;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadAllListMembers(listUri);
+
+    assert.deepEqual(
+      requests.statusStore.getError("loadAllListMembers-" + listUri),
+      error,
+    );
+    assert.deepEqual(dataStore.$listMembers.get(listUri), null);
   });
 });
 

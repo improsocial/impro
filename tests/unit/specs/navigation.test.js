@@ -13,6 +13,8 @@ import {
   linkToProfileFollowers,
   linkToProfileFollowing,
   linkToFeed,
+  linkToStarterPack,
+  getPermalinkForStarterPack,
   linkToCommunityPlugin,
   linkToPluginSettings,
   getPermalinkForPost,
@@ -211,6 +213,37 @@ describe("linkToProfileFollowing", () => {
     assert.deepEqual(
       linkToProfileFollowing(profile),
       "/profile/did:plc:bob/following",
+    );
+  });
+});
+
+describe("linkToStarterPack", () => {
+  const starterPack = {
+    uri: "at://did:plc:alice/app.bsky.graph.starterpack/3kpack",
+    creator: { did: "did:plc:alice", handle: "alice.bsky.social" },
+  };
+
+  it("should link by creator handle and rkey", () => {
+    assert.deepEqual(
+      linkToStarterPack(starterPack),
+      "/profile/alice.bsky.social/starter-pack/3kpack",
+    );
+  });
+
+  it("should fall back to the creator did when the handle is invalid", () => {
+    assert.deepEqual(
+      linkToStarterPack({
+        ...starterPack,
+        creator: { did: "did:plc:alice", handle: "handle.invalid" },
+      }),
+      "/profile/did:plc:alice/starter-pack/3kpack",
+    );
+  });
+
+  it("should build a bsky.app permalink", () => {
+    assert.deepEqual(
+      getPermalinkForStarterPack(starterPack),
+      "https://bsky.app/starter-pack/alice.bsky.social/3kpack",
     );
   });
 });
