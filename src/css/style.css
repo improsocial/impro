@@ -3775,6 +3775,31 @@ image-carousel {
   font-weight: normal;
 }
 
+.notification-via-starter-pack {
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.notification-starter-pack-link {
+  font-weight: 600;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.notification-starter-pack-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+
+@media (hover: hover) {
+  .notification-starter-pack-link:hover {
+    text-decoration: underline;
+  }
+}
+
 .notification-preview {
   margin-top: 5px;
   font-size: 14px;

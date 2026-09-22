@@ -6,6 +6,7 @@ import {
   createNotification,
   createPost,
   createProfile,
+  createStarterPack,
   createTid,
 } from "../../../shared/factories.js";
 
@@ -238,6 +239,130 @@ test.describe("Notifications view", () => {
     await expect(item).toContainText("1 other");
     await expect(item).toContainText("followed you");
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
+  });
+
+  test("should show the starter pack a follow came from", async ({ page }) => {
+    const mockServer = new MockServer();
+    const starterPack = createStarterPack({
+      uri: "at://did:plc:testuser123/app.bsky.graph.starterpack/pack1",
+      name: "Cool People",
+      creatorHandle: "testuser.bsky.social",
+    });
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+        starterPack,
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    const via = item.locator('[data-testid="notification-via-starter-pack"]');
+    await expect(via).toBeVisible();
+    const link = via.locator("a");
+    await expect(link).toHaveText("Cool People");
+    await expect(link).toHaveAttribute(
+      "href",
+      "/profile/testuser.bsky.social/starter-pack/pack1",
+    );
+  });
+
+  test("should group follows from the same starter pack but not different ones", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const packOne = createStarterPack({
+      uri: "at://did:plc:testuser123/app.bsky.graph.starterpack/pack1",
+      name: "Pack One",
+      creatorHandle: "testuser.bsky.social",
+    });
+    const packTwo = createStarterPack({
+      uri: "at://did:plc:testuser123/app.bsky.graph.starterpack/pack2",
+      name: "Pack Two",
+      creatorHandle: "testuser.bsky.social",
+    });
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+        starterPack: packOne,
+      }),
+      createNotification({
+        reason: "follow",
+        author: bob,
+        indexedAt: new Date().toISOString(),
+        starterPack: packOne,
+      }),
+      createNotification({
+        reason: "follow",
+        author: charlie,
+        indexedAt: new Date().toISOString(),
+        starterPack: packTwo,
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    await expect(items.nth(0)).toContainText("Alice");
+    await expect(items.nth(0)).toContainText("1 other");
+    await expect(
+      items.nth(0).locator('[data-testid="notification-via-starter-pack"] a'),
+    ).toHaveText("Pack One");
+    await expect(items.nth(1)).toContainText("Charlie");
+    await expect(
+      items.nth(1).locator('[data-testid="notification-via-starter-pack"] a'),
+    ).toHaveText("Pack Two");
+  });
+
+  test("should not group a starter pack follow with a plain follow", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const starterPack = createStarterPack({
+      uri: "at://did:plc:testuser123/app.bsky.graph.starterpack/pack1",
+      name: "Pack One",
+      creatorHandle: "testuser.bsky.social",
+    });
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+        starterPack,
+      }),
+      createNotification({
+        reason: "follow",
+        author: bob,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    await expect(
+      items.nth(0).locator('[data-testid="notification-via-starter-pack"]'),
+    ).toBeVisible();
+    await expect(
+      items.nth(1).locator('[data-testid="notification-via-starter-pack"]'),
+    ).toHaveCount(0);
   });
 
   test("should display 'followed you back' for a follow-back notification", async ({

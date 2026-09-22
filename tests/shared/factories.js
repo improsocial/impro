@@ -379,6 +379,7 @@ export function createNotification({
   isRead = false,
   indexedAt = "2025-01-15T12:00:00.000Z",
   record,
+  starterPack,
 }) {
   return {
     uri: uri || `at://${author.did}/app.bsky.feed.like/notif-${Date.now()}`,
@@ -390,6 +391,7 @@ export function createNotification({
     isRead,
     indexedAt,
     labels: [],
+    ...(starterPack ? { starterPack } : {}),
   };
 }
 
