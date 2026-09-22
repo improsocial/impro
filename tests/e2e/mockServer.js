@@ -89,6 +89,7 @@ export class MockServer {
     this.actorFeeds = new Map();
     this.actorLists = new Map();
     this.searchFeedGenerators = [];
+    this.searchStarterPacks = [];
     this.trends = [];
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
@@ -98,6 +99,7 @@ export class MockServer {
       top: 0,
       latest: 0,
       feeds: 0,
+      starterPacks: 0,
       typeahead: 0,
     };
     this.timelinePosts = [];
@@ -319,6 +321,11 @@ export class MockServer {
 
   addSearchFeedGenerators(feedGenerators) {
     this.searchFeedGenerators.push(...feedGenerators);
+  }
+
+  addSearchStarterPacks(starterPacks) {
+    this.searchStarterPacks.push(...starterPacks);
+    this.starterPacks.push(...starterPacks);
   }
 
   addTrends(trends) {
@@ -1926,6 +1933,30 @@ export class MockServer {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({ feeds, cursor: nextCursor }),
+        });
+      },
+    );
+
+    await page.route(
+      "**/xrpc/app.bsky.graph.searchStarterPacksV2*",
+      (route) => {
+        this.searchRequestCounts.starterPacks += 1;
+        const url = new URL(route.request().url());
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "25", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+        const starterPacks = this.searchStarterPacks.slice(
+          offset,
+          offset + limit,
+        );
+        const nextCursor =
+          offset + limit < this.searchStarterPacks.length
+            ? String(offset + limit)
+            : "";
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ starterPacks, cursor: nextCursor }),
         });
       },
     );

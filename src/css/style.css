@@ -6666,6 +6666,37 @@ sidebar-search {
   white-space: pre-wrap;
 }
 
+.starter-pack-list-item {
+  align-items: flex-start;
+}
+
+.starter-pack-list-item-members {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.starter-pack-list-item-member {
+  width: 28px;
+  height: 28px;
+  margin-right: -6px;
+}
+
+.starter-pack-list-item-member .avatar,
+.starter-pack-list-item-member .avatar-image-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--background-color);
+}
+
+.starter-pack-list-item-member-count {
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color-muted);
+}
+
 .feeds-list-item-chevron {
   flex-shrink: 0;
   width: 40px;

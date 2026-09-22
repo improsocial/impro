@@ -426,6 +426,13 @@ export class Derived extends ReactiveStore {
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
     );
+    this.$starterPackSearchResults = new Signal.Computed(
+      () =>
+        this.dataStore.$starterPackSearchResults.get()?.starterPacks ?? null,
+    );
+    this.$starterPackSearchCursor = new Signal.Computed(
+      () => this.dataStore.$starterPackSearchResults.get()?.cursor ?? null,
+    );
     this.$gifResults = new Signal.Computed(
       () => this.dataStore.$gifResults.get()?.gifs ?? null,
     );

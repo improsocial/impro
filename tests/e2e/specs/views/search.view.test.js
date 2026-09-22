@@ -1,11 +1,13 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import {
   createPost,
   createProfile,
   createFeedGenerator,
   createLiveStatusView,
+  createStarterPack,
 } from "../../../shared/factories.js";
 
 test.describe("Search view", () => {
@@ -399,7 +401,7 @@ test.describe("Search view", () => {
     await expect(topPanel).toContainText("A top ranked post");
   });
 
-  test("should render tabs in order: Top, Latest, People, Feeds", async ({
+  test("should render tabs in order: Top, Latest, People, Feeds, Starter Packs", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -410,11 +412,15 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
     const tabs = view.locator("tab-bar [data-testid^='tab-']");
-    await expect(tabs).toHaveCount(4, { timeout: 10000 });
+    await expect(tabs).toHaveCount(5, { timeout: 10000 });
     await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-top");
     await expect(tabs.nth(1)).toHaveAttribute("data-testid", "tab-latest");
     await expect(tabs.nth(2)).toHaveAttribute("data-testid", "tab-profiles");
     await expect(tabs.nth(3)).toHaveAttribute("data-testid", "tab-feeds");
+    await expect(tabs.nth(4)).toHaveAttribute(
+      "data-testid",
+      "tab-starterPacks",
+    );
   });
 
   test("should navigate to post thread view when clicking a post", async ({
@@ -527,6 +533,107 @@ test.describe("Search view", () => {
       /\/profile\/feedauthor1\.bsky\.social\/feed\/coolstuff/,
       { timeout: 10000 },
     );
+  });
+
+  test("should display starter pack search results when switching to Starter Packs tab", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const member1 = createProfile({
+      did: "did:plc:member1",
+      handle: "member1.bsky.social",
+    });
+    const member2 = createProfile({
+      did: "did:plc:member2",
+      handle: "member2.bsky.social",
+    });
+    mockServer.addSearchStarterPacks([
+      createStarterPack({
+        uri: "at://did:plc:creator1/app.bsky.graph.starterpack/science",
+        name: "Science Folks",
+        creatorHandle: "creator1.bsky.social",
+        description: "Scientists worth following",
+        list: true,
+        listItemsSample: [member1, member2],
+      }),
+      createStarterPack({
+        uri: "at://did:plc:creator2/app.bsky.graph.starterpack/tech",
+        name: "Tech Folks",
+        creatorHandle: "creator2.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=folks");
+
+    const view = page.locator("#search-view");
+    await view.locator('[data-testid="tab-starterPacks"]').click();
+
+    const results = view.locator('[data-testid="starter-pack-search-result"]');
+    await expect(results).toHaveCount(2, { timeout: 10000 });
+    await expect(results.nth(0)).toContainText("Science Folks");
+    await expect(results.nth(0)).toContainText("by @creator1.bsky.social");
+    await expect(results.nth(0)).toContainText("Scientists worth following");
+    await expect(
+      results.nth(0).locator('[data-testid="starter-pack-members"] .avatar'),
+    ).toHaveCount(2);
+    await expect(results.nth(0)).toContainText("+1");
+    await expect(results.nth(1)).toContainText("Tech Folks");
+    await expect(results.nth(1)).toContainText("by @creator2.bsky.social");
+    await expect(
+      results.nth(1).locator('[data-testid="starter-pack-members"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should show empty state when no starter packs match", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=nothing&tab=starterPacks");
+
+    const view = page.locator("#search-view");
+    const panel = view.locator(
+      ".search-tab-panel:not([hidden]) .search-results-panel",
+    );
+    await expect(panel.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to starter pack detail when clicking a result", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addSearchStarterPacks([
+      createStarterPack({
+        uri: "at://did:plc:creator1/app.bsky.graph.starterpack/coolpack",
+        name: "Cool Pack",
+        creatorHandle: "creator1.bsky.social",
+        list: true,
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=cool&tab=starterPacks");
+
+    const view = page.locator("#search-view");
+    const result = view.locator('[data-testid="starter-pack-search-result"]');
+    await expect(result).toHaveCount(1, { timeout: 10000 });
+
+    await result.click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/creator1\.bsky\.social\/starter-pack\/coolpack/,
+      { timeout: 10000 },
+    );
+    await expect(
+      page.locator('[data-testid="starter-pack-name"]'),
+    ).toContainText("Cool Pack", { timeout: 10000 });
   });
 
   test("should load Feeds tab from query parameter", async ({ page }) => {

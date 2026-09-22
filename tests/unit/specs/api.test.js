@@ -1712,6 +1712,39 @@ describe("searchFeedGenerators", () => {
   });
 });
 
+describe("searchStarterPacks", () => {
+  it("should search starter packs", async () => {
+    const session = createMockSession({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "next",
+    });
+    const api = new Api(session);
+
+    const result = await api.searchStarterPacks("science");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.searchStarterPacksV2"));
+    assert(url.includes("q=science"));
+    assert(url.includes("limit=25"));
+    assert(!url.includes("cursor="));
+    assert.deepEqual(
+      options.headers["atproto-proxy"],
+      "did:web:api.bsky.app#bsky_appview",
+    );
+    assert.deepEqual(result.starterPacks.length, 1);
+  });
+
+  it("should pass cursor when provided", async () => {
+    const session = createMockSession({ starterPacks: [] });
+    const api = new Api(session);
+
+    await api.searchStarterPacks("science", { cursor: "abc" });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("cursor=abc"));
+  });
+});
+
 describe("getActorFeeds", () => {
   it("should fetch feeds created by an actor", async () => {
     const session = createMockSession({

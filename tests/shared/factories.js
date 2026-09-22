@@ -324,6 +324,7 @@ export function createStarterPack({
   description,
   list,
   feeds,
+  listItemsSample,
 }) {
   const creatorDid = uri.split("/")[2];
   const rkey = uri.split("/").pop();
@@ -342,6 +343,12 @@ export function createStarterPack({
   }
   if (feeds) {
     fullView.feeds = feeds;
+  }
+  if (listItemsSample) {
+    fullView.listItemsSample = listItemsSample.map((profile) => ({
+      uri: `${listUri}/item-${profile.did}`,
+      subject: profile,
+    }));
   }
   return {
     uri,
