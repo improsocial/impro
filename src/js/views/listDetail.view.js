@@ -2,7 +2,12 @@ import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
-import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
+import {
+  cdnImageUrl,
+  isCurateList,
+  isModerationList,
+  isReferenceList,
+} from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -15,6 +20,7 @@ import {
   bindPageTitle,
   onPageShow,
 } from "/js/router.js";
+import { linkToStarterPack } from "/js/navigation.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
@@ -28,6 +34,7 @@ export default async function listDetailView({
   root,
   params,
   context: {
+    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -36,6 +43,9 @@ export default async function listDetailView({
   },
 }) {
   const { handleOrDid, rkey } = params;
+  const optOutEnabled =
+    isAuthenticated &&
+    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
 
   const profileDid = await resolveDidFromHandleOrDid(
     handleOrDid,
@@ -124,8 +134,15 @@ export default async function listDetailView({
     const members = membersEntry?.members ?? null;
     const hasMoreMembers = membersEntry?.cursor != null;
     const activeTab = state.$activeTab.get();
-    const isCurateList = !isModerationList(list);
+    const isCurate = isCurateList(list);
+    const isModeration = isModerationList(list);
+    const isReference = isReferenceList(list);
     const isCurrentUserList = listCreator?.did === currentUser?.did;
+    const starterPackUri = isReference
+      ? dataLayer.derived.$starterPackUriForList.get(listUri)
+      : null;
+    const showOptOut = optOutEnabled && !isCurrentUserList && isReference;
+    const isOptedOut = !!list?.viewer?.referenceListOptOut;
     const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
     render(
       html`<div id="list-detail-view">
@@ -134,7 +151,7 @@ export default async function listDetailView({
             ? () => html`
                 ${!isAuthenticated
                   ? ""
-                  : isCurateList
+                  : isCurate
                     ? html`<button
                         class=${classnames("pin-feed-button", {
                           pinned: isPinned,
@@ -152,10 +169,12 @@ export default async function listDetailView({
                           filled: isPinned,
                         })}
                       </button>`
-                    : listSubscriptionButtonTemplate({
-                        list,
-                        listInteractionHandler,
-                      })}
+                    : isModeration
+                      ? listSubscriptionButtonTemplate({
+                          list,
+                          listInteractionHandler,
+                        })
+                      : ""}
                 <button
                   class="context-menu-button"
                   @click=${function (e) {
@@ -189,6 +208,25 @@ export default async function listDetailView({
                       Copy link to list
                     </context-menu-item>
                   </context-menu-item-group>
+                  ${showOptOut
+                    ? html`<context-menu-item-group>
+                        <context-menu-item
+                          data-testid="menu-action-list-opt-out"
+                          data-teststate=${isOptedOut
+                            ? "opted-out"
+                            : "opted-in"}
+                          icon=${isOptedOut ? "undo-line" : "user-x-line"}
+                          @click=${() =>
+                            isOptedOut
+                              ? handleUndoOptOut(list)
+                              : handleOptOut(list)}
+                        >
+                          ${isOptedOut
+                            ? "Undo opt-out"
+                            : "Opt out of starter pack"}
+                        </context-menu-item>
+                      </context-menu-item-group>`
+                    : ""}
                   ${isCurrentUserList
                     ? html`<context-menu-item
                           data-testid="menu-action-list-add-people"
@@ -249,7 +287,20 @@ export default async function listDetailView({
                         class="list-detail-creator"
                         data-testid="list-detail-creator"
                       >
-                        ${isModerationList(list) ? "Moderation list" : "List"}
+                        ${isModeration
+                          ? "Moderation list"
+                          : isReference
+                            ? starterPackUri
+                              ? html`<a
+                                  href=${linkToStarterPack({
+                                    uri: starterPackUri,
+                                    creator: listCreator,
+                                  })}
+                                  data-testid="list-detail-starter-pack-link"
+                                  >Starter pack</a
+                                >`
+                              : "Starter pack"
+                            : "List"}
                         by
                         ${isCurrentUserList ? "you" : `@${listCreator.handle}`}
                       </div>`
@@ -267,7 +318,7 @@ export default async function listDetailView({
                     })}
                   </div>`
                 : ""}
-              ${isCurateList
+              ${isCurate
                 ? html`<div class="list-detail-tab-bar" data-scroll-lock-sticky>
                     <tab-bar
                       .tabs=${[
@@ -286,7 +337,7 @@ export default async function listDetailView({
                 data-testid="list-tab-content"
                 data-teststate=${activeTab}
               >
-                ${activeTab === "posts" && isCurateList
+                ${activeTab === "posts" && isCurate
                   ? html`<div class="feed-container">
                       ${postFeedTemplate({
                         feed,
@@ -320,7 +371,7 @@ export default async function listDetailView({
                         currentUserDid: currentUser?.did ?? null,
                         profileInteractionHandler,
                         pluginService,
-                        ...(isCurateList ? {} : { rightItemTemplate: null }),
+                        ...(isModeration ? { rightItemTemplate: null } : {}),
                       })}
                       ${members?.length === 0 && isCurrentUserList
                         ? html`<button
@@ -339,6 +390,18 @@ export default async function listDetailView({
       root,
     );
   });
+
+  async function handleOptOut(list) {
+    const optedOut =
+      await listInteractionHandler.handleOptOutOfReferenceList(list);
+    if (optedOut) loadMembers({ reload: true }).catch(console.warn);
+  }
+
+  async function handleUndoOptOut(list) {
+    const undone =
+      await listInteractionHandler.handleUndoReferenceListOptOut(list);
+    if (undone) loadMembers({ reload: true }).catch(console.warn);
+  }
 
   async function handleDeleteList(list) {
     const deleted = await listInteractionHandler.handleDeleteList(list);
@@ -359,7 +422,7 @@ export default async function listDetailView({
       dialog.remove();
     });
     dialog.addEventListener("members-changed", () => {
-      if (isModerationList(list) || userHasScrolled) return;
+      if (!isCurateList(list) || userHasScrolled) return;
       clearTimeout(reloadTimeout);
       reloadTimeout = setTimeout(() => {
         if (userHasScrolled) return;
@@ -405,7 +468,11 @@ export default async function listDetailView({
     await dataLayer.requests.loadList(listUri);
     const list = dataLayer.derived.$lists.get(listUri);
     const requests = [loadMembers({ reload: true })];
-    if (!isModerationList(list)) {
+    if (isReferenceList(list)) {
+      requests.push(
+        dataLayer.requests.loadStarterPackUriForList(list).catch(console.warn),
+      );
+    } else if (isCurateList(list)) {
       requests.push(loadFeed({ reload: true }));
     }
     await Promise.all(requests);

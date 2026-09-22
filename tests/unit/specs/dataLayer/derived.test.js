@@ -2315,6 +2315,67 @@ describe("$listMembers", () => {
   });
 });
 
+describe("$lists / $starterPacks reference list opt-out", () => {
+  const listUri = "at://did:plc:owner/app.bsky.graph.list/pack";
+  const starterPackUri = "at://did:plc:owner/app.bsky.graph.starterpack/pack";
+  const serverUri = "at://did:plc:me/app.bsky.graph.referencelistoptout/server";
+  const localUri = "at://did:plc:me/app.bsky.graph.referencelistoptout/local";
+
+  function setup() {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    dataStore.$lists.set(listUri, {
+      uri: listUri,
+      viewer: { muted: false, referenceListOptOut: serverUri },
+    });
+    dataStore.$starterPacks.set(starterPackUri, {
+      uri: starterPackUri,
+      list: { uri: listUri, viewer: { referenceListOptOut: serverUri } },
+    });
+    return { dataStore, derived };
+  }
+
+  it("passes the server value through when nothing is stored locally", () => {
+    const { derived } = setup();
+    assert.deepEqual(
+      derived.$lists.get(listUri).viewer.referenceListOptOut,
+      serverUri,
+    );
+    assert.deepEqual(
+      derived.$starterPacks.get(starterPackUri).list.viewer.referenceListOptOut,
+      serverUri,
+    );
+  });
+
+  it("shadows the server value with the local entry on both surfaces", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$referenceListOptOuts.set(listUri, localUri);
+    assert.deepEqual(
+      derived.$lists.get(listUri).viewer.referenceListOptOut,
+      localUri,
+    );
+    assert.deepEqual(derived.$lists.get(listUri).viewer.muted, false);
+    assert.deepEqual(
+      derived.$starterPacks.get(starterPackUri).list.viewer.referenceListOptOut,
+      localUri,
+    );
+
+    dataStore.$referenceListOptOuts.set(listUri, null);
+    assert.deepEqual(
+      derived.$lists.get(listUri).viewer.referenceListOptOut,
+      null,
+    );
+  });
+
+  it("leaves starter packs without a list untouched", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    const starterPack = { uri: starterPackUri };
+    dataStore.$starterPacks.set(starterPackUri, starterPack);
+    assert.deepEqual(derived.$starterPacks.get(starterPackUri), starterPack);
+  });
+});
+
 describe("$hydratedProfiles (labels)", () => {
   const did = "did:plc:user";
 

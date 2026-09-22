@@ -10,6 +10,8 @@ import {
   getRKey,
   getIsLiked,
   isListFeed,
+  isReferenceList,
+  isCurateList,
   getQuotedPost,
   getImagesFromDraftPost,
   getLocalRefsFromDraft,
@@ -2776,5 +2778,33 @@ describe("getPostNumberingForPostThread", () => {
       }),
       new Map(),
     );
+  });
+});
+
+describe("isCurateList", () => {
+  it("returns true only for curate lists", () => {
+    assert.deepEqual(
+      isCurateList({ purpose: "app.bsky.graph.defs#curatelist" }),
+      true,
+    );
+    assert.deepEqual(
+      isCurateList({ purpose: "app.bsky.graph.defs#referencelist" }),
+      false,
+    );
+    assert.deepEqual(isCurateList(null), false);
+  });
+});
+
+describe("isReferenceList", () => {
+  it("returns true only for reference lists", () => {
+    assert.deepEqual(
+      isReferenceList({ purpose: "app.bsky.graph.defs#referencelist" }),
+      true,
+    );
+    assert.deepEqual(
+      isReferenceList({ purpose: "app.bsky.graph.defs#curatelist" }),
+      false,
+    );
+    assert.deepEqual(isReferenceList(null), false);
   });
 });

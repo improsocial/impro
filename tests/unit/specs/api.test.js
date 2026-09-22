@@ -523,6 +523,68 @@ describe("deleteLikeRecord", () => {
   });
 });
 
+describe("createReferenceListOptOutRecord", () => {
+  it("should create an opt-out record without an rkey", async () => {
+    const session = createMockSession({
+      uri: "at://did:plc:testuser/app.bsky.graph.referencelistoptout/abc",
+      cid: "cid123",
+    });
+    const api = new Api(session);
+    const listUri = "at://did:plc:creator/app.bsky.graph.list/pack";
+
+    const result = await api.createReferenceListOptOutRecord(listUri);
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.repo.createRecord"));
+    assert.deepEqual(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.referencelistoptout");
+    assert.deepEqual(body.rkey, undefined);
+    assert.deepEqual(body.record.subject, listUri);
+    assert(body.record.createdAt);
+    assert.deepEqual(
+      result.uri,
+      "at://did:plc:testuser/app.bsky.graph.referencelistoptout/abc",
+    );
+  });
+});
+
+describe("deleteReferenceListOptOutRecord", () => {
+  it("should delete by the rkey parsed from the record uri", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.deleteReferenceListOptOutRecord(
+      "at://did:plc:viewer/app.bsky.graph.referencelistoptout/indexed",
+    );
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.repo.deleteRecord"));
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.referencelistoptout");
+    assert.deepEqual(body.rkey, "indexed");
+  });
+
+  it("should reject a uri from another collection or without an rkey", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await assert.rejects(() =>
+      api.deleteReferenceListOptOutRecord(
+        "at://did:plc:viewer/app.bsky.graph.listitem/abc",
+      ),
+    );
+    await assert.rejects(() =>
+      api.deleteReferenceListOptOutRecord(
+        "at://did:plc:viewer/app.bsky.graph.referencelistoptout",
+      ),
+    );
+    assert.deepEqual(session.getLastFetchOptions(), null);
+  });
+});
+
 describe("createRepostRecord", () => {
   it("should create a repost record with correct body", async () => {
     const session = createMockSession({

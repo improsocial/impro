@@ -294,6 +294,7 @@ export function createList({
   name,
   creatorHandle,
   purpose = "app.bsky.graph.defs#curatelist",
+  referenceListOptOut,
 }) {
   const creatorDid = uri.split("/")[2];
   return {
@@ -313,7 +314,7 @@ export function createList({
     avatar: "",
     indexedAt: "2025-01-01T00:00:00.000Z",
     labels: [],
-    viewer: {},
+    viewer: referenceListOptOut ? { referenceListOptOut } : {},
   };
 }
 
@@ -357,7 +358,7 @@ export function createStarterPack({
       $type: "app.bsky.graph.starterpack",
       name,
       description: description || "",
-      list: listUri,
+      list: fullView.list?.uri ?? listUri,
       createdAt: "2025-01-01T00:00:00.000Z",
     },
     creator: {

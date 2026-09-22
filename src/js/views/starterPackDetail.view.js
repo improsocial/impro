@@ -26,7 +26,26 @@ function copyPermalink(permalink) {
   showToast("Link copied to clipboard", { style: "success" });
 }
 
-function headerMenuTemplate({ permalink }) {
+function optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut }) {
+  return html`<context-menu-item-group>
+    <context-menu-item
+      data-testid="menu-action-starter-pack-opt-out"
+      data-teststate=${isOptedOut ? "opted-out" : "opted-in"}
+      icon=${isOptedOut ? "undo-line" : "user-x-line"}
+      @click=${isOptedOut ? onUndoOptOut : onOptOut}
+    >
+      ${isOptedOut ? "Undo opt-out" : "Opt out of starter pack"}
+    </context-menu-item>
+  </context-menu-item-group>`;
+}
+
+function headerMenuTemplate({
+  permalink,
+  showOptOut,
+  isOptedOut,
+  onOptOut,
+  onUndoOptOut,
+}) {
   return html`
     <button
       class="context-menu-button"
@@ -56,6 +75,9 @@ function headerMenuTemplate({ permalink }) {
           Copy link to starter pack
         </context-menu-item>
       </context-menu-item-group>
+      ${showOptOut
+        ? optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut })
+        : ""}
     </context-menu>
   `;
 }
@@ -200,6 +222,7 @@ export default async function starterPackDetailView({
   root,
   params,
   context: {
+    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -208,6 +231,9 @@ export default async function starterPackDetailView({
   },
 }) {
   const { handleOrDid, rkey } = params;
+  const optOutEnabled =
+    isAuthenticated &&
+    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
 
   const creatorDid = await resolveDidFromHandleOrDid(
     handleOrDid,
@@ -215,8 +241,11 @@ export default async function starterPackDetailView({
   );
   const starterPackUri = `at://${creatorDid}/app.bsky.graph.starterpack/${rkey}`;
 
-  const { postInteractionHandler, profileInteractionHandler } =
-    interactionHandlers;
+  const {
+    postInteractionHandler,
+    profileInteractionHandler,
+    listInteractionHandler,
+  } = interactionHandlers;
 
   const state = new ReactiveStore("starterPackDetailView");
   state.$activeTab = new Signal.State("people");
@@ -254,10 +283,12 @@ export default async function starterPackDetailView({
     );
     const isFollowingAll = state.$isFollowingAll.get();
     const activeTab = state.$activeTab.get();
+    const isOptedOut = !!list?.viewer?.referenceListOptOut;
 
     const isLoaded = !!list;
     const isOwner = isLoaded && starterPack.creator.did === currentUser?.did;
     const permalink = isLoaded ? getPermalinkForStarterPack(starterPack) : null;
+    const showOptOut = isLoaded && optOutEnabled && !isOwner;
     const tabs = isLoaded
       ? [
           { value: "people", label: "People" },
@@ -279,7 +310,14 @@ export default async function starterPackDetailView({
         ${headerTemplate({
           title: "Starter pack",
           rightItemTemplate: isLoaded
-            ? () => headerMenuTemplate({ permalink })
+            ? () =>
+                headerMenuTemplate({
+                  permalink,
+                  showOptOut,
+                  isOptedOut,
+                  onOptOut: () => handleOptOut(list),
+                  onUndoOptOut: () => handleUndoOptOut(list),
+                })
             : null,
         })}
         ${!starterPack && !error
@@ -373,6 +411,22 @@ export default async function starterPackDetailView({
     } finally {
       state.$isFollowingAll.set(false);
     }
+  }
+
+  async function handleOptOut(list) {
+    const optedOut =
+      await listInteractionHandler.handleOptOutOfReferenceList(list);
+    if (optedOut) reloadMembers(list.uri);
+  }
+
+  async function handleUndoOptOut(list) {
+    const undone =
+      await listInteractionHandler.handleUndoReferenceListOptOut(list);
+    if (undone) reloadMembers(list.uri);
+  }
+
+  function reloadMembers(listUri) {
+    dataLayer.requests.loadAllListMembers(listUri).catch(console.warn);
   }
 
   async function loadFeed(listUri, { reload = false } = {}) {

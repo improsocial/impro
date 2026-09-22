@@ -70,6 +70,8 @@ export class DataStore extends ReactiveStore {
     this.$feedGenerators = new SignalMap();
     this.$lists = new SignalMap();
     this.$starterPacks = new SignalMap();
+    this.$referenceListOptOuts = new SignalMap();
+    this.$starterPackUrisByList = new SignalMap();
     this.$listMembers = new SignalMap();
     this.$actorFeeds = new SignalMap();
     this.$actorLists = new SignalMap();
