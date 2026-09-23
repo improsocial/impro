@@ -39,10 +39,9 @@ test.describe("Notifications view", () => {
     await page.goto("/notifications");
 
     const view = page.locator("#notifications-view");
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "No notifications yet!",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should display a follow notification", async ({ page }) => {
@@ -646,10 +645,9 @@ test.describe("Notifications view", () => {
     await page.goto("/notifications");
 
     const view = page.locator("#notifications-view");
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "No notifications yet!",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(view.locator(".notification-item")).toHaveCount(0);
   });
 
@@ -774,9 +772,9 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".notification-item")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "No more notifications",
-    );
+    await expect(
+      view.locator('[data-testid="feed-end-message"]'),
+    ).toBeVisible();
   });
 
   test("should display header with 'Notifications' title", async ({ page }) => {
@@ -1528,10 +1526,9 @@ test.describe("Notifications view", () => {
       await view.locator(".tab-bar-button").nth(1).click();
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
-      await expect(activePanel.locator(".feed-end-message")).toContainText(
-        "No notifications yet!",
-        { timeout: 10000 },
-      );
+      await expect(
+        activePanel.locator('[data-testid="empty-state"]'),
+      ).toBeVisible({ timeout: 10000 });
     });
 
     test("should show all notification types when switching back to All tab", async ({

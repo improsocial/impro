@@ -2,6 +2,7 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { ListInteractionHandler } from "/js/listInteractionHandler.js";
+import { StarterPackInteractionHandler } from "/js/starterPackInteractionHandler.js";
 
 function loggedOutHandler(name) {
   return new Proxy(
@@ -32,5 +33,8 @@ export class InteractionHandlers {
     this.listInteractionHandler = session
       ? new ListInteractionHandler(dataLayer)
       : loggedOutHandler("listInteractionHandler");
+    this.starterPackInteractionHandler = session
+      ? new StarterPackInteractionHandler(dataLayer)
+      : loggedOutHandler("starterPackInteractionHandler");
   }
 }

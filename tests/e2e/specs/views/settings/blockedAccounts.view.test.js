@@ -44,7 +44,7 @@ test.describe("Settings Blocked Accounts view", () => {
     await page.goto("/settings/blocked-accounts");
 
     const view = page.locator("#settings-blocked-accounts-view");
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
   });

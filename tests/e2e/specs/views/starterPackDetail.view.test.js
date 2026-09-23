@@ -281,9 +281,6 @@ test.describe("Starter Pack Detail view", () => {
 
       const button = view.locator('[data-testid="starter-pack-follow-all"]');
       await expect(button).toHaveAttribute("data-teststate", "idle");
-      await expect(
-        view.locator('[data-testid="starter-pack-share"]'),
-      ).toHaveCount(0);
       await button.click();
 
       await expect(page.locator('[data-testid="toast"]')).toBeVisible({
@@ -337,11 +334,8 @@ test.describe("Starter Pack Detail view", () => {
     });
   });
 
-  test.describe("Share", () => {
-    test("should show Share instead of Follow all on the owner's pack and copy the link", async ({
-      page,
-      browserName,
-    }) => {
+  test.describe("Links", () => {
+    test("should not show Follow all on the owner's pack", async ({ page }) => {
       const mockServer = new MockServer();
       mockServer.addStarterPacks([
         createStarterPack({
@@ -353,11 +347,6 @@ test.describe("Starter Pack Detail view", () => {
       ]);
       setupMembers(mockServer, OWN_LIST_URI);
       await mockServer.setup(page);
-      if (browserName === "chromium") {
-        await page
-          .context()
-          .grantPermissions(["clipboard-read", "clipboard-write"]);
-      }
 
       const view = await openPack(
         page,
@@ -370,17 +359,6 @@ test.describe("Starter Pack Detail view", () => {
       await expect(
         view.locator('[data-testid="starter-pack-follow-all"]'),
       ).toHaveCount(0);
-      await view.locator('[data-testid="starter-pack-share"]').click();
-
-      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
-      if (browserName === "chromium") {
-        const clipboardText = await page.evaluate(() =>
-          navigator.clipboard.readText(),
-        );
-        expect(clipboardText).toBe(
-          `https://bsky.app/starter-pack/${userProfile.handle}/mine`,
-        );
-      }
     });
 
     test("should copy the link from the header menu", async ({
@@ -447,9 +425,6 @@ test.describe("Starter Pack Detail view", () => {
       ).toBeVisible({ timeout: 10000 });
       await expect(
         view.locator('[data-testid="starter-pack-follow-all"]'),
-      ).toHaveCount(0);
-      await expect(
-        view.locator('[data-testid="starter-pack-share"]'),
       ).toHaveCount(0);
       await expect(
         view.locator('[data-testid="starter-pack-sign-in"]'),
@@ -615,5 +590,52 @@ test.describe("Starter Pack Detail view", () => {
         view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
       ).toHaveCount(0);
     });
+  });
+
+  test("should show edit and delete actions only to the owner", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addStarterPacks([
+      createStarterPack({
+        uri: OWN_PACK_URI,
+        name: "My Pack",
+        creatorHandle: userProfile.handle,
+        list: true,
+      }),
+    ]);
+    setupPack(mockServer);
+    setupMembers(mockServer, OWN_LIST_URI);
+    setupMembers(mockServer);
+    await mockServer.setup(page);
+
+    const ownView = await openPack(
+      page,
+      `/profile/${userProfile.handle}/starter-pack/mine`,
+    );
+    await ownView.locator(".context-menu-button").click();
+    await expect(
+      ownView.locator('[data-testid="menu-action-starter-pack-edit"]'),
+    ).toBeVisible();
+    await expect(
+      ownView.locator('[data-testid="menu-action-starter-pack-delete"]'),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.goto(PACK_PATH);
+    const otherView = page.locator("#starter-pack-detail-view");
+    await expect(
+      otherView.locator('[data-testid="starter-pack-name"]'),
+    ).toHaveText("Cool Pack", { timeout: 10000 });
+    await otherView.locator(".context-menu-button").click();
+    await expect(
+      otherView.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
+    ).toBeVisible();
+    await expect(
+      otherView.locator('[data-testid="menu-action-starter-pack-edit"]'),
+    ).toHaveCount(0);
+    await expect(
+      otherView.locator('[data-testid="menu-action-starter-pack-delete"]'),
+    ).toHaveCount(0);
   });
 });

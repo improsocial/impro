@@ -125,7 +125,7 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
   });
@@ -197,7 +197,7 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
     await expect(
@@ -221,7 +221,7 @@ test.describe("List Detail view", () => {
     });
     await view.locator('[data-testid="tab-people"]').click();
 
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
     await expect(

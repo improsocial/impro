@@ -53,15 +53,15 @@ test.describe("Delete post flow", () => {
     // Verify the post is removed from the profile
     await expect(
       profileView.locator(
-        '.feed-container:not([hidden]) [data-testid="feed-end-message"]',
+        '.feed-container:not([hidden]) [data-testid="empty-state"]',
       ),
     ).toBeVisible({ timeout: 10000 });
 
     // Navigate to home and verify the post is gone
     await page.goto("/");
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should update thread view after deleting post from thread", async ({

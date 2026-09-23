@@ -565,6 +565,16 @@ export class Derived extends ReactiveStore {
     this.$actorLists = new ComputedMap((did) =>
       this.dataStore.$actorLists.get(did),
     );
+    this.$actorStarterPacks = new ComputedMap((did) =>
+      this.dataStore.$actorStarterPacks.get(did),
+    );
+    this.$popularFeeds = new Signal.Computed(() => {
+      const feeds = this.dataStore.$popularFeeds.get();
+      if (!feeds) return null;
+      return feeds.map(
+        (feed) => this.dataStore.$feedGenerators.get(feed.uri) ?? feed,
+      );
+    });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
       this.dataStore.$listsWithMembershipByActor.get(did),
     );

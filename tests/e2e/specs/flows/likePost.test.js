@@ -113,7 +113,7 @@ test.describe("Like post flow", () => {
 
     await expect(
       profileView.locator(
-        '.feed-container:not([hidden]) [data-testid="feed-end-message"]',
+        '.feed-container:not([hidden]) [data-testid="empty-state"]',
       ),
     ).toBeVisible({ timeout: 10000 });
   });

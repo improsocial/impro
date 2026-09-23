@@ -64,7 +64,7 @@ test.describe("Bookmarks view", () => {
     await bookmarksView.locator('[data-testid="bookmark-button"]').click();
 
     await expect(
-      bookmarksView.locator('[data-testid="feed-end-message"]'),
+      bookmarksView.locator('[data-testid="empty-state"]'),
     ).toContainText("No saved posts yet!", { timeout: 10000 });
   });
 
@@ -83,7 +83,7 @@ test.describe("Bookmarks view", () => {
     ).toContainText("Saved Posts", { timeout: 10000 });
 
     await expect(
-      bookmarksView.locator('[data-testid="feed-end-message"]'),
+      bookmarksView.locator('[data-testid="empty-state"]'),
     ).toContainText("No saved posts yet!", { timeout: 10000 });
   });
 

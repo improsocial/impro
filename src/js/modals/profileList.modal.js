@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { Modal } from "/js/modals/modal.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 
 class ProfileListModal extends Modal {
   get className() {
@@ -33,7 +33,7 @@ class ProfileListModal extends Modal {
             </h2>`
           : null}
         <div class="profile-list-modal-body">
-          ${profileFeedTemplate({
+          ${profileListTemplate({
             profiles,
             hasMore: false,
             skeletonCount: 0,

@@ -18,6 +18,14 @@ function hasTextSelection() {
   return selection !== null && !selection.isCollapsed;
 }
 
+// Element options accept a node or a getter that's re-evaluated on every
+// touch, for dialogs whose scroll container is re-rendered over time.
+function resolveElement(elementOrGetter) {
+  return typeof elementOrGetter === "function"
+    ? elementOrGetter()
+    : elementOrGetter;
+}
+
 // Low-level touch drag tracker. Reports raw signed delta along the given axis.
 function trackDrag(
   target,
@@ -68,15 +76,17 @@ function trackDrag(
   };
 
   const handleTouchStart = (e) => {
-    const onHandle = !!dragHandle && dragHandle.contains(e.target);
+    const handleElement = resolveElement(dragHandle);
+    const onHandle = !!handleElement && handleElement.contains(e.target);
     if (!onHandle && disableWhenKeyboardOpen && isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
     if (hasTextSelection()) return;
+    const scrollElement = resolveElement(scrollContainer);
     if (
       !onHandle &&
-      scrollContainer &&
-      scrollContainer.contains(e.target) &&
-      scrollContainer.scrollTop > 0
+      scrollElement &&
+      scrollElement.contains(e.target) &&
+      scrollElement.scrollTop > 0
     ) {
       return;
     }
@@ -127,7 +137,7 @@ function trackDrag(
     // If the caller can't consume this move (e.g. dragging up on a
     // dismiss-down sheet with no stretch) and there's a scroll container,
     // release the gesture back to native scroll instead of preventing default.
-    if (consumed === false && scrollContainer) {
+    if (consumed === false && resolveElement(scrollContainer)) {
       state.tracking = false;
       state.locked = false;
       onEnd({ deltaPx: 0, velocity: 0, cancelled: true });

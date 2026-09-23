@@ -35,6 +35,8 @@ import {
   throttleByKey,
   WindowedCounter,
   Poller,
+  graphemeCount,
+  truncateGraphemes,
 } from "/js/utils.js";
 import { flushMicrotasks, installFakeIndexedDB } from "../testHelpers.js";
 
@@ -395,6 +397,11 @@ describe("classnames", () => {
   it("should handle empty input", () => {
     const result = classnames();
     assert.deepEqual(result, "");
+  });
+
+  it("should skip null and undefined entries", () => {
+    const result = classnames("base", null, undefined, "extra");
+    assert.deepEqual(result, "base extra");
   });
 
   it("should throw error for invalid input", () => {
@@ -2084,5 +2091,36 @@ describe("Poller", () => {
 
     await elapseInterval();
     assert.deepEqual(counter.calls, 2);
+  });
+});
+
+describe("truncateGraphemes", () => {
+  it("returns the string unchanged when within the limit", () => {
+    assert.equal(truncateGraphemes("hello", 5), "hello");
+    assert.equal(truncateGraphemes("", 3), "");
+  });
+
+  it("cuts plain text to the grapheme limit", () => {
+    assert.equal(truncateGraphemes("hello world", 5), "hello");
+  });
+
+  it("keeps multi-code-point grapheme clusters intact", () => {
+    const family = "👨‍👩‍👧‍👦";
+    const flag = "🇺🇸";
+    const truncated = truncateGraphemes(`ab${family}${flag}cd`, 4);
+    assert.equal(truncated, `ab${family}${flag}`);
+    assert.equal(graphemeCount(truncated), 4);
+  });
+
+  it("does not split a combining mark from its base", () => {
+    assert.equal(truncateGraphemes("e\u0301x", 1), "e\u0301");
+  });
+
+  it("appends the suffix only when truncating", () => {
+    assert.equal(
+      truncateGraphemes("hello world", 5, { suffix: "…" }),
+      "hello…",
+    );
+    assert.equal(truncateGraphemes("hello", 5, { suffix: "…" }), "hello");
   });
 });

@@ -276,6 +276,11 @@ export class Requests {
       (list) => "loadStarterPackUriForList-" + list.uri,
     );
     this.enableStatus(
+      this.loadActorStarterPacks,
+      (did) => "loadActorStarterPacks-" + did,
+    );
+    this.enableStatus(this.loadPopularFeeds, "loadPopularFeeds");
+    this.enableStatus(
       this.loadAllListMembers,
       (listUri) => "loadAllListMembers-" + listUri,
     );
@@ -1403,6 +1408,42 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadActorStarterPacks(did, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.$actorStarterPacks.get(did);
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$actorStarterPacks, { key: did });
+    const data = await this.api.getActorStarterPacks(did, { limit, cursor });
+    for (const starterPack of data.starterPacks) {
+      const existingPack = this.dataStore.$starterPacks.get(starterPack.uri);
+      if (!existingPack?.list) {
+        this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
+      }
+    }
+    writePageToCollection(
+      this.dataStore.$actorStarterPacks,
+      "starterPacks",
+      data,
+      {
+        key: did,
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
+  }
+
+  async loadPopularFeeds({ limit = 30 } = {}) {
+    const data = await this.api.getPopularFeedGenerators({ limit });
+    const feeds = data.feeds ?? [];
+    for (const feed of feeds) {
+      this.dataStore.$feedGenerators.set(feed.uri, feed);
+    }
+    this.dataStore.$popularFeeds.set(feeds);
   }
 
   async loadCurrentUserLists({ reload = false } = {}) {

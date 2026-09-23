@@ -5,7 +5,7 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames, graphemeCount } from "/js/utils.js";
@@ -131,8 +131,12 @@ function memberToggleTemplate({ isSelected }) {
   </div>`;
 }
 
-function profileListTemplate({ profiles, onSelect, emptyMessage = null }) {
-  return profileFeedTemplate({
+function compactProfileListTemplate({
+  profiles,
+  onSelect,
+  emptyMessage = null,
+}) {
+  return profileListTemplate({
     profiles,
     hasMore: false,
     skeletonCount: 6,
@@ -160,7 +164,7 @@ function groupMemberListTemplate({
         (atCap && !selectedDids.includes(profile.did)),
     )
     .map((profile) => profile.did);
-  return profileFeedTemplate({
+  return profileListTemplate({
     profiles,
     hasMore: false,
     skeletonCount: 6,
@@ -285,7 +289,7 @@ function chatStepResultsTemplate({
     if (searchStatus?.error) {
       return searchErrorTemplate();
     }
-    return profileListTemplate({
+    return compactProfileListTemplate({
       profiles: results ? partitionRows(results, currentUserDid) : null,
       onSelect,
       emptyMessage: "No results",
@@ -308,7 +312,7 @@ function chatStepResultsTemplate({
   }
   if (!suggestedProfiles?.length) {
     return html`${groupEntry}
-    ${profileListTemplate({
+    ${compactProfileListTemplate({
       profiles: suggestedProfiles,
       emptyMessage: "Search for someone to message",
     })}`;
@@ -321,7 +325,7 @@ function chatStepResultsTemplate({
     >
       Suggested
     </div>
-    ${profileListTemplate({
+    ${compactProfileListTemplate({
       profiles: suggestedProfiles,
       onSelect,
     })}
@@ -552,7 +556,7 @@ function groupNameStepTemplate({
       >
         New group chat with:
       </div>
-      ${profileFeedTemplate({
+      ${profileListTemplate({
         profiles: selectedProfiles,
         hasMore: false,
         compact: true,
@@ -872,10 +876,12 @@ class NewChatDialog extends Component {
     });
     enableDragToDismiss(dialog, {
       onDismiss: () => this.close(),
-      scrollContainer: this.querySelector(".search-dialog-results"),
+      scrollContainer: () => this.querySelector(".search-dialog-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });
-    resetScrollOnBlur(dialog, this.querySelector(".search-dialog-results"));
+    resetScrollOnBlur(dialog, () =>
+      this.querySelector(".search-dialog-results"),
+    );
   }
 
   close() {

@@ -551,7 +551,9 @@ test.describe("Home view", () => {
     const loadMoreError = view.locator('[data-testid="feed-load-more-error"]');
     await expect(loadMoreError).toBeVisible({ timeout: 10000 });
     await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41);
-    await expect(view.locator('[data-testid="feed-error-view-profile"]')).toHaveCount(0);
+    await expect(
+      view.locator('[data-testid="feed-error-view-profile"]'),
+    ).toHaveCount(0);
 
     failPagedRequests = false;
     await loadMoreError.locator("button").click();
@@ -577,7 +579,7 @@ test.describe("Home view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
   });

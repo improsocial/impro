@@ -134,7 +134,7 @@ test.describe("Follow/Unfollow flow", () => {
     await page.goto(`/profile/${userProfile.did}/following`);
 
     await expect(
-      followingView.locator('[data-testid="feed-end-message"]'),
+      followingView.locator('[data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
   });
 });

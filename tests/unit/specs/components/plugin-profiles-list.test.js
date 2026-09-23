@@ -105,7 +105,7 @@ describe("plugin-profiles-list", () => {
       mount(element, dataLayer);
       await flushMicrotasks();
       assert.deepEqual(
-        element.querySelector("[data-testid='feed-end-message']"),
+        element.querySelector("[data-testid='empty-state']"),
         null,
       );
     });
@@ -229,9 +229,7 @@ describe("plugin-profiles-list", () => {
       element.setAttribute("empty-message", "Still nothing.");
       await flushMicrotasks();
       assert.deepEqual(ensureProfiles.mock.callCount(), 1);
-      const endMessage = element.querySelector(
-        "[data-testid='feed-end-message']",
-      );
+      const endMessage = element.querySelector("[data-testid='empty-state']");
       assert(endMessage !== null);
       assert(endMessage.textContent.includes("Still nothing."));
     });
