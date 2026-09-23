@@ -9,7 +9,7 @@ import {
   isReferenceList,
 } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
@@ -57,6 +57,7 @@ export default async function listDetailView({
     postInteractionHandler,
     listInteractionHandler,
     profileInteractionHandler,
+    starterPackInteractionHandler,
   } = interactionHandlers;
 
   const state = new ReactiveStore("listDetailView");
@@ -227,31 +228,49 @@ export default async function listDetailView({
                         </context-menu-item>
                       </context-menu-item-group>`
                     : ""}
-                  ${isCurrentUserList
-                    ? html`<context-menu-item
-                          data-testid="menu-action-list-add-people"
-                          icon="user-plus-line"
-                          @click=${() => handleAddPeople(list)}
-                        >
-                          Add people to list
-                        </context-menu-item>
-                        <context-menu-item-group>
+                  ${isCurrentUserList && isReference
+                    ? starterPackUri
+                      ? html`<context-menu-item-group>
                           <context-menu-item
-                            data-testid="menu-action-list-edit"
+                            data-testid="menu-action-list-open-starter-pack"
                             icon="edit-pen-2-line"
-                            @click=${() => handleEditList(list)}
+                            @click=${() =>
+                              window.router.go(
+                                linkToStarterPack({
+                                  uri: starterPackUri,
+                                  creator: listCreator,
+                                }),
+                              )}
                           >
-                            Edit list details
-                          </context-menu-item>
-                          <context-menu-item
-                            data-testid="menu-action-list-delete"
-                            icon="delete-bin-line"
-                            @click=${() => handleDeleteList(list)}
-                          >
-                            Delete list
+                            Edit starter pack
                           </context-menu-item>
                         </context-menu-item-group>`
-                    : ""}
+                      : ""
+                    : isCurrentUserList
+                      ? html`<context-menu-item
+                            data-testid="menu-action-list-add-people"
+                            icon="user-plus-line"
+                            @click=${() => handleAddPeople(list)}
+                          >
+                            Add people to list
+                          </context-menu-item>
+                          <context-menu-item-group>
+                            <context-menu-item
+                              data-testid="menu-action-list-edit"
+                              icon="edit-pen-2-line"
+                              @click=${() => handleEditList(list)}
+                            >
+                              Edit list details
+                            </context-menu-item>
+                            <context-menu-item
+                              data-testid="menu-action-list-delete"
+                              icon="delete-bin-line"
+                              @click=${() => handleDeleteList(list)}
+                            >
+                              Delete list
+                            </context-menu-item>
+                          </context-menu-item-group>`
+                      : ""}
                 </context-menu>
               `
             : null,
@@ -361,7 +380,7 @@ export default async function listDetailView({
                         : ""}
                     </div>`
                   : html`<div class="feed-container">
-                      ${profileFeedTemplate({
+                      ${profileListTemplate({
                         profiles: members,
                         hasMore: hasMoreMembers,
                         onLoadMore: () => loadMembers(),
@@ -392,14 +411,12 @@ export default async function listDetailView({
   });
 
   async function handleOptOut(list) {
-    const optedOut =
-      await listInteractionHandler.handleOptOutOfReferenceList(list);
+    const optedOut = await starterPackInteractionHandler.handleOptOut(list);
     if (optedOut) loadMembers({ reload: true }).catch(console.warn);
   }
 
   async function handleUndoOptOut(list) {
-    const undone =
-      await listInteractionHandler.handleUndoReferenceListOptOut(list);
+    const undone = await starterPackInteractionHandler.handleUndoOptOut(list);
     if (undone) loadMembers({ reload: true }).catch(console.warn);
   }
 

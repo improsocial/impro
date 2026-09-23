@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
@@ -684,12 +685,6 @@ export default async function notificationsView({
     </div>`;
   }
 
-  function notificationsSkeletonTemplate() {
-    return html`
-      ${Array.from({ length: 10 }).map(() => postSkeletonTemplate())}
-    `;
-  }
-
   function notificationsErrorTemplate({ error }) {
     console.error(error);
     return html`<div class="error-state">
@@ -715,38 +710,20 @@ export default async function notificationsView({
     loadMore,
     loadMoreError,
   }) {
-    if (groupedNotifications.length === 0) {
-      return html`<div class="feed-end-message">
-        <div>No notifications yet!</div>
-      </div>`;
-    }
     try {
-      return html`
-        <infinite-scroll-container
-          ?disabled=${!!loadMoreError}
-          @load-more=${async (e) => {
-            if (hasMore) {
-              await loadMore();
-              e.detail.resume();
-            }
-          }}
-        >
-          ${groupedNotifications.map((notificationGroup) =>
-            notificationGroupTemplate({ notificationGroup, currentUser }),
-          )}
-          ${(() => {
-            if (loadMoreError) {
-              return loadMoreErrorTemplate({ onRetry: loadMore });
-            }
-            if (!hasMore) {
-              return html`<div class="feed-end-message">
-                No more notifications
-              </div>`;
-            }
-            return Array.from({ length: 10 }).map(() => postSkeletonTemplate());
-          })()}
-        </infinite-scroll-container>
-      `;
+      return paginatedListTemplate({
+        items: groupedNotifications,
+        renderItem: (notificationGroup) =>
+          notificationGroupTemplate({ notificationGroup, currentUser }),
+        renderSkeletonItem: postSkeletonTemplate,
+        hasMore,
+        onLoadMore: loadMore,
+        emptyMessage: "No notifications yet!",
+        endMessage: "No more notifications",
+        errorTemplate: loadMoreError
+          ? loadMoreErrorTemplate({ onRetry: loadMore })
+          : null,
+      });
     } catch (error) {
       console.error(error);
       return notificationsErrorTemplate({ error });
@@ -846,17 +823,14 @@ export default async function notificationsView({
                 return notificationsErrorTemplate({
                   error: notificationsRequestStatus.error,
                 });
-              } else if (groupedNotifications) {
-                return notificationsTemplate({
-                  groupedNotifications,
-                  currentUser,
-                  hasMore,
-                  loadMore: loadMoreNotifications,
-                  loadMoreError: state.$loadMoreError.get(),
-                });
-              } else {
-                return notificationsSkeletonTemplate();
               }
+              return notificationsTemplate({
+                groupedNotifications,
+                currentUser,
+                hasMore,
+                loadMore: loadMoreNotifications,
+                loadMoreError: state.$loadMoreError.get(),
+              });
             })()}
           </div>
           <div class="notifications-feed" ?hidden=${activeTab !== "mentions"}>
@@ -868,19 +842,17 @@ export default async function notificationsView({
                 return notificationsErrorTemplate({
                   error: mentionNotificationsRequestStatus.error,
                 });
-              } else if (groupedMentionNotifications) {
-                return notificationsTemplate({
-                  groupedNotifications: groupedMentionNotifications,
-                  currentUser,
-                  hasMore: mentionHasMore,
-                  loadMore: loadMoreMentionNotifications,
-                  loadMoreError: state.$mentionLoadMoreError.get(),
-                });
-              } else if (activeTab === "mentions") {
-                return notificationsSkeletonTemplate();
-              } else {
+              }
+              if (!groupedMentionNotifications && activeTab !== "mentions") {
                 return "";
               }
+              return notificationsTemplate({
+                groupedNotifications: groupedMentionNotifications,
+                currentUser,
+                hasMore: mentionHasMore,
+                loadMore: loadMoreMentionNotifications,
+                loadMoreError: state.$mentionLoadMoreError.get(),
+              });
             })()}
           </div>
         </main>

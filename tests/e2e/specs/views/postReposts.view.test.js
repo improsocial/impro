@@ -107,7 +107,7 @@ test.describe("Post reposts view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
   });

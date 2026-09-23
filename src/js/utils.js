@@ -210,6 +210,14 @@ export function graphemeCount(str) {
   return [...str].length;
 }
 
+export function truncateGraphemes(str, maxGraphemes, { suffix = "" } = {}) {
+  const graphemes = graphemeSegmenter
+    ? [...graphemeSegmenter.segment(str)].map((segment) => segment.segment)
+    : [...str];
+  if (graphemes.length <= maxGraphemes) return str;
+  return graphemes.slice(0, maxGraphemes).join("") + suffix;
+}
+
 const EMOJI_ONLY_RE =
   /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D]+$/u;
 
@@ -273,7 +281,9 @@ export function formatFullTimestamp(timestamp) {
 export function classnames(...defs) {
   let classname = "";
   for (const def of defs) {
-    if (typeof def === "string") {
+    if (isNil(def)) {
+      continue;
+    } else if (typeof def === "string") {
       if (def.length > 0) {
         classname += def + " ";
       }
@@ -283,8 +293,6 @@ export function classnames(...defs) {
           .filter(([_, value]) => value)
           .map(([key]) => key)
           .join(" ") + " ";
-    } else if (isNil(def)) {
-      continue;
     } else {
       throw new Error("Invalid classname definition");
     }

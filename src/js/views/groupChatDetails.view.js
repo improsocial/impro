@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import {
   getDisplayName,
   getGroupConvoDetails,
@@ -294,7 +294,7 @@ export default async function groupChatDetailsView({
                 })
               : groupHeaderCardSkeletonTemplate()}
             ${membersHeadingTemplate({ groupDetails })}
-            ${profileFeedTemplate({
+            ${profileListTemplate({
               profiles: members,
               hasMore,
               onLoadMore: loadMoreMembers,

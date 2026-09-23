@@ -44,7 +44,7 @@ test.describe("Settings Muted Accounts view", () => {
     await page.goto("/settings/muted-accounts");
 
     const view = page.locator("#settings-muted-accounts-view");
-    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
   });

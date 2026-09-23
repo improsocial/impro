@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
@@ -152,25 +153,13 @@ class AddToListsDialog extends Component {
                       </div>`
                     : html`
                         <div class="add-to-lists-dialog-rows">
-                          <infinite-scroll-container
-                            lookahead="400px"
-                            ?disabled=${!hasMore}
-                            @load-more=${async (event) => {
-                              if (!hasMore) return;
-                              await this._loadMore();
-                              event.detail.resume();
-                            }}
-                          >
-                            ${entries.map((entry) => this._renderRow(entry))}
-                            ${hasMore
-                              ? html`<div
-                                  class="add-to-lists-dialog-loading-more"
-                                  data-testid="add-to-lists-loading-more"
-                                >
-                                  <div class="loading-spinner"></div>
-                                </div>`
-                              : null}
-                          </infinite-scroll-container>
+                          ${paginatedListTemplate({
+                            items: entries,
+                            renderItem: (entry) => this._renderRow(entry),
+                            hasMore,
+                            onLoadMore: () => this._loadMore(),
+                            lookahead: "400px",
+                          })}
                         </div>
                       `}
             </div>

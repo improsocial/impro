@@ -16,9 +16,11 @@ import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
 import "/js/components/app-icon.js";
-import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
-import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
-import { listFeedTemplate } from "/js/templates/listFeed.template.js";
+import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
+import { listListTemplate } from "/js/templates/listList.template.js";
+import { starterPackListTemplate } from "/js/templates/starterPackList.template.js";
+import { linkToStarterPack } from "/js/navigation.js";
+import "/js/components/starter-pack-wizard-dialog.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
 import "/js/components/go-live-dialog.js";
@@ -142,6 +144,8 @@ export default async function profileView({
         scrollAndReloadActorFeeds();
       } else if (tab === "lists") {
         scrollAndReloadActorLists();
+      } else if (tab === "starter-packs") {
+        scrollAndReloadActorStarterPacks();
       } else {
         scrollAndReloadFeed();
       }
@@ -157,6 +161,10 @@ export default async function profileView({
     } else if (tab === "lists") {
       if (!dataLayer.derived.$actorLists.get(profileDid)) {
         await loadActorLists();
+      }
+    } else if (tab === "starter-packs") {
+      if (!dataLayer.derived.$actorStarterPacks.get(profileDid)) {
+        await loadActorStarterPacks();
       }
     } else {
       const isFeedTab = tab !== "labeler-settings";
@@ -180,12 +188,11 @@ export default async function profileView({
   }
 
   function actorFeedsTemplate({ actorFeeds, onLoadMore, currentUserDid }) {
-    return feedsFeedTemplate({
-      items: actorFeeds?.feeds,
-      renderItem: (feedGenerator) =>
-        feedGeneratorListItemTemplate({ feedGenerator, currentUserDid }),
+    return feedGeneratorListTemplate({
+      feedGenerators: actorFeeds?.feeds,
+      cursor: actorFeeds?.cursor,
+      currentUserDid,
       emptyMessage: "No custom feeds.",
-      hasMore: !!actorFeeds?.cursor,
       onLoadMore,
     });
   }
@@ -264,6 +271,13 @@ export default async function profileView({
         authorFeedsToShow = [
           ...authorFeedsToShow,
           { feedType: "feeds", name: "Feeds" },
+        ];
+      }
+      const starterPacksCount = profile.associated?.starterPacks || 0;
+      if (isCurrentUser || starterPacksCount > 0) {
+        authorFeedsToShow = [
+          ...authorFeedsToShow,
+          { feedType: "starter-packs", name: "Starter Packs" },
         ];
       }
       const listsCount = profile.associated?.lists || 0;
@@ -401,6 +415,45 @@ export default async function profileView({
                       })}
                     </div>`;
                   }
+                  if (feedInfo.feedType === "starter-packs") {
+                    const actorStarterPacks =
+                      dataLayer.derived.$actorStarterPacks.get(profileDid);
+                    return html`<div
+                      class="feed-container"
+                      ?hidden=${activeTab !== "starter-packs"}
+                    >
+                      ${starterPackListTemplate({
+                        starterPacks: actorStarterPacks?.starterPacks ?? null,
+                        cursor: actorStarterPacks?.cursor ?? null,
+                        currentUser,
+                        onLoadMore: () => loadActorStarterPacks(),
+                        emptyTemplate: isCurrentUser
+                          ? html`<div
+                              class="feed-end-message starter-pack-empty-state"
+                              data-testid="empty-state"
+                            >
+                              <div>You haven't created a starter pack yet!</div>
+                              ${createStarterPackButtonTemplate({
+                                label: "Create a starter pack",
+                                testId: "starter-pack-create-button",
+                                onClick: () =>
+                                  handleCreateStarterPack({ currentUser }),
+                              })}
+                            </div>`
+                          : null,
+                        footerTemplate: isCurrentUser
+                          ? html`<div class="starter-pack-create-footer">
+                              ${createStarterPackButtonTemplate({
+                                label: "Create another",
+                                testId: "starter-pack-create-another",
+                                onClick: () =>
+                                  handleCreateStarterPack({ currentUser }),
+                              })}
+                            </div>`
+                          : null,
+                      })}
+                    </div>`;
+                  }
                   if (feedInfo.feedType === "lists") {
                     const actorLists =
                       dataLayer.derived.$actorLists.get(profileDid);
@@ -408,7 +461,7 @@ export default async function profileView({
                       class="feed-container"
                       ?hidden=${activeTab !== "lists"}
                     >
-                      ${listFeedTemplate({
+                      ${listListTemplate({
                         lists: actorLists?.lists,
                         cursor: actorLists?.cursor,
                         onLoadMore: () => loadActorLists(),
@@ -515,7 +568,8 @@ export default async function profileView({
     if (
       activeTab === "labeler-settings" ||
       activeTab === "feeds" ||
-      activeTab === "lists"
+      activeTab === "lists" ||
+      activeTab === "starter-packs"
     ) {
       return;
     }
@@ -538,6 +592,50 @@ export default async function profileView({
 
   async function loadActorLists({ reload = false } = {}) {
     await dataLayer.requests.loadActorLists(profileDid, { reload });
+  }
+
+  async function loadActorStarterPacks({ reload = false } = {}) {
+    await dataLayer.requests.loadActorStarterPacks(profileDid, { reload });
+  }
+
+  async function scrollAndReloadActorStarterPacks() {
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: -1, behavior: "smooth" });
+    }
+    await loadActorStarterPacks({ reload: true });
+  }
+
+  function createStarterPackButtonTemplate({ label, testId, onClick }) {
+    return html`<button
+      class="rounded-button rounded-button-primary starter-pack-create-button"
+      data-testid=${testId}
+      @click=${onClick}
+    >
+      ${label}
+    </button>`;
+  }
+
+  function handleCreateStarterPack({ currentUser }) {
+    const dialog = document.createElement("starter-pack-wizard-dialog");
+    dialog.dataLayer = dataLayer;
+    dialog.addEventListener("starter-pack-create", async (event) => {
+      const { data, successCallback, errorCallback } = event.detail;
+      try {
+        const starterPack = await dataLayer.mutations.createStarterPack(data);
+        successCallback();
+        showToast("Starter pack created", { style: "success" });
+        window.router.go(
+          linkToStarterPack({ ...starterPack, creator: currentUser }),
+        );
+      } catch (error) {
+        errorCallback(error);
+      }
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    root.querySelector("main").appendChild(dialog);
+    dialog.open();
   }
 
   async function scrollAndReloadActorLists() {

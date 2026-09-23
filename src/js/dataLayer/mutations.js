@@ -12,8 +12,14 @@ import {
   valueForPinnedItem,
   buildCdnUrl,
 } from "/js/dataHelpers.js";
-import { batch, getCurrentTimestamp, wait } from "/js/utils.js";
+import {
+  batch,
+  getCurrentTimestamp,
+  truncateGraphemes,
+  wait,
+} from "/js/utils.js";
 import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
+import { getFacetsFromText } from "/js/facetHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 import { generateTid } from "/js/atproto.js";
@@ -35,6 +41,7 @@ export class Mutations {
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
+    this.identityResolver = identityResolver;
     this.postCreator = new PostCreator(api, identityResolver);
   }
 
@@ -747,19 +754,10 @@ export class Mutations {
     });
     try {
       await this.api.muteActor(profile.did);
-      const latestProfile =
-        this.dataStore.$profiles.get(profile.did) ?? profile;
-      this.dataStore.$profiles.set(profile.did, {
-        ...latestProfile,
-        viewer: { ...latestProfile.viewer, muted: true },
-      });
-      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
-        this.dataStore.$detailedProfiles.set(profile.did, {
-          ...detailed,
-          viewer: { ...detailed.viewer, muted: true },
-        });
-      }
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, muted: true },
+      }));
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -795,19 +793,10 @@ export class Mutations {
     });
     try {
       await this.api.unmuteActor(profile.did);
-      const latestProfile =
-        this.dataStore.$profiles.get(profile.did) ?? profile;
-      this.dataStore.$profiles.set(profile.did, {
-        ...latestProfile,
-        viewer: { ...latestProfile.viewer, muted: false },
-      });
-      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
-        this.dataStore.$detailedProfiles.set(profile.did, {
-          ...detailed,
-          viewer: { ...detailed.viewer, muted: false },
-        });
-      }
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, muted: false },
+      }));
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -840,19 +829,10 @@ export class Mutations {
     });
     try {
       const block = await this.api.blockActor(profile);
-      const latestProfile =
-        this.dataStore.$profiles.get(profile.did) ?? profile;
-      this.dataStore.$profiles.set(profile.did, {
-        ...latestProfile,
-        viewer: { ...latestProfile.viewer, blocking: block.uri },
-      });
-      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
-        this.dataStore.$detailedProfiles.set(profile.did, {
-          ...detailed,
-          viewer: { ...detailed.viewer, blocking: block.uri },
-        });
-      }
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, blocking: block.uri },
+      }));
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -889,19 +869,10 @@ export class Mutations {
     });
     try {
       await this.api.putActivitySubscription(profile.did, activitySubscription);
-      const latestProfile =
-        this.dataStore.$profiles.get(profile.did) ?? profile;
-      this.dataStore.$profiles.set(profile.did, {
-        ...latestProfile,
-        viewer: { ...latestProfile.viewer, activitySubscription },
-      });
-      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
-        this.dataStore.$detailedProfiles.set(profile.did, {
-          ...detailed,
-          viewer: { ...detailed.viewer, activitySubscription },
-        });
-      }
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, activitySubscription },
+      }));
     } catch (error) {
       console.error(error);
       throw error;
@@ -916,19 +887,10 @@ export class Mutations {
     });
     try {
       await this.api.unblockActor(profile);
-      const latestProfile =
-        this.dataStore.$profiles.get(profile.did) ?? profile;
-      this.dataStore.$profiles.set(profile.did, {
-        ...latestProfile,
-        viewer: { ...latestProfile.viewer, blocking: null },
-      });
-      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
-        this.dataStore.$detailedProfiles.set(profile.did, {
-          ...detailed,
-          viewer: { ...detailed.viewer, blocking: null },
-        });
-      }
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, blocking: null },
+      }));
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -1119,24 +1081,7 @@ export class Mutations {
       patch.banner = "";
     }
 
-    const existingProfile = this.dataStore.$profiles.get(profile.did);
-    if (existingProfile) {
-      this.dataStore.$profiles.set(profile.did, {
-        ...existingProfile,
-        ...patch,
-      });
-    }
-    const existingDetailed = this.dataStore.$detailedProfiles.get(profile.did);
-    if (existingDetailed) {
-      this.dataStore.$detailedProfiles.set(profile.did, {
-        ...existingDetailed,
-        ...patch,
-      });
-    }
-    const currentUser = this.dataStore.$currentUser.get();
-    if (currentUser && currentUser.did === profile.did) {
-      this.dataStore.$currentUser.set({ ...currentUser, ...patch });
-    }
+    this._updateCurrentUserProfile((existing) => ({ ...existing, ...patch }));
   }
 
   async setLiveStatus({
@@ -1319,17 +1264,21 @@ export class Mutations {
     this.dataStore.$lists.set(list.uri, patched);
   }
 
-  async deleteList(list) {
-    const { rkey } = parseUri(list.uri);
-    const listItemUris = [];
+  // Scans the current user's listitem records on the PDS for the ones
+  // belonging to the given list. Returns [{ rkey, subjectDid }].
+  async _findListItemRecords(listUri) {
+    const records = [];
     let cursor = "";
     const MAX_PAGES = 100;
     let hitCap = true;
     for (let i = 0; i < MAX_PAGES; i++) {
       const res = await this.api.getListItems({ cursor, limit: 100 });
       for (const record of res.records) {
-        if (record.value?.list === list.uri) {
-          listItemUris.push(record.uri);
+        if (record.value?.list === listUri) {
+          records.push({
+            rkey: parseUri(record.uri).rkey,
+            subjectDid: record.value.subject,
+          });
         }
       }
       cursor = res.cursor;
@@ -1340,14 +1289,20 @@ export class Mutations {
     }
     if (hitCap) {
       console.warn(
-        `deleteList: stopped scanning listitems after ${MAX_PAGES} pages`,
+        `_findListItemRecords: stopped scanning listitems after ${MAX_PAGES} pages`,
       );
     }
+    return records;
+  }
+
+  async deleteList(list) {
+    const { rkey } = parseUri(list.uri);
+    const listItemRecords = await this._findListItemRecords(list.uri);
     const writes = [
-      ...listItemUris.map((uri) => ({
+      ...listItemRecords.map((item) => ({
         $type: "com.atproto.repo.applyWrites#delete",
         collection: "app.bsky.graph.listitem",
-        rkey: parseUri(uri).rkey,
+        rkey: item.rkey,
       })),
       {
         $type: "com.atproto.repo.applyWrites#delete",
@@ -1401,6 +1356,427 @@ export class Mutations {
     }
   }
 
+  async _buildStarterPackDescription(description) {
+    const trimmed = (description ?? "").trim();
+    if (!trimmed) return { description: null, descriptionFacets: null };
+    const facets = await getFacetsFromText(trimmed, this.identityResolver);
+    return {
+      description: trimmed,
+      descriptionFacets: facets.length > 0 ? facets : null,
+    };
+  }
+
+  _buildStarterPackName(name, currentUser) {
+    const trimmed = (name ?? "").trim();
+    if (trimmed) return trimmed;
+    const fallback = `${currentUser.displayName || currentUser.handle}'s Starter Pack`;
+    return truncateGraphemes(fallback, 50);
+  }
+
+  _listItemCreateWrite({ listUri, did }) {
+    return {
+      $type: "com.atproto.repo.applyWrites#create",
+      collection: "app.bsky.graph.listitem",
+      rkey: generateTid(),
+      value: {
+        $type: "app.bsky.graph.listitem",
+        subject: did,
+        list: listUri,
+        createdAt: getCurrentTimestamp(),
+      },
+    };
+  }
+
+  _listItemUri(rkey) {
+    return `at://${this.api.session.did}/app.bsky.graph.listitem/${rkey}`;
+  }
+
+  async createStarterPack({ name, description, profiles, feeds }) {
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (!currentUser) throw new Error("No current user");
+    const resolvedName = this._buildStarterPackName(name, currentUser);
+    const resolvedDescription =
+      await this._buildStarterPackDescription(description);
+    const createdAt = getCurrentTimestamp();
+    const did = currentUser.did;
+
+    const listRkey = generateTid();
+    const listUri = `at://${did}/app.bsky.graph.list/${listRkey}`;
+    const listRecord = {
+      $type: "app.bsky.graph.list",
+      purpose: "app.bsky.graph.defs#referencelist",
+      name: resolvedName,
+      createdAt,
+    };
+    if (resolvedDescription.description) {
+      listRecord.description = resolvedDescription.description;
+      if (resolvedDescription.descriptionFacets) {
+        listRecord.descriptionFacets = resolvedDescription.descriptionFacets;
+      }
+    }
+
+    const listItemWrites = profiles.map((profile) =>
+      this._listItemCreateWrite({ listUri, did: profile.did }),
+    );
+
+    const packRkey = generateTid();
+    const packUri = `at://${did}/app.bsky.graph.starterpack/${packRkey}`;
+    const packRecord = {
+      $type: "app.bsky.graph.starterpack",
+      name: resolvedName,
+      list: listUri,
+      createdAt,
+    };
+    if (resolvedDescription.description) {
+      packRecord.description = resolvedDescription.description;
+      if (resolvedDescription.descriptionFacets) {
+        packRecord.descriptionFacets = resolvedDescription.descriptionFacets;
+      }
+    }
+    if (feeds.length > 0) {
+      packRecord.feeds = feeds.map((feed) => ({ uri: feed.uri }));
+    }
+
+    const writes = [
+      {
+        $type: "com.atproto.repo.applyWrites#create",
+        collection: "app.bsky.graph.list",
+        rkey: listRkey,
+        value: listRecord,
+      },
+      ...listItemWrites,
+      {
+        $type: "com.atproto.repo.applyWrites#create",
+        collection: "app.bsky.graph.starterpack",
+        rkey: packRkey,
+        value: packRecord,
+      },
+    ];
+    const res = await this.api.applyWrites(writes);
+    const results = res?.results ?? [];
+    const listCid = results[0]?.cid ?? null;
+    const packCid = results[writes.length - 1]?.cid ?? null;
+
+    const creator = {
+      did: currentUser.did,
+      handle: currentUser.handle,
+      displayName: currentUser.displayName,
+      avatar: currentUser.avatar,
+    };
+    const listView = {
+      $type: "app.bsky.graph.defs#listViewBasic",
+      uri: listUri,
+      cid: listCid,
+      name: resolvedName,
+      purpose: "app.bsky.graph.defs#referencelist",
+      listItemCount: profiles.length,
+      indexedAt: createdAt,
+      viewer: {},
+    };
+    const items = listItemWrites.map((write, i) => ({
+      uri: this._listItemUri(write.rkey),
+      subject: profiles[i],
+    }));
+    const starterPackView = {
+      $type: "app.bsky.graph.defs#starterPackView",
+      uri: packUri,
+      cid: packCid,
+      record: packRecord,
+      creator,
+      list: listView,
+      listItemsSample: items.slice(0, 12),
+      feeds,
+      joinedWeekCount: 0,
+      joinedAllTimeCount: 0,
+      indexedAt: createdAt,
+    };
+
+    this.dataStore.$starterPacks.set(packUri, starterPackView);
+    this.dataStore.$starterPackUrisByList.set(listUri, packUri);
+    this.dataStore.$listMembers.set(listUri, { items, cursor: null });
+    const actorStarterPacks = untrack(() =>
+      this.dataStore.$actorStarterPacks.get(did),
+    );
+    if (actorStarterPacks) {
+      this.dataStore.$actorStarterPacks.set(did, {
+        ...actorStarterPacks,
+        starterPacks: [starterPackView, ...actorStarterPacks.starterPacks],
+      });
+    }
+    this._updateCurrentUserProfile((profile) =>
+      profile.associated
+        ? {
+            ...profile,
+            associated: {
+              ...profile.associated,
+              starterPacks: (profile.associated.starterPacks ?? 0) + 1,
+              lists: (profile.associated.lists ?? 0) + 1,
+            },
+          }
+        : profile,
+    );
+    return starterPackView;
+  }
+
+  async updateStarterPack(starterPack, { name, description, profiles, feeds }) {
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (!currentUser) throw new Error("No current user");
+    if (starterPack.creator.did !== currentUser.did) {
+      throw new Error("Cannot edit a starter pack owned by another account");
+    }
+    const listUri = starterPack.list?.uri;
+    if (!listUri) throw new Error("Starter pack has no list");
+    const existingMembers = untrack(() =>
+      this.dataStore.$listMembers.get(listUri),
+    );
+    const optedOutItems = (existingMembers?.items ?? []).filter(
+      (item) => item.subjectOptedOut,
+    );
+    const optedOutDids = new Set(optedOutItems.map((item) => item.subject.did));
+
+    const resolvedName = this._buildStarterPackName(name, currentUser);
+    const resolvedDescription =
+      await this._buildStarterPackDescription(description);
+
+    const selectedDids = new Set(profiles.map((profile) => profile.did));
+    const existingRecords = await this._findListItemRecords(listUri);
+    const rkeysByDid = new Map();
+    for (const record of existingRecords) {
+      const rkeys = rkeysByDid.get(record.subjectDid) ?? [];
+      rkeys.push(record.rkey);
+      rkeysByDid.set(record.subjectDid, rkeys);
+    }
+
+    const deleteWrites = [];
+    for (const [did, rkeys] of rkeysByDid) {
+      const keep =
+        selectedDids.has(did) ||
+        did === currentUser.did ||
+        optedOutDids.has(did);
+      const surplus = keep ? rkeys.slice(1) : rkeys;
+      for (const rkey of surplus) {
+        deleteWrites.push({
+          $type: "com.atproto.repo.applyWrites#delete",
+          collection: "app.bsky.graph.listitem",
+          rkey,
+        });
+      }
+    }
+    const createWrites = profiles
+      .filter((profile) => !rkeysByDid.has(profile.did))
+      .map((profile) =>
+        this._listItemCreateWrite({ listUri, did: profile.did }),
+      );
+
+    for (const chunk of batch(deleteWrites, 50)) {
+      await this.api.applyWrites(chunk);
+    }
+    for (const chunk of batch(createWrites, 50)) {
+      await this.api.applyWrites(chunk);
+    }
+
+    const listRkey = parseUri(listUri).rkey;
+    const listRecordData = await this.api.getListRecord(listRkey);
+    const listRecord = { ...listRecordData.value, name: resolvedName };
+    delete listRecord.description;
+    delete listRecord.descriptionFacets;
+    if (resolvedDescription.description) {
+      listRecord.description = resolvedDescription.description;
+      if (resolvedDescription.descriptionFacets) {
+        listRecord.descriptionFacets = resolvedDescription.descriptionFacets;
+      }
+    }
+    await this.api.putListRecord(listRkey, listRecord, listRecordData.cid);
+
+    const packRkey = parseUri(starterPack.uri).rkey;
+    const packRecordData = await this.api.getStarterPackRecord(packRkey);
+    const packRecord = {
+      ...packRecordData.value,
+      name: resolvedName,
+      updatedAt: getCurrentTimestamp(),
+    };
+    delete packRecord.description;
+    delete packRecord.descriptionFacets;
+    delete packRecord.feeds;
+    if (resolvedDescription.description) {
+      packRecord.description = resolvedDescription.description;
+      if (resolvedDescription.descriptionFacets) {
+        packRecord.descriptionFacets = resolvedDescription.descriptionFacets;
+      }
+    }
+    if (feeds.length > 0) {
+      packRecord.feeds = feeds.map((feed) => ({ uri: feed.uri }));
+    }
+    const putRes = await this.api.putStarterPackRecord(
+      packRkey,
+      packRecord,
+      packRecordData.cid,
+    );
+
+    const createdRkeyByDid = new Map(
+      createWrites.map((write) => [write.value.subject, write.rkey]),
+    );
+    const items = [
+      ...profiles.map((profile) => ({
+        uri: this._listItemUri(
+          rkeysByDid.get(profile.did)?.[0] ?? createdRkeyByDid.get(profile.did),
+        ),
+        subject: profile,
+      })),
+      ...optedOutItems,
+    ];
+    const current =
+      untrack(() => this.dataStore.$starterPacks.get(starterPack.uri)) ??
+      starterPack;
+    const patchedList = {
+      ...current.list,
+      name: resolvedName,
+      listItemCount: items.length,
+    };
+    this.dataStore.$starterPacks.set(starterPack.uri, {
+      ...current,
+      cid: putRes?.cid ?? current.cid,
+      record: packRecord,
+      list: patchedList,
+      listItemsSample: items.slice(0, 12),
+      feeds,
+    });
+    this.dataStore.$listMembers.set(listUri, { items, cursor: null });
+    const list = untrack(() => this.dataStore.$lists.get(listUri));
+    if (list) {
+      this.dataStore.$lists.set(listUri, {
+        ...list,
+        name: resolvedName,
+        description: resolvedDescription.description ?? "",
+        descriptionFacets: resolvedDescription.descriptionFacets ?? [],
+        listItemCount: items.length,
+      });
+    }
+    const actorStarterPacks = untrack(() =>
+      this.dataStore.$actorStarterPacks.get(currentUser.did),
+    );
+    if (actorStarterPacks) {
+      this.dataStore.$actorStarterPacks.set(currentUser.did, {
+        ...actorStarterPacks,
+        starterPacks: actorStarterPacks.starterPacks.map((entry) =>
+          entry.uri === starterPack.uri
+            ? { ...entry, record: packRecord, listItemCount: items.length }
+            : entry,
+        ),
+      });
+    }
+  }
+
+  async deleteStarterPack(starterPack) {
+    const { rkey } = parseUri(starterPack.uri);
+    const listUri = starterPack.list?.uri ?? null;
+    const writes = [];
+    if (listUri) {
+      const listItemRecords = await this._findListItemRecords(listUri);
+      writes.push(
+        ...listItemRecords.map((item) => ({
+          $type: "com.atproto.repo.applyWrites#delete",
+          collection: "app.bsky.graph.listitem",
+          rkey: item.rkey,
+        })),
+        {
+          $type: "com.atproto.repo.applyWrites#delete",
+          collection: "app.bsky.graph.list",
+          rkey: parseUri(listUri).rkey,
+        },
+      );
+    }
+    writes.push({
+      $type: "com.atproto.repo.applyWrites#delete",
+      collection: "app.bsky.graph.starterpack",
+      rkey,
+    });
+    for (const chunk of batch(writes, 50)) {
+      await this.api.applyWrites(chunk);
+    }
+
+    this.dataStore.$starterPacks.set(starterPack.uri, null);
+    if (listUri) {
+      this.dataStore.$starterPackUrisByList.set(listUri, null);
+      this.dataStore.$lists.set(listUri, null);
+      this.dataStore.$listMembers.set(listUri, null);
+    }
+    const creatorDid = starterPack.creator?.did ?? null;
+    if (creatorDid) {
+      const actorStarterPacks = untrack(() =>
+        this.dataStore.$actorStarterPacks.get(creatorDid),
+      );
+      if (actorStarterPacks) {
+        this.dataStore.$actorStarterPacks.set(creatorDid, {
+          ...actorStarterPacks,
+          starterPacks: actorStarterPacks.starterPacks.filter(
+            (entry) => entry.uri !== starterPack.uri,
+          ),
+        });
+      }
+      if (listUri) {
+        const actorLists = untrack(() =>
+          this.dataStore.$actorLists.get(creatorDid),
+        );
+        if (actorLists) {
+          this.dataStore.$actorLists.set(creatorDid, {
+            ...actorLists,
+            lists: actorLists.lists.filter((entry) => entry.uri !== listUri),
+          });
+        }
+      }
+    }
+    const searchResults = untrack(() =>
+      this.dataStore.$starterPackSearchResults.get(),
+    );
+    if (searchResults) {
+      this.dataStore.$starterPackSearchResults.set({
+        ...searchResults,
+        starterPacks: searchResults.starterPacks.filter(
+          (entry) => entry.uri !== starterPack.uri,
+        ),
+      });
+    }
+    const listDelta = listUri ? 1 : 0;
+    this._updateCurrentUserProfile((profile) =>
+      profile.associated
+        ? {
+            ...profile,
+            associated: {
+              ...profile.associated,
+              starterPacks: Math.max(
+                0,
+                (profile.associated.starterPacks ?? 0) - 1,
+              ),
+              lists: Math.max(0, (profile.associated.lists ?? 0) - listDelta),
+            },
+          }
+        : profile,
+    );
+  }
+
+  // A profile lives in $profiles and, once opened, $detailedProfiles; the
+  // current user's is also mirrored in $currentUser. Apply a change to each
+  _updateStoredProfile(profile, update) {
+    const { did } = profile;
+    const stored = untrack(() => this.dataStore.$profiles.get(did)) ?? profile;
+    this.dataStore.$profiles.set(did, update(stored));
+    const detailed = untrack(() => this.dataStore.$detailedProfiles.get(did));
+    if (detailed) {
+      this.dataStore.$detailedProfiles.set(did, update(detailed));
+    }
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (currentUser?.did === did) {
+      this.dataStore.$currentUser.set(update(currentUser));
+    }
+  }
+
+  _updateCurrentUserProfile(update) {
+    const currentUser = untrack(() => this.dataStore.$currentUser.get());
+    if (!currentUser) return;
+    this._updateStoredProfile(currentUser, update);
+  }
+
   async pinPost(post) {
     const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) throw new Error("No current user");
@@ -1426,13 +1802,10 @@ export class Mutations {
         swapCid,
       );
       // Commit to dataStore
-      const latestUser = this.dataStore.$currentUser.get();
-      if (latestUser) {
-        this.dataStore.$currentUser.set({
-          ...latestUser,
-          pinnedPost: pinnedRef,
-        });
-      }
+      this._updateCurrentUserProfile((user) => ({
+        ...user,
+        pinnedPost: pinnedRef,
+      }));
       const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
       if (existingFeed) {
         this.dataStore.$authorFeeds.set(authorFeedURI, {
@@ -1470,11 +1843,7 @@ export class Mutations {
       const { pinnedPost: _, ...updatedRecord } = existingRecord;
       await this.api.putProfileRecord(updatedRecord, swapCid);
       // Commit to dataStore
-      const latestUser = this.dataStore.$currentUser.get();
-      if (latestUser) {
-        const { pinnedPost: _, ...rest } = latestUser;
-        this.dataStore.$currentUser.set(rest);
-      }
+      this._updateCurrentUserProfile(({ pinnedPost: _, ...rest }) => rest);
       const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
       if (existingFeed) {
         this.dataStore.$authorFeeds.set(authorFeedURI, {

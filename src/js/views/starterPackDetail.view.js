@@ -2,9 +2,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
-import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
-import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
+import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -20,6 +19,7 @@ import "/js/components/tab-bar.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
+import "/js/components/starter-pack-wizard-dialog.js";
 
 function copyPermalink(permalink) {
   navigator.clipboard.writeText(permalink);
@@ -41,10 +41,13 @@ function optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut }) {
 
 function headerMenuTemplate({
   permalink,
+  isOwner,
   showOptOut,
   isOptedOut,
   onOptOut,
   onUndoOptOut,
+  onEdit,
+  onDelete,
 }) {
   return html`
     <button
@@ -78,6 +81,24 @@ function headerMenuTemplate({
       ${showOptOut
         ? optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut })
         : ""}
+      ${isOwner
+        ? html`<context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-starter-pack-edit"
+              icon="edit-pen-2-line"
+              @click=${onEdit}
+            >
+              Edit starter pack
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-starter-pack-delete"
+              icon="delete-bin-line"
+              @click=${onDelete}
+            >
+              Delete starter pack
+            </context-menu-item>
+          </context-menu-item-group>`
+        : ""}
     </context-menu>
   `;
 }
@@ -103,21 +124,7 @@ function notFoundTemplate({ onRetry }) {
   </main>`;
 }
 
-function headerActionTemplate({
-  isOwner,
-  isFollowingAll,
-  permalink,
-  onFollowAll,
-}) {
-  if (isOwner) {
-    return html`<button
-      class="rounded-button rounded-button-primary starter-pack-detail-action"
-      data-testid="starter-pack-share"
-      @click=${() => copyPermalink(permalink)}
-    >
-      Share
-    </button>`;
-  }
+function followAllButtonTemplate({ isFollowingAll, onFollowAll }) {
   return html`<button
     class="rounded-button rounded-button-primary starter-pack-detail-action"
     data-testid="starter-pack-follow-all"
@@ -135,7 +142,6 @@ function starterPackHeaderTemplate({
   isOwner,
   isAuthenticated,
   isFollowingAll,
-  permalink,
   onFollowAll,
 }) {
   const { record, creator } = starterPack;
@@ -163,13 +169,8 @@ function starterPackHeaderTemplate({
             : html`<a href=${linkToProfile(creator)}>@${creator.handle}</a>`}
         </div>
       </div>
-      ${isAuthenticated
-        ? headerActionTemplate({
-            isOwner,
-            isFollowingAll,
-            permalink,
-            onFollowAll,
-          })
+      ${isAuthenticated && !isOwner
+        ? followAllButtonTemplate({ isFollowingAll, onFollowAll })
         : ""}
     </div>
     ${record.description
@@ -244,19 +245,13 @@ export default async function starterPackDetailView({
   const {
     postInteractionHandler,
     profileInteractionHandler,
-    listInteractionHandler,
+    starterPackInteractionHandler,
   } = interactionHandlers;
 
   const state = new ReactiveStore("starterPackDetailView");
   state.$activeTab = new Signal.State("people");
   state.$isFollowingAll = new Signal.State(false);
-
-  const $starterPackError = new Signal.Computed(
-    () =>
-      dataLayer.requests.statusStore.$errors.get(
-        "loadStarterPack-" + starterPackUri,
-      ) ?? null,
-  );
+  state.$hasFetchedStarterPack = new Signal.State(false);
 
   bindPageTitle(root, () => {
     return (
@@ -267,7 +262,7 @@ export default async function starterPackDetailView({
   pageEffect(root, () => {
     const currentUser = dataLayer.derived.$currentUser.get();
     const starterPack = dataLayer.derived.$starterPacks.get(starterPackUri);
-    const error = $starterPackError.get();
+    const hasFetchedStarterPack = state.$hasFetchedStarterPack.get();
     const list = starterPack?.list ?? null;
     const listUri = list?.uri ?? null;
     const feeds = starterPack?.feeds ?? [];
@@ -313,14 +308,17 @@ export default async function starterPackDetailView({
             ? () =>
                 headerMenuTemplate({
                   permalink,
+                  isOwner,
                   showOptOut,
                   isOptedOut,
                   onOptOut: () => handleOptOut(list),
                   onUndoOptOut: () => handleUndoOptOut(list),
+                  onEdit: () => handleEditStarterPack(starterPack),
+                  onDelete: () => handleDeleteStarterPack(starterPack),
                 })
             : null,
         })}
-        ${!starterPack && !error
+        ${!isLoaded && !hasFetchedStarterPack
           ? loadingTemplate()
           : !isLoaded
             ? notFoundTemplate({ onRetry: () => loadPageData() })
@@ -330,7 +328,6 @@ export default async function starterPackDetailView({
                   isOwner,
                   isAuthenticated,
                   isFollowingAll,
-                  permalink,
                   onFollowAll: () => handleFollowAll(starterPack),
                 })}
                 <div
@@ -351,7 +348,7 @@ export default async function starterPackDetailView({
                 >
                   ${activeTab === "people"
                     ? html`<div class="feed-container">
-                        ${profileFeedTemplate({
+                        ${profileListTemplate({
                           profiles: members,
                           hasMore: false,
                           emptyMessage: "This starter pack has no members.",
@@ -363,13 +360,9 @@ export default async function starterPackDetailView({
                         })}
                       </div>`
                     : activeTab === "feeds"
-                      ? feedsFeedTemplate({
-                          items: feeds,
-                          renderItem: (feedGenerator) =>
-                            feedGeneratorListItemTemplate({
-                              feedGenerator,
-                              currentUserDid: currentUser?.did ?? null,
-                            }),
+                      ? feedGeneratorListTemplate({
+                          feedGenerators: feeds,
+                          currentUserDid: currentUser?.did ?? null,
                         })
                       : html`<div class="feed-container">
                           ${postFeedTemplate({
@@ -413,15 +406,66 @@ export default async function starterPackDetailView({
     }
   }
 
+  async function handleEditStarterPack(starterPack) {
+    const listUri = starterPack.list?.uri ?? null;
+    if (!listUri) {
+      showToast("This starter pack's list is missing", { style: "error" });
+      return;
+    }
+    const membersEntry = dataLayer.derived.$listMembers.get(listUri);
+    if (!membersEntry || membersEntry.cursor) {
+      await dataLayer.requests
+        .loadAllListMembers(listUri)
+        .catch((error) =>
+          console.warn("Failed to load starter pack members", error),
+        );
+    }
+    const members = dataLayer.derived.$listMembers.get(listUri);
+    if (!members || members.cursor) {
+      showToast("Couldn't load this starter pack's members", {
+        style: "error",
+      });
+      return;
+    }
+    const dialog = document.createElement("starter-pack-wizard-dialog");
+    dialog.dataLayer = dataLayer;
+    dialog.starterPack = starterPack;
+    dialog.members = members.members;
+    dialog.optedOutDids = members.optedOutDids;
+    dialog.addEventListener("starter-pack-update", async (event) => {
+      const { data, successCallback, errorCallback } = event.detail;
+      try {
+        await dataLayer.mutations.updateStarterPack(starterPack, data);
+        showToast("Starter pack updated");
+        successCallback();
+      } catch (error) {
+        errorCallback(error);
+      }
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    root.querySelector("main").appendChild(dialog);
+    dialog.open();
+  }
+
+  async function handleDeleteStarterPack(starterPack) {
+    const deleted =
+      await starterPackInteractionHandler.handleDelete(starterPack);
+    if (!deleted) return;
+    const fallbackRoute = starterPack.creator?.handle
+      ? `/profile/${starterPack.creator.handle}`
+      : "/";
+    window.router.back({ fallbackRoute });
+  }
+
   async function handleOptOut(list) {
-    const optedOut =
-      await listInteractionHandler.handleOptOutOfReferenceList(list);
+    const optedOut = await starterPackInteractionHandler.handleOptOut(list);
     if (optedOut) reloadMembers(list.uri);
   }
 
   async function handleUndoOptOut(list) {
-    const undone =
-      await listInteractionHandler.handleUndoReferenceListOptOut(list);
+    const undone = await starterPackInteractionHandler.handleUndoOptOut(list);
     if (undone) reloadMembers(list.uri);
   }
 
@@ -437,7 +481,12 @@ export default async function starterPackDetailView({
   }
 
   async function loadPageData() {
-    await dataLayer.requests.loadStarterPack(starterPackUri);
+    state.$hasFetchedStarterPack.set(false);
+    try {
+      await dataLayer.requests.loadStarterPack(starterPackUri);
+    } finally {
+      state.$hasFetchedStarterPack.set(true);
+    }
     const listUri =
       dataLayer.derived.$starterPacks.get(starterPackUri)?.list?.uri ?? null;
     if (!listUri) return;

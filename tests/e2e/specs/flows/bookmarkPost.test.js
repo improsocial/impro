@@ -82,7 +82,7 @@ test.describe("Bookmark post flow", () => {
     await page.goto("/bookmarks");
 
     await expect(
-      bookmarksView.locator('[data-testid="feed-end-message"]'),
+      bookmarksView.locator('[data-testid="empty-state"]'),
     ).toContainText("No saved posts yet!", { timeout: 10000 });
   });
 });

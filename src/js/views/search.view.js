@@ -3,14 +3,9 @@ import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { classnames } from "/js/utils.js";
-import {
-  cdnImageUrl,
-  getDisplayName,
-  MISSING_HANDLE,
-} from "/js/dataHelpers.js";
+import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
-  linkToFeed,
   linkToProfile,
   linkToProfileByDid,
   linkToStarterPack,
@@ -20,7 +15,10 @@ import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
+import { starterPackListTemplate } from "/js/templates/starterPackList.template.js";
+import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 
 export default async function searchView({
   root,
@@ -455,39 +453,24 @@ export default async function searchView({
         No posts found.
       </div>`;
     }
-    return html`<infinite-scroll-container
-      lookahead="2500px"
-      @load-more=${async (event) => {
-        if (postSearchHasMore) {
-          await onLoadMore();
-          event.detail.resume();
-        }
-      }}
-      ?disabled=${!postSearchHasMore}
-    >
-      <div>
-        ${postSearchResults.map(
-          (post) =>
-            html`<div class="feed-item" data-post-uri="${post.uri}">
-              ${smallPostTemplate({
-                post,
-                currentUser,
-                isAuthenticated,
-                showReplyToLabel: !!post.record?.reply,
-                replyToAuthor: post.record?.reply?.parentAuthor ?? null,
-                isUserPost: currentUser?.did === post.author?.did,
-                postInteractionHandler,
-                pluginService,
-              })}
-            </div>`,
-        )}
-        ${postSearchHasMore
-          ? html`<div class="feed-loading-indicator">
-              <div class="loading-spinner"></div>
-            </div>`
-          : ""}
-      </div>
-    </infinite-scroll-container>`;
+    return paginatedListTemplate({
+      items: postSearchResults,
+      renderItem: (post) =>
+        html`<div class="feed-item" data-post-uri="${post.uri}">
+          ${smallPostTemplate({
+            post,
+            currentUser,
+            isAuthenticated,
+            showReplyToLabel: !!post.record?.reply,
+            replyToAuthor: post.record?.reply?.parentAuthor ?? null,
+            isUserPost: currentUser?.did === post.author?.did,
+            postInteractionHandler,
+            pluginService,
+          })}
+        </div>`,
+      hasMore: postSearchHasMore,
+      onLoadMore,
+    });
   }
 
   function profileSearchResultsTemplate({
@@ -510,7 +493,7 @@ export default async function searchView({
         No profiles found.
       </div>`;
     }
-    return profileFeedTemplate({
+    return profileListTemplate({
       profiles: profileSearchResults,
       hasMore: profileSearchHasMore,
       onLoadMore: loadMoreProfiles,
@@ -524,8 +507,9 @@ export default async function searchView({
   function feedSearchResultsTemplate({
     status,
     feedSearchResults,
-    feedSearchHasMore,
+    feedSearchCursor,
     preferences,
+    currentUser,
   }) {
     if (!feedSearchResults && status.loading) {
       return html`<div class="search-status-message">Searching feeds…</div>`;
@@ -536,147 +520,41 @@ export default async function searchView({
         ${status.error.message ? html`(${status.error.message})` : ""}.
       </div>`;
     }
-    if (!feedSearchResults || feedSearchResults.length === 0) {
-      return html`<div class="search-status-message" data-testid="empty-state">
-        No feeds found.
-      </div>`;
-    }
-    return html`<infinite-scroll-container
-      lookahead="2500px"
-      @load-more=${async (event) => {
-        if (feedSearchHasMore) {
-          await loadMoreFeeds();
-          event.detail.resume();
-        }
-      }}
-      ?disabled=${!feedSearchHasMore}
-    >
-      <div class="feeds-list">
-        ${feedSearchResults.map((feedGenerator) => {
-          const isPinned = preferences.isFeedPinned(feedGenerator.uri);
-          return html`
-            <container-link
-              class="feeds-list-item clickable"
-              href=${linkToFeed(feedGenerator)}
-            >
-              <div class="feeds-list-item-avatar">
-                ${feedGenerator.avatar
-                  ? html`<img
-                      src=${cdnImageUrl(feedGenerator.avatar)}
-                      alt=${feedGenerator.displayName}
-                      class="feed-avatar"
-                    />`
-                  : html`<img
-                      src="/img/feed-avatar-fallback.svg"
-                      alt=${feedGenerator.displayName}
-                      class="feed-avatar"
-                    />`}
-              </div>
-              <div class="feeds-list-item-content">
-                <div class="feeds-list-item-title">
-                  ${feedGenerator.displayName}
-                </div>
-                ${feedGenerator.creator
-                  ? html`<div class="feeds-list-item-creator">
-                      by @${feedGenerator.creator.handle}
-                    </div>`
-                  : ""}
-                ${feedGenerator.description
-                  ? // prettier-ignore
-                    html`<div class="feeds-list-item-description">${feedGenerator.description}</div>`
-                  : ""}
-              </div>
-              <div class="feeds-list-item-actions">
-                <button
-                  class=${classnames("rounded-button pin-feed-button", {
-                    "rounded-button-primary": !isPinned,
-                    pinned: isPinned,
-                  })}
-                  @click=${(e) => {
-                    e.stopPropagation();
-                    feedInteractionHandler.handlePinFeed(
-                      feedGenerator.uri,
-                      !isPinned,
-                    );
-                  }}
-                >
-                  ${isPinned ? "" : fillableIconTemplate({ icon: "pin" })}
-                  ${isPinned ? "Unpin feed" : "Pin feed"}
-                </button>
-              </div>
-            </container-link>
-          `;
-        })}
-        ${feedSearchHasMore
-          ? html`<div class="feed-loading-indicator">
-              <div class="loading-spinner"></div>
-            </div>`
-          : ""}
-      </div>
-    </infinite-scroll-container>`;
+    return feedGeneratorListTemplate({
+      feedGenerators: feedSearchResults ?? [],
+      cursor: feedSearchCursor,
+      currentUserDid: currentUser?.did ?? null,
+      onLoadMore: () => loadMoreFeeds(),
+      emptyMessage: "No feeds found.",
+      showDescription: true,
+      rightItemTemplate: (feedGenerator) =>
+        pinFeedButtonTemplate({
+          feedGenerator,
+          isPinned: preferences.isFeedPinned(feedGenerator.uri),
+        }),
+    });
   }
 
-  function starterPackListItemTemplate({ starterPack, currentUser }) {
-    const { record, creator } = starterPack;
-    const isOwner = currentUser?.did === creator.did;
-    const sampleProfiles = (starterPack.listItemsSample ?? [])
-      .slice(0, 8)
-      .map((item) => item.subject);
-    const remainingCount =
-      (starterPack.listItemCount ?? 0) - sampleProfiles.length;
-    return html`<container-link
-      class="feeds-list-item starter-pack-list-item clickable"
-      data-testid="starter-pack-search-result"
-      href=${linkToStarterPack(starterPack)}
+  function pinFeedButtonTemplate({ feedGenerator, isPinned }) {
+    return html`<button
+      class=${classnames("rounded-button pin-feed-button", {
+        "rounded-button-primary": !isPinned,
+        pinned: isPinned,
+      })}
+      @click=${(e) => {
+        e.stopPropagation();
+        feedInteractionHandler.handlePinFeed(feedGenerator.uri, !isPinned);
+      }}
     >
-      <div class="feeds-list-item-avatar">
-        <img
-          src="/img/starter-pack-avatar-fallback.svg"
-          alt=${record.name}
-          class="feed-avatar"
-        />
-      </div>
-      <div class="feeds-list-item-content">
-        <div class="feeds-list-item-title">${record.name}</div>
-        <div class="feeds-list-item-creator">
-          Starter pack by ${isOwner ? "you" : html`@${creator.handle}`}
-        </div>
-        ${record.description
-          ? // prettier-ignore
-            html`<div class="feeds-list-item-description">${record.description}</div>`
-          : ""}
-        ${sampleProfiles.length > 0
-          ? html`<div
-              class="starter-pack-list-item-members"
-              data-testid="starter-pack-members"
-            >
-              ${sampleProfiles.map((profile) =>
-                keyed(
-                  profile.did,
-                  html`<div class="starter-pack-list-item-member">
-                    ${avatarTemplate({
-                      author: profile,
-                      clickAction: "none",
-                      showLiveBadge: false,
-                    })}
-                  </div>`,
-                ),
-              )}
-              ${remainingCount > 0
-                ? html`<div class="starter-pack-list-item-member-count">
-                    +${remainingCount}
-                  </div>`
-                : ""}
-            </div>`
-          : ""}
-      </div>
-    </container-link>`;
+      ${isPinned ? "" : fillableIconTemplate({ icon: "pin" })}
+      ${isPinned ? "Unpin feed" : "Pin feed"}
+    </button>`;
   }
 
   function starterPackSearchResultsTemplate({
     status,
     starterPackSearchResults,
-    starterPackSearchHasMore,
+    starterPackSearchCursor,
     currentUser,
   }) {
     if (!starterPackSearchResults && status.loading) {
@@ -690,35 +568,14 @@ export default async function searchView({
         ${status.error.message ? html`(${status.error.message})` : ""}.
       </div>`;
     }
-    if (!starterPackSearchResults || starterPackSearchResults.length === 0) {
-      return html`<div class="search-status-message" data-testid="empty-state">
-        No starter packs found.
-      </div>`;
-    }
-    return html`<infinite-scroll-container
-      lookahead="2500px"
-      @load-more=${async (event) => {
-        if (starterPackSearchHasMore) {
-          await loadMoreStarterPacks();
-          event.detail.resume();
-        }
-      }}
-      ?disabled=${!starterPackSearchHasMore}
-    >
-      <div class="feeds-list">
-        ${starterPackSearchResults.map((starterPack) =>
-          keyed(
-            starterPack.uri,
-            starterPackListItemTemplate({ starterPack, currentUser }),
-          ),
-        )}
-        ${starterPackSearchHasMore
-          ? html`<div class="feed-loading-indicator">
-              <div class="loading-spinner"></div>
-            </div>`
-          : ""}
-      </div>
-    </infinite-scroll-container>`;
+    return starterPackListTemplate({
+      starterPacks: starterPackSearchResults ?? [],
+      cursor: starterPackSearchCursor,
+      currentUser,
+      onLoadMore: () => loadMoreStarterPacks(),
+      emptyMessage: "No starter packs found.",
+      itemTestId: "starter-pack-search-result",
+    });
   }
 
   function getActivePanelTemplate(activeTab, committedQuery, currentUser) {
@@ -756,8 +613,9 @@ export default async function searchView({
           ${feedSearchResultsTemplate({
             status,
             feedSearchResults: dataLayer.derived.$feedSearchResults.get(),
-            feedSearchHasMore: !!dataLayer.derived.$feedSearchCursor.get(),
+            feedSearchCursor: dataLayer.derived.$feedSearchCursor.get(),
             preferences: dataLayer.derived.$preferences.get(),
+            currentUser,
           })}
         </div>`;
       case "starterPacks":
@@ -766,8 +624,8 @@ export default async function searchView({
             status,
             starterPackSearchResults:
               dataLayer.derived.$starterPackSearchResults.get(),
-            starterPackSearchHasMore:
-              !!dataLayer.derived.$starterPackSearchCursor.get(),
+            starterPackSearchCursor:
+              dataLayer.derived.$starterPackSearchCursor.get(),
             currentUser,
           })}
         </div>`;

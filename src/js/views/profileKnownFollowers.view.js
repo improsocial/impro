@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/infinite-scroll-container.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -59,7 +59,7 @@ export default async function profileKnownFollowersView({
             if (requestStatus.error) {
               return errorTemplate({ error: requestStatus.error });
             }
-            return profileFeedTemplate({
+            return profileListTemplate({
               profiles: knownFollowers?.followers ?? null,
               hasMore,
               onLoadMore: loadKnownFollowers,

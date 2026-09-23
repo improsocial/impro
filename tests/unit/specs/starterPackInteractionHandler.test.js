@@ -1,13 +1,13 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { ListInteractionHandler } from "/js/listInteractionHandler.js";
+import { StarterPackInteractionHandler } from "/js/starterPackInteractionHandler.js";
 import {
   makeTestDataLayer,
   respondToConfirm,
   waitFor,
 } from "../testHelpers.js";
 
-describe("ListInteractionHandler reference list opt-out", () => {
+describe("StarterPackInteractionHandler opt-out", () => {
   const list = {
     uri: "at://did:plc:creator/app.bsky.graph.list/pack",
     viewer: {},
@@ -32,13 +32,13 @@ describe("ListInteractionHandler reference list opt-out", () => {
       calls.push(arg);
       return mutationImpl();
     };
-    return { handler: new ListInteractionHandler(dataLayer), calls };
+    return { handler: new StarterPackInteractionHandler(dataLayer), calls };
   }
 
   it("does not mutate when the confirm is cancelled", async () => {
     const { handler, calls } = makeHandler(async () => {});
 
-    const promise = handler.handleOptOutOfReferenceList(list);
+    const promise = handler.handleOptOut(list);
     await respondToConfirm(false);
 
     assert.deepEqual(await promise, false);
@@ -48,7 +48,7 @@ describe("ListInteractionHandler reference list opt-out", () => {
   it("opts out on confirm and toasts", async () => {
     const { handler, calls } = makeHandler(async () => {});
 
-    const promise = handler.handleOptOutOfReferenceList(list);
+    const promise = handler.handleOptOut(list);
     await respondToConfirm(true);
 
     assert.deepEqual(await promise, true);
@@ -60,7 +60,7 @@ describe("ListInteractionHandler reference list opt-out", () => {
   it("undoes on confirm and toasts", async () => {
     const { handler, calls } = makeHandler(async () => {});
 
-    const promise = handler.handleUndoReferenceListOptOut(list);
+    const promise = handler.handleUndoOptOut(list);
     await respondToConfirm(true);
 
     assert.deepEqual(await promise, true);
@@ -73,7 +73,7 @@ describe("ListInteractionHandler reference list opt-out", () => {
       throw new Error("nope");
     });
 
-    const promise = handler.handleOptOutOfReferenceList(list);
+    const promise = handler.handleOptOut(list);
     await respondToConfirm(true);
     await waitFor(() => document.querySelector('[data-testid="toast"].error'));
 
