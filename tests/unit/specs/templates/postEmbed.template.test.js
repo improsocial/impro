@@ -315,12 +315,14 @@ describe("postEmbedTemplate - video", () => {
     );
   });
 
-  it("renders a video with controls and no looping by default", () => {
+  it("renders a looping autoplaying muted video with controls", () => {
     const el = renderVideo({ width: 16, height: 9 });
     const player = el.querySelector("streaming-video");
     assert(player.hasAttribute("controls"));
-    assert(!player.hasAttribute("loop"));
-    assert(!player.hasAttribute("autoplay"));
+    assert(player.hasAttribute("loop"));
+    assert(player.hasAttribute("autoplay"));
+    assert(player.hasAttribute("muted"));
+    assert(player.hasAttribute("playsinline"));
   });
 });
 

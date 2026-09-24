@@ -221,6 +221,75 @@ describe("streaming-video", () => {
     });
   });
 
+  describe("StreamingVideo - time remaining indicator", () => {
+    function createControlledVideo({ duration, currentTime }) {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.m3u8");
+      element.setAttribute("controls", "");
+      document.body.appendChild(element);
+      const video = element.querySelector("video");
+      Object.defineProperty(video, "duration", {
+        value: duration,
+        configurable: true,
+      });
+      Object.defineProperty(video, "currentTime", {
+        value: currentTime,
+        configurable: true,
+      });
+      return { element, video };
+    }
+
+    it("should render a hidden indicator until the duration is known", () => {
+      const { element } = createControlledVideo({
+        duration: NaN,
+        currentTime: 0,
+      });
+      const indicator = element.querySelector(
+        '[data-testid="video-time-remaining"]',
+      );
+      assert(indicator !== null);
+      assert(indicator.hidden);
+    });
+
+    it("should show the remaining time as m:ss on timeupdate", () => {
+      const { element, video } = createControlledVideo({
+        duration: 125.4,
+        currentTime: 3.2,
+      });
+      video.dispatchEvent(new window.Event("timeupdate"));
+      const indicator = element.querySelector(
+        '[data-testid="video-time-remaining"]',
+      );
+      assert(!indicator.hidden);
+      assert.deepEqual(indicator.textContent, "2:02");
+    });
+
+    it("should show 0:00 once playback reaches the end", () => {
+      const { element, video } = createControlledVideo({
+        duration: 10,
+        currentTime: 10,
+      });
+      video.dispatchEvent(new window.Event("durationchange"));
+      assert.deepEqual(
+        element.querySelector('[data-testid="video-time-remaining"]')
+          .textContent,
+        "0:00",
+      );
+    });
+
+    it("should not render an indicator for players without controls", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("autoplay", "");
+      element.setAttribute("loop", "");
+      document.body.appendChild(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="video-time-remaining"]'),
+        null,
+      );
+    });
+  });
+
   describe("StreamingVideo - resume autoplay", () => {
     it("should resume a paused autoplay video", () => {
       const element = document.createElement("streaming-video");

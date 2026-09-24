@@ -2885,6 +2885,35 @@ animated-button {
   background: var(--black);
 }
 
+.video-time-remaining {
+  pointer-events: none;
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--alt-indicator-background);
+  color: var(--white);
+  font-size: 12px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.15s;
+}
+
+.video-time-remaining[hidden] {
+  display: none;
+}
+
+@media (hover: hover) {
+  .post-video:hover .video-time-remaining {
+    opacity: 0;
+  }
+}
+
+.post-video:has(video:fullscreen) .video-time-remaining {
+  display: none;
+}
+
 .post-video img {
   position: absolute;
   inset: 0;

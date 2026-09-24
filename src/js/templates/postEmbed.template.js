@@ -366,7 +366,10 @@ function videoTemplate({ video }) {
       alt="${video.alt ?? ""}"
       poster="${video.thumbnail ? cdnImageUrl(video.thumbnail) : ""}"
       controls
+      autoplay
+      loop
       muted
+      playsinline
     ></streaming-video>
     ${video.alt
       ? html`<button

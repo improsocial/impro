@@ -18,6 +18,11 @@ const streamingVideoObserver = new IntersectionObserver(
   },
 );
 
+function formatRemainingTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 class StreamingVideo extends Component {
   // Pause on navigate
   handlePageTransition = () => {
@@ -57,13 +62,22 @@ class StreamingVideo extends Component {
   render() {
     render(
       html`<video
-        ?controls=${this.controls}
-        ?autoplay=${this.autoplay}
-        ?loop=${this.loop}
-        ?playsinline=${this.playsinline}
-        ?muted=${this.muted}
-        aria-label=${this.alt || null}
-      ></video>`,
+          ?controls=${this.controls}
+          ?autoplay=${this.autoplay}
+          ?loop=${this.loop}
+          ?playsinline=${this.playsinline}
+          ?muted=${this.muted}
+          aria-label=${this.alt || null}
+          @timeupdate=${this.handleTimeChange}
+          @durationchange=${this.handleTimeChange}
+        ></video>
+        ${this.controls
+          ? html`<span
+              class="video-time-remaining"
+              data-testid="video-time-remaining"
+              hidden
+            ></span>`
+          : null}`,
       this,
     );
     const video = this.querySelector("video");
@@ -74,6 +88,25 @@ class StreamingVideo extends Component {
       video.setAttribute("poster", this.poster);
     }
   }
+
+  handleTimeChange = (event) => {
+    const indicator = this.querySelector(".video-time-remaining");
+    if (!indicator) {
+      return;
+    }
+    const { duration, currentTime } = event.target;
+    if (!Number.isFinite(duration) || duration <= 0) {
+      indicator.hidden = true;
+      return;
+    }
+    const remaining = Math.max(0, Math.floor(duration - currentTime));
+    indicator.textContent = formatRemainingTime(remaining);
+    indicator.setAttribute(
+      "aria-label",
+      `Time remaining: ${remaining} seconds`,
+    );
+    indicator.hidden = false;
+  };
 
   resumeAutoplay() {
     if (!this.autoplay) {
