@@ -199,6 +199,8 @@ test.describe("Post embeds view — video", () => {
       embed: {
         $type: "app.bsky.embed.video#view",
         playlist: "",
+        thumbnail:
+          "https://cdn.bsky.app/img/feed_thumbnail/plain/video-thumb@jpeg",
         aspectRatio: { width: 16, height: 9 },
         ...(alt !== undefined ? { alt } : {}),
         ...(presentation !== undefined ? { presentation } : {}),
@@ -214,6 +216,19 @@ test.describe("Post embeds view — video", () => {
     const view = page.locator("#post-detail-view");
     await expect(view.locator(".post-video")).toBeVisible({ timeout: 10000 });
     await expect(view.locator("streaming-video")).toHaveCount(1);
+  });
+
+  test("shows the embed thumbnail as the video poster before playback", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildVideoPost());
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator("streaming-video video")).toHaveAttribute(
+      "poster",
+      /video-thumb/,
+      { timeout: 10000 },
+    );
   });
 
   test("renders a gif-presentation video as a looping autoplay player without controls", async ({

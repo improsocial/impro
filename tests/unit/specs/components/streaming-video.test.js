@@ -25,6 +25,24 @@ describe("streaming-video", () => {
       assert.deepEqual(element.src, "test-video.m3u8");
     });
 
+    it("should forward the poster attribute to the video element", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.m3u8");
+      element.setAttribute("poster", "https://example.com/thumb.jpg");
+      document.body.appendChild(element);
+      assert.deepEqual(
+        element.querySelector("video").getAttribute("poster"),
+        "https://example.com/thumb.jpg",
+      );
+    });
+
+    it("should not set a poster on the video element when none is given", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.m3u8");
+      document.body.appendChild(element);
+      assert(!element.querySelector("video").hasAttribute("poster"));
+    });
+
     it("should read controls attribute", () => {
       const element = document.createElement("streaming-video");
       element.setAttribute("src", "test.m3u8");

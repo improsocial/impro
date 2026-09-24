@@ -260,6 +260,7 @@ describe("postEmbedTemplate - video", () => {
     return {
       $type: "app.bsky.embed.video#view",
       playlist: "https://example.com/video.m3u8",
+      thumbnail: "https://example.com/thumb.jpg",
       aspectRatio,
     };
   }
@@ -305,6 +306,15 @@ describe("postEmbedTemplate - video", () => {
     assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
+  it("passes the embed thumbnail to the player as its poster", () => {
+    const el = renderVideo({ width: 16, height: 9 });
+    const player = el.querySelector("streaming-video");
+    assert.deepEqual(
+      player.getAttribute("poster"),
+      "https://example.com/thumb.jpg",
+    );
+  });
+
   it("renders a video with controls and no looping by default", () => {
     const el = renderVideo({ width: 16, height: 9 });
     const player = el.querySelector("streaming-video");
@@ -315,7 +325,7 @@ describe("postEmbedTemplate - video", () => {
 });
 
 describe("postEmbedTemplate - gif presentation video", () => {
-  function renderGifVideo({ alt, aspectRatio } = {}) {
+  function renderGifVideo({ alt, aspectRatio, thumbnail } = {}) {
     const result = postEmbedTemplate({
       embed: {
         $type: "app.bsky.embed.video#view",
@@ -323,6 +333,7 @@ describe("postEmbedTemplate - gif presentation video", () => {
         presentation: "gif",
         alt,
         aspectRatio,
+        thumbnail,
       },
       labels: [],
       isAuthenticated: true,
@@ -331,6 +342,14 @@ describe("postEmbedTemplate - gif presentation video", () => {
     render(result, container);
     return container.querySelector(".post-video");
   }
+
+  it("passes the embed thumbnail to the gif player as its poster", () => {
+    const el = renderGifVideo({ thumbnail: "https://example.com/gif.jpg" });
+    assert.deepEqual(
+      el.querySelector("streaming-video").getAttribute("poster"),
+      "https://example.com/gif.jpg",
+    );
+  });
 
   it("renders a looping autoplaying muted player without controls", () => {
     const el = renderGifVideo();

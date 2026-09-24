@@ -350,6 +350,7 @@ function videoTemplate({ video }) {
       uri: video.playlist,
       alt: video.alt,
       aspectRatio,
+      poster: video.thumbnail ?? "",
     });
   }
   return html`<div
@@ -363,6 +364,7 @@ function videoTemplate({ video }) {
     <streaming-video
       src="${video.playlist}"
       alt="${video.alt ?? ""}"
+      poster="${video.thumbnail ? cdnImageUrl(video.thumbnail) : ""}"
       controls
       muted
     ></streaming-video>
@@ -410,7 +412,13 @@ function openAltTextDialog(altText) {
   dialog.showModal();
 }
 
-function gifPlayerTemplate({ type = "video", uri, alt, aspectRatio = null }) {
+function gifPlayerTemplate({
+  type = "video",
+  uri,
+  alt,
+  aspectRatio = null,
+  poster = "",
+}) {
   return html` <div
     class="post-video"
     style=${postVideoSizingStyle(aspectRatio)}
@@ -419,6 +427,7 @@ function gifPlayerTemplate({ type = "video", uri, alt, aspectRatio = null }) {
       ? html`<streaming-video
           src="${uri}"
           alt="${alt ?? ""}"
+          poster="${poster ? cdnImageUrl(poster) : ""}"
           loop
           autoplay
           muted
