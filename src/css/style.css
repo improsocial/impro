@@ -8320,14 +8320,11 @@ context-menu-item-group > context-menu-item > button {
   text-decoration: none;
   display: inline-block;
   text-align: center;
-}
-
-.modal-dialog-button.cancel-button {
   background-color: var(--secondary-button-color);
 }
 
 @media (hover: hover) {
-  .modal-dialog-button.cancel-button:hover {
+  .modal-dialog-button:hover {
     background-color: var(--secondary-button-hover-color);
   }
 }
