@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import "/js/components/streaming-video.js";
+import { updateActiveVideo } from "/js/components/streaming-video.js";
 
 describe("streaming-video", () => {
   beforeEach(() => {
@@ -163,6 +163,235 @@ describe("streaming-video", () => {
       const video = element.querySelector("video");
       video.click();
       assert.deepEqual(element.querySelector("video").controls, false);
+    });
+  });
+
+  describe("StreamingVideo - single active video", () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const VIEWPORT_HEIGHT = 800;
+    let originalInnerHeight;
+    let originalInnerWidth;
+
+    beforeEach(() => {
+      originalInnerHeight = window.innerHeight;
+      originalInnerWidth = window.innerWidth;
+      window.innerHeight = VIEWPORT_HEIGHT;
+      window.innerWidth = 400;
+    });
+
+    afterEach(() => {
+      window.innerHeight = originalInnerHeight;
+      window.innerWidth = originalInnerWidth;
+    });
+
+    function createCandidate() {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("controls", "");
+      element.setAttribute("autoplay", "");
+      element.setAttribute("muted", "");
+      document.body.appendChild(element);
+      const video = element.querySelector("video");
+      const calls = { play: 0, pause: 0 };
+      let paused = true;
+      Object.defineProperty(video, "paused", { get: () => paused });
+      video.play = () => {
+        calls.play++;
+        paused = false;
+        video.dispatchEvent(new window.Event("play"));
+        return Promise.resolve();
+      };
+      video.pause = () => {
+        calls.pause++;
+        paused = true;
+      };
+      // Full-width, 200px tall box at the given offset from the viewport top
+      const placeAt = (top) => {
+        element.getBoundingClientRect = () => ({
+          top,
+          bottom: top + 200,
+          left: 0,
+          right: 400,
+          width: 400,
+          height: 200,
+        });
+      };
+      placeAt(VIEWPORT_HEIGHT + 1000);
+      return { element, video, calls, placeAt };
+    }
+
+    it("should not put the autoplay attribute on controlled videos", () => {
+      const { video } = createCandidate();
+      assert(!video.autoplay);
+    });
+
+    it("should keep the autoplay attribute on gif players", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("autoplay", "");
+      document.body.appendChild(element);
+      assert(element.querySelector("video").autoplay);
+    });
+
+    it("should play only the most visible video", async () => {
+      const first = createCandidate();
+      const second = createCandidate();
+      first.placeAt(-80);
+      second.placeAt(300);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(first.calls.play, 0);
+      assert.deepEqual(second.calls.play, 1);
+    });
+
+    it("should not play a video that is less than half visible", async () => {
+      const only = createCandidate();
+      only.placeAt(-120);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(only.calls.play, 0);
+    });
+
+    it("should prefer the topmost video on a visibility tie", async () => {
+      const lower = createCandidate();
+      const upper = createCandidate();
+      lower.placeAt(400);
+      upper.placeAt(50);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(lower.calls.play, 0);
+      assert.deepEqual(upper.calls.play, 1);
+    });
+
+    it("should pause the active video when another becomes more visible", async () => {
+      const first = createCandidate();
+      const second = createCandidate();
+      first.placeAt(0);
+      second.placeAt(VIEWPORT_HEIGHT - 60);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(first.calls.play, 1);
+      first.placeAt(-80);
+      second.placeAt(100);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(first.calls.pause, 1);
+      assert.deepEqual(second.calls.play, 1);
+    });
+
+    it("should pause the active video when it scrolls mostly out of view", async () => {
+      const only = createCandidate();
+      only.placeAt(0);
+      updateActiveVideo();
+      await flush();
+      only.placeAt(-160);
+      updateActiveVideo();
+      assert.deepEqual(only.calls.pause, 1);
+    });
+
+    it("should pause the active video when the user plays another one", async () => {
+      const first = createCandidate();
+      const second = createCandidate();
+      first.placeAt(0);
+      second.placeAt(300);
+      updateActiveVideo();
+      await flush();
+      second.video.play();
+      assert.deepEqual(first.calls.pause, 1);
+    });
+
+    it("should resume the active video when its page is shown again", async () => {
+      const only = createCandidate();
+      only.placeAt(0);
+      updateActiveVideo();
+      await flush();
+      window.dispatchEvent(new Event("page-transition"));
+      assert.deepEqual(only.calls.pause, 1);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(only.calls.play, 2);
+    });
+
+    it("should hand over to the next video when the active one is removed", async () => {
+      const first = createCandidate();
+      const second = createCandidate();
+      first.placeAt(0);
+      second.placeAt(300);
+      updateActiveVideo();
+      await flush();
+      first.element.remove();
+      await flush();
+      assert.deepEqual(second.calls.play, 1);
+    });
+  });
+
+  describe("StreamingVideo - shared mute preference", () => {
+    function createVideo(attributes) {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("muted", "");
+      element.setAttribute("autoplay", "");
+      for (const attribute of attributes) {
+        element.setAttribute(attribute, "");
+      }
+      document.body.appendChild(element);
+      return element.querySelector("video");
+    }
+
+    // JSDOM fires volumechange synchronously on assignment (no event when
+    // the value is unchanged, so videos start muted before re-muting)
+    function setMutedByUser(video, muted) {
+      video.muted = muted;
+    }
+
+    function reMuteByUser(video) {
+      setMutedByUser(video, false);
+      setMutedByUser(video, true);
+    }
+
+    afterEach(() => {
+      reMuteByUser(createVideo(["controls"]));
+    });
+
+    it("should start later controlled videos unmuted after the user unmutes one", () => {
+      setMutedByUser(createVideo(["controls"]), false);
+      const next = createVideo(["controls"]);
+      assert(next.muted);
+      next.dispatchEvent(new window.Event("play"));
+      assert.deepEqual(next.muted, false);
+    });
+
+    it("should start later videos muted again after the user re-mutes", () => {
+      setMutedByUser(createVideo(["controls"]), false);
+      reMuteByUser(createVideo(["controls"]));
+      const next = createVideo(["controls"]);
+      next.dispatchEvent(new window.Event("play"));
+      assert(next.muted);
+    });
+
+    it("should not unmute players without controls", () => {
+      setMutedByUser(createVideo(["controls"]), false);
+      const gif = createVideo([]);
+      gif.dispatchEvent(new window.Event("play"));
+      assert(gif.muted);
+    });
+
+    it("should ignore volume changes from players without controls", () => {
+      setMutedByUser(createVideo([]), false);
+      const next = createVideo(["controls"]);
+      next.dispatchEvent(new window.Event("play"));
+      assert(next.muted);
+    });
+
+    it("should not treat the navigation mute as a user preference", () => {
+      const video = createVideo(["controls"]);
+      setMutedByUser(video, false);
+      video.pause = () => {};
+      window.dispatchEvent(new Event("page-transition"));
+      assert(video.muted);
+      const next = createVideo(["controls"]);
+      next.dispatchEvent(new window.Event("play"));
+      assert.deepEqual(next.muted, false);
     });
   });
 
