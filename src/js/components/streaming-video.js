@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
+import { isTouchOnlyDevice } from "/js/utils.js";
 
 // Only start loading the video when it's close to visible in the viewport.
 // Also fires when a hidden page is shown again, resuming autoplay videos
@@ -45,6 +46,8 @@ class StreamingVideo extends Component {
     this.alt = this.getAttribute("alt") || "";
     this.poster = this.getAttribute("poster");
     this.controls = this.getAttribute("controls") !== null;
+    // On touch devices the native controls stay hidden until the first tap
+    this._controlsRevealed = !isTouchOnlyDevice();
     this.autoplay = this.getAttribute("autoplay") !== null;
     this.muted = this.getAttribute("muted") !== null;
     this.loop = this.getAttribute("loop") !== null;
@@ -62,12 +65,13 @@ class StreamingVideo extends Component {
   render() {
     render(
       html`<video
-          ?controls=${this.controls}
+          ?controls=${this.controls && this._controlsRevealed}
           ?autoplay=${this.autoplay}
           ?loop=${this.loop}
           ?playsinline=${this.playsinline}
           ?muted=${this.muted}
           aria-label=${this.alt || null}
+          @click=${this.handleClick}
           @timeupdate=${this.handleTimeChange}
           @durationchange=${this.handleTimeChange}
         ></video>
@@ -88,6 +92,14 @@ class StreamingVideo extends Component {
       video.setAttribute("poster", this.poster);
     }
   }
+
+  handleClick = () => {
+    if (!this.controls || this._controlsRevealed) {
+      return;
+    }
+    this._controlsRevealed = true;
+    this.render();
+  };
 
   handleTimeChange = (event) => {
     const indicator = this.querySelector(".video-time-remaining");

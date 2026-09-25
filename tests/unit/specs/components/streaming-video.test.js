@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/streaming-video.js";
 
@@ -115,6 +115,54 @@ describe("streaming-video", () => {
       document.body.appendChild(element);
       const video = element.querySelector("video");
       assert.deepEqual(video.getAttribute("aria-label"), "A funny gif");
+    });
+  });
+
+  describe("StreamingVideo - deferred controls on touch devices", () => {
+    let originalMatchMedia;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+      window.matchMedia = (query) => ({
+        ...originalMatchMedia(query),
+        matches: query === "(hover: none) and (pointer: coarse)",
+      });
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    function createControlledVideo() {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.m3u8");
+      element.setAttribute("controls", "");
+      document.body.appendChild(element);
+      return element;
+    }
+
+    it("should hide controls until the video is tapped", () => {
+      const element = createControlledVideo();
+      const video = element.querySelector("video");
+      assert.deepEqual(video.controls, false);
+      video.click();
+      assert.deepEqual(element.querySelector("video").controls, true);
+    });
+
+    it("should still render the time remaining indicator before the tap", () => {
+      const element = createControlledVideo();
+      assert(
+        element.querySelector('[data-testid="video-time-remaining"]') !== null,
+      );
+    });
+
+    it("should not add controls on tap when the attribute is absent", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.m3u8");
+      document.body.appendChild(element);
+      const video = element.querySelector("video");
+      video.click();
+      assert.deepEqual(element.querySelector("video").controls, false);
     });
   });
 
