@@ -19,48 +19,67 @@ const streamingVideoObserver = new IntersectionObserver(
   },
 );
 
-const MIN_ACTIVE_VISIBILITY_RATIO = 0.5;
+// The active video is the on-screen one whose center is closest to this
+// fraction of the viewport height, matching bsky.app on the web
+const IDEAL_POSITION_RATIO = 1 / 2.5;
 const allElements = new Set();
 let activeVideo = null;
+// A video the user played or unmuted stays active until its center leaves
+// the viewport, even if another video is closer to the ideal position
+let activeVideoIsManual = false;
 
 const activeVideoObserver = new IntersectionObserver(
   () => updateActiveVideo(),
-  { threshold: [0, MIN_ACTIVE_VISIBILITY_RATIO, 0.75, 1] },
+  { threshold: 0 },
 );
 
-// Fraction of the element's area inside the viewport, plus its top edge
-function measureViewportVisibility(element) {
+let activeVideoUpdateScheduled = false;
+document.addEventListener(
+  "scroll",
+  () => {
+    if (activeVideoUpdateScheduled || allElements.size === 0) {
+      return;
+    }
+    activeVideoUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      activeVideoUpdateScheduled = false;
+      updateActiveVideo();
+    });
+  },
+  { capture: true, passive: true },
+);
+
+// Vertical center of the element, or null when no part of it is on screen
+function measureOnScreenCenter(element) {
   const rect = element.getBoundingClientRect();
-  const area = rect.width * rect.height;
-  if (area === 0) {
-    return { ratio: 0, top: rect.top };
+  if (rect.width === 0 || rect.height === 0) {
+    return null;
   }
-  const visibleWidth =
-    Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
-  const visibleHeight =
-    Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-  if (visibleWidth <= 0 || visibleHeight <= 0) {
-    return { ratio: 0, top: rect.top };
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+    return null;
   }
-  return { ratio: (visibleWidth * visibleHeight) / area, top: rect.top };
+  return rect.top + rect.height / 2;
 }
 
 function pickActiveVideo() {
+  if (activeVideoIsManual) {
+    const center = measureOnScreenCenter(activeVideo);
+    if (center !== null && center > 0 && center < window.innerHeight) {
+      return activeVideo;
+    }
+  }
+  const idealY = window.innerHeight * IDEAL_POSITION_RATIO;
   let best = null;
-  let bestVisibility = null;
+  let bestDistance = Infinity;
   for (const candidate of allElements) {
-    const visibility = measureViewportVisibility(candidate);
-    if (visibility.ratio < MIN_ACTIVE_VISIBILITY_RATIO) {
+    const center = measureOnScreenCenter(candidate);
+    if (center === null) {
       continue;
     }
-    if (
-      !best ||
-      visibility.ratio > bestVisibility.ratio ||
-      (visibility.ratio === bestVisibility.ratio &&
-        visibility.top < bestVisibility.top)
-    ) {
+    const distance = Math.abs(center - idealY);
+    if (distance < bestDistance) {
       best = candidate;
-      bestVisibility = visibility;
+      bestDistance = distance;
     }
   }
   return best;
@@ -72,15 +91,19 @@ function setActiveVideo(element) {
   }
   const previous = activeVideo;
   activeVideo = element;
+  activeVideoIsManual = false;
   previous?.deactivate();
   element?.activate();
+}
+
+function setActiveVideoManually(element) {
+  setActiveVideo(element);
+  activeVideoIsManual = true;
 }
 
 export function updateActiveVideo() {
   setActiveVideo(pickActiveVideo());
 }
-
-let manuallyMuted = true;
 
 function formatRemainingTime(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -90,15 +113,11 @@ function formatRemainingTime(seconds) {
 class StreamingVideo extends Component {
   // Pause on navigate
   handlePageTransition = () => {
-    const video = this.querySelector("video");
-    if (!video) {
-      return;
-    }
     if (activeVideo === this) {
       activeVideo = null;
+      activeVideoIsManual = false;
     }
-    this._setMutedProgrammatically(video, true);
-    video.pause();
+    this.deactivate();
   };
 
   _setMutedProgrammatically(video, muted) {
@@ -114,20 +133,14 @@ class StreamingVideo extends Component {
       this._pendingProgrammaticVolumeChange = false;
       return;
     }
-    if (this.controls) {
-      manuallyMuted = event.target.muted;
+    if (this._isActiveCandidate && !event.target.muted) {
+      setActiveVideoManually(this);
     }
   };
 
-  handlePlay = (event) => {
-    if (!this.controls) {
-      return;
-    }
-    if (this._isActiveCandidate) {
-      setActiveVideo(this);
-    }
-    if (!manuallyMuted) {
-      this._setMutedProgrammatically(event.target, false);
+  handlePlay = () => {
+    if (this._isActiveCandidate && activeVideo !== this) {
+      setActiveVideoManually(this);
     }
   };
 
@@ -148,7 +161,12 @@ class StreamingVideo extends Component {
   }
 
   deactivate() {
-    this.querySelector("video")?.pause();
+    const video = this.querySelector("video");
+    if (!video) {
+      return;
+    }
+    this._setMutedProgrammatically(video, true);
+    video.pause();
   }
 
   connectedCallback() {
@@ -187,6 +205,7 @@ class StreamingVideo extends Component {
       allElements.delete(this);
       if (activeVideo === this) {
         activeVideo = null;
+        activeVideoIsManual = false;
         updateActiveVideo();
       }
     }

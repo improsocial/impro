@@ -233,7 +233,7 @@ describe("streaming-video", () => {
       assert(element.querySelector("video").autoplay);
     });
 
-    it("should play only the most visible video", async () => {
+    it("should play only the video closest to 40% down the viewport", async () => {
       const first = createCandidate();
       const second = createCandidate();
       first.placeAt(-80);
@@ -244,26 +244,23 @@ describe("streaming-video", () => {
       assert.deepEqual(second.calls.play, 1);
     });
 
-    it("should not play a video that is less than half visible", async () => {
+    it("should play a partly visible video when no other is on screen", async () => {
       const only = createCandidate();
-      only.placeAt(-120);
+      only.placeAt(-150);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(only.calls.play, 1);
+    });
+
+    it("should not play a video entirely outside the viewport", async () => {
+      const only = createCandidate();
+      only.placeAt(-200);
       updateActiveVideo();
       await flush();
       assert.deepEqual(only.calls.play, 0);
     });
 
-    it("should prefer the topmost video on a visibility tie", async () => {
-      const lower = createCandidate();
-      const upper = createCandidate();
-      lower.placeAt(400);
-      upper.placeAt(50);
-      updateActiveVideo();
-      await flush();
-      assert.deepEqual(lower.calls.play, 0);
-      assert.deepEqual(upper.calls.play, 1);
-    });
-
-    it("should pause the active video when another becomes more visible", async () => {
+    it("should pause the active video when another becomes closer", async () => {
       const first = createCandidate();
       const second = createCandidate();
       first.placeAt(0);
@@ -279,12 +276,12 @@ describe("streaming-video", () => {
       assert.deepEqual(second.calls.play, 1);
     });
 
-    it("should pause the active video when it scrolls mostly out of view", async () => {
+    it("should pause the active video when it scrolls out of view", async () => {
       const only = createCandidate();
       only.placeAt(0);
       updateActiveVideo();
       await flush();
-      only.placeAt(-160);
+      only.placeAt(-200);
       updateActiveVideo();
       assert.deepEqual(only.calls.pause, 1);
     });
@@ -292,8 +289,8 @@ describe("streaming-video", () => {
     it("should pause the active video when the user plays another one", async () => {
       const first = createCandidate();
       const second = createCandidate();
-      first.placeAt(0);
-      second.placeAt(300);
+      first.placeAt(220);
+      second.placeAt(550);
       updateActiveVideo();
       await flush();
       second.video.play();
@@ -323,75 +320,89 @@ describe("streaming-video", () => {
       await flush();
       assert.deepEqual(second.calls.play, 1);
     });
-  });
 
-  describe("StreamingVideo - shared mute preference", () => {
-    function createVideo(attributes) {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test.mp4");
-      element.setAttribute("muted", "");
-      element.setAttribute("autoplay", "");
-      for (const attribute of attributes) {
-        element.setAttribute(attribute, "");
+    it("should keep a video the user played active while its center is on screen", async () => {
+      const first = createCandidate();
+      const second = createCandidate();
+      first.placeAt(220);
+      second.placeAt(550);
+      updateActiveVideo();
+      await flush();
+      second.video.play();
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(first.calls.play, 1);
+      assert.deepEqual(second.calls.pause, 0);
+      second.placeAt(VIEWPORT_HEIGHT - 100);
+      updateActiveVideo();
+      await flush();
+      assert.deepEqual(second.calls.pause, 1);
+      assert.deepEqual(first.calls.play, 2);
+    });
+
+    describe("per-video mute", () => {
+      // JSDOM fires volumechange synchronously on assignment
+      function unmuteByUser(video) {
+        video.muted = false;
       }
-      document.body.appendChild(element);
-      return element.querySelector("video");
-    }
 
-    // JSDOM fires volumechange synchronously on assignment (no event when
-    // the value is unchanged, so videos start muted before re-muting)
-    function setMutedByUser(video, muted) {
-      video.muted = muted;
-    }
+      it("should make a video the user unmutes the active one", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        second.placeAt(550);
+        updateActiveVideo();
+        await flush();
+        unmuteByUser(second.video);
+        await flush();
+        assert.deepEqual(first.calls.pause, 1);
+        assert.deepEqual(second.calls.play, 1);
+        assert.deepEqual(second.video.muted, false);
+      });
 
-    function reMuteByUser(video) {
-      setMutedByUser(video, false);
-      setMutedByUser(video, true);
-    }
+      it("should re-mute a video when it stops being active", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        unmuteByUser(first.video);
+        first.placeAt(-200);
+        second.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        assert(first.video.muted);
+        assert.deepEqual(first.calls.pause, 1);
+      });
 
-    afterEach(() => {
-      reMuteByUser(createVideo(["controls"]));
-    });
+      it("should not carry an unmute over to the next active video", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        unmuteByUser(first.video);
+        first.placeAt(-200);
+        second.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        assert.deepEqual(second.calls.play, 1);
+        assert(second.video.muted);
+      });
 
-    it("should start later controlled videos unmuted after the user unmutes one", () => {
-      setMutedByUser(createVideo(["controls"]), false);
-      const next = createVideo(["controls"]);
-      assert(next.muted);
-      next.dispatchEvent(new window.Event("play"));
-      assert.deepEqual(next.muted, false);
-    });
-
-    it("should start later videos muted again after the user re-mutes", () => {
-      setMutedByUser(createVideo(["controls"]), false);
-      reMuteByUser(createVideo(["controls"]));
-      const next = createVideo(["controls"]);
-      next.dispatchEvent(new window.Event("play"));
-      assert(next.muted);
-    });
-
-    it("should not unmute players without controls", () => {
-      setMutedByUser(createVideo(["controls"]), false);
-      const gif = createVideo([]);
-      gif.dispatchEvent(new window.Event("play"));
-      assert(gif.muted);
-    });
-
-    it("should ignore volume changes from players without controls", () => {
-      setMutedByUser(createVideo([]), false);
-      const next = createVideo(["controls"]);
-      next.dispatchEvent(new window.Event("play"));
-      assert(next.muted);
-    });
-
-    it("should not treat the navigation mute as a user preference", () => {
-      const video = createVideo(["controls"]);
-      setMutedByUser(video, false);
-      video.pause = () => {};
-      window.dispatchEvent(new Event("page-transition"));
-      assert(video.muted);
-      const next = createVideo(["controls"]);
-      next.dispatchEvent(new window.Event("play"));
-      assert.deepEqual(next.muted, false);
+      it("should resume a video muted when its page is shown again", async () => {
+        const only = createCandidate();
+        only.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        unmuteByUser(only.video);
+        window.dispatchEvent(new Event("page-transition"));
+        assert(only.video.muted);
+        updateActiveVideo();
+        await flush();
+        assert.deepEqual(only.calls.play, 2);
+        assert(only.video.muted);
+      });
     });
   });
 
