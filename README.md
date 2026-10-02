@@ -8,7 +8,7 @@ You can try it out here: https://impro.social
 
 Impro is:
 
-- **Web-first**: Impro was built from scratch for the web, with no heavy cross-platform frameworks or libraries.
+- **Web-first**: Impro is built from scratch for the web, with no heavy cross-platform frameworks or libraries.
 - **Familiar by default:** Out of the box, Impro offers the same feature set as the main Bluesky client.
 - **Extensible by design:** If you want additional functionality, you can use [Community Plugins](https://impro.social/plugins/community) to customize your experience.
 - **Better about blocking**: Unlike the main client's "nuclear block", thread context is preserved for non-blocked users.
