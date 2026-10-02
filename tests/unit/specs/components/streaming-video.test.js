@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { updateActiveVideo } from "/js/components/streaming-video.js";
 import { deviceState } from "/js/deviceState.js";
@@ -162,6 +162,62 @@ describe("streaming-video", () => {
       const element = createControlledVideo();
       deviceState.$autoplayDisabledSetting.set(null);
       assert.deepEqual(element.querySelector("video").controls, true);
+    });
+
+    describe("controls indicator", () => {
+      beforeEach(() => {
+        mock.timers.enable({ apis: ["setTimeout"] });
+      });
+
+      afterEach(() => {
+        mock.timers.reset();
+      });
+
+      function createPlayingVideo() {
+        const element = createControlledVideo();
+        const video = element.querySelector("video");
+        let paused = false;
+        Object.defineProperty(video, "paused", { get: () => paused });
+        const setPaused = (value) => {
+          paused = value;
+          video.dispatchEvent(new window.Event(value ? "pause" : "play"));
+        };
+        return { element, video, setPaused };
+      }
+
+      it("should not flag controls before they're revealed", () => {
+        const { element } = createPlayingVideo();
+        assert(!element.classList.contains("is-showing-controls"));
+      });
+
+      it("should flag controls as showing for a while after a tap", () => {
+        const { element, video } = createPlayingVideo();
+        video.click();
+        assert(element.classList.contains("is-showing-controls"));
+        mock.timers.tick(2999);
+        assert(element.classList.contains("is-showing-controls"));
+        mock.timers.tick(1);
+        assert(!element.classList.contains("is-showing-controls"));
+      });
+
+      it("should restart the window on each tap", () => {
+        const { element, video } = createPlayingVideo();
+        video.click();
+        mock.timers.tick(2000);
+        video.click();
+        mock.timers.tick(2000);
+        assert(element.classList.contains("is-showing-controls"));
+      });
+
+      it("should flag controls as showing while paused", () => {
+        const { element, video, setPaused } = createPlayingVideo();
+        video.click();
+        setPaused(true);
+        mock.timers.tick(3000);
+        assert(element.classList.contains("is-showing-controls"));
+        setPaused(false);
+        assert(!element.classList.contains("is-showing-controls"));
+      });
     });
 
     it("should not add controls on tap when the attribute is absent", () => {

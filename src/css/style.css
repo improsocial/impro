@@ -2816,6 +2816,7 @@ animated-button {
 
 .post-video > .alt-indicator {
   pointer-events: auto;
+  transition: opacity 0.15s;
   top: 8px;
   right: 8px;
   left: auto;
@@ -2908,6 +2909,15 @@ animated-button {
   .post-video:hover .video-time-remaining {
     opacity: 0;
   }
+}
+
+streaming-video.is-showing-controls .video-time-remaining {
+  opacity: 0;
+}
+
+.post-video:has(streaming-video.is-showing-controls) > .alt-indicator {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .post-video:has(video:fullscreen) .video-time-remaining {

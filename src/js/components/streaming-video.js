@@ -108,6 +108,8 @@ export function updateActiveVideo() {
   setActiveVideo(pickActiveVideo());
 }
 
+const TOUCH_CONTROLS_VISIBLE_MS = 3000;
+
 const connectedPlayers = new Set();
 
 effect(() => {
@@ -159,6 +161,7 @@ class StreamingVideo extends Component {
   handlePlay = () => {
     this._pausedByUser = false;
     this._updatePausedIndicator();
+    this._updateControlsIndicator();
     if (this._isActiveCandidate && activeVideo !== this) {
       setActiveVideoManually(this);
     }
@@ -166,6 +169,7 @@ class StreamingVideo extends Component {
 
   handlePause = () => {
     this._updatePausedIndicator();
+    this._updateControlsIndicator();
   };
 
   handleGifToggleClick = (event) => {
@@ -189,6 +193,16 @@ class StreamingVideo extends Component {
       !this.controls &&
         video.paused &&
         (this._pausedByUser || isAutoplayDisabled()),
+    );
+  }
+
+  _updateControlsIndicator() {
+    const video = this.querySelector("video");
+    this.classList.toggle(
+      "is-showing-controls",
+      video.controls &&
+        isTouchOnlyDevice() &&
+        (video.paused || this._recentlyTapped),
     );
   }
 
@@ -243,11 +257,14 @@ class StreamingVideo extends Component {
     this.playsinline = this.getAttribute("playsinline") !== null;
     this._streamingEnabled = false;
     this._pausedByUser = false;
+    this._recentlyTapped = false;
+    this._recentTapTimer = null;
     this.render();
     this.initialized = true;
   }
 
   disconnectedCallback() {
+    clearTimeout(this._recentTapTimer);
     streamingVideoObserver.unobserve(this);
     window.removeEventListener("page-transition", this.handlePageTransition);
     connectedPlayers.delete(this);
@@ -309,14 +326,24 @@ class StreamingVideo extends Component {
       video.setAttribute("poster", this.poster);
     }
     this._updatePausedIndicator();
+    this._updateControlsIndicator();
   }
 
   handleClick = () => {
-    if (!this.controls || this._controlsRevealed) {
+    if (!this.controls) {
       return;
     }
-    this._controlsRevealed = true;
-    this.render();
+    if (!this._controlsRevealed) {
+      this._controlsRevealed = true;
+      this.render();
+    }
+    this._recentlyTapped = true;
+    this._updateControlsIndicator();
+    clearTimeout(this._recentTapTimer);
+    this._recentTapTimer = setTimeout(() => {
+      this._recentlyTapped = false;
+      this._updateControlsIndicator();
+    }, TOUCH_CONTROLS_VISIBLE_MS);
   };
 
   handleTimeChange = (event) => {
