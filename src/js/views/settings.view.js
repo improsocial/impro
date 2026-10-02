@@ -210,6 +210,12 @@ export default async function settingsView({
       url: "/settings/appearance",
     },
     {
+      key: "content-and-media",
+      icon: () => html`<app-icon icon="image-line"></app-icon>`,
+      label: "Content and media",
+      url: "/settings/content-and-media",
+    },
+    {
       key: "advanced",
       icon: () => html`<app-icon icon="code-line"></app-icon>`,
       label: "Advanced",

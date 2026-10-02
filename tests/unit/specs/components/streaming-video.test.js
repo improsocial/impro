@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { updateActiveVideo } from "/js/components/streaming-video.js";
+import { deviceState } from "/js/deviceState.js";
 
 describe("streaming-video", () => {
   beforeEach(() => {
@@ -154,6 +155,13 @@ describe("streaming-video", () => {
       assert(
         element.querySelector('[data-testid="video-time-remaining"]') !== null,
       );
+    });
+
+    it("should show controls right away when autoplay is disabled", () => {
+      deviceState.$autoplayDisabledSetting.set(true);
+      const element = createControlledVideo();
+      deviceState.$autoplayDisabledSetting.set(null);
+      assert.deepEqual(element.querySelector("video").controls, true);
     });
 
     it("should not add controls on tap when the attribute is absent", () => {
@@ -340,6 +348,34 @@ describe("streaming-video", () => {
       assert.deepEqual(first.calls.play, 2);
     });
 
+    describe("with autoplay disabled", () => {
+      beforeEach(() => {
+        deviceState.$autoplayDisabledSetting.set(true);
+      });
+
+      afterEach(() => {
+        deviceState.$autoplayDisabledSetting.set(null);
+      });
+
+      it("should not play the active video", async () => {
+        const only = createCandidate();
+        only.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        assert.deepEqual(only.calls.play, 0);
+      });
+
+      it("should pause the video the user played when they play another", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        second.placeAt(550);
+        first.video.play();
+        second.video.play();
+        assert.deepEqual(first.calls.pause, 1);
+      });
+    });
+
     describe("per-video mute", () => {
       // JSDOM fires volumechange synchronously on assignment
       function unmuteByUser(video) {
@@ -403,6 +439,124 @@ describe("streaming-video", () => {
         assert.deepEqual(only.calls.play, 2);
         assert(only.video.muted);
       });
+    });
+  });
+
+  describe("StreamingVideo - gif players", () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    afterEach(() => {
+      deviceState.$autoplayDisabledSetting.set(null);
+    });
+
+    function createGif() {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("autoplay", "");
+      element.setAttribute("muted", "");
+      element.setAttribute("loop", "");
+      document.body.appendChild(element);
+      const video = element.querySelector("video");
+      const calls = { play: 0 };
+      let paused = true;
+      Object.defineProperty(video, "paused", { get: () => paused });
+      video.play = () => {
+        calls.play++;
+        paused = false;
+        video.dispatchEvent(new window.Event("play"));
+        return Promise.resolve();
+      };
+      video.pause = () => {
+        paused = true;
+        video.dispatchEvent(new window.Event("pause"));
+      };
+      const toggle = element.querySelector('[data-testid="gif-play-toggle"]');
+      return { element, video, calls, toggle };
+    }
+
+    it("should not render the play toggle on controlled videos", () => {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", "test.mp4");
+      element.setAttribute("controls", "");
+      document.body.appendChild(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="gif-play-toggle"]'),
+        null,
+      );
+    });
+
+    it("should not show the play button while waiting to autoplay", () => {
+      const { element } = createGif();
+      assert(!element.classList.contains("is-paused"));
+    });
+
+    it("should pause a playing gif when tapped and show the play button", async () => {
+      const { element, video, toggle } = createGif();
+      await video.play();
+      toggle.click();
+      assert(video.paused);
+      assert(element.classList.contains("is-paused"));
+    });
+
+    it("should resume a paused gif when tapped again", async () => {
+      const { element, video, calls, toggle } = createGif();
+      await video.play();
+      toggle.click();
+      toggle.click();
+      await flush();
+      assert.deepEqual(calls.play, 2);
+      assert(!element.classList.contains("is-paused"));
+    });
+
+    it("should not let a toggle tap reach the surrounding post", () => {
+      const { element, toggle } = createGif();
+      let reachedParent = false;
+      const handleBodyClick = () => {
+        reachedParent = true;
+      };
+      document.body.addEventListener("click", handleBodyClick);
+      toggle.click();
+      document.body.removeEventListener("click", handleBodyClick);
+      assert(!reachedParent);
+      assert(element.isConnected);
+    });
+
+    describe("with autoplay disabled", () => {
+      beforeEach(() => {
+        deviceState.$autoplayDisabledSetting.set(true);
+      });
+
+      it("should not put the autoplay attribute on the video", () => {
+        const { video } = createGif();
+        assert(!video.autoplay);
+      });
+
+      it("should show the play button before the first play", () => {
+        const { element } = createGif();
+        assert(element.classList.contains("is-paused"));
+      });
+
+      it("should not resume as it scrolls into view", () => {
+        const { element, calls } = createGif();
+        element.resumeAutoplay();
+        assert.deepEqual(calls.play, 0);
+      });
+
+      it("should play when tapped", async () => {
+        const { calls, toggle } = createGif();
+        toggle.click();
+        await flush();
+        assert.deepEqual(calls.play, 1);
+      });
+    });
+
+    it("should drop the autoplay attribute when the setting is turned off", async () => {
+      const { video, element } = createGif();
+      assert(video.autoplay);
+      deviceState.$autoplayDisabledSetting.set(true);
+      await flush();
+      assert(!element.querySelector("video").autoplay);
+      assert(element.classList.contains("is-paused"));
     });
   });
 

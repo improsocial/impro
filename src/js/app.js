@@ -22,6 +22,7 @@ import pageErrorView from "/js/views/pageError.view.js";
 import accountNotFoundView from "/js/views/accountNotFound.view.js";
 import settingsView from "/js/views/settings.view.js";
 import settingsAppearanceView from "/js/views/settings/appearance.view.js";
+import settingsContentAndMediaView from "/js/views/settings/contentAndMedia.view.js";
 import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
 import settingsBlockedAccountsView from "/js/views/settings/blockedAccounts.view.js";
 import settingsMutedAccountsView from "/js/views/settings/mutedAccounts.view.js";
@@ -359,6 +360,11 @@ export async function main() {
   router.addRoute(
     "/settings/appearance",
     () => settingsAppearanceView,
+    settingsRouteOptions,
+  );
+  router.addRoute(
+    "/settings/content-and-media",
+    () => settingsContentAndMediaView,
     settingsRouteOptions,
   );
   router.addRoute(

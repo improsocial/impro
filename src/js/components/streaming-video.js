@@ -1,6 +1,9 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { isTouchOnlyDevice } from "/js/utils.js";
+import { effect, untrack } from "/js/signals.js";
+import { deviceState } from "/js/deviceState.js";
+import "/js/components/app-icon.js";
 
 // Only start loading the video when it's close to visible in the viewport.
 // Also fires when a hidden page is shown again, resuming autoplay videos
@@ -105,6 +108,21 @@ export function updateActiveVideo() {
   setActiveVideo(pickActiveVideo());
 }
 
+const connectedPlayers = new Set();
+
+effect(() => {
+  deviceState.$autoplayDisabled.get();
+  untrack(() => {
+    for (const player of connectedPlayers) {
+      player.render();
+    }
+  });
+});
+
+function isAutoplayDisabled() {
+  return untrack(() => deviceState.$autoplayDisabled.get());
+}
+
 function formatRemainingTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
@@ -139,10 +157,40 @@ class StreamingVideo extends Component {
   };
 
   handlePlay = () => {
+    this._pausedByUser = false;
+    this._updatePausedIndicator();
     if (this._isActiveCandidate && activeVideo !== this) {
       setActiveVideoManually(this);
     }
   };
+
+  handlePause = () => {
+    this._updatePausedIndicator();
+  };
+
+  handleGifToggleClick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const video = this.querySelector("video");
+    if (video.paused) {
+      this.enableStreaming().then(() => video.play().catch(() => {}));
+    } else {
+      this._pausedByUser = true;
+      video.pause();
+    }
+  };
+
+  // Players without controls show a play button while paused, unless
+  // they're only paused until autoplay resumes them
+  _updatePausedIndicator() {
+    const video = this.querySelector("video");
+    this.classList.toggle(
+      "is-paused",
+      !this.controls &&
+        video.paused &&
+        (this._pausedByUser || isAutoplayDisabled()),
+    );
+  }
 
   get _isActiveCandidate() {
     return this.controls && this.autoplay;
@@ -150,7 +198,7 @@ class StreamingVideo extends Component {
 
   activate() {
     const video = this.querySelector("video");
-    if (!video || !video.paused) {
+    if (!video || !video.paused || isAutoplayDisabled()) {
       return;
     }
     this.enableStreaming().then(() => {
@@ -173,6 +221,7 @@ class StreamingVideo extends Component {
     // We always want to observe / unobserve the video to ensure it's streaming when it should be
     streamingVideoObserver.observe(this);
     window.addEventListener("page-transition", this.handlePageTransition);
+    connectedPlayers.add(this);
     if (!this.initialized) {
       this._initialize();
     }
@@ -193,6 +242,7 @@ class StreamingVideo extends Component {
     this.loop = this.getAttribute("loop") !== null;
     this.playsinline = this.getAttribute("playsinline") !== null;
     this._streamingEnabled = false;
+    this._pausedByUser = false;
     this.render();
     this.initialized = true;
   }
@@ -200,6 +250,7 @@ class StreamingVideo extends Component {
   disconnectedCallback() {
     streamingVideoObserver.unobserve(this);
     window.removeEventListener("page-transition", this.handlePageTransition);
+    connectedPlayers.delete(this);
     if (this._isActiveCandidate) {
       activeVideoObserver.unobserve(this);
       allElements.delete(this);
@@ -217,16 +268,19 @@ class StreamingVideo extends Component {
   }
 
   render() {
+    const autoplayDisabled = isAutoplayDisabled();
     render(
       html`<video
-          ?controls=${this.controls && this._controlsRevealed}
-          ?autoplay=${this.autoplay && !this.controls}
+          ?controls=${this.controls &&
+          (this._controlsRevealed || autoplayDisabled)}
+          ?autoplay=${this.autoplay && !this.controls && !autoplayDisabled}
           ?loop=${this.loop}
           ?playsinline=${this.playsinline}
           ?muted=${this.muted}
           aria-label=${this.alt || null}
           @click=${this.handleClick}
           @play=${this.handlePlay}
+          @pause=${this.handlePause}
           @volumechange=${this.handleVolumeChange}
           @timeupdate=${this.handleTimeChange}
           @durationchange=${this.handleTimeChange}
@@ -237,7 +291,14 @@ class StreamingVideo extends Component {
               data-testid="video-time-remaining"
               hidden
             ></span>`
-          : null}`,
+          : html`<button
+              class="gif-play-toggle"
+              data-testid="gif-play-toggle"
+              aria-label="Play or pause GIF"
+              @click=${this.handleGifToggleClick}
+            >
+              <app-icon icon="play"></app-icon>
+            </button>`}`,
       this,
     );
     const video = this.querySelector("video");
@@ -247,6 +308,7 @@ class StreamingVideo extends Component {
     if (this.poster) {
       video.setAttribute("poster", this.poster);
     }
+    this._updatePausedIndicator();
   }
 
   handleClick = () => {
@@ -277,7 +339,7 @@ class StreamingVideo extends Component {
   };
 
   resumeAutoplay() {
-    if (!this.autoplay || this._isActiveCandidate) {
+    if (!this.autoplay || this._isActiveCandidate || isAutoplayDisabled()) {
       return;
     }
     const video = this.querySelector("video");
