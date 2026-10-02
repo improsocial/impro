@@ -5,6 +5,7 @@ import {
   theme,
   getDefaultHighlightColor,
   getDefaultLikeColor,
+  getDefaultRepostColor,
   getDefaultColorScheme,
 } from "/js/theme.js";
 
@@ -24,6 +25,10 @@ export default async function settingsAppearanceView({
     theme.updateLikeColor(newLikeColor);
   }
 
+  function handleRepostColorChange(newRepostColor) {
+    theme.updateRepostColor(newRepostColor);
+  }
+
   function handleColorSchemeChange(newColorScheme) {
     theme.updateColorScheme(newColorScheme);
   }
@@ -35,6 +40,8 @@ export default async function settingsAppearanceView({
     const defaultHighlightColor = getDefaultHighlightColor();
     const currentLikeColor = theme.$likeColor.get();
     const defaultLikeColor = getDefaultLikeColor();
+    const currentRepostColor = theme.$repostColor.get();
+    const defaultRepostColor = getDefaultRepostColor();
     const currentColorScheme = theme.$colorScheme.get();
     render(
       html`<div id="settings-appearance-view">
@@ -114,7 +121,7 @@ export default async function settingsAppearanceView({
           >
             <div class="setting-item-info">
               <h2 class="setting-item-name">Like color</h2>
-              <p class="setting-item-desc">Choose the color for liked posts.</p>
+              <p class="setting-item-desc">Choose the color for likes.</p>
             </div>
             <div class="settings-color-picker">
               <input
@@ -128,6 +135,32 @@ export default async function settingsAppearanceView({
                 class="settings-color-picker-reset"
                 @click=${() => {
                   handleLikeColorChange(defaultLikeColor);
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </section>
+          <section
+            class="setting-item"
+            data-testid="settings-section-repost-color"
+          >
+            <div class="setting-item-info">
+              <h2 class="setting-item-name">Repost color</h2>
+              <p class="setting-item-desc">Choose the color for reposts.</p>
+            </div>
+            <div class="settings-color-picker">
+              <input
+                @change=${(e) => {
+                  handleRepostColorChange(e.target.value);
+                }}
+                type="color"
+                .value=${currentRepostColor}
+              />
+              <button
+                class="settings-color-picker-reset"
+                @click=${() => {
+                  handleRepostColorChange(defaultRepostColor);
                 }}
               >
                 Reset

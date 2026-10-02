@@ -23,14 +23,19 @@ export function getDefaultLikeColor() {
   return getRootStyle().getPropertyValue("--pink");
 }
 
+export function getDefaultRepostColor() {
+  return getRootStyle().getPropertyValue("--green");
+}
+
 export function getDefaultColorScheme() {
   return "system";
 }
 
 export class Theme {
-  constructor({ highlightColor, likeColor, colorScheme }) {
+  constructor({ highlightColor, likeColor, repostColor, colorScheme }) {
     this.$highlightColor = new Signal.State(highlightColor);
     this.$likeColor = new Signal.State(likeColor);
+    this.$repostColor = new Signal.State(repostColor);
     this.$colorScheme = new Signal.State(colorScheme);
   }
 
@@ -50,6 +55,12 @@ export class Theme {
     this.save();
   }
 
+  updateRepostColor(repostColor) {
+    this.$repostColor.set(repostColor);
+    this.apply();
+    this.save();
+  }
+
   updateColorScheme(colorScheme) {
     this.$colorScheme.set(colorScheme);
     this.apply();
@@ -59,12 +70,14 @@ export class Theme {
   apply() {
     const highlightColor = this.$highlightColor.get();
     const likeColor = this.$likeColor.get();
+    const repostColor = this.$repostColor.get();
     const colorScheme = this.$colorScheme.get();
     document.documentElement.style.setProperty(
       `--highlight-color`,
       highlightColor,
     );
     document.documentElement.style.setProperty(`--like-color`, likeColor);
+    document.documentElement.style.setProperty(`--repost-color`, repostColor);
     // Apply color scheme
     if (colorScheme === "system") {
       document.documentElement.style.setProperty("color-scheme", "light dark");
@@ -89,6 +102,7 @@ export class Theme {
   save() {
     const highlightColor = this.$highlightColor.get();
     const likeColor = this.$likeColor.get();
+    const repostColor = this.$repostColor.get();
     const colorScheme = this.$colorScheme.get();
     if (highlightColor === getDefaultHighlightColor()) {
       localStorage.removeItem("theme-highlightColorv2");
@@ -99,6 +113,11 @@ export class Theme {
       localStorage.removeItem("theme-likeColor");
     } else {
       localStorage.setItem("theme-likeColor", likeColor);
+    }
+    if (repostColor === getDefaultRepostColor()) {
+      localStorage.removeItem("theme-repostColor");
+    } else {
+      localStorage.setItem("theme-repostColor", repostColor);
     }
     if (colorScheme === getDefaultColorScheme()) {
       localStorage.removeItem("theme-colorScheme");
@@ -113,9 +132,11 @@ export class Theme {
       getDefaultHighlightColor();
     const likeColor =
       localStorage.getItem("theme-likeColor") || getDefaultLikeColor();
+    const repostColor =
+      localStorage.getItem("theme-repostColor") || getDefaultRepostColor();
     const colorScheme =
       localStorage.getItem("theme-colorScheme") || getDefaultColorScheme();
-    return new Theme({ highlightColor, likeColor, colorScheme });
+    return new Theme({ highlightColor, likeColor, repostColor, colorScheme });
   }
 }
 

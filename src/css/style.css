@@ -71,6 +71,7 @@ html {
   --blue: #418af7;
   --purple: #9054f9;
   --pink: #df4074;
+  --green: #1fb46b;
   --red: #d81316;
   --red-muted: #ff4949;
   --yellow: #e6a817;
@@ -116,6 +117,7 @@ html {
 
   --text-link-color: var(--highlight-color);
   --like-color: var(--pink);
+  --repost-color: var(--green);
   --error-color: var(--red-muted);
   --error-subtle-color: color-mix(in srgb, var(--error-color) 12%, transparent);
   --error-subtle-hover-color: color-mix(
@@ -240,7 +242,6 @@ html {
   --overlay-text-color: white;
 
   /* shadows */
-  --shadow-color-swatch: 0 2px 4px rgba(0, 0, 0, 0.2);
   --shadow-color-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
   --shadow-color-light: 0 4px 12px rgba(0, 0, 0, 0.15);
   --shadow-color-medium: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -983,10 +984,10 @@ input[type="color"] {
   appearance: none;
   width: 40px;
   height: 40px;
+  padding: 0;
   border: none;
-  border-radius: 50%;
+  background: none;
   cursor: pointer;
-  overflow: hidden;
 }
 
 input[type="color"]::-webkit-color-swatch-wrapper {
@@ -997,14 +998,15 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: var(--hair) solid var(--post-border-color);
   border-radius: 50%;
-  box-shadow: var(--shadow-color-swatch);
+  background-clip: padding-box;
+  color-scheme: inherit;
 }
 
 /* Firefox */
 input[type="color"]::-moz-color-swatch {
   border: var(--hair) solid var(--post-border-color);
   border-radius: 50%;
-  box-shadow: var(--shadow-color-swatch);
+  background-clip: padding-box;
 }
 
 .loading-spinner {
@@ -2680,7 +2682,7 @@ animated-button {
 }
 
 .post-action-repost.reposted {
-  color: var(--highlight-color);
+  color: var(--repost-color);
 }
 
 .like-button.active {
@@ -3774,7 +3776,7 @@ image-carousel {
 
 /* @chunk notifications */
 .notification-icon > app-icon[icon="repost"] {
-  color: var(--highlight-color);
+  color: var(--repost-color);
 }
 
 .notification-icon.verified-icon app-icon {

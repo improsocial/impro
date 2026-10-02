@@ -24,6 +24,9 @@ test.describe("Settings Appearance view", () => {
     await expect(
       view.locator('[data-testid="settings-section-like-color"]'),
     ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="settings-section-repost-color"]'),
+    ).toBeVisible();
   });
 
   test("should display color scheme dropdown with three options", async ({
@@ -55,7 +58,7 @@ test.describe("Settings Appearance view", () => {
 
     const view = page.locator("#settings-appearance-view");
     const colorPickers = view.locator(".settings-color-picker");
-    await expect(colorPickers).toHaveCount(2, { timeout: 10000 });
+    await expect(colorPickers).toHaveCount(3, { timeout: 10000 });
 
     await expect(
       colorPickers.nth(0).locator('input[type="color"]'),
@@ -69,6 +72,13 @@ test.describe("Settings Appearance view", () => {
     ).toBeVisible();
     await expect(
       colorPickers.nth(1).locator(".settings-color-picker-reset"),
+    ).toBeVisible();
+
+    await expect(
+      colorPickers.nth(2).locator('input[type="color"]'),
+    ).toBeVisible();
+    await expect(
+      colorPickers.nth(2).locator(".settings-color-picker-reset"),
     ).toBeVisible();
   });
 
@@ -107,6 +117,7 @@ test.describe("Settings Appearance view", () => {
       "settings-section-color-scheme",
       "settings-section-highlight-color",
       "settings-section-like-color",
+      "settings-section-repost-color",
     ]) {
       await expect(
         view.locator(`[data-testid="${sectionTestid}"] .setting-item-desc`),
