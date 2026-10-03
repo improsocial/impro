@@ -5,15 +5,18 @@ import { effect, untrack } from "/js/signals.js";
 import { deviceState } from "/js/deviceState.js";
 import "/js/components/app-icon.js";
 
-// Only start loading the video when it's close to visible in the viewport.
-// Also fires when a hidden page is shown again, resuming autoplay videos
-// that were paused on page exit.
+// Only stream the video while it's close to visible in the viewport, releasing
+// its buffers once it scrolls away or its page is hidden. Also fires when a
+// hidden page is shown again, resuming autoplay videos that were paused on
+// page exit.
 const streamingVideoObserver = new IntersectionObserver(
   (entries) => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         entry.target.enableStreaming();
         entry.target.resumeAutoplay();
+      } else {
+        entry.target.releaseStreaming();
       }
     }
   },
@@ -255,7 +258,10 @@ class StreamingVideo extends Component {
     this.muted = this.getAttribute("muted") !== null;
     this.loop = this.getAttribute("loop") !== null;
     this.playsinline = this.getAttribute("playsinline") !== null;
-    this._streamingEnabled = false;
+    this._streamingPromise = null;
+    this._streamingGeneration = 0;
+    this._hls = null;
+    this._resumeTime = null;
     this._pausedByUser = false;
     this._recentlyTapped = false;
     this._recentTapTimer = null;
@@ -266,6 +272,7 @@ class StreamingVideo extends Component {
   disconnectedCallback() {
     clearTimeout(this._recentTapTimer);
     streamingVideoObserver.unobserve(this);
+    this.releaseStreaming();
     window.removeEventListener("page-transition", this.handlePageTransition);
     connectedPlayers.delete(this);
     if (this._isActiveCandidate) {
@@ -375,31 +382,62 @@ class StreamingVideo extends Component {
     }
   }
 
-  async enableStreaming() {
-    if (this._streamingEnabled) {
-      return;
+  enableStreaming() {
+    if (!this._streamingPromise) {
+      this._streamingPromise = this._startStreaming();
     }
+    return this._streamingPromise;
+  }
+
+  async _startStreaming() {
     const video = this.querySelector("video");
-    if (!video) {
-      return;
-    }
+    const resumeTime = this._resumeTime;
     if (this.src.includes(".m3u8")) {
       if (!window.Hls) {
+        const generation = this._streamingGeneration;
         await import("/js/lib/hls.js");
+        if (generation !== this._streamingGeneration) {
+          return;
+        }
       }
-      const hls = new window.Hls({
+      this._hls = new window.Hls({
         // https://github.com/bluesky-social/social-app/blob/92926a2417af8fb6f37feb93779f8cf4c4a4b622/src/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoEmbedInnerWeb.tsx#L108
         maxBufferSize: 10 * 1000 * 1000, // 10MB
+        maxMaxBufferLength: 10,
+        backBufferLength: 10,
+        startPosition: resumeTime ?? -1,
       });
-      hls.loadSource(this.src);
-      hls.attachMedia(video);
+      this._hls.loadSource(this.src);
+      this._hls.attachMedia(video);
     } else {
       const source = document.createElement("source");
       source.src = this.src;
       source.type = this.src.endsWith(".webm") ? "video/webm" : "video/mp4";
       video.appendChild(source);
+      if (resumeTime !== null) {
+        video.currentTime = resumeTime;
+      }
     }
-    this._streamingEnabled = true;
+  }
+
+  releaseStreaming() {
+    if (!this._streamingPromise) {
+      return;
+    }
+    const video = this.querySelector("video");
+    if (document.pictureInPictureElement === video) {
+      return;
+    }
+    this._resumeTime = video.currentTime > 0 ? video.currentTime : null;
+    this._streamingGeneration++;
+    this._streamingPromise = null;
+    if (this._hls) {
+      this._hls.destroy();
+      this._hls = null;
+    } else {
+      video.querySelector("source")?.remove();
+      video.load();
+    }
   }
 }
 

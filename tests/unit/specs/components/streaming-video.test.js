@@ -635,57 +635,167 @@ describe("streaming-video", () => {
   });
 
   describe("StreamingVideo - streaming state", () => {
-    it("should not be streaming enabled initially", () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test.m3u8");
-      document.body.appendChild(element);
-      assert.deepEqual(element._streamingEnabled, false);
+    let hlsInstances;
+
+    beforeEach(() => {
+      hlsInstances = [];
+      window.Hls = class {
+        constructor(config) {
+          this.config = config;
+          this.destroyed = false;
+          hlsInstances.push(this);
+        }
+        loadSource(src) {
+          this.src = src;
+        }
+        attachMedia(video) {
+          this.media = video;
+        }
+        destroy() {
+          this.destroyed = true;
+        }
+      };
     });
 
-    it("should set _streamingEnabled after enableStreaming is called", async () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test.m3u8");
-      document.body.appendChild(element);
+    afterEach(() => {
+      delete window.Hls;
+    });
 
-      // Mock Hls
-      window.Hls = class {
-        loadSource() {}
-        attachMedia() {}
-      };
+    function createElement(src) {
+      const element = document.createElement("streaming-video");
+      element.setAttribute("src", src);
+      document.body.appendChild(element);
+      return element;
+    }
+
+    it("should not create an hls player before streaming is enabled", () => {
+      createElement("test.m3u8");
+      assert.deepEqual(hlsInstances.length, 0);
+    });
+
+    it("should attach an hls player when streaming is enabled", async () => {
+      const element = createElement("test.m3u8");
 
       await element.enableStreaming();
-      assert.deepEqual(element._streamingEnabled, true);
 
-      // Clean up
-      delete window.Hls;
+      assert.deepEqual(hlsInstances.length, 1);
+      assert.deepEqual(hlsInstances[0].src, "test.m3u8");
+      assert.deepEqual(hlsInstances[0].media, element.querySelector("video"));
+    });
+
+    it("should cap how much the hls player buffers", async () => {
+      const element = createElement("test.m3u8");
+
+      await element.enableStreaming();
+
+      const { config } = hlsInstances[0];
+      assert(Number.isFinite(config.maxMaxBufferLength));
+      assert(Number.isFinite(config.backBufferLength));
     });
 
     it("should only enable streaming once", async () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test.m3u8");
-      document.body.appendChild(element);
-
-      let loadSourceCalls = 0;
-      window.Hls = class {
-        loadSource() {
-          loadSourceCalls++;
-        }
-        attachMedia() {}
-      };
+      const element = createElement("test.m3u8");
 
       await element.enableStreaming();
       await element.enableStreaming();
 
-      assert.deepEqual(loadSourceCalls, 1);
+      assert.deepEqual(hlsInstances.length, 1);
+    });
 
-      // Clean up
+    it("should create one hls player for concurrent calls while hls.js loads", async () => {
       delete window.Hls;
+      const MockHls = class {
+        constructor() {
+          hlsInstances.push(this);
+        }
+        loadSource() {}
+        attachMedia() {}
+        destroy() {}
+      };
+      const element = createElement("test.m3u8");
+
+      const first = element.enableStreaming();
+      const second = element.enableStreaming();
+      // The real hls.js module is imported; swap in the mock once it lands
+      Object.defineProperty(window, "Hls", {
+        configurable: true,
+        get: () => MockHls,
+        set: () => {},
+      });
+      await Promise.all([first, second]);
+
+      assert.deepEqual(hlsInstances.length, 1);
+    });
+
+    it("should destroy the hls player when streaming is released", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+
+      element.releaseStreaming();
+
+      assert(hlsInstances[0].destroyed);
+    });
+
+    it("should create a new hls player when streaming is re-enabled after release", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+      element.releaseStreaming();
+
+      await element.enableStreaming();
+
+      assert.deepEqual(hlsInstances.length, 2);
+      assert(!hlsInstances[1].destroyed);
+    });
+
+    it("should resume from the released position", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+      element.querySelector("video").currentTime = 12;
+      element.releaseStreaming();
+
+      await element.enableStreaming();
+
+      assert.deepEqual(hlsInstances[1].config.startPosition, 12);
+    });
+
+    it("should start from the default position when never played", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+      element.releaseStreaming();
+
+      await element.enableStreaming();
+
+      assert.deepEqual(hlsInstances[1].config.startPosition, -1);
+    });
+
+    it("should destroy the hls player when disconnected", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+
+      element.remove();
+
+      assert(hlsInstances[0].destroyed);
+    });
+
+    it("should not release a video playing picture-in-picture", async () => {
+      const element = createElement("test.m3u8");
+      await element.enableStreaming();
+      Object.defineProperty(document, "pictureInPictureElement", {
+        configurable: true,
+        get: () => element.querySelector("video"),
+      });
+
+      try {
+        element.releaseStreaming();
+      } finally {
+        delete document.pictureInPictureElement;
+      }
+
+      assert(!hlsInstances[0].destroyed);
     });
 
     it("should append a source element for mp4 sources", async () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test-video.mp4");
-      document.body.appendChild(element);
+      const element = createElement("test-video.mp4");
 
       await element.enableStreaming();
 
@@ -696,9 +806,7 @@ describe("streaming-video", () => {
     });
 
     it("should use the webm type for webm sources", async () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test-video.webm");
-      document.body.appendChild(element);
+      const element = createElement("test-video.webm");
 
       await element.enableStreaming();
 
@@ -707,15 +815,32 @@ describe("streaming-video", () => {
     });
 
     it("should only attach a progressive source once", async () => {
-      const element = document.createElement("streaming-video");
-      element.setAttribute("src", "test-video.mp4");
-      document.body.appendChild(element);
+      const element = createElement("test-video.mp4");
 
       await element.enableStreaming();
       await element.enableStreaming();
 
       const sources = element.querySelectorAll("video source");
       assert.deepEqual(sources.length, 1);
+    });
+
+    it("should remove the progressive source when streaming is released", async () => {
+      const element = createElement("test-video.mp4");
+      await element.enableStreaming();
+
+      element.releaseStreaming();
+
+      assert.deepEqual(element.querySelectorAll("video source").length, 0);
+    });
+
+    it("should reattach the progressive source when re-enabled after release", async () => {
+      const element = createElement("test-video.mp4");
+      await element.enableStreaming();
+      element.releaseStreaming();
+
+      await element.enableStreaming();
+
+      assert.deepEqual(element.querySelectorAll("video source").length, 1);
     });
   });
 
