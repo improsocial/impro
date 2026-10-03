@@ -467,10 +467,11 @@ describe("drafts-dialog", () => {
       );
       assert.deepEqual(resumed, 0);
       resolveLoad();
+      seedDrafts([createDraftView()]);
       await flushMicrotasks();
       await nextFrame();
       assert.deepEqual(resumed, 1);
-      assert.deepEqual(container.querySelector(".loading-spinner"), null);
+      assert.deepEqual(element.querySelector(".loading-spinner"), null);
     });
 
     it("should resume immediately without a second request while a page load is pending", async () => {
@@ -495,6 +496,7 @@ describe("drafts-dialog", () => {
           detail: { resume: () => resumes.push("second") },
         }),
       );
+      await flushMicrotasks();
       assert.deepEqual(loadSpy.mock.callCount(), 1);
       assert.deepEqual(resumes, ["second"]);
       resolveLoad();

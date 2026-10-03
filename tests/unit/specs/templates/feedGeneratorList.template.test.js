@@ -1,15 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
+import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 function renderLoading() {
   const container = document.createElement("div");
-  render(feedsFeedTemplate({ items: null, renderItem: () => "" }), container);
+  render(feedGeneratorListTemplate({ feedGenerators: null }), container);
   return container;
 }
 
-describe("feedsFeedTemplate loading skeleton", () => {
+describe("feedGeneratorListTemplate loading skeleton", () => {
   it("renders skeleton items", () => {
     const container = renderLoading();
     assert(

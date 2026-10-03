@@ -638,6 +638,21 @@ describe("PersistedReactiveStore", () => {
     assert.deepEqual(store.$selected.get(), "following");
   });
 
+  it("keeps computed signals without persisting them", async () => {
+    const store = new PersistedReactiveStore(storageKey);
+    store.$count = new Signal.State(0);
+    const $doubled = new Signal.Computed(() => store.$count.get() * 2);
+    store.$doubled = $doubled;
+    assert.equal(store.$doubled, $doubled);
+
+    store.$count.set(2);
+    await flushEffects();
+    assert.deepEqual(store.$doubled.get(), 4);
+    assert.deepEqual(JSON.parse(localStorage.getItem(storageKey)), {
+      count: 2,
+    });
+  });
+
   it("keeps a null default when nothing is stored", () => {
     const store = new PersistedReactiveStore(storageKey);
     store.$selected = new Signal.State(null);

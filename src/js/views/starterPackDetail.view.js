@@ -1,0 +1,503 @@
+import { html, render } from "/js/lib/lit-html.js";
+import { resolveDidFromHandleOrDid } from "/js/atproto.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
+import { postFeedTemplate } from "/js/templates/postFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
+import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
+import { richTextTemplate } from "/js/templates/richText.template.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import {
+  linkToProfile,
+  linkToLogin,
+  getPermalinkForStarterPack,
+} from "/js/navigation.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
+import { FEED_PAGE_SIZE } from "/js/config.js";
+import { showToast } from "/js/toasts.js";
+import "/js/components/tab-bar.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
+import "/js/components/starter-pack-wizard-dialog.js";
+
+function copyPermalink(permalink) {
+  navigator.clipboard.writeText(permalink);
+  showToast("Link copied to clipboard", { style: "success" });
+}
+
+function optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut }) {
+  return html`<context-menu-item-group>
+    <context-menu-item
+      data-testid="menu-action-starter-pack-opt-out"
+      data-teststate=${isOptedOut ? "opted-out" : "opted-in"}
+      icon=${isOptedOut ? "undo-line" : "user-x-line"}
+      @click=${isOptedOut ? onUndoOptOut : onOptOut}
+    >
+      ${isOptedOut ? "Undo opt-out" : "Opt out of starter pack"}
+    </context-menu-item>
+  </context-menu-item-group>`;
+}
+
+function headerMenuTemplate({
+  permalink,
+  isOwner,
+  showOptOut,
+  isOptedOut,
+  onOptOut,
+  onUndoOptOut,
+  onEdit,
+  onDelete,
+}) {
+  return html`
+    <button
+      class="context-menu-button"
+      @click=${function (e) {
+        const contextMenu = this.nextElementSibling;
+        contextMenu.open(e.clientX, e.clientY);
+      }}
+    >
+      <span>...</span>
+    </button>
+    <context-menu>
+      <context-menu-item-group>
+        <context-menu-item
+          data-testid="menu-action-starter-pack-open-in-bsky"
+          icon="open-line"
+          @click=${() => {
+            window.open(permalink, "_blank");
+          }}
+        >
+          Open in bsky.app
+        </context-menu-item>
+        <context-menu-item
+          data-testid="menu-action-starter-pack-copy-link"
+          icon="link-line"
+          @click=${() => copyPermalink(permalink)}
+        >
+          Copy link to starter pack
+        </context-menu-item>
+      </context-menu-item-group>
+      ${showOptOut
+        ? optOutMenuItemTemplate({ isOptedOut, onOptOut, onUndoOptOut })
+        : ""}
+      ${isOwner
+        ? html`<context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-starter-pack-edit"
+              icon="edit-pen-2-line"
+              @click=${onEdit}
+            >
+              Edit starter pack
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-starter-pack-delete"
+              icon="delete-bin-line"
+              @click=${onDelete}
+            >
+              Delete starter pack
+            </context-menu-item>
+          </context-menu-item-group>`
+        : ""}
+    </context-menu>
+  `;
+}
+
+function loadingTemplate() {
+  return html`<main>
+    <div
+      class="starter-pack-detail-loading"
+      data-testid="starter-pack-detail-loading"
+    >
+      <div class="loading-spinner"></div>
+    </div>
+  </main>`;
+}
+
+function notFoundTemplate({ onRetry }) {
+  return html`<main>
+    <div class="error-state" data-testid="starter-pack-not-found">
+      <h3>Not Found</h3>
+      <div>That starter pack could not be found.</div>
+      ${tryAgainButtonTemplate({ onClick: onRetry })}
+    </div>
+  </main>`;
+}
+
+function followAllButtonTemplate({ isFollowingAll, onFollowAll }) {
+  return html`<button
+    class="rounded-button rounded-button-primary starter-pack-detail-action"
+    data-testid="starter-pack-follow-all"
+    data-teststate=${isFollowingAll ? "pending" : "idle"}
+    ?disabled=${isFollowingAll}
+    @click=${onFollowAll}
+  >
+    Follow all
+    ${isFollowingAll ? html`<div class="loading-spinner"></div>` : ""}
+  </button>`;
+}
+
+function starterPackHeaderTemplate({
+  starterPack,
+  isOwner,
+  isAuthenticated,
+  isFollowingAll,
+  onFollowAll,
+}) {
+  const { record, creator } = starterPack;
+  return html`
+    <div
+      class="starter-pack-detail-header"
+      data-testid="starter-pack-detail-header"
+    >
+      <img
+        class="starter-pack-detail-avatar"
+        src="/img/starter-pack-avatar-fallback.svg"
+        alt=${record.name}
+      />
+      <div class="starter-pack-detail-header-text">
+        <div class="starter-pack-detail-name" data-testid="starter-pack-name">
+          ${record.name}
+        </div>
+        <div
+          class="starter-pack-detail-creator"
+          data-testid="starter-pack-creator"
+        >
+          Starter pack by
+          ${isOwner
+            ? "you"
+            : html`<a href=${linkToProfile(creator)}>@${creator.handle}</a>`}
+        </div>
+      </div>
+      ${isAuthenticated && !isOwner
+        ? followAllButtonTemplate({ isFollowingAll, onFollowAll })
+        : ""}
+    </div>
+    ${record.description
+      ? html`<div
+          class="starter-pack-detail-description"
+          data-testid="starter-pack-description"
+        >
+          ${richTextTemplate({
+            text: record.description,
+            facets: record.descriptionFacets ?? [],
+          })}
+        </div>`
+      : ""}
+    ${isAuthenticated
+      ? ""
+      : html`<div class="starter-pack-detail-sign-in">
+          <a
+            class="rounded-button rounded-button-primary"
+            data-testid="starter-pack-sign-in"
+            href=${linkToLogin()}
+          >
+            Sign in to follow
+          </a>
+        </div>`}
+  `;
+}
+
+function sortMembers({ members, optedOutDids, currentUserDid, isOwner }) {
+  const optedOut = new Set(optedOutDids);
+  const visible = members.filter(
+    (profile) =>
+      !profile.viewer?.blocking &&
+      !profile.viewer?.blockedBy &&
+      !profile.associated?.labeler,
+  );
+  visible.reverse();
+  return visible.sort((a, b) => {
+    const aOptedOut = optedOut.has(a.did);
+    const bOptedOut = optedOut.has(b.did);
+    if (aOptedOut !== bOptedOut) return aOptedOut ? -1 : 1;
+    if (isOwner) {
+      if (a.did === currentUserDid) return -1;
+      if (b.did === currentUserDid) return 1;
+    }
+    return 0;
+  });
+}
+
+export default async function starterPackDetailView({
+  root,
+  params,
+  context: {
+    auth,
+    dataLayer,
+    identityResolver,
+    isAuthenticated,
+    pluginService,
+    interactionHandlers,
+  },
+}) {
+  const { handleOrDid, rkey } = params;
+  const optOutEnabled =
+    isAuthenticated &&
+    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
+
+  const creatorDid = await resolveDidFromHandleOrDid(
+    handleOrDid,
+    identityResolver,
+  );
+  const starterPackUri = `at://${creatorDid}/app.bsky.graph.starterpack/${rkey}`;
+
+  const {
+    postInteractionHandler,
+    profileInteractionHandler,
+    starterPackInteractionHandler,
+  } = interactionHandlers;
+
+  const state = new ReactiveStore("starterPackDetailView");
+  state.$activeTab = new Signal.State("people");
+  state.$isFollowingAll = new Signal.State(false);
+  state.$hasFetchedStarterPack = new Signal.State(false);
+
+  bindPageTitle(root, () => {
+    return (
+      dataLayer.derived.$starterPacks.get(starterPackUri)?.record?.name ?? null
+    );
+  });
+
+  pageEffect(root, () => {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    const starterPack = dataLayer.derived.$starterPacks.get(starterPackUri);
+    const hasFetchedStarterPack = state.$hasFetchedStarterPack.get();
+    const list = starterPack?.list ?? null;
+    const listUri = list?.uri ?? null;
+    const feeds = starterPack?.feeds ?? [];
+    const membersEntry = listUri
+      ? dataLayer.derived.$listMembers.get(listUri)
+      : null;
+    const feed = listUri ? dataLayer.derived.$hydratedFeeds.get(listUri) : null;
+    const showLessInteractions = listUri
+      ? dataLayer.derived.$showLessInteractions.get(listUri)
+      : [];
+    const hiddenPostUris = showLessInteractions.map(
+      (interaction) => interaction.item,
+    );
+    const isFollowingAll = state.$isFollowingAll.get();
+    const activeTab = state.$activeTab.get();
+    const isOptedOut = !!list?.viewer?.referenceListOptOut;
+
+    const isLoaded = !!list;
+    const isOwner = isLoaded && starterPack.creator.did === currentUser?.did;
+    const permalink = isLoaded ? getPermalinkForStarterPack(starterPack) : null;
+    const showOptOut = isLoaded && optOutEnabled && !isOwner;
+    const tabs = isLoaded
+      ? [
+          { value: "people", label: "People" },
+          ...(feeds.length > 0 ? [{ value: "feeds", label: "Feeds" }] : []),
+          { value: "posts", label: "Posts" },
+        ]
+      : [];
+    const members = membersEntry
+      ? sortMembers({
+          members: membersEntry.members,
+          optedOutDids: membersEntry.optedOutDids,
+          currentUserDid: currentUser?.did ?? null,
+          isOwner,
+        })
+      : null;
+
+    render(
+      html`<div id="starter-pack-detail-view">
+        ${headerTemplate({
+          title: "Starter pack",
+          rightItemTemplate: isLoaded
+            ? () =>
+                headerMenuTemplate({
+                  permalink,
+                  isOwner,
+                  showOptOut,
+                  isOptedOut,
+                  onOptOut: () => handleOptOut(list),
+                  onUndoOptOut: () => handleUndoOptOut(list),
+                  onEdit: () => handleEditStarterPack(starterPack),
+                  onDelete: () => handleDeleteStarterPack(starterPack),
+                })
+            : null,
+        })}
+        ${!isLoaded && !hasFetchedStarterPack
+          ? loadingTemplate()
+          : !isLoaded
+            ? notFoundTemplate({ onRetry: () => loadPageData() })
+            : html`<main>
+                ${starterPackHeaderTemplate({
+                  starterPack,
+                  isOwner,
+                  isAuthenticated,
+                  isFollowingAll,
+                  onFollowAll: () => handleFollowAll(starterPack),
+                })}
+                <div
+                  class="starter-pack-detail-tab-bar"
+                  data-scroll-lock-sticky
+                >
+                  <tab-bar
+                    .tabs=${tabs}
+                    active-tab=${activeTab}
+                    full-width
+                    @tab-click=${(event) => state.$activeTab.set(event.detail)}
+                  ></tab-bar>
+                </div>
+                <div
+                  class="starter-pack-tab-content"
+                  data-testid="starter-pack-tab-content"
+                  data-teststate=${activeTab}
+                >
+                  ${activeTab === "people"
+                    ? html`<div class="feed-container">
+                        ${profileListTemplate({
+                          profiles: members,
+                          hasMore: false,
+                          emptyMessage: "This starter pack has no members.",
+                          showEndMessage: true,
+                          isAuthenticated,
+                          currentUserDid: currentUser?.did ?? null,
+                          profileInteractionHandler,
+                          pluginService,
+                        })}
+                      </div>`
+                    : activeTab === "feeds"
+                      ? feedGeneratorListTemplate({
+                          feedGenerators: feeds,
+                          currentUserDid: currentUser?.did ?? null,
+                        })
+                      : html`<div class="feed-container">
+                          ${postFeedTemplate({
+                            feed,
+                            currentUser,
+                            isAuthenticated,
+                            hiddenPostUris,
+                            onLoadMore: () => loadFeed(listUri),
+                            postInteractionHandler,
+                            pluginService,
+                            showEndMessage: true,
+                          })}
+                        </div>`}
+                </div>
+              </main>`}
+      </div>`,
+      root,
+    );
+  });
+
+  pageEffect(root, () => {
+    if (state.$activeTab.get() !== "feeds") return;
+    // Reset tab if feeds are no longer available
+    const feeds =
+      dataLayer.derived.$starterPacks.get(starterPackUri)?.feeds ?? [];
+    if (feeds.length === 0) state.$activeTab.set("posts");
+  });
+
+  async function handleFollowAll(starterPack) {
+    state.$isFollowingAll.set(true);
+    try {
+      await dataLayer.mutations.followAllStarterPackMembers(starterPack);
+      showToast("All accounts have been followed!", { style: "success" });
+    } catch (error) {
+      console.error(error);
+      showToast("An error occurred while trying to follow all", {
+        style: "error",
+      });
+    } finally {
+      state.$isFollowingAll.set(false);
+    }
+  }
+
+  async function handleEditStarterPack(starterPack) {
+    const listUri = starterPack.list?.uri ?? null;
+    if (!listUri) {
+      showToast("This starter pack's list is missing", { style: "error" });
+      return;
+    }
+    const membersEntry = dataLayer.derived.$listMembers.get(listUri);
+    if (!membersEntry || membersEntry.cursor) {
+      await dataLayer.requests
+        .loadAllListMembers(listUri)
+        .catch((error) =>
+          console.warn("Failed to load starter pack members", error),
+        );
+    }
+    const members = dataLayer.derived.$listMembers.get(listUri);
+    if (!members || members.cursor) {
+      showToast("Couldn't load this starter pack's members", {
+        style: "error",
+      });
+      return;
+    }
+    const dialog = document.createElement("starter-pack-wizard-dialog");
+    dialog.dataLayer = dataLayer;
+    dialog.starterPack = starterPack;
+    dialog.members = members.members;
+    dialog.optedOutDids = members.optedOutDids;
+    dialog.addEventListener("starter-pack-update", async (event) => {
+      const { data, successCallback, errorCallback } = event.detail;
+      try {
+        await dataLayer.mutations.updateStarterPack(starterPack, data);
+        showToast("Starter pack updated");
+        successCallback();
+      } catch (error) {
+        errorCallback(error);
+      }
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    root.querySelector("main").appendChild(dialog);
+    dialog.open();
+  }
+
+  async function handleDeleteStarterPack(starterPack) {
+    const deleted =
+      await starterPackInteractionHandler.handleDelete(starterPack);
+    if (!deleted) return;
+    const fallbackRoute = starterPack.creator?.handle
+      ? `/profile/${starterPack.creator.handle}`
+      : "/";
+    window.router.back({ fallbackRoute });
+  }
+
+  async function handleOptOut(list) {
+    const optedOut = await starterPackInteractionHandler.handleOptOut(list);
+    if (optedOut) reloadMembers(list.uri);
+  }
+
+  async function handleUndoOptOut(list) {
+    const undone = await starterPackInteractionHandler.handleUndoOptOut(list);
+    if (undone) reloadMembers(list.uri);
+  }
+
+  function reloadMembers(listUri) {
+    dataLayer.requests.loadAllListMembers(listUri).catch(console.warn);
+  }
+
+  async function loadFeed(listUri, { reload = false } = {}) {
+    await dataLayer.requests.loadNextFeedPage(
+      { type: "list", uri: listUri },
+      { reload, limit: FEED_PAGE_SIZE + 1 },
+    );
+  }
+
+  async function loadPageData() {
+    state.$hasFetchedStarterPack.set(false);
+    try {
+      await dataLayer.requests.loadStarterPack(starterPackUri);
+    } finally {
+      state.$hasFetchedStarterPack.set(true);
+    }
+    const listUri =
+      dataLayer.derived.$starterPacks.get(starterPackUri)?.list?.uri ?? null;
+    if (!listUri) return;
+    await Promise.all([
+      dataLayer.requests.loadAllListMembers(listUri),
+      loadFeed(listUri, { reload: true }),
+    ]);
+  }
+
+  onPageShow(root, ({ action }) => {
+    if (action === "restore") return;
+    loadPageData();
+  });
+}

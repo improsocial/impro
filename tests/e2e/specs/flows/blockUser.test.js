@@ -65,9 +65,9 @@ test.describe("Block user flow", () => {
 
     // Navigate back to home and verify posts are hidden
     await page.goto("/");
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Navigate back to profile and verify blocked state persists
     await page.goto(`/profile/${otherUser.did}`);
@@ -122,9 +122,9 @@ test.describe("Block user flow", () => {
     });
 
     // Verify the post is filtered out of the feed
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Navigate to the blocked user's profile and verify blocked state
     await page.goto(`/profile/${otherUser.did}`);
@@ -237,9 +237,9 @@ test.describe("Block user flow", () => {
 
     // Should back-navigate to home and the blocked user's post should be gone
     await expect(homeView).toBeVisible({ timeout: 10000 });
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should not back-navigate when the block confirmation is cancelled", async ({
@@ -435,9 +435,9 @@ test.describe("Block user flow", () => {
     // Verify posts are hidden on home initially (user is blocked)
     await page.goto("/");
     const homeView = page.locator("#home-view");
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Navigate to blocked user's profile and unblock
     await page.goto(`/profile/${blockedUser.did}`);

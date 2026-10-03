@@ -18,6 +18,7 @@ import {
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import "/js/components/infinite-scroll-container.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -155,8 +156,12 @@ export default async function chatView({
   }
 
   function convosTemplate({ convos, hasMore, currentUser }) {
-    if (convos.length === 0) {
-      return html`<div class="feed-end-message">
+    return paginatedListTemplate({
+      items: convos,
+      renderItem: (convo) => convoItemTemplate({ convo, currentUser }),
+      hasMore,
+      onLoadMore: loadConvoList,
+      emptyTemplate: html`<div class="feed-end-message">
         <div>No conversations yet!</div>
         <button
           class="rounded-button rounded-button-primary"
@@ -165,22 +170,8 @@ export default async function chatView({
         >
           New chat
         </button>
-      </div>`;
-    }
-
-    return html`
-      <infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadConvoList();
-            e.detail.resume();
-          }
-        }}
-      >
-        ${convos.map((convo) => convoItemTemplate({ convo, currentUser }))}
-        ${hasMore ? convoSkeletonTemplate() : ""}
-      </infinite-scroll-container>
-    `;
+      </div>`,
+    });
   }
 
   function convosErrorTemplate({ error }) {

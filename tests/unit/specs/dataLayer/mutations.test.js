@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
@@ -364,6 +364,298 @@ describe("followProfile", () => {
 
     const hydratedPost = derived.$hydratedPosts.get(postUri);
     assert.deepEqual(hydratedPost.author.viewer.following, "follow-123");
+  });
+});
+
+describe("reference list opt-out", () => {
+  const listUri = "at://did:plc:creator/app.bsky.graph.list/pack";
+  const createdUri =
+    "at://did:plc:me/app.bsky.graph.referencelistoptout/created";
+  const indexedUri =
+    "at://did:plc:me/app.bsky.graph.referencelistoptout/indexed";
+  const originalSetTimeout = globalThis.setTimeout;
+
+  beforeEach(() => {
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
+  function setup({ listReads = [], createRecord, deleteRecord } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const calls = { create: [], delete: [], getList: 0 };
+    const api = {
+      session: { did: "did:plc:me" },
+      createReferenceListOptOutRecord:
+        createRecord ??
+        (async (uri) => {
+          calls.create.push(uri);
+          return { uri: createdUri, cid: "cid" };
+        }),
+      deleteReferenceListOptOutRecord:
+        deleteRecord ??
+        (async (uri) => {
+          calls.delete.push(uri);
+          return {};
+        }),
+      getList: async () => {
+        const read = listReads[Math.min(calls.getList, listReads.length - 1)];
+        calls.getList++;
+        return {
+          list: { uri: listUri, viewer: { referenceListOptOut: read } },
+          items: [],
+        };
+      },
+    };
+    const mutations = makeMutations(api, dataStore, new PatchStore(), {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { dataStore, mutations, calls };
+  }
+
+  describe("optOutOfReferenceList", () => {
+    it("creates a record and stops polling once the appview reflects it", async () => {
+      const { dataStore, mutations, calls } = setup({
+        listReads: [null, indexedUri],
+      });
+      const list = { uri: listUri, viewer: {} };
+
+      await mutations.optOutOfReferenceList(list);
+
+      assert.deepEqual(calls.create, [listUri]);
+      assert.deepEqual(calls.getList, 2);
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        createdUri,
+      );
+    });
+
+    it("still stores the created uri when the appview never converges", async () => {
+      const { dataStore, mutations, calls } = setup({ listReads: [null] });
+
+      await mutations.optOutOfReferenceList({ uri: listUri, viewer: {} });
+
+      assert.deepEqual(calls.getList, 5);
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        createdUri,
+      );
+    });
+
+    it("leaves the store untouched and rethrows when the write fails", async () => {
+      const { dataStore, mutations } = setup({
+        createRecord: async () => {
+          throw new Error("write failed");
+        },
+      });
+
+      await assert.rejects(
+        () => mutations.optOutOfReferenceList({ uri: listUri, viewer: {} }),
+        /write failed/,
+      );
+      assert.deepEqual(dataStore.$referenceListOptOuts.has(listUri), false);
+    });
+  });
+
+  describe("undoReferenceListOptOut", () => {
+    it("deletes the viewer's record and clears the entry", async () => {
+      const { dataStore, mutations, calls } = setup({
+        listReads: [indexedUri, null],
+      });
+
+      await mutations.undoReferenceListOptOut({
+        uri: listUri,
+        viewer: { referenceListOptOut: indexedUri },
+      });
+
+      assert.deepEqual(calls.delete, [indexedUri]);
+      assert.deepEqual(calls.getList, 2);
+      assert.deepEqual(dataStore.$referenceListOptOuts.get(listUri), null);
+    });
+
+    it("treats a missing record as already undone", async () => {
+      const { dataStore, mutations } = setup({
+        deleteRecord: async () => {
+          throw new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "RecordNotFound" },
+          });
+        },
+        listReads: [null],
+      });
+
+      await mutations.undoReferenceListOptOut({
+        uri: listUri,
+        viewer: { referenceListOptOut: indexedUri },
+      });
+
+      assert.deepEqual(dataStore.$referenceListOptOuts.get(listUri), null);
+    });
+
+    it("does nothing when there is no record to delete", async () => {
+      const { dataStore, mutations, calls } = setup();
+
+      await mutations.undoReferenceListOptOut({ uri: listUri, viewer: {} });
+
+      assert.deepEqual(calls.delete, []);
+      assert.deepEqual(dataStore.$referenceListOptOuts.has(listUri), false);
+    });
+
+    it("leaves the entry alone when the delete fails", async () => {
+      const { dataStore, mutations } = setup({
+        deleteRecord: async () => {
+          throw new Error("delete failed");
+        },
+      });
+      dataStore.$referenceListOptOuts.set(listUri, indexedUri);
+
+      await assert.rejects(
+        () =>
+          mutations.undoReferenceListOptOut({
+            uri: listUri,
+            viewer: { referenceListOptOut: indexedUri },
+          }),
+        /delete failed/,
+      );
+      assert.deepEqual(
+        dataStore.$referenceListOptOuts.get(listUri),
+        indexedUri,
+      );
+    });
+  });
+});
+
+describe("followAllStarterPackMembers", () => {
+  const starterPack = {
+    uri: "at://did:plc:creator/app.bsky.graph.starterpack/pack",
+    cid: "bafypack",
+    list: { uri: "at://did:plc:creator/app.bsky.graph.list/pack" },
+  };
+
+  function makeItem(did, viewer = {}) {
+    return {
+      uri: `li-${did}`,
+      subject: { did, handle: did + ".test", viewer },
+    };
+  }
+
+  function setup({ listItems, applyWrites }) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const applyWritesCalls = [];
+    const api = {
+      session: { did: "did:plc:me" },
+      getAllListItems: async () => listItems,
+      applyWrites:
+        applyWrites ??
+        (async (writes) => {
+          applyWritesCalls.push(writes);
+          return {};
+        }),
+    };
+    const mutations = makeMutations(api, dataStore, patchStore, {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { dataStore, mutations, applyWritesCalls };
+  }
+
+  it("should follow only eligible members with the pack as via", async () => {
+    const listItems = [
+      makeItem("did:plc:a"),
+      makeItem("did:plc:me"),
+      makeItem("did:plc:blocking", { blocking: "at://block" }),
+      makeItem("did:plc:blockedby", { blockedBy: true }),
+      makeItem("did:plc:muted", { muted: true }),
+      makeItem("did:plc:mutedbylist", { mutedByList: { uri: "l" } }),
+      makeItem("did:plc:following", { following: "at://follow" }),
+      makeItem("did:plc:b"),
+    ];
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    const count = await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(count, 2);
+    assert.deepEqual(applyWritesCalls.length, 1);
+    const writes = applyWritesCalls[0];
+    assert.deepEqual(
+      writes.map((write) => write.value.subject),
+      ["did:plc:a", "did:plc:b"],
+    );
+    for (const write of writes) {
+      assert.deepEqual(write.$type, "com.atproto.repo.applyWrites#create");
+      assert.deepEqual(write.collection, "app.bsky.graph.follow");
+      assert.deepEqual(typeof write.rkey, "string");
+      assert.deepEqual(write.value.$type, "app.bsky.graph.follow");
+      assert.deepEqual(write.value.via, {
+        uri: starterPack.uri,
+        cid: starterPack.cid,
+      });
+    }
+  });
+
+  it("should chunk writes at fifty", async () => {
+    const listItems = Array.from({ length: 120 }, (_, index) =>
+      makeItem(`did:plc:m${index}`),
+    );
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(
+      applyWritesCalls.map((writes) => writes.length),
+      [50, 50, 20],
+    );
+  });
+
+  it("should skip the api call when nobody is eligible", async () => {
+    const listItems = [makeItem("did:plc:following", { following: "at://f" })];
+    const { mutations, applyWritesCalls } = setup({ listItems });
+
+    const count = await mutations.followAllStarterPackMembers(starterPack);
+
+    assert.deepEqual(count, 0);
+    assert.deepEqual(applyWritesCalls.length, 0);
+  });
+
+  it("should mark cached profiles as followed", async () => {
+    const listItems = [makeItem("did:plc:a"), makeItem("did:plc:b")];
+    const { dataStore, mutations } = setup({ listItems });
+    dataStore.setProfiles([{ did: "did:plc:a", handle: "a.test", viewer: {} }]);
+    dataStore.$detailedProfiles.set("did:plc:a", {
+      did: "did:plc:a",
+      handle: "a.test",
+      followersCount: 4,
+      viewer: {},
+    });
+
+    await mutations.followAllStarterPackMembers(starterPack);
+
+    const profile = dataStore.$profiles.get("did:plc:a");
+    assert.match(
+      profile.viewer.following,
+      /^at:\/\/did:plc:me\/app\.bsky\.graph\.follow\/[a-z2-7]{13}$/,
+    );
+    const detailed = dataStore.$detailedProfiles.get("did:plc:a");
+    assert.deepEqual(detailed.followersCount, 5);
+    assert.deepEqual(detailed.viewer.following, profile.viewer.following);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b"), null);
+  });
+
+  it("should rethrow api failures", async () => {
+    const { mutations } = setup({
+      listItems: [makeItem("did:plc:a")],
+      applyWrites: async () => {
+        throw new Error("boom");
+      },
+    });
+
+    await assert.rejects(
+      () => mutations.followAllStarterPackMembers(starterPack),
+      /boom/,
+    );
   });
 });
 
@@ -4539,6 +4831,7 @@ describe("$detailedProfiles mirroring", () => {
       putProfileRecord: async () => ({}),
     };
     const { mutations, dataStore } = setup(mockApi);
+    dataStore.$currentUser.set(baseProfile);
     await mutations.updateProfile(baseProfile, {
       displayName: "Updated Name",
       description: "Updated bio",
@@ -4927,6 +5220,427 @@ describe("updateList", () => {
     });
 
     assert.equal(dataStore.$lists.get(listUri).avatar, "");
+  });
+});
+
+describe("starter pack mutations", () => {
+  const ME = "did:plc:me";
+  const currentUser = {
+    did: ME,
+    handle: "me.test",
+    displayName: "Me",
+    avatar: "",
+    associated: { lists: 1, starterPacks: 1 },
+  };
+  const packUri = `at://${ME}/app.bsky.graph.starterpack/pack1`;
+  const listUri = `at://${ME}/app.bsky.graph.list/pack1`;
+  const existingPack = {
+    uri: packUri,
+    cid: "bafypack",
+    record: {
+      $type: "app.bsky.graph.starterpack",
+      name: "Old name",
+      description: "Old description",
+      list: listUri,
+      feeds: [{ uri: "at://feed/old" }],
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    creator: { did: ME, handle: "me.test" },
+    list: { uri: listUri, cid: "bafylist", name: "Old name", listItemCount: 3 },
+    feeds: [{ uri: "at://feed/old", displayName: "Old feed" }],
+  };
+
+  function profile(did) {
+    return { did, handle: did.replace("did:plc:", "") + ".test", viewer: {} };
+  }
+
+  function listItemRecord(rkey, subjectDid, list = listUri) {
+    return {
+      uri: `at://${ME}/app.bsky.graph.listitem/${rkey}`,
+      value: { list, subject: subjectDid },
+    };
+  }
+
+  function setup({ listItems = [], overrides = {} } = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    dataStore.$currentUser.set(currentUser);
+    const applyWritesCalls = [];
+    const putListCalls = [];
+    const putPackCalls = [];
+    const api = {
+      session: { did: ME },
+      getListItems: async () => ({ records: listItems, cursor: "" }),
+      applyWrites: async (writes) => {
+        applyWritesCalls.push(writes);
+        return {
+          results: writes.map((write) => ({
+            uri: `at://${ME}/${write.collection}/${write.rkey}`,
+            cid: `cid-${write.rkey}`,
+          })),
+        };
+      },
+      getListRecord: async () => ({
+        cid: "listcid",
+        value: {
+          $type: "app.bsky.graph.list",
+          purpose: "app.bsky.graph.defs#referencelist",
+          name: "Old name",
+          description: "Old description",
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+      }),
+      putListRecord: async (rkey, record, swap) => {
+        putListCalls.push({ rkey, record, swap });
+        return { cid: "newlistcid" };
+      },
+      getStarterPackRecord: async () => ({
+        cid: "packcid",
+        value: existingPack.record,
+      }),
+      putStarterPackRecord: async (rkey, record, swap) => {
+        putPackCalls.push({ rkey, record, swap });
+        return { cid: "newpackcid" };
+      },
+      ...overrides,
+    };
+    const mutations = makeMutations(api, dataStore, patchStore, {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return {
+      dataStore,
+      mutations,
+      applyWritesCalls,
+      putListCalls,
+      putPackCalls,
+    };
+  }
+
+  describe("createStarterPack", () => {
+    it("writes the list, its items and the pack in a single applyWrites call", async () => {
+      const { mutations, applyWritesCalls, dataStore } = setup();
+      const profiles = [
+        currentUser,
+        profile("did:plc:a"),
+        profile("did:plc:b"),
+      ];
+      const feeds = [{ uri: "at://feed/1", displayName: "Feed 1" }];
+
+      const view = await mutations.createStarterPack({
+        name: "  My pack  ",
+        description: "Hello",
+        profiles,
+        feeds,
+      });
+
+      assert.equal(applyWritesCalls.length, 1);
+      const writes = applyWritesCalls[0];
+      assert.equal(writes.length, 5);
+      assert.equal(writes[0].collection, "app.bsky.graph.list");
+      assert.equal(
+        writes[0].value.purpose,
+        "app.bsky.graph.defs#referencelist",
+      );
+      assert.equal(writes[0].value.name, "My pack");
+      assert.equal(writes[0].value.description, "Hello");
+      const listWriteUri = `at://${ME}/app.bsky.graph.list/${writes[0].rkey}`;
+      const itemWrites = writes.slice(1, 4);
+      assert.deepEqual(
+        itemWrites.map((write) => write.value.subject),
+        [ME, "did:plc:a", "did:plc:b"],
+      );
+      for (const write of itemWrites) {
+        assert.equal(write.collection, "app.bsky.graph.listitem");
+        assert.equal(write.value.list, listWriteUri);
+      }
+      const packWrite = writes[4];
+      assert.equal(packWrite.collection, "app.bsky.graph.starterpack");
+      assert.equal(packWrite.value.name, "My pack");
+      assert.equal(packWrite.value.list, listWriteUri);
+      assert.deepEqual(packWrite.value.feeds, [{ uri: "at://feed/1" }]);
+
+      assert.equal(view.record.name, "My pack");
+      assert.equal(view.list.uri, listWriteUri);
+      assert.equal(dataStore.$starterPacks.get(view.uri), view);
+      assert.equal(
+        dataStore.$starterPackUrisByList.get(listWriteUri),
+        view.uri,
+      );
+      assert.equal(dataStore.$listMembers.get(listWriteUri).items.length, 3);
+      assert.deepEqual(dataStore.$currentUser.get().associated, {
+        lists: 2,
+        starterPacks: 2,
+      });
+    });
+
+    it("falls back to a default name and omits empty description and feeds", async () => {
+      const { mutations, applyWritesCalls } = setup();
+
+      await mutations.createStarterPack({
+        name: "",
+        description: "   ",
+        profiles: [currentUser],
+        feeds: [],
+      });
+
+      const writes = applyWritesCalls[0];
+      const packWrite = writes[writes.length - 1];
+      assert.equal(packWrite.value.name, "Me's Starter Pack");
+      assert.equal("description" in packWrite.value, false);
+      assert.equal("feeds" in packWrite.value, false);
+      assert.equal("description" in writes[0].value, false);
+    });
+
+    it("prepends the new pack to the current user's cached starter packs", async () => {
+      const { mutations, dataStore } = setup();
+      dataStore.$actorStarterPacks.set(ME, {
+        starterPacks: [existingPack],
+        cursor: null,
+      });
+
+      const view = await mutations.createStarterPack({
+        name: "New",
+        description: "",
+        profiles: [currentUser],
+        feeds: [],
+      });
+
+      assert.deepEqual(
+        dataStore.$actorStarterPacks.get(ME).starterPacks.map((p) => p.uri),
+        [view.uri, packUri],
+      );
+    });
+  });
+
+  describe("updateStarterPack", () => {
+    it("diffs listitems against the PDS, keeping self and opted-out members", async () => {
+      const listItems = [
+        listItemRecord("self", ME),
+        listItemRecord("keep", "did:plc:keep"),
+        listItemRecord("remove", "did:plc:remove"),
+        listItemRecord("optedout", "did:plc:optedout"),
+        listItemRecord("dupe1", "did:plc:dupe"),
+        listItemRecord("dupe2", "did:plc:dupe"),
+        listItemRecord("other", "did:plc:other", "at://other/list"),
+      ];
+      const { mutations, dataStore, applyWritesCalls } = setup({ listItems });
+      dataStore.$starterPacks.set(packUri, existingPack);
+      dataStore.$listMembers.set(listUri, {
+        items: [
+          { uri: "li-self", subject: profile(ME) },
+          { uri: "li-keep", subject: profile("did:plc:keep") },
+          { uri: "li-remove", subject: profile("did:plc:remove") },
+          {
+            uri: "li-optedout",
+            subject: profile("did:plc:optedout"),
+            subjectOptedOut: true,
+          },
+          { uri: "li-dupe", subject: profile("did:plc:dupe") },
+        ],
+        cursor: null,
+      });
+
+      await mutations.updateStarterPack(existingPack, {
+        name: "New name",
+        description: "",
+        profiles: [
+          currentUser,
+          profile("did:plc:keep"),
+          profile("did:plc:dupe"),
+          profile("did:plc:new"),
+        ],
+        feeds: [],
+      });
+
+      const flat = applyWritesCalls.flat();
+      const deletes = flat
+        .filter(
+          (write) => write.$type === "com.atproto.repo.applyWrites#delete",
+        )
+        .map((write) => write.rkey);
+      assert.deepEqual(deletes.sort(), ["dupe2", "remove"]);
+      const creates = flat.filter(
+        (write) => write.$type === "com.atproto.repo.applyWrites#create",
+      );
+      assert.deepEqual(
+        creates.map((write) => write.value.subject),
+        ["did:plc:new"],
+      );
+      assert.equal(creates[0].value.list, listUri);
+
+      const members = dataStore.$listMembers.get(listUri);
+      assert.deepEqual(
+        members.items.map((item) => item.subject.did),
+        [ME, "did:plc:keep", "did:plc:dupe", "did:plc:new", "did:plc:optedout"],
+      );
+      assert.equal(
+        members.items.find((item) => item.subject.did === "did:plc:keep").uri,
+        `at://${ME}/app.bsky.graph.listitem/keep`,
+      );
+    });
+
+    it("rewrites both the list and pack records with swap CIDs", async () => {
+      const { mutations, dataStore, putListCalls, putPackCalls } = setup({
+        listItems: [listItemRecord("self", ME)],
+      });
+      dataStore.$starterPacks.set(packUri, existingPack);
+      dataStore.$lists.set(listUri, {
+        uri: listUri,
+        name: "Old name",
+        description: "Old description",
+      });
+
+      await mutations.updateStarterPack(existingPack, {
+        name: "New name",
+        description: "New description",
+        profiles: [currentUser],
+        feeds: [
+          { uri: "at://feed/a", displayName: "A", extra: "ignored" },
+          { uri: "at://feed/b", displayName: "B" },
+        ],
+      });
+
+      assert.equal(putListCalls.length, 1);
+      assert.equal(putListCalls[0].rkey, "pack1");
+      assert.equal(putListCalls[0].swap, "listcid");
+      assert.equal(putListCalls[0].record.name, "New name");
+      assert.equal(putListCalls[0].record.description, "New description");
+      assert.equal(
+        putListCalls[0].record.purpose,
+        "app.bsky.graph.defs#referencelist",
+      );
+
+      assert.equal(putPackCalls.length, 1);
+      assert.equal(putPackCalls[0].swap, "packcid");
+      const record = putPackCalls[0].record;
+      assert.equal(record.name, "New name");
+      assert.equal(record.description, "New description");
+      assert.equal(record.createdAt, "2025-01-01T00:00:00.000Z");
+      assert.equal(typeof record.updatedAt, "string");
+      assert.deepEqual(record.feeds, [
+        { uri: "at://feed/a" },
+        { uri: "at://feed/b" },
+      ]);
+
+      const updated = dataStore.$starterPacks.get(packUri);
+      assert.equal(updated.record.name, "New name");
+      assert.equal(updated.list.name, "New name");
+      assert.equal(updated.feeds.length, 2);
+      assert.equal(updated.cid, "newpackcid");
+      assert.equal(dataStore.$lists.get(listUri).name, "New name");
+    });
+
+    it("drops description and feeds from the records when cleared", async () => {
+      const { mutations, dataStore, putListCalls, putPackCalls } = setup({
+        listItems: [listItemRecord("self", ME)],
+      });
+      dataStore.$starterPacks.set(packUri, existingPack);
+
+      await mutations.updateStarterPack(existingPack, {
+        name: "Old name",
+        description: "",
+        profiles: [currentUser],
+        feeds: [],
+      });
+
+      assert.equal("description" in putListCalls[0].record, false);
+      assert.equal("description" in putPackCalls[0].record, false);
+      assert.equal("feeds" in putPackCalls[0].record, false);
+    });
+
+    it("refuses to edit a pack owned by someone else", async () => {
+      const { mutations } = setup();
+      await assert.rejects(
+        mutations.updateStarterPack(
+          { ...existingPack, creator: { did: "did:plc:other" } },
+          { name: "x", description: "", profiles: [], feeds: [] },
+        ),
+        /owned by another account/,
+      );
+    });
+  });
+
+  describe("deleteStarterPack", () => {
+    it("deletes listitems, the list and finally the pack", async () => {
+      const { mutations, dataStore, applyWritesCalls } = setup({
+        listItems: [
+          listItemRecord("self", ME),
+          listItemRecord("a", "did:plc:a"),
+          listItemRecord("other", "did:plc:other", "at://other/list"),
+        ],
+      });
+      dataStore.$starterPacks.set(packUri, existingPack);
+      dataStore.$starterPackUrisByList.set(listUri, packUri);
+      dataStore.$lists.set(listUri, existingPack.list);
+      dataStore.$listMembers.set(listUri, { items: [], cursor: null });
+      dataStore.$actorStarterPacks.set(ME, {
+        starterPacks: [existingPack],
+        cursor: null,
+      });
+      dataStore.$starterPackSearchResults.set({
+        starterPacks: [existingPack],
+        cursor: null,
+      });
+
+      await mutations.deleteStarterPack(existingPack);
+
+      const flat = applyWritesCalls.flat();
+      assert.deepEqual(
+        flat.map((write) => [write.collection, write.rkey]),
+        [
+          ["app.bsky.graph.listitem", "self"],
+          ["app.bsky.graph.listitem", "a"],
+          ["app.bsky.graph.list", "pack1"],
+          ["app.bsky.graph.starterpack", "pack1"],
+        ],
+      );
+      assert.equal(dataStore.$starterPacks.get(packUri), null);
+      assert.equal(dataStore.$starterPackUrisByList.get(listUri), null);
+      assert.equal(dataStore.$lists.get(listUri), null);
+      assert.equal(dataStore.$listMembers.get(listUri), null);
+      assert.deepEqual(dataStore.$actorStarterPacks.get(ME).starterPacks, []);
+      assert.deepEqual(
+        dataStore.$starterPackSearchResults.get().starterPacks,
+        [],
+      );
+      assert.deepEqual(dataStore.$currentUser.get().associated, {
+        lists: 0,
+        starterPacks: 0,
+      });
+    });
+
+    it("deletes a pack whose list is missing", async () => {
+      const { mutations, applyWritesCalls } = setup();
+
+      await mutations.deleteStarterPack({ ...existingPack, list: undefined });
+
+      assert.deepEqual(applyWritesCalls, [
+        [
+          {
+            $type: "com.atproto.repo.applyWrites#delete",
+            collection: "app.bsky.graph.starterpack",
+            rkey: "pack1",
+          },
+        ],
+      ]);
+    });
+
+    it("chunks large deletes and keeps the pack in the last chunk", async () => {
+      const listItems = Array.from({ length: 60 }, (_, i) =>
+        listItemRecord(`item${i}`, `did:plc:${i}`),
+      );
+      const { mutations, applyWritesCalls } = setup({ listItems });
+
+      await mutations.deleteStarterPack(existingPack);
+
+      assert.equal(applyWritesCalls.length, 2);
+      assert.equal(applyWritesCalls[0].length, 50);
+      const last = applyWritesCalls[1];
+      assert.equal(
+        last[last.length - 1].collection,
+        "app.bsky.graph.starterpack",
+      );
+    });
   });
 });
 

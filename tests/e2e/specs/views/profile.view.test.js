@@ -405,7 +405,7 @@ test.describe("Profile view", () => {
 
     const view = page.locator("#profile-view");
     await expect(
-      view.locator('[data-testid="feed-end-message"]').first(),
+      view.locator('[data-testid="empty-state"]').first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -486,12 +486,15 @@ test.describe("Profile view", () => {
 
     const view = page.locator("#profile-view");
     const tabBar = view.locator("tab-bar");
-    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(4, {
+    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(5, {
       timeout: 10000,
     });
     await expect(tabBar.locator(".tab-bar-button").nth(3)).toContainText(
       "Likes",
     );
+    await expect(
+      tabBar.locator('[data-testid="tab-starter-packs"]'),
+    ).toBeVisible();
   });
 
   test("should not show follow or chat buttons on own profile", async ({
@@ -1639,7 +1642,9 @@ test.describe("Profile view", () => {
 
       await expect(page.locator(".post-notifications-dialog")).toBeVisible();
 
-      await page.locator('[data-testid="post-notifications-dialog-close"]').click();
+      await page
+        .locator('[data-testid="post-notifications-dialog-close"]')
+        .click();
 
       await expect(
         page.locator(".post-notifications-dialog"),

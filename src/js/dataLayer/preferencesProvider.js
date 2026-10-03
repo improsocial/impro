@@ -49,7 +49,7 @@ export class PreferencesProvider {
     } catch (error) {
       console.warn("Could not load labeler definitions:", error);
       showToast(
-        "Failed to fetch moderation labels - unmoderated content may be visible",
+        "Failed to fetch moderation labels. Unmoderated content may be visible.",
         { style: "warning", timeout: 6000 },
       );
     }

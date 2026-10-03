@@ -72,7 +72,9 @@ export function resetScrollOnBlur(dialog, scrollArea) {
       ) {
         return;
       }
-      if (scrollArea) scrollArea.scrollTop = 0;
+      const scrollElement =
+        typeof scrollArea === "function" ? scrollArea() : scrollArea;
+      if (scrollElement) scrollElement.scrollTop = 0;
       window.scrollTo(0, 0);
     },
     true,

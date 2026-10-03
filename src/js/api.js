@@ -352,6 +352,37 @@ export class Api {
     return res.data;
   }
 
+  async createReferenceListOptOutRecord(listUri) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.referencelistoptout",
+        record: {
+          createdAt: getCurrentTimestamp(),
+          subject: listUri,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async deleteReferenceListOptOutRecord(optOutUri) {
+    const { collection, rkey } = parseUri(optOutUri);
+    if (collection !== "app.bsky.graph.referencelistoptout" || !rkey) {
+      throw new Error(`Invalid reference list opt-out uri: ${optOutUri}`);
+    }
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.referencelistoptout",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
   async getListItems({ limit = 100, cursor = "" } = {}) {
     const query = {
       repo: this.session.did,
@@ -429,6 +460,19 @@ export class Api {
     return res.data;
   }
 
+  async getAllListItems(listUri) {
+    const MAX_PAGES = 6;
+    const items = [];
+    let cursor = "";
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const data = await this.getList(listUri, { limit: 50, cursor });
+      items.push(...(data.items ?? []));
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    return items;
+  }
+
   async getListFeed(listURI, { limit = 31, cursor = "" } = {}) {
     const query = { list: listURI, limit };
     if (cursor) {
@@ -465,6 +509,26 @@ export class Api {
     return res.data;
   }
 
+  async getActorStarterPacks(did, { limit = 50, cursor = "" } = {}) {
+    const query = { actor: did, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.appViewRequest(
+      `app.bsky.graph.getActorStarterPacks`,
+      { query },
+    );
+    return res.data;
+  }
+
+  async getPopularFeedGenerators({ limit = 30 } = {}) {
+    const res = await this.appViewRequest(
+      `app.bsky.unspecced.getPopularFeedGenerators`,
+      { query: { limit } },
+    );
+    return res.data;
+  }
+
   async getActorLists(did, { limit = 50, cursor = "" } = {}) {
     const query = { actor: did, limit };
     if (cursor) {
@@ -486,6 +550,18 @@ export class Api {
       {
         query: queryParams,
       },
+    );
+    return res.data;
+  }
+
+  async searchStarterPacks(query, { limit = 25, cursor = "" } = {}) {
+    const queryParams = { q: query, limit };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
+    const res = await this.appViewRequest(
+      `app.bsky.graph.searchStarterPacksV2`,
+      { query: queryParams },
     );
     return res.data;
   }
@@ -1409,6 +1485,49 @@ export class Api {
         rkey,
         record: {
           $type: "app.bsky.graph.list",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async createStarterPackRecord(record) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.starterpack",
+        record: {
+          $type: "app.bsky.graph.starterpack",
+          ...record,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async getStarterPackRecord(rkey) {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.starterpack",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async putStarterPackRecord(rkey, record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.starterpack",
+        rkey,
+        record: {
+          $type: "app.bsky.graph.starterpack",
           ...record,
         },
         swapRecord: swapRecord ?? null,

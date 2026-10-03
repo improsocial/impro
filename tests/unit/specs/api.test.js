@@ -523,6 +523,68 @@ describe("deleteLikeRecord", () => {
   });
 });
 
+describe("createReferenceListOptOutRecord", () => {
+  it("should create an opt-out record without an rkey", async () => {
+    const session = createMockSession({
+      uri: "at://did:plc:testuser/app.bsky.graph.referencelistoptout/abc",
+      cid: "cid123",
+    });
+    const api = new Api(session);
+    const listUri = "at://did:plc:creator/app.bsky.graph.list/pack";
+
+    const result = await api.createReferenceListOptOutRecord(listUri);
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.repo.createRecord"));
+    assert.deepEqual(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.referencelistoptout");
+    assert.deepEqual(body.rkey, undefined);
+    assert.deepEqual(body.record.subject, listUri);
+    assert(body.record.createdAt);
+    assert.deepEqual(
+      result.uri,
+      "at://did:plc:testuser/app.bsky.graph.referencelistoptout/abc",
+    );
+  });
+});
+
+describe("deleteReferenceListOptOutRecord", () => {
+  it("should delete by the rkey parsed from the record uri", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.deleteReferenceListOptOutRecord(
+      "at://did:plc:viewer/app.bsky.graph.referencelistoptout/indexed",
+    );
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.repo.deleteRecord"));
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.referencelistoptout");
+    assert.deepEqual(body.rkey, "indexed");
+  });
+
+  it("should reject a uri from another collection or without an rkey", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await assert.rejects(() =>
+      api.deleteReferenceListOptOutRecord(
+        "at://did:plc:viewer/app.bsky.graph.listitem/abc",
+      ),
+    );
+    await assert.rejects(() =>
+      api.deleteReferenceListOptOutRecord(
+        "at://did:plc:viewer/app.bsky.graph.referencelistoptout",
+      ),
+    );
+    assert.deepEqual(session.getLastFetchOptions(), null);
+  });
+});
+
 describe("createRepostRecord", () => {
   it("should create a repost record with correct body", async () => {
     const session = createMockSession({
@@ -1712,6 +1774,39 @@ describe("searchFeedGenerators", () => {
   });
 });
 
+describe("searchStarterPacks", () => {
+  it("should search starter packs", async () => {
+    const session = createMockSession({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "next",
+    });
+    const api = new Api(session);
+
+    const result = await api.searchStarterPacks("science");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.searchStarterPacksV2"));
+    assert(url.includes("q=science"));
+    assert(url.includes("limit=25"));
+    assert(!url.includes("cursor="));
+    assert.deepEqual(
+      options.headers["atproto-proxy"],
+      "did:web:api.bsky.app#bsky_appview",
+    );
+    assert.deepEqual(result.starterPacks.length, 1);
+  });
+
+  it("should pass cursor when provided", async () => {
+    const session = createMockSession({ starterPacks: [] });
+    const api = new Api(session);
+
+    await api.searchStarterPacks("science", { cursor: "abc" });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("cursor=abc"));
+  });
+});
+
 describe("getActorFeeds", () => {
   it("should fetch feeds created by an actor", async () => {
     const session = createMockSession({
@@ -2070,5 +2165,50 @@ describe("uploadVideoBlob", () => {
 
     assert(thrownError instanceof ApiError);
     assert.deepEqual(thrownError.status, 500);
+  });
+});
+
+describe("getAllListItems", () => {
+  function createPagingApi(pages) {
+    const calls = [];
+    const api = new Api(createMockSession({}));
+    api.getList = async (listUri, { limit, cursor }) => {
+      calls.push({ listUri, limit, cursor });
+      return pages[calls.length - 1];
+    };
+    return { api, calls };
+  }
+
+  it("should page until the response has no cursor", async () => {
+    const { api, calls } = createPagingApi([
+      { items: [{ uri: "a" }], cursor: "c1" },
+      { items: [{ uri: "b" }], cursor: "c2" },
+      { items: [{ uri: "c" }] },
+    ]);
+
+    const items = await api.getAllListItems("at://did/app.bsky.graph.list/1");
+
+    assert.deepEqual(
+      items.map((item) => item.uri),
+      ["a", "b", "c"],
+    );
+    assert.deepEqual(
+      calls.map((call) => call.cursor),
+      ["", "c1", "c2"],
+    );
+    assert.deepEqual(calls[0].limit, 50);
+  });
+
+  it("should stop after six pages", async () => {
+    const pages = Array.from({ length: 10 }, (_, index) => ({
+      items: [{ uri: String(index) }],
+      cursor: "c" + index,
+    }));
+    const { api, calls } = createPagingApi(pages);
+
+    const items = await api.getAllListItems("at://did/app.bsky.graph.list/1");
+
+    assert.deepEqual(items.length, 6);
+    assert.deepEqual(calls.length, 6);
   });
 });

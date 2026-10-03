@@ -52,9 +52,7 @@ describe("postFeedTemplate - empty state", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(
-      container.querySelector("[data-testid='feed-end-message']") !== null,
-    );
+    assert(container.querySelector("[data-testid='empty-state']") !== null);
   });
 
   it("should show custom empty message when provided", () => {
@@ -65,7 +63,7 @@ describe("postFeedTemplate - empty state", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const message = container.querySelector("[data-testid='feed-end-message']");
+    const message = container.querySelector("[data-testid='empty-state']");
     assert(message.textContent.includes("No posts yet!"));
   });
 });
@@ -88,6 +86,7 @@ describe("postFeedTemplate - feed with posts", () => {
       feed: { feed: feed.slice(0, 2), cursor: null },
       currentUser: mockUser,
       postInteractionHandler,
+      onLoadMore: async () => {},
     });
     const container = document.createElement("div");
     render(result, container);

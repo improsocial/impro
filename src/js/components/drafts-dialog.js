@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { formatRelativeTime } from "/js/utils.js";
@@ -169,11 +170,8 @@ class DraftsDialog extends Component {
     }
   }
 
-  async _loadMore(resume) {
-    if (untrack(() => this.state.$isLoadingMore.get())) {
-      resume();
-      return;
-    }
+  async _loadMore() {
+    if (untrack(() => this.state.$isLoadingMore.get())) return;
     this.state.$isLoadingMore.set(true);
     try {
       await this.dataLayer.requests.loadDrafts();
@@ -181,7 +179,6 @@ class DraftsDialog extends Component {
       console.error("Failed to load more drafts", error);
     } finally {
       this.state.$isLoadingMore.set(false);
-      resume();
     }
   }
 
@@ -224,7 +221,6 @@ class DraftsDialog extends Component {
     const draftViews = data?.drafts ?? null;
     const cursor = data?.cursor ?? null;
     const loadError = this.state.$loadError.get();
-    const isLoadingMore = this.state.$isLoadingMore.get();
     render(
       html`
         <dialog
@@ -277,23 +273,17 @@ class DraftsDialog extends Component {
                       >
                         No drafts yet
                       </div>`
-                    : html`<infinite-scroll-container
-                        ?disabled=${cursor === null}
-                        @load-more=${(e) => this._loadMore(e.detail.resume)}
-                      >
-                        ${draftViews.map((draftView) =>
+                    : paginatedListTemplate({
+                        items: draftViews,
+                        renderItem: (draftView) =>
                           draftItemTemplate({
                             draftView,
                             onSelect: (selected) => this._onSelect(selected),
                             onDelete: (selected) => this._onDelete(selected),
                           }),
-                        )}
-                        ${isLoadingMore
-                          ? html`<div class="drafts-dialog-message">
-                              <div class="loading-spinner"></div>
-                            </div>`
-                          : ""}
-                      </infinite-scroll-container>`}
+                        hasMore: cursor !== null,
+                        onLoadMore: () => this._loadMore(),
+                      })}
             </div>
           </div>
         </dialog>

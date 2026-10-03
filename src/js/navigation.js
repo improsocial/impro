@@ -70,6 +70,12 @@ export function linkToList(list) {
   )}`;
 }
 
+export function linkToStarterPack(starterPack) {
+  const creator = profileIdentifier(starterPack.creator);
+  const rkey = getRKey(starterPack);
+  return `/profile/${encodePathSegment(creator)}/starter-pack/${encodePathSegment(rkey)}`;
+}
+
 export function linkToSearchPostsByProfile(profile) {
   const searchString = `from:@${profile.handle} `;
   const query = new URLSearchParams();
@@ -88,6 +94,12 @@ export function getPermalinkForPost(post) {
 
 export function getPermalinkForProfile(profile) {
   return getPermalinkOrigin() + linkToProfile(profile);
+}
+
+export function getPermalinkForStarterPack(starterPack) {
+  const creator = profileIdentifier(starterPack.creator);
+  const rkey = getRKey(starterPack);
+  return `${getPermalinkOrigin()}/starter-pack/${encodePathSegment(creator)}/${encodePathSegment(rkey)}`;
 }
 
 export function getPermalinkForConvo(convoId) {

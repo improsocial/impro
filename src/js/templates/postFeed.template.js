@@ -5,6 +5,7 @@ import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { linkToPost } from "/js/navigation.js";
 import { isEmptyPost, isBlockedPost } from "/js/dataHelpers.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 
 // Posts likely to be above the fold on load; lazy load the rest
 const EAGER_IMAGE_ITEM_COUNT = 5;
@@ -209,14 +210,6 @@ function feedItemTemplate({
   `;
 }
 
-function feedSkeletonTemplate() {
-  return html`<div class="feed">
-    ${Array.from({ length: 10 }).map((_, index) => {
-      return postSkeletonTemplate();
-    })}
-  </div>`;
-}
-
 function feedLoadMoreErrorTemplate({ onRetry }) {
   return html`<div
     class="error-state feed-load-more-error"
@@ -243,80 +236,45 @@ export function postFeedTemplate({
   loadMoreError = null,
   pluginService,
 }) {
-  if (!feed) {
-    return feedSkeletonTemplate();
-  }
-  if (feed.feed.length === 0) {
-    return html`<div class="feed">
-      <div class="feed-end-message" data-testid="feed-end-message">
-        ${emptyMessage ?? "This feed is empty."}
-      </div>
+  const renderItem = (feedItem, index) =>
+    html`<div
+      class="feed-item"
+      data-testid="feed-item"
+      data-post-uri="${feedItem.post.uri}"
+      data-feed-generator-uri="${feedGenerator?.uri ?? ""}"
+    >
+      ${keyed(
+        feedItem.post.uri,
+        feedItemTemplate({
+          feedItem,
+          currentUser,
+          isAuthenticated,
+          feedGenerator,
+          hiddenPostUris,
+          postInteractionHandler,
+          onClickShowLess,
+          onClickShowMore,
+          enableFeedFeedback,
+          pluginService,
+          lazyLoadImages: index >= EAGER_IMAGE_ITEM_COUNT,
+        }),
+      )}
     </div>`;
-  }
-  const hasMore = !!feed.cursor;
   try {
-    return html`
-      <infinite-scroll-container
-        lookahead="2500px"
-        ?disabled=${!!loadMoreError}
-        @load-more=${async (e) => {
-          if (hasMore && onLoadMore) {
-            await onLoadMore();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="feed" data-testid="feed">
-          ${feed.feed.map((feedItem, i) => {
-            // data attributes are used by post seen observer
-            const content = html`<div
-              class="feed-item"
-              data-testid="feed-item"
-              data-post-uri="${feedItem.post.uri}"
-              data-feed-generator-uri="${feedGenerator?.uri ?? ""}"
-            >
-              ${keyed(
-                feedItem.post.uri,
-                feedItemTemplate({
-                  feedItem,
-                  currentUser,
-                  isAuthenticated,
-                  feedGenerator,
-                  hiddenPostUris,
-                  postInteractionHandler,
-                  onClickShowLess,
-                  onClickShowMore,
-                  enableFeedFeedback,
-                  pluginService,
-                  lazyLoadImages: i >= EAGER_IMAGE_ITEM_COUNT,
-                }),
-              )}
-            </div>`;
-            if (i < feed.feed.length - 1) {
-              return content;
-            }
-            const endingElement = loadMoreError
-              ? feedLoadMoreErrorTemplate({ onRetry: onLoadMore })
-              : hasMore
-                ? html`<div
-                    class="feed-loading-indicator"
-                    data-testid="feed-loading-indicator"
-                  >
-                    <div class="loading-spinner"></div>
-                  </div>`
-                : showEndMessage
-                  ? html`<div
-                      class="feed-end-message"
-                      data-testid="feed-end-message"
-                    >
-                      End of feed
-                    </div>`
-                  : null;
-            return html`<div>${content}${endingElement}</div>`;
-          })}
-        </div>
-      </infinite-scroll-container>
-    `;
+    return paginatedListTemplate({
+      items: feed?.feed ?? null,
+      renderItem,
+      renderSkeletonItem: postSkeletonTemplate,
+      hasMore: !!feed?.cursor,
+      onLoadMore,
+      emptyMessage: emptyMessage ?? "This feed is empty.",
+      endMessage: showEndMessage ? "End of feed" : null,
+      errorTemplate: loadMoreError
+        ? feedLoadMoreErrorTemplate({ onRetry: onLoadMore })
+        : null,
+      containerClass: "feed",
+      containerTestId: "feed",
+    });
   } catch (error) {
     console.error(error);
     return html`<div class="error-state">

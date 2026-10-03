@@ -5,7 +5,7 @@ import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { classnames } from "/js/utils.js";
 
 const MAX_MEMBER_PAGES = 6;
@@ -30,8 +30,12 @@ function toggleButtonTemplate({ profile, isMember, isPending, onToggle }) {
   </button>`;
 }
 
-function profileListTemplate({ profiles, emptyMessage, rightItemTemplate }) {
-  return profileFeedTemplate({
+function compactProfileListTemplate({
+  profiles,
+  emptyMessage,
+  rightItemTemplate,
+}) {
+  return profileListTemplate({
     profiles,
     hasMore: false,
     clickAction: "none",
@@ -242,7 +246,7 @@ class ManageListMembersDialog extends Component {
                       We're having network issues, try again
                     </div>`;
                   }
-                  return profileListTemplate({
+                  return compactProfileListTemplate({
                     profiles: searchResults,
                     emptyMessage: "No results",
                     rightItemTemplate,
@@ -255,7 +259,7 @@ class ManageListMembersDialog extends Component {
                   suggestedProfiles = profileFollows;
                 }
                 if (!suggestedProfiles?.length) {
-                  return profileListTemplate({
+                  return compactProfileListTemplate({
                     profiles: suggestedProfiles,
                     emptyMessage: "Search for someone to add",
                   });
@@ -267,7 +271,7 @@ class ManageListMembersDialog extends Component {
                   >
                     Suggested
                   </div>
-                  ${profileListTemplate({
+                  ${compactProfileListTemplate({
                     profiles: suggestedProfiles,
                     rightItemTemplate,
                   })}

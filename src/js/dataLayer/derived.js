@@ -361,10 +361,18 @@ export class Derived extends ReactiveStore {
       this.dataStore.$feedGenerators.get(feedUri),
     );
     this.$lists = new ComputedMap((listUri) =>
-      this.dataStore.$lists.get(listUri),
+      this.applyReferenceListOptOut(this.dataStore.$lists.get(listUri)),
     );
-    this.$starterPacks = new ComputedMap((starterPackUri) =>
-      this.dataStore.$starterPacks.get(starterPackUri),
+    this.$starterPacks = new ComputedMap((starterPackUri) => {
+      const starterPack = this.dataStore.$starterPacks.get(starterPackUri);
+      if (!starterPack?.list) return starterPack;
+      return {
+        ...starterPack,
+        list: this.applyReferenceListOptOut(starterPack.list),
+      };
+    });
+    this.$starterPackUriForList = new ComputedMap(
+      (listUri) => this.dataStore.$starterPackUrisByList.get(listUri) ?? null,
     );
     this.$listMembers = new ComputedMap((listUri) => {
       const data = this.dataStore.$listMembers.get(listUri);
@@ -373,6 +381,9 @@ export class Derived extends ReactiveStore {
         members: data.items.map((item) =>
           this.$hydratedProfiles.get(item.subject.did),
         ),
+        optedOutDids: data.items
+          .filter((item) => item.subjectOptedOut)
+          .map((item) => item.subject.did),
         cursor: data.cursor,
       };
     });
@@ -422,6 +433,13 @@ export class Derived extends ReactiveStore {
     });
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
+    );
+    this.$starterPackSearchResults = new Signal.Computed(
+      () =>
+        this.dataStore.$starterPackSearchResults.get()?.starterPacks ?? null,
+    );
+    this.$starterPackSearchCursor = new Signal.Computed(
+      () => this.dataStore.$starterPackSearchResults.get()?.cursor ?? null,
     );
     this.$gifResults = new Signal.Computed(
       () => this.dataStore.$gifResults.get()?.gifs ?? null,
@@ -547,6 +565,16 @@ export class Derived extends ReactiveStore {
     this.$actorLists = new ComputedMap((did) =>
       this.dataStore.$actorLists.get(did),
     );
+    this.$actorStarterPacks = new ComputedMap((did) =>
+      this.dataStore.$actorStarterPacks.get(did),
+    );
+    this.$popularFeeds = new Signal.Computed(() => {
+      const feeds = this.dataStore.$popularFeeds.get();
+      if (!feeds) return null;
+      return feeds.map(
+        (feed) => this.dataStore.$feedGenerators.get(feed.uri) ?? feed,
+      );
+    });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
       this.dataStore.$listsWithMembershipByActor.get(did),
     );
@@ -822,6 +850,18 @@ export class Derived extends ReactiveStore {
     const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
     if (!updated) return item;
     return { ...item, embed: updated };
+  }
+
+  applyReferenceListOptOut(list) {
+    if (!list) return list;
+    if (!this.dataStore.$referenceListOptOuts.has(list.uri)) return list;
+    return {
+      ...list,
+      viewer: {
+        ...list.viewer,
+        referenceListOptOut: this.dataStore.$referenceListOptOuts.get(list.uri),
+      },
+    };
   }
 
   hydrateProfile(profile) {

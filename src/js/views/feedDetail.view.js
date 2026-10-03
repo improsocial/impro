@@ -16,7 +16,6 @@ export default async function feedDetailView({
   root,
   params,
   context: {
-    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -24,8 +23,6 @@ export default async function feedDetailView({
     interactionHandlers,
   },
 }) {
-  await auth.requireAuth();
-
   const { handleOrDid, rkey } = params;
 
   const profileDid = await resolveDidFromHandleOrDid(
@@ -96,15 +93,17 @@ export default async function feedDetailView({
                   </context-menu-item>
                 </context-menu-item-group>
               </context-menu>
-              <button
-                class=${classnames("pin-feed-button", {
-                  pinned: isPinned,
-                })}
-                @click=${() =>
-                  feedInteractionHandler.handlePinFeed(feedUri, !isPinned)}
-              >
-                ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
-              </button>`;
+              ${isAuthenticated
+                ? html`<button
+                    class=${classnames("pin-feed-button", {
+                      pinned: isPinned,
+                    })}
+                    @click=${() =>
+                      feedInteractionHandler.handlePinFeed(feedUri, !isPinned)}
+                  >
+                    ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
+                  </button>`
+                : ""}`;
           },
         })}
         <main>

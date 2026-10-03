@@ -187,6 +187,24 @@ describe("enableDragToDismiss", () => {
     await wait(0);
     assert.equal(closeCount, 0);
   });
+  it("re-evaluates a scrollContainer getter on each touch", async () => {
+    let scrollContainer = document.createElement("div");
+    el.appendChild(scrollContainer);
+    handle = enableDragToDismiss(el, {
+      direction: "down",
+      onDismiss: () => closeCount++,
+      scrollContainer: () => scrollContainer,
+    });
+    const replacement = document.createElement("div");
+    replacement.scrollTop = 100;
+    el.replaceChild(replacement, scrollContainer);
+    scrollContainer = replacement;
+    replacement.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+    el.dispatchEvent(touchEvent("touchmove", { clientY: 250 }));
+    el.dispatchEvent(touchEvent("touchend"));
+    await wait(0);
+    assert.equal(closeCount, 0);
+  });
   it("allows dismissing from outside a scrolled container", async () => {
     const scrollContainer = document.createElement("div");
     scrollContainer.scrollTop = 100;

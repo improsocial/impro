@@ -196,9 +196,9 @@ test.describe("Chat requests view", () => {
     await expect(requestsView.locator(".chat-request-item")).toHaveCount(0, {
       timeout: 10000,
     });
-    await expect(requestsView.locator(".feed-end-message")).toContainText(
-      "No chat requests",
-    );
+    await expect(
+      requestsView.locator('[data-testid="empty-state"]'),
+    ).toBeVisible();
   });
 
   test("should not offer accept for a locked group invite", async ({
@@ -367,9 +367,9 @@ test.describe("Chat requests view", () => {
     await expect(requestsView.locator(".chat-request-item")).toHaveCount(0, {
       timeout: 10000,
     });
-    await expect(requestsView.locator(".feed-end-message")).toContainText(
-      "No chat requests",
-    );
+    await expect(
+      requestsView.locator('[data-testid="empty-state"]'),
+    ).toBeVisible();
   });
 
   test("should show an old request buried past the first page of convos", async ({
@@ -514,10 +514,9 @@ test.describe("Chat requests view", () => {
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
     ).toContainText("Chat requests", { timeout: 10000 });
-    await expect(requestsView.locator(".feed-end-message")).toContainText(
-      "No chat requests",
-      { timeout: 10000 },
-    );
+    await expect(
+      requestsView.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should display error state when chat requests fail to load", async ({

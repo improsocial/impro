@@ -1512,6 +1512,98 @@ describe("loadFeedSearch", () => {
   });
 });
 
+describe("loadStarterPackSearch", () => {
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$starterPackSearchResults.set({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "c",
+    });
+    const mockApi = {
+      searchStarterPacks: async () => ({ starterPacks: [], cursor: null }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("");
+
+    assert.deepEqual(dataStore.$starterPackSearchResults.get(), null);
+  });
+
+  it("should store starter packs and cache them by uri", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mockApi = {
+      searchStarterPacks: async () => ({
+        starterPacks: [{ uri: "sp1", record: { name: "Pack One" } }],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("science");
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(stored.starterPacks.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+    assert.deepEqual(
+      dataStore.$starterPacks.get("sp1").record.name,
+      "Pack One",
+    );
+  });
+
+  it("should discard stale responses", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    let resolveFirst;
+    const firstPromise = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    let callIndex = 0;
+    const mockApi = {
+      searchStarterPacks: async () => {
+        callIndex += 1;
+        if (callIndex === 1) {
+          await firstPromise;
+          return { starterPacks: [{ uri: "stale" }], cursor: "stale" };
+        }
+        return { starterPacks: [{ uri: "fresh" }], cursor: "fresh" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const firstCall = requests.loadStarterPackSearch("query");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadStarterPackSearch("query");
+    resolveFirst();
+    await firstCall;
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(stored.starterPacks[0].uri, "fresh");
+  });
+
+  it("should append when cursor is provided, skipping duplicates", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$starterPackSearchResults.set({
+      starterPacks: [{ uri: "sp1" }],
+      cursor: "c1",
+    });
+    const mockApi = {
+      searchStarterPacks: async () => ({
+        starterPacks: [{ uri: "sp1" }, { uri: "sp2" }],
+        cursor: "c2",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPackSearch("query", { cursor: "c1" });
+
+    const stored = dataStore.$starterPackSearchResults.get();
+    assert.deepEqual(
+      stored.starterPacks.map((starterPack) => starterPack.uri),
+      ["sp1", "sp2"],
+    );
+    assert.deepEqual(stored.cursor, "c2");
+  });
+});
+
 describe("loadNotifications", () => {
   it("should set notifications and cursor on first load", async () => {
     const dataStore = new DataStore(createSessionState(null));
@@ -4130,6 +4222,60 @@ describe("_loadPostDependencies", () => {
   });
 });
 
+describe("loadStarterPackUriForList", () => {
+  const list = {
+    uri: "at://did:plc:creator/app.bsky.graph.list/pack",
+    creator: { did: "did:plc:creator" },
+  };
+
+  it("stores the creator's starter pack uri found via backlinks", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const calls = [];
+    const constellation = {
+      getLinks: async (params) => {
+        calls.push(params);
+        return [
+          {
+            did: "did:plc:someoneelse",
+            collection: "app.bsky.graph.starterpack",
+            rkey: "forged",
+          },
+          {
+            did: "did:plc:creator",
+            collection: "app.bsky.graph.starterpack",
+            rkey: "pack",
+          },
+        ];
+      },
+    };
+    const requests = makeRequestsWithConstellation(
+      {},
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadStarterPackUriForList(list);
+
+    assert.deepEqual(calls[0].subject, list.uri);
+    assert.deepEqual(calls[0].source, "app.bsky.graph.starterpack:list");
+    assert.deepEqual(
+      dataStore.$starterPackUrisByList.get(list.uri),
+      "at://did:plc:creator/app.bsky.graph.starterpack/pack",
+    );
+  });
+
+  it("stores null when no starter pack references the list", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequestsWithConstellation({}, dataStore, {
+      getLinks: async () => [],
+    });
+
+    await requests.loadStarterPackUriForList(list);
+
+    assert.deepEqual(dataStore.$starterPackUrisByList.get(list.uri), null);
+  });
+});
+
 describe("loadFeedGenerator / loadList / loadStarterPack", () => {
   it("should store the feed generator by uri", async () => {
     const dataStore = new DataStore(createSessionState(null));
@@ -4172,6 +4318,26 @@ describe("loadFeedGenerator / loadList / loadStarterPack", () => {
     await requests.loadStarterPack(starterPack.uri);
 
     assert.deepEqual(dataStore.$starterPacks.get(starterPack.uri), starterPack);
+  });
+
+  it("should record a starter pack load failure in the status store", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const error = new ApiError({ status: 400, data: { error: "NotFound" } });
+    const mockApi = {
+      getStarterPack: async () => {
+        throw error;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+    const uri = "at://did/app.bsky.graph.starterpack/sp";
+
+    await requests.loadStarterPack(uri);
+
+    assert.deepEqual(
+      requests.statusStore.getError("loadStarterPack-" + uri),
+      error,
+    );
+    assert.deepEqual(dataStore.$starterPacks.get(uri), null);
   });
 });
 
@@ -4238,6 +4404,54 @@ describe("loadListMembers", () => {
     const stored = dataStore.$listMembers.get(listUri);
     assert.deepEqual(stored.items.length, 1);
     assert.deepEqual(stored.items[0].uri, "li2");
+  });
+});
+
+describe("loadAllListMembers", () => {
+  const listUri = "at://did/app.bsky.graph.list/1";
+
+  it("should store every item with no cursor and hydrate profiles", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$listMembers.set(listUri, {
+      items: [{ uri: "stale", subject: { did: "did:plc:stale" } }],
+      cursor: "next",
+    });
+    const mockApi = {
+      getAllListItems: async () => [
+        { uri: "li1", subject: { did: "did:plc:a", handle: "a" } },
+        { uri: "li2", subject: { did: "did:plc:b", handle: "b" } },
+      ],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadAllListMembers(listUri);
+
+    const stored = dataStore.$listMembers.get(listUri);
+    assert.deepEqual(
+      stored.items.map((item) => item.uri),
+      ["li1", "li2"],
+    );
+    assert.deepEqual(stored.cursor, null);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b").handle, "b");
+  });
+
+  it("should record an api failure in the status store", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const error = new ApiError({ status: 500, data: { error: "Boom" } });
+    const mockApi = {
+      getAllListItems: async () => {
+        throw error;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadAllListMembers(listUri);
+
+    assert.deepEqual(
+      requests.statusStore.getError("loadAllListMembers-" + listUri),
+      error,
+    );
+    assert.deepEqual(dataStore.$listMembers.get(listUri), null);
   });
 });
 

@@ -362,9 +362,7 @@ describe("manage-list-members-dialog", () => {
       cursor: null,
     });
     await typeQuery(element, "zzz");
-    const emptyMessage = element.querySelector(
-      '[data-testid="feed-end-message"]',
-    );
+    const emptyMessage = element.querySelector('[data-testid="empty-state"]');
     assert(emptyMessage !== null);
     assert.equal(emptyMessage.textContent.trim(), "No results");
   });

@@ -121,7 +121,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     // First page is 50 lists (the default limit).
     await expect(rows).toHaveCount(50, { timeout: 5000 });
     await expect(
-      dialog.locator('[data-testid="add-to-lists-loading-more"]'),
+      dialog.locator('[data-testid="feed-loading-indicator"]'),
     ).toBeVisible();
 
     // Scrolling the dialog list to the bottom triggers the next page.
@@ -131,7 +131,7 @@ test.describe("Add profile to list → List Detail flow", () => {
 
     await expect(rows).toHaveCount(TOTAL_LISTS, { timeout: 5000 });
     await expect(
-      dialog.locator('[data-testid="add-to-lists-loading-more"]'),
+      dialog.locator('[data-testid="feed-loading-indicator"]'),
     ).toHaveCount(0);
   });
 

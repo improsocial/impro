@@ -138,6 +138,23 @@ describe("resetScrollOnBlur", () => {
     dialog.remove();
   });
 
+  it("re-evaluates a scroll area getter on each blur", () => {
+    const otherDialog = document.createElement("dialog");
+    let area = document.createElement("div");
+    otherDialog.appendChild(area);
+    document.body.appendChild(otherDialog);
+    resetScrollOnBlur(otherDialog, () => area);
+    const replacement = document.createElement("div");
+    otherDialog.replaceChild(replacement, area);
+    area = replacement;
+    replacement.scrollTop = 42;
+    const input = document.createElement("input");
+    replacement.appendChild(input);
+    blurFrom(input);
+    assert.deepEqual(replacement.scrollTop, 0);
+    otherDialog.remove();
+  });
+
   it("resets the scroll area when a textarea blurs", () => {
     const textarea = document.createElement("textarea");
     scrollArea.appendChild(textarea);

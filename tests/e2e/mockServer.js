@@ -37,6 +37,7 @@ export class MockServer {
     this.messageCounter = 0;
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
+    this.listMembersFailure = null;
     this.createRecordFailures = new Map();
     this.convoForMembersError = null;
     this.chatActorStatus = {
@@ -72,6 +73,10 @@ export class MockServer {
     this.starterPacks = [];
     this.listMembers = new Map();
     this.currentUserListItems = [];
+    this.referenceListOptOutRecords = [];
+    this.referenceListOptOutLag = 0;
+    this.referenceListOptOutLagRemaining = 0;
+    this.staleReferenceListOptOuts = new Map();
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -88,7 +93,11 @@ export class MockServer {
     this.savedFeedUris = [];
     this.actorFeeds = new Map();
     this.actorLists = new Map();
+    this.actorStarterPacks = new Map();
+    this.starterPackRecords = new Map();
+    this.putRecordCalls = [];
     this.searchFeedGenerators = [];
+    this.searchStarterPacks = [];
     this.trends = [];
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
@@ -98,6 +107,7 @@ export class MockServer {
       top: 0,
       latest: 0,
       feeds: 0,
+      starterPacks: 0,
       typeahead: 0,
     };
     this.timelinePosts = [];
@@ -108,6 +118,7 @@ export class MockServer {
     // is absent from getPreferences and no putPreferences has written it.
     this.searchHistory = null;
     this.getProfilesDelayMs = 0;
+    this.getStarterPackDelayMs = 0;
     this.putPreferencesDelayMs = 0;
     // Override the source served for the local test plugin's main.js; defaults
     // to the standard fixture when null.
@@ -254,12 +265,143 @@ export class MockServer {
     this.starterPacks.push(...starterPacks);
   }
 
+  addActorStarterPacks(did, starterPacks) {
+    const existing = this.actorStarterPacks.get(did) || [];
+    this.actorStarterPacks.set(did, [...existing, ...starterPacks]);
+  }
+
   addListMembers(listUri, profiles) {
     this.listMembers.set(listUri, profiles);
   }
 
   addCurrentUserListItem({ uri, listUri, subjectDid }) {
     this.currentUserListItems.push({ uri, listUri, subjectDid });
+  }
+
+  addReferenceListOptOut({ uri, listUri }) {
+    this.referenceListOptOutRecords.push({ uri, subject: listUri });
+  }
+
+  // Number of AppView list reads (getList / getStarterPack) after an opt-out
+  // write that still report the pre-write state.
+  setReferenceListOptOutLag(reads) {
+    this.referenceListOptOutLag = reads;
+  }
+
+  _snapshotReferenceListOptOut(listUri) {
+    this.staleReferenceListOptOuts.set(
+      listUri,
+      this._currentReferenceListOptOut(listUri),
+    );
+    this.referenceListOptOutLagRemaining = this.referenceListOptOutLag;
+  }
+
+  _currentReferenceListOptOut(listUri) {
+    return (
+      this.referenceListOptOutRecords.find(
+        (record) => record.subject === listUri,
+      )?.uri ?? null
+    );
+  }
+
+  _ingestListItemRecord(record, uri) {
+    this.currentUserListItems.push({
+      uri,
+      listUri: record.list,
+      subjectDid: record.subject,
+    });
+    const profile = this.profiles.get(record.subject);
+    if (profile) {
+      const members = this.listMembers.get(record.list) || [];
+      if (!members.some((p) => p.did === profile.did)) {
+        this.listMembers.set(record.list, [profile, ...members]);
+      }
+    }
+  }
+
+  _removeListItemRecord(uri) {
+    const index = this.currentUserListItems.findIndex(
+      (item) => item.uri === uri,
+    );
+    if (index === -1) return;
+    const [removed] = this.currentUserListItems.splice(index, 1);
+    const members = this.listMembers.get(removed.listUri);
+    if (members) {
+      this.listMembers.set(
+        removed.listUri,
+        members.filter((profile) => profile.did !== removed.subjectDid),
+      );
+    }
+  }
+
+  _ingestListRecord(record, uri) {
+    this.lists.push({
+      uri,
+      cid: `bafyrei${uri.split("/").pop()}`,
+      creator: userProfile,
+      name: record.name,
+      purpose: record.purpose,
+      description: record.description || "",
+      descriptionFacets: record.descriptionFacets || [],
+      avatar: "",
+      indexedAt: record.createdAt,
+      labels: [],
+      viewer: {},
+    });
+  }
+
+  _ingestStarterPackRecord(record, uri) {
+    const rkey = uri.split("/").pop();
+    const list = this.lists.find((entry) => entry.uri === record.list);
+    const members = this.listMembers.get(record.list) || [];
+    const feeds = (record.feeds || [])
+      .map((ref) => this.feedGenerators.find((feed) => feed.uri === ref.uri))
+      .filter(Boolean);
+    const starterPack = {
+      uri,
+      cid: `bafyrei${rkey}`,
+      record: { $type: "app.bsky.graph.starterpack", ...record },
+      creator: userProfile,
+      list,
+      listItemsSample: members.slice(0, 12).map((profile) => ({
+        uri: `${record.list}/item-${profile.did}`,
+        subject: profile,
+      })),
+      feeds,
+      joinedWeekCount: 0,
+      joinedAllTimeCount: 0,
+      labels: [],
+      indexedAt: record.createdAt,
+    };
+    this.starterPackRecords.set(uri, {
+      cid: starterPack.cid,
+      value: starterPack.record,
+    });
+    this.starterPacks = this.starterPacks.filter((pack) => pack.uri !== uri);
+    this.starterPacks.push(starterPack);
+    const existing = this.actorStarterPacks.get(userProfile.did) || [];
+    this.actorStarterPacks.set(userProfile.did, [
+      starterPack,
+      ...existing.filter((pack) => pack.uri !== uri),
+    ]);
+  }
+
+  _withReferenceListOptOut(list) {
+    if (!list?.uri) return list;
+    let optOutUri;
+    if (this.referenceListOptOutLagRemaining > 0) {
+      this.referenceListOptOutLagRemaining--;
+      optOutUri = this.staleReferenceListOptOuts.get(list.uri) ?? null;
+    } else {
+      optOutUri = this._currentReferenceListOptOut(list.uri);
+    }
+    const viewer = { ...list.viewer };
+    if (optOutUri) {
+      viewer.referenceListOptOut = optOutUri;
+    } else {
+      delete viewer.referenceListOptOut;
+    }
+    return { ...list, viewer };
   }
 
   addListFeedItems(listUri, posts) {
@@ -299,6 +441,10 @@ export class MockServer {
     this.notificationsDelayMs = delayMs;
   }
 
+  setGetStarterPackDelay(delayMs) {
+    this.getStarterPackDelayMs = delayMs;
+  }
+
   setNotificationsSeenAt(seenAt) {
     this.notificationsSeenAt = seenAt;
   }
@@ -319,6 +465,11 @@ export class MockServer {
 
   addSearchFeedGenerators(feedGenerators) {
     this.searchFeedGenerators.push(...feedGenerators);
+  }
+
+  addSearchStarterPacks(starterPacks) {
+    this.searchStarterPacks.push(...starterPacks);
+    this.starterPacks.push(...starterPacks);
   }
 
   addTrends(trends) {
@@ -431,6 +582,10 @@ export class MockServer {
 
   failConvoMembers({ status = 500, error = "InternalServerError", message }) {
     this.convoMembersFailure = { status, error, message };
+  }
+
+  failListMembers({ status = 500, error = "InternalServerError", message }) {
+    this.listMembersFailure = { status, error, message };
   }
 
   setConvoDelay(convoId, delayMs) {
@@ -1930,6 +2085,30 @@ export class MockServer {
       },
     );
 
+    await page.route(
+      "**/xrpc/app.bsky.graph.searchStarterPacksV2*",
+      (route) => {
+        this.searchRequestCounts.starterPacks += 1;
+        const url = new URL(route.request().url());
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "25", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+        const starterPacks = this.searchStarterPacks.slice(
+          offset,
+          offset + limit,
+        );
+        const nextCursor =
+          offset + limit < this.searchStarterPacks.length
+            ? String(offset + limit)
+            : "";
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ starterPacks, cursor: nextCursor }),
+        });
+      },
+    );
+
     // The trending pane renders on nearly every desktop page, so this must be
     // registered unconditionally or unrelated specs fail on an unmocked request.
     await page.route("**/xrpc/app.bsky.unspecced.getTrends*", (route) => {
@@ -2084,9 +2263,19 @@ export class MockServer {
     });
 
     await page.route("**/xrpc/app.bsky.graph.getList*", (route) => {
+      if (this.listMembersFailure) {
+        const { status, error, message } = this.listMembersFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
       const url = new URL(route.request().url());
       const listUri = url.searchParams.get("list");
-      const list = this.lists.find((l) => l.uri === listUri) || {};
+      const list = this._withReferenceListOptOut(
+        this.lists.find((l) => l.uri === listUri) || {},
+      );
       const members = this.listMembers.get(listUri) || [];
       const items = members.map((profile) => ({ subject: profile }));
       return route.fulfill({
@@ -2120,17 +2309,54 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.graph.getStarterPack?*", (route) => {
-      const url = new URL(route.request().url());
-      const starterPackUri = url.searchParams.get("starterPack");
-      const starterPack =
-        this.starterPacks.find((s) => s.uri === starterPackUri) || {};
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ starterPack }),
-      });
-    });
+    await page.route(
+      "**/xrpc/app.bsky.graph.getStarterPack?*",
+      async (route) => {
+        if (this.getStarterPackDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.getStarterPackDelayMs),
+          );
+        }
+        const url = new URL(route.request().url());
+        const starterPackUri = url.searchParams.get("starterPack");
+        const found =
+          this.starterPacks.find((s) => s.uri === starterPackUri) || {};
+        const starterPack = found.list
+          ? { ...found, list: this._withReferenceListOptOut(found.list) }
+          : found;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ starterPack }),
+        });
+      },
+    );
+
+    await page.route(
+      "**/xrpc/app.bsky.graph.getActorStarterPacks*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const actor = url.searchParams.get("actor") || "";
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+        const allPacks = this.actorStarterPacks.get(actor) || [];
+        let starterPacks, nextCursor;
+        if (limit) {
+          starterPacks = allPacks.slice(offset, offset + limit);
+          nextCursor =
+            offset + limit < allPacks.length ? String(offset + limit) : "";
+        } else {
+          starterPacks = allPacks;
+          nextCursor = "";
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ starterPacks, cursor: nextCursor }),
+        });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.graph.getLists*", (route) => {
       const url = new URL(route.request().url());
@@ -2473,6 +2699,28 @@ export class MockServer {
         });
       }
 
+      if (collection === "app.bsky.graph.referencelistoptout") {
+        const uri = `at://${userProfile.did}/${collection}/${rkey}`;
+        const record = this.referenceListOptOutRecords.find(
+          (candidate) => candidate.uri === uri,
+        );
+        if (!record) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "RecordNotFound",
+              message: "Could not locate record",
+            }),
+          });
+        }
+        this._snapshotReferenceListOptOut(record.subject);
+        this.referenceListOptOutRecords =
+          this.referenceListOptOutRecords.filter(
+            (candidate) => candidate.uri !== uri,
+          );
+      }
+
       if (collection === "app.bsky.feed.like") {
         const feedKey = `${userProfile.did}-likes`;
         const likes = this.authorFeeds.get(feedKey) || [];
@@ -2625,15 +2873,57 @@ export class MockServer {
       const body = route.request().postDataJSON();
       const writes = body?.writes ?? [];
       this.applyWritesCalls.push(writes);
+      const results = [];
       for (const write of writes) {
-        if (write.collection !== "app.bsky.feed.post") continue;
-        const uri = `at://${userProfile.did}/app.bsky.feed.post/${write.rkey}`;
-        this._ingestPostRecord(write.value, uri);
+        const uri = `at://${userProfile.did}/${write.collection}/${write.rkey}`;
+        const isCreate = write.$type === "com.atproto.repo.applyWrites#create";
+        const isDelete = write.$type === "com.atproto.repo.applyWrites#delete";
+        if (write.collection === "app.bsky.feed.post" && isCreate) {
+          this._ingestPostRecord(write.value, uri);
+        }
+        if (write.collection === "app.bsky.graph.listitem") {
+          if (isCreate) {
+            this._ingestListItemRecord(write.value, uri);
+          } else if (isDelete) {
+            this._removeListItemRecord(uri);
+          }
+        }
+        if (write.collection === "app.bsky.graph.list") {
+          if (isCreate) {
+            this._ingestListRecord(write.value, uri);
+          } else if (isDelete) {
+            this.lists = this.lists.filter((list) => list.uri !== uri);
+            this.listMembers.delete(uri);
+          }
+        }
+        if (write.collection === "app.bsky.graph.starterpack") {
+          if (isCreate) {
+            this._ingestStarterPackRecord(write.value, uri);
+          } else if (isDelete) {
+            this.starterPacks = this.starterPacks.filter(
+              (pack) => pack.uri !== uri,
+            );
+            this.starterPackRecords.delete(uri);
+            for (const [did, packs] of this.actorStarterPacks) {
+              this.actorStarterPacks.set(
+                did,
+                packs.filter((pack) => pack.uri !== uri),
+              );
+            }
+          }
+        }
+        if (isCreate) {
+          results.push({
+            $type: "com.atproto.repo.applyWrites#createResult",
+            uri,
+            cid: `bafyrei${write.rkey}`,
+          });
+        }
       }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ results: [] }),
+        body: JSON.stringify({ results }),
       });
     });
 
@@ -2655,19 +2945,7 @@ export class MockServer {
       const cid = `bafyrei${rkey}`;
 
       if (collection === "app.bsky.graph.listitem") {
-        const record = body?.record || {};
-        this.currentUserListItems.push({
-          uri,
-          listUri: record.list,
-          subjectDid: record.subject,
-        });
-        const profile = this.profiles.get(record.subject);
-        if (profile) {
-          const members = this.listMembers.get(record.list) || [];
-          if (!members.some((p) => p.did === profile.did)) {
-            this.listMembers.set(record.list, [profile, ...members]);
-          }
-        }
+        this._ingestListItemRecord(body?.record || {}, uri);
       }
 
       if (collection === "app.bsky.feed.post") {
@@ -2739,6 +3017,12 @@ export class MockServer {
         if (list) {
           list.viewer = { ...list.viewer, blocked: uri };
         }
+      }
+
+      if (collection === "app.bsky.graph.referencelistoptout") {
+        const subject = body?.record?.subject;
+        this._snapshotReferenceListOptOut(subject);
+        this.referenceListOptOutRecords.push({ uri, subject });
       }
 
       return route.fulfill({
@@ -2896,6 +3180,31 @@ export class MockServer {
           }),
         });
       }
+      if (collection === "app.bsky.graph.starterpack") {
+        const repo = url.searchParams.get("repo");
+        const packUri = `at://${repo}/${collection}/${rkey}`;
+        const seeded = this.starterPackRecords.get(packUri);
+        const found = this.starterPacks.find((pack) => pack.uri === packUri);
+        if (seeded || found) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              uri: packUri,
+              cid: seeded?.cid ?? found.cid,
+              value: seeded?.value ?? found.record,
+            }),
+          });
+        }
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "RecordNotFound",
+            message: `Could not locate record: ${packUri}`,
+          }),
+        });
+      }
       if (collection === "app.bsky.graph.list") {
         const repo = url.searchParams.get("repo");
         const listUri = `at://${repo}/${collection}/${rkey}`;
@@ -3032,10 +3341,24 @@ export class MockServer {
           }),
         });
       }
+      if (collection === "app.bsky.graph.starterpack") {
+        const repo = body?.repo;
+        const rkey = body?.rkey;
+        const packUri = `at://${repo}/${collection}/${rkey}`;
+        this.putRecordCalls.push(body);
+        const cid = `bafyreiupdated${rkey}`;
+        this.starterPackRecords.set(packUri, { cid, value: body?.record });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ uri: packUri, cid }),
+        });
+      }
       if (collection === "app.bsky.graph.list") {
         const repo = body?.repo;
         const rkey = body?.rkey;
         const listUri = `at://${repo}/${collection}/${rkey}`;
+        this.putRecordCalls.push(body);
         // Intentionally do NOT mutate the list here: the client patches its
         // local list from the record it just wrote, matching real bsky
         // AppView behavior (which briefly returns stale data after putRecord).

@@ -6,6 +6,8 @@ import "/js/components/container-link.js";
 export function feedGeneratorListItemTemplate({
   feedGenerator,
   currentUserDid,
+  showDescription = false,
+  rightItemTemplate = null,
 }) {
   return html`
     <container-link
@@ -35,7 +37,16 @@ export function feedGeneratorListItemTemplate({
                 : `@${feedGenerator.creator.handle}`}
             </div>`
           : ""}
+        ${showDescription && feedGenerator.description
+          ? // prettier-ignore
+            html`<div class="feeds-list-item-description">${feedGenerator.description}</div>`
+          : ""}
       </div>
+      ${rightItemTemplate
+        ? html`<div class="feeds-list-item-actions">
+            ${rightItemTemplate(feedGenerator)}
+          </div>`
+        : ""}
     </container-link>
   `;
 }

@@ -5,15 +5,15 @@ import {
   theme,
   getDefaultHighlightColor,
   getDefaultLikeColor,
+  getDefaultRepostColor,
   getDefaultColorScheme,
 } from "/js/theme.js";
-import "/js/components/toggle-switch.js";
 
 export default async function settingsAppearanceView({
   root,
   router,
   layout,
-  context: { auth, dataLayer },
+  context: { auth },
 }) {
   await auth.requireAuth();
 
@@ -25,12 +25,12 @@ export default async function settingsAppearanceView({
     theme.updateLikeColor(newLikeColor);
   }
 
-  function handleColorSchemeChange(newColorScheme) {
-    theme.updateColorScheme(newColorScheme);
+  function handleRepostColorChange(newRepostColor) {
+    theme.updateRepostColor(newRepostColor);
   }
 
-  function handleTrendingChange(shown) {
-    dataLayer.mutations.setTrendingHidden(!shown);
+  function handleColorSchemeChange(newColorScheme) {
+    theme.updateColorScheme(newColorScheme);
   }
 
   bindPageTitle(root, () => "Appearance");
@@ -40,8 +40,9 @@ export default async function settingsAppearanceView({
     const defaultHighlightColor = getDefaultHighlightColor();
     const currentLikeColor = theme.$likeColor.get();
     const defaultLikeColor = getDefaultLikeColor();
+    const currentRepostColor = theme.$repostColor.get();
+    const defaultRepostColor = getDefaultRepostColor();
     const currentColorScheme = theme.$colorScheme.get();
-    const trendingHidden = dataLayer.derived.$trendingHidden.get();
     render(
       html`<div id="settings-appearance-view">
         ${headerTemplate({
@@ -120,7 +121,7 @@ export default async function settingsAppearanceView({
           >
             <div class="setting-item-info">
               <h2 class="setting-item-name">Like color</h2>
-              <p class="setting-item-desc">Choose the color for liked posts.</p>
+              <p class="setting-item-desc">Choose the color for likes.</p>
             </div>
             <div class="settings-color-picker">
               <input
@@ -140,20 +141,30 @@ export default async function settingsAppearanceView({
               </button>
             </div>
           </section>
-          <section class="setting-item" data-testid="settings-section-trending">
+          <section
+            class="setting-item"
+            data-testid="settings-section-repost-color"
+          >
             <div class="setting-item-info">
-              <h2 class="setting-item-name">Show trending topics</h2>
-              <p class="setting-item-desc">
-                Show trending topics in the sidebar.
-              </p>
+              <h2 class="setting-item-name">Repost color</h2>
+              <p class="setting-item-desc">Choose the color for reposts.</p>
             </div>
-            <div class="setting-item-control">
-              <toggle-switch
-                data-testid="trending-toggle"
-                label="Show trending topics"
-                ?checked=${!trendingHidden}
-                @change=${(event) => handleTrendingChange(event.detail.checked)}
-              ></toggle-switch>
+            <div class="settings-color-picker">
+              <input
+                @change=${(e) => {
+                  handleRepostColorChange(e.target.value);
+                }}
+                type="color"
+                .value=${currentRepostColor}
+              />
+              <button
+                class="settings-color-picker-reset"
+                @click=${() => {
+                  handleRepostColorChange(defaultRepostColor);
+                }}
+              >
+                Reset
+              </button>
             </div>
           </section>
         </main>

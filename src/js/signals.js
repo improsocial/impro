@@ -466,7 +466,7 @@ export class PersistedReactiveStore {
     this.#stored = readPersisted(storageKey);
     return new Proxy(this, {
       set(target, prop, value) {
-        if (prop.startsWith("$")) {
+        if (prop.startsWith("$") && !(value instanceof Computed)) {
           target.#register(prop, value);
         } else {
           target[prop] = value;

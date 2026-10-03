@@ -199,7 +199,7 @@ describe("new-chat-dialog", () => {
       seedFollows(dataLayer, []);
       const element = createDialog(dataLayer);
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
         ),
       );
@@ -271,7 +271,7 @@ describe("new-chat-dialog", () => {
       ]);
       const element = createDialog(dataLayer);
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
         ),
       );
@@ -289,7 +289,7 @@ describe("new-chat-dialog", () => {
       await flushMicrotasks();
       await nextFrame();
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
         ),
       );
@@ -303,7 +303,7 @@ describe("new-chat-dialog", () => {
       await flushMicrotasks();
       await nextFrame();
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
         ),
       );
@@ -380,7 +380,7 @@ describe("new-chat-dialog", () => {
         "",
       );
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("Search for someone to message"),
         ),
       );
@@ -426,7 +426,7 @@ describe("new-chat-dialog", () => {
       seedSearchResults(dataLayer, []);
       await typeQuery(element, "alice");
       assert(
-        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
           (el) => el.textContent.includes("No results"),
         ),
       );

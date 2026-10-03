@@ -62,9 +62,9 @@ test.describe("Mute user flow", () => {
 
     // Navigate back to home and verify posts are filtered
     await page.goto("/");
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should mute a user from a post context menu and filter their posts", async ({
@@ -108,9 +108,9 @@ test.describe("Mute user flow", () => {
     });
 
     // Verify the post is filtered out of the feed
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Navigate to the muted user's profile and verify muted state
     await page.goto(`/profile/${otherUser.did}`);
@@ -154,9 +154,9 @@ test.describe("Mute user flow", () => {
     // Verify posts are filtered on home initially (user is muted)
     await page.goto("/");
     const homeView = page.locator("#home-view");
-    await expect(
-      homeView.locator('[data-testid="feed-end-message"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(homeView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Navigate to muted user's profile and unmute
     await page.goto(`/profile/${mutedUser.did}`);

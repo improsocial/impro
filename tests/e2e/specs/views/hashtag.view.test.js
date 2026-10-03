@@ -116,7 +116,7 @@ test.describe("Hashtag view", () => {
     );
 
     await expect(
-      hashtagView.locator('[data-testid="feed-end-message"]'),
+      hashtagView.locator('[data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
   });
 

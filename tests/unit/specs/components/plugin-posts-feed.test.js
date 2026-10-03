@@ -72,9 +72,7 @@ describe("plugin-posts-feed", () => {
       element.setAttribute("empty-message", "Nothing here.");
       mount(element, makeContext(dataLayer));
       await flushMicrotasks();
-      const endMessage = element.querySelector(
-        "[data-testid='feed-end-message']",
-      );
+      const endMessage = element.querySelector("[data-testid='empty-state']");
       assert(endMessage !== null);
       assert(endMessage.textContent.includes("Nothing here."));
       // ensurePosts is still invoked with an empty uri list — the empty render
@@ -152,9 +150,7 @@ describe("plugin-posts-feed", () => {
       element.setAttribute("empty-message", "Still nothing.");
       await flushMicrotasks();
       assert.deepEqual(ensurePosts.mock.callCount(), 1);
-      const endMessage = element.querySelector(
-        "[data-testid='feed-end-message']",
-      );
+      const endMessage = element.querySelector("[data-testid='empty-state']");
       assert(endMessage !== null);
       assert(endMessage.textContent.includes("Still nothing."));
     });
@@ -196,9 +192,7 @@ describe("plugin-posts-feed", () => {
       await flushMicrotasks();
       // After the stale promise resolves, we should still be showing the fresh
       // state (empty list with default empty message) and not have crashed.
-      const endMessage = element.querySelector(
-        "[data-testid='feed-end-message']",
-      );
+      const endMessage = element.querySelector("[data-testid='empty-state']");
       assert(endMessage !== null);
     });
   });

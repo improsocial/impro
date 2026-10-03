@@ -219,6 +219,10 @@ export class Requests {
       this.loadFeedSearch,
       (query) => "loadFeedSearch-" + query,
     );
+    this.enableStatus(
+      this.loadStarterPackSearch,
+      (query) => "loadStarterPackSearch-" + query,
+    );
     this.enableStatus(this.loadTrends, "loadTrends");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
@@ -263,6 +267,23 @@ export class Requests {
     );
     this.enableStatus(this.loadGifs, (query) => "loadGifs-" + query);
     this.enableStatus(this.loadDrafts, "loadDrafts");
+    this.enableStatus(
+      this.loadStarterPack,
+      (starterPackUri) => "loadStarterPack-" + starterPackUri,
+    );
+    this.enableStatus(
+      this.loadStarterPackUriForList,
+      (list) => "loadStarterPackUriForList-" + list.uri,
+    );
+    this.enableStatus(
+      this.loadActorStarterPacks,
+      (did) => "loadActorStarterPacks-" + did,
+    );
+    this.enableStatus(this.loadPopularFeeds, "loadPopularFeeds");
+    this.enableStatus(
+      this.loadAllListMembers,
+      (listUri) => "loadAllListMembers-" + listUri,
+    );
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
@@ -777,6 +798,52 @@ export class Requests {
     }
   }
 
+  async loadStarterPackSearch(query, { limit = 25, cursor = "" } = {}) {
+    if (!query) {
+      this.dataStore.$latestStarterPackSearchRequestTime.set(null);
+      this.dataStore.$starterPackSearchResults.set(null);
+      return;
+    }
+    if (!cursor) {
+      this.dataStore.$starterPackSearchResults.set(null);
+    }
+    const requestTime = Date.now();
+    this.dataStore.$latestStarterPackSearchRequestTime.set(requestTime);
+    const searchData = await this.api.searchStarterPacks(query, {
+      limit,
+      cursor,
+    });
+    if (
+      requestTime !== this.dataStore.$latestStarterPackSearchRequestTime.get()
+    ) {
+      return;
+    }
+    const existingResults = this.dataStore.$starterPackSearchResults.get();
+    const existingUris = new Set(
+      existingResults && cursor
+        ? existingResults.starterPacks.map((starterPack) => starterPack.uri)
+        : [],
+    );
+    const starterPacks = [];
+    for (const starterPack of searchData.starterPacks || []) {
+      if (existingUris.has(starterPack.uri)) continue;
+      existingUris.add(starterPack.uri);
+      starterPacks.push(starterPack);
+      this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
+    }
+    if (existingResults && cursor) {
+      this.dataStore.$starterPackSearchResults.set({
+        starterPacks: [...existingResults.starterPacks, ...starterPacks],
+        cursor: searchData.cursor,
+      });
+    } else {
+      this.dataStore.$starterPackSearchResults.set({
+        starterPacks,
+        cursor: searchData.cursor,
+      });
+    }
+  }
+
   async loadGifs(query, { limit = 30, cursor = "" } = {}) {
     if (!cursor) {
       this.dataStore.$gifResults.set(null);
@@ -1197,6 +1264,27 @@ export class Requests {
     this.dataStore.$lists.set(listUri, data.list);
   }
 
+  async loadStarterPackUriForList(list) {
+    const backlinks = await this.constellation.getLinks({
+      subject: list.uri,
+      source: "app.bsky.graph.starterpack:list",
+      timeout: 2000,
+    });
+    const backlink = backlinks.find(
+      (candidate) => candidate.did === list.creator.did,
+    );
+    this.dataStore.$starterPackUrisByList.set(
+      list.uri,
+      backlink
+        ? buildUri({
+            repo: backlink.did,
+            collection: backlink.collection,
+            rkey: backlink.rkey,
+          })
+        : null,
+    );
+  }
+
   async loadStarterPack(starterPackUri) {
     const starterPack = await this.api.getStarterPack(starterPackUri);
     this.dataStore.$starterPacks.set(starterPackUri, starterPack);
@@ -1217,6 +1305,17 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadAllListMembers(listUri) {
+    const items = await this.api.getAllListItems(listUri);
+    this.dataStore.setProfiles(items.map((item) => item.subject));
+    writePageToCollection(
+      this.dataStore.$listMembers,
+      "items",
+      { items, cursor: null },
+      { key: listUri, overwrite: true },
+    );
   }
 
   async loadTrends({ limit = 5 } = {}) {
@@ -1309,6 +1408,42 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadActorStarterPacks(did, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.$actorStarterPacks.get(did);
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$actorStarterPacks, { key: did });
+    const data = await this.api.getActorStarterPacks(did, { limit, cursor });
+    for (const starterPack of data.starterPacks) {
+      const existingPack = this.dataStore.$starterPacks.get(starterPack.uri);
+      if (!existingPack?.list) {
+        this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
+      }
+    }
+    writePageToCollection(
+      this.dataStore.$actorStarterPacks,
+      "starterPacks",
+      data,
+      {
+        key: did,
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
+  }
+
+  async loadPopularFeeds({ limit = 30 } = {}) {
+    const data = await this.api.getPopularFeedGenerators({ limit });
+    const feeds = data.feeds ?? [];
+    for (const feed of feeds) {
+      this.dataStore.$feedGenerators.set(feed.uri, feed);
+    }
+    this.dataStore.$popularFeeds.set(feeds);
   }
 
   async loadCurrentUserLists({ reload = false } = {}) {

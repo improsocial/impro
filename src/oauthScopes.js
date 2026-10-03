@@ -154,7 +154,10 @@ const OPTIONAL_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.draft.updateDraft",
   "rpc:app.bsky.draft.deleteDraft",
   "rpc:chat.bsky.group.createGroup",
+  "rpc:app.bsky.graph.searchStarterPacksV2",
 ];
+
+const OPTIONAL_OAUTH_REPO_SCOPES = ["repo:app.bsky.graph.referencelistoptout"];
 
 function expandScope(scope) {
   if (scope.startsWith("rpc:")) {
@@ -182,11 +185,13 @@ function buildOauthScopesString() {
     ...expandScopes(BSKY_OAUTH_REPO_SCOPES),
     ...expandScopes(CHAT_OAUTH_REPO_SCOPES),
     ...expandScopes(OPTIONAL_OAUTH_RPC_SCOPES),
+    ...expandScopes(OPTIONAL_OAUTH_REPO_SCOPES),
   ];
   return scopes.join(" ");
 }
 
 export const OAUTH_SCOPES = buildOauthScopesString();
-export const OPTIONAL_OAUTH_SCOPES = expandScopes(
-  OPTIONAL_OAUTH_RPC_SCOPES,
-).join(" ");
+export const OPTIONAL_OAUTH_SCOPES = expandScopes([
+  ...OPTIONAL_OAUTH_RPC_SCOPES,
+  ...OPTIONAL_OAUTH_REPO_SCOPES,
+]).join(" ");

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 
 class PluginProfilesList extends Component {
@@ -42,7 +42,7 @@ class PluginProfilesList extends Component {
           return;
         }
         render(
-          profileFeedTemplate({
+          profileListTemplate({
             profiles,
             hasMore: false,
             skeletonCount: dids.length,

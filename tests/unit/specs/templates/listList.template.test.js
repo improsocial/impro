@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { listFeedTemplate } from "/js/templates/listFeed.template.js";
+import { listListTemplate } from "/js/templates/listList.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 function renderList(props) {
   const container = document.createElement("div");
-  render(listFeedTemplate(props), container);
+  render(listListTemplate(props), container);
   return container;
 }
 
@@ -20,7 +20,7 @@ function makeList(overrides = {}) {
   };
 }
 
-describe("listFeedTemplate", () => {
+describe("listListTemplate", () => {
   it("renders skeletons while loading", () => {
     const container = renderList({ lists: null });
     assert(

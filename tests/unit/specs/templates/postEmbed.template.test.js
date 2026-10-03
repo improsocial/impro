@@ -260,6 +260,7 @@ describe("postEmbedTemplate - video", () => {
     return {
       $type: "app.bsky.embed.video#view",
       playlist: "https://example.com/video.m3u8",
+      thumbnail: "https://example.com/thumb.jpg",
       aspectRatio,
     };
   }
@@ -305,17 +306,28 @@ describe("postEmbedTemplate - video", () => {
     assert.deepEqual(el.style.getPropertyValue("--post-video-height"), "100%");
   });
 
-  it("renders a video with controls and no looping by default", () => {
+  it("passes the embed thumbnail to the player as its poster", () => {
+    const el = renderVideo({ width: 16, height: 9 });
+    const player = el.querySelector("streaming-video");
+    assert.deepEqual(
+      player.getAttribute("poster"),
+      "https://example.com/thumb.jpg",
+    );
+  });
+
+  it("renders a looping autoplaying muted video with controls", () => {
     const el = renderVideo({ width: 16, height: 9 });
     const player = el.querySelector("streaming-video");
     assert(player.hasAttribute("controls"));
-    assert(!player.hasAttribute("loop"));
-    assert(!player.hasAttribute("autoplay"));
+    assert(player.hasAttribute("loop"));
+    assert(player.hasAttribute("autoplay"));
+    assert(player.hasAttribute("muted"));
+    assert(player.hasAttribute("playsinline"));
   });
 });
 
 describe("postEmbedTemplate - gif presentation video", () => {
-  function renderGifVideo({ alt, aspectRatio } = {}) {
+  function renderGifVideo({ alt, aspectRatio, thumbnail } = {}) {
     const result = postEmbedTemplate({
       embed: {
         $type: "app.bsky.embed.video#view",
@@ -323,6 +335,7 @@ describe("postEmbedTemplate - gif presentation video", () => {
         presentation: "gif",
         alt,
         aspectRatio,
+        thumbnail,
       },
       labels: [],
       isAuthenticated: true,
@@ -331,6 +344,14 @@ describe("postEmbedTemplate - gif presentation video", () => {
     render(result, container);
     return container.querySelector(".post-video");
   }
+
+  it("passes the embed thumbnail to the gif player as its poster", () => {
+    const el = renderGifVideo({ thumbnail: "https://example.com/gif.jpg" });
+    assert.deepEqual(
+      el.querySelector("streaming-video").getAttribute("poster"),
+      "https://example.com/gif.jpg",
+    );
+  });
 
   it("renders a looping autoplaying muted player without controls", () => {
     const el = renderGifVideo();
@@ -390,7 +411,11 @@ describe("postEmbedTemplate - external links", () => {
       },
       labeler: null,
     };
-    const result = postEmbedTemplate({ embed, mediaLabel, isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      mediaLabel,
+      isAuthenticated: true,
+    });
     const container = document.createElement("div");
     render(result, container);
     const warning = container.querySelector("moderation-warning");
@@ -1208,6 +1233,11 @@ describe("postEmbedTemplate - record embeds", () => {
     });
     const card = container.querySelector(".starter-pack-embed");
     assert(card !== null);
+    assert.deepEqual(
+      card.querySelector("a").getAttribute("href"),
+      "/profile/creator.bsky.social/starter-pack/cool-pack",
+    );
+    assert.deepEqual(card.querySelector("a").getAttribute("target"), null);
     assert(card.textContent.includes("Cool Pack"));
     assert(card.textContent.includes("People to follow"));
     assert(card.textContent.includes("@creator.bsky.social"));

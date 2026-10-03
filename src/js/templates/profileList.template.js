@@ -1,4 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/app-icon.js";
@@ -6,7 +7,10 @@ import { verificationBadgeTemplate } from "/js/templates/verificationBadge.templ
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import {
+  getDisplayName,
+  doHideAuthorOnUnauthenticated,
+} from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
 
@@ -200,7 +204,7 @@ export function profileListItemSkeletonTemplate({ compact = false } = {}) {
   </div>`;
 }
 
-export function profileFeedTemplate({
+export function profileListTemplate({
   profiles,
   hasMore,
   onLoadMore,
@@ -218,57 +222,34 @@ export function profileFeedTemplate({
 }) {
   if (!compact && !pluginService) {
     console.warn(
-      "profileFeedTemplate: non-compact feed rendered without a pluginService — plugin author badges won't render",
+      "profileListTemplate: non-compact feed rendered without a pluginService — plugin author badges won't render",
     );
   }
-  if (!profiles) {
-    return html`<div class="profile-list">
-      ${Array.from({ length: skeletonCount }).map(() =>
-        profileListItemSkeletonTemplate({ compact }),
-      )}
-    </div>`;
-  }
-  if (profiles.length === 0) {
-    return html`<div class="feed-end-message" data-testid="feed-end-message">
-      ${emptyMessage ?? "No profiles to show."}
-    </div>`;
+  if (profiles && !isAuthenticated) {
+    profiles = profiles.filter(
+      (profile) => !doHideAuthorOnUnauthenticated(profile),
+    );
   }
   const disabledSet = disabledProfiles ? new Set(disabledProfiles) : null;
-  return html`<infinite-scroll-container
-    lookahead="2500px"
-    @load-more=${async (event) => {
-      if (hasMore && onLoadMore) {
-        await onLoadMore();
-        event.detail.resume();
-      }
-    }}
-  >
-    <div class="profile-list" data-testid="profile-feed">
-      ${profiles.map((profile) =>
-        profileListItemTemplate({
-          actor: profile,
-          isAuthenticated,
-          currentUserDid,
-          profileInteractionHandler,
-          pluginService,
-          rightItemTemplate,
-          clickAction,
-          compact,
-          isDisabled: disabledSet ? disabledSet.has(profile.did) : false,
-        }),
-      )}
-    </div>
-    ${hasMore
-      ? html`<div
-          class="feed-loading-indicator"
-          data-testid="feed-loading-indicator"
-        >
-          <div class="loading-spinner"></div>
-        </div>`
-      : showEndMessage
-        ? html`<div class="feed-end-message" data-testid="feed-end-message">
-            End of feed
-          </div>`
-        : null}
-  </infinite-scroll-container>`;
+  return paginatedListTemplate({
+    items: profiles,
+    renderItem: (profile) =>
+      profileListItemTemplate({
+        actor: profile,
+        isAuthenticated,
+        currentUserDid,
+        profileInteractionHandler,
+        pluginService,
+        rightItemTemplate,
+        clickAction,
+        compact,
+        isDisabled: disabledSet ? disabledSet.has(profile.did) : false,
+      }),
+    renderSkeletonItem: () => profileListItemSkeletonTemplate({ compact }),
+    skeletonCount,
+    hasMore,
+    onLoadMore,
+    emptyMessage: emptyMessage ?? "No profiles to show.",
+    endMessage: showEndMessage ? "End of feed" : null,
+  });
 }

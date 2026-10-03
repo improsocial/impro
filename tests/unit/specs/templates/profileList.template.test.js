@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
-  profileFeedTemplate,
-} from "/js/templates/profileFeed.template.js";
+  profileListTemplate,
+} from "/js/templates/profileList.template.js";
 import { html, render } from "/js/lib/lit-html.js";
 
 const mockActor = {
@@ -362,7 +362,7 @@ describe("profileListItemSkeletonTemplate", () => {
   });
 });
 
-describe("profileFeedTemplate", () => {
+describe("profileListTemplate", () => {
   let container;
 
   beforeEach(() => {
@@ -376,25 +376,25 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should render skeleton when profiles is null", () => {
-    const result = profileFeedTemplate({ profiles: null, hasMore: false });
+    const result = profileListTemplate({ profiles: null, hasMore: false });
     render(result, container);
     assert(container.querySelector("[data-testid='skeleton-avatar']") !== null);
   });
 
   it("should render empty message when profiles is empty", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [],
       hasMore: false,
       emptyMessage: "Nothing here.",
     });
     render(result, container);
-    const msg = container.querySelector("[data-testid='feed-end-message']");
+    const msg = container.querySelector("[data-testid='empty-state']");
     assert(msg !== null);
     assert(msg.textContent.includes("Nothing here."));
   });
 
   it("should render profile list items when profiles is non-empty", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [mockActor],
       hasMore: false,
     });
@@ -406,8 +406,50 @@ describe("profileFeedTemplate", () => {
     );
   });
 
+  it("should hide no-unauthenticated profiles when not authenticated", () => {
+    const hiddenActor = {
+      ...mockActor,
+      did: "did:plc:hidden",
+      handle: "hidden.bsky.social",
+      labels: [{ val: "!no-unauthenticated", src: "did:plc:hidden" }],
+    };
+    render(
+      profileListTemplate({
+        profiles: [mockActor, hiddenActor],
+        hasMore: false,
+        isAuthenticated: false,
+      }),
+      container,
+    );
+    const items = container.querySelectorAll(".profile-list-item");
+    assert.deepEqual(items.length, 1);
+    assert(container.textContent.includes("testuser.bsky.social"));
+    assert(!container.textContent.includes("hidden.bsky.social"));
+  });
+
+  it("should show no-unauthenticated profiles when authenticated", () => {
+    const hiddenActor = {
+      ...mockActor,
+      did: "did:plc:hidden",
+      handle: "hidden.bsky.social",
+      labels: [{ val: "!no-unauthenticated", src: "did:plc:hidden" }],
+    };
+    render(
+      profileListTemplate({
+        profiles: [mockActor, hiddenActor],
+        hasMore: false,
+        isAuthenticated: true,
+      }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelectorAll(".profile-list-item").length,
+      2,
+    );
+  });
+
   it("should render 10 skeletons by default when loading", () => {
-    const result = profileFeedTemplate({ profiles: null, hasMore: false });
+    const result = profileListTemplate({ profiles: null, hasMore: false });
     render(result, container);
     assert.deepEqual(
       container.querySelectorAll("[data-testid='skeleton-avatar']").length,
@@ -416,7 +458,7 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should honor skeletonCount when loading", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: null,
       hasMore: false,
       skeletonCount: 3,
@@ -429,7 +471,7 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should not render end-of-feed message by default when not hasMore", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [mockActor],
       hasMore: false,
     });
@@ -441,7 +483,7 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should render end-of-feed message when showEndMessage is true and not hasMore", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [mockActor],
       hasMore: false,
       showEndMessage: true,
@@ -453,7 +495,7 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should pass rightItemTemplate through to list items", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [mockActor],
       hasMore: false,
       rightItemTemplate: () =>
@@ -464,15 +506,12 @@ describe("profileFeedTemplate", () => {
   });
 
   it("should render loading indicator when hasMore is true", () => {
-    const result = profileFeedTemplate({
+    const result = profileListTemplate({
       profiles: [mockActor],
       hasMore: true,
     });
     render(result, container);
-    assert(
-      container.querySelector("[data-testid='feed-loading-indicator']") !==
-        null,
-    );
+    assert(container.querySelector(".feeds-list .loading-spinner") !== null);
     assert.deepEqual(
       container.querySelector("[data-testid='feed-end-message']"),
       null,
@@ -480,7 +519,7 @@ describe("profileFeedTemplate", () => {
   });
 });
 
-describe("profileFeedTemplate - missing pluginService warning", () => {
+describe("profileListTemplate - missing pluginService warning", () => {
   let container;
   let warn;
 
@@ -495,7 +534,7 @@ describe("profileFeedTemplate - missing pluginService warning", () => {
 
   it("should warn when a non-compact feed has no pluginService", () => {
     render(
-      profileFeedTemplate({ profiles: [mockActor], hasMore: false }),
+      profileListTemplate({ profiles: [mockActor], hasMore: false }),
       container,
     );
     assert.deepEqual(warn.mock.callCount(), 1);
@@ -504,7 +543,7 @@ describe("profileFeedTemplate - missing pluginService warning", () => {
 
   it("should not warn when pluginService is provided", () => {
     render(
-      profileFeedTemplate({
+      profileListTemplate({
         profiles: [mockActor],
         hasMore: false,
         pluginService: {},
@@ -516,7 +555,7 @@ describe("profileFeedTemplate - missing pluginService warning", () => {
 
   it("should not warn for compact feeds", () => {
     render(
-      profileFeedTemplate({
+      profileListTemplate({
         profiles: [mockActor],
         hasMore: false,
         compact: true,

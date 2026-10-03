@@ -1,4 +1,5 @@
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatRelativeTime } from "/js/utils.js";
@@ -177,27 +178,14 @@ export default async function chatRequestsView({
   }
 
   function requestsTemplate({ requests, hasMore }) {
-    if (requests.length === 0) {
-      return html`<div class="feed-end-message">
-        <div>No chat requests</div>
-      </div>`;
-    }
-
-    return html`
-      <infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await dataLayer.requests.loadConvoRequestList();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="chat-requests-list">
-          ${requests.map((convo) => requestItemTemplate({ convo }))}
-          ${hasMore ? requestSkeletonTemplate() : ""}
-        </div>
-      </infinite-scroll-container>
-    `;
+    return paginatedListTemplate({
+      items: requests,
+      renderItem: (convo) => requestItemTemplate({ convo }),
+      hasMore,
+      onLoadMore: () => dataLayer.requests.loadConvoRequestList(),
+      emptyMessage: "No chat requests",
+      containerClass: "chat-requests-list",
+    });
   }
 
   function requestsErrorTemplate({ error }) {

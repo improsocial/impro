@@ -294,6 +294,7 @@ export function createList({
   name,
   creatorHandle,
   purpose = "app.bsky.graph.defs#curatelist",
+  referenceListOptOut,
 }) {
   const creatorDid = uri.split("/")[2];
   return {
@@ -313,13 +314,43 @@ export function createList({
     avatar: "",
     indexedAt: "2025-01-01T00:00:00.000Z",
     labels: [],
-    viewer: {},
+    viewer: referenceListOptOut ? { referenceListOptOut } : {},
   };
 }
 
-export function createStarterPack({ uri, name, creatorHandle, description }) {
+export function createStarterPack({
+  uri,
+  name,
+  creatorHandle,
+  description,
+  list,
+  feeds,
+  listItemsSample,
+}) {
   const creatorDid = uri.split("/")[2];
   const rkey = uri.split("/").pop();
+  const listUri = `at://${creatorDid}/app.bsky.graph.list/${rkey}`;
+  const fullView = {};
+  if (list) {
+    fullView.list =
+      list === true
+        ? createList({
+            uri: listUri,
+            name,
+            creatorHandle,
+            purpose: "app.bsky.graph.defs#referencelist",
+          })
+        : list;
+  }
+  if (feeds) {
+    fullView.feeds = feeds;
+  }
+  if (listItemsSample) {
+    fullView.listItemsSample = listItemsSample.map((profile) => ({
+      uri: `${listUri}/item-${profile.did}`,
+      subject: profile,
+    }));
+  }
   return {
     uri,
     cid: "bafyreitest" + rkey,
@@ -327,7 +358,7 @@ export function createStarterPack({ uri, name, creatorHandle, description }) {
       $type: "app.bsky.graph.starterpack",
       name,
       description: description || "",
-      list: `at://${creatorDid}/app.bsky.graph.list/${rkey}`,
+      list: fullView.list?.uri ?? listUri,
       createdAt: "2025-01-01T00:00:00.000Z",
     },
     creator: {
@@ -344,6 +375,7 @@ export function createStarterPack({ uri, name, creatorHandle, description }) {
     joinedAllTimeCount: 0,
     indexedAt: "2025-01-01T00:00:00.000Z",
     labels: [],
+    ...fullView,
   };
 }
 
@@ -355,6 +387,7 @@ export function createNotification({
   isRead = false,
   indexedAt = "2025-01-15T12:00:00.000Z",
   record,
+  starterPack,
 }) {
   return {
     uri: uri || `at://${author.did}/app.bsky.feed.like/notif-${Date.now()}`,
@@ -366,6 +399,7 @@ export function createNotification({
     isRead,
     indexedAt,
     labels: [],
+    ...(starterPack ? { starterPack } : {}),
   };
 }
 

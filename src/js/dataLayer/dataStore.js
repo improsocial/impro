@@ -18,6 +18,7 @@ export class DataStore extends ReactiveStore {
     this.$searchTypeaheadResults = new Signal.State(null);
     this.$sidebarSearchTypeaheadResults = new Signal.State(null);
     this.$feedSearchResults = new Signal.State(null);
+    this.$starterPackSearchResults = new Signal.State(null);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
     this.$notificationsLastSeenAt = new Signal.State(null);
@@ -34,6 +35,7 @@ export class DataStore extends ReactiveStore {
     this.$latestSearchTypeaheadRequestTime = new Signal.State(null);
     this.$latestSidebarSearchTypeaheadRequestTime = new Signal.State(null);
     this.$latestFeedSearchRequestTime = new Signal.State(null);
+    this.$latestStarterPackSearchRequestTime = new Signal.State(null);
     this.$trends = new Signal.State(null);
     this.$postSearchResultsTop = new Signal.State(null);
     this.$postSearchResultsLatest = new Signal.State(null);
@@ -68,9 +70,13 @@ export class DataStore extends ReactiveStore {
     this.$feedGenerators = new SignalMap();
     this.$lists = new SignalMap();
     this.$starterPacks = new SignalMap();
+    this.$referenceListOptOuts = new SignalMap();
+    this.$starterPackUrisByList = new SignalMap();
     this.$listMembers = new SignalMap();
     this.$actorFeeds = new SignalMap();
     this.$actorLists = new SignalMap();
+    this.$actorStarterPacks = new SignalMap();
+    this.$popularFeeds = new Signal.State(null);
     this.$listsWithMembershipByActor = new SignalMap();
     this.$hashtagFeeds = new SignalMap();
     this.$profileFollowers = new SignalMap();

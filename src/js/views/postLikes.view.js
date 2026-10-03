@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -62,7 +62,7 @@ export default async function postLikesView({
                 error: postLikesRequestStatus.error,
               });
             }
-            return profileFeedTemplate({
+            return profileListTemplate({
               profiles: postLikes?.likes?.map((like) => like.actor) ?? null,
               hasMore,
               onLoadMore: loadLikes,

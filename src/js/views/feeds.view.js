@@ -7,7 +7,7 @@ import {
 } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
+import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
 import { linkToList, linkToFeed } from "/js/navigation.js";
@@ -252,7 +252,7 @@ export default async function feedsView({
         })}
         <main>
           <div class="feeds-list-header">Pinned Feeds</div>
-          ${feedsFeedTemplate({
+          ${paginatedListTemplate({
             items: orderedItems,
             renderItem: (item) => {
               const value = valueForPinnedItem(item);
@@ -265,7 +265,6 @@ export default async function feedsView({
                     </div>`;
               return rowTemplate({ item, currentUser, rightItem });
             },
-            isEditing,
           })}
         </main>
       </div>`,

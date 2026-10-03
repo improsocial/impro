@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { listFeedTemplate } from "/js/templates/listFeed.template.js";
+import { listListTemplate } from "/js/templates/listList.template.js";
 import {
   bindToPage,
   pageEffect,
@@ -50,7 +50,7 @@ export default async function listsView({
           `,
         })}
         <main>
-          ${listFeedTemplate({
+          ${listListTemplate({
             lists: actorLists?.lists,
             cursor: actorLists?.cursor,
             onLoadMore: () => loadLists(),

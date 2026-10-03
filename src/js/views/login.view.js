@@ -271,7 +271,7 @@ export default async function loginView({
             >
               <div class="form-title">Sign in</div>
               <div class="form-group">
-                <label for="handle">Username or email</label>
+                <label for="handle">Username</label>
                 <input
                   id="handle"
                   name="handle"
