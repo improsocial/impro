@@ -181,13 +181,11 @@ export default async function installedPluginsView({
           ${!pluginsInfo
             ? html`<p class="plugin-list-loading">Loading…</p>`
             : pluginsInfo.length === 0
-              ? html`<div class="plugins-empty-state">
-                  <div class="plugins-empty-state-title">
-                    No plugins installed
-                  </div>
-                  <p class="plugins-empty-state-message">
+              ? html`<div class="empty-state" data-testid="empty-state">
+                  <h3>No plugins installed</h3>
+                  <div>
                     Browse the community registry to find and install plugins.
-                  </p>
+                  </div>
                 </div>`
               : html`<div class="installed-plugins-header">
                     <h2>Installed plugins</h2>

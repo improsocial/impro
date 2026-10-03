@@ -6518,34 +6518,6 @@ button.profile-list-item-button.is-disabled {
   height: 16px;
 }
 
-.search-placeholder {
-  padding: 48px 24px;
-  color: var(--text-color-muted);
-  font-size: 15px;
-  text-align: center;
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.search-placeholder-icon {
-  width: 64px;
-  height: 64px;
-  opacity: 0.3;
-}
-
-.search-placeholder-icon > app-icon {
-  width: 100%;
-  height: 100%;
-  color: var(--text-color-muted);
-}
-
-.search-placeholder-text {
-  max-width: 345px;
-}
-
 .search-status-message {
   padding: 16px;
   color: var(--text-color-muted);
@@ -9836,6 +9808,34 @@ moderation-warning .toggle-content {
   height: 2em;
 }
 
+.empty-state {
+  color: var(--text-color-muted);
+  padding: 32px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.5;
+}
+
+.empty-state h3 {
+  color: var(--text-color);
+  margin-bottom: 4px;
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.empty-state-icon > app-icon {
+  width: 100%;
+  height: 100%;
+  color: var(--text-color-muted);
+}
+
 .error-state {
   color: var(--text-color-muted);
   padding-top: 2em;
@@ -11865,31 +11865,6 @@ image-cropper {
   display: flex;
   justify-content: center;
   padding: 32px 16px;
-}
-
-.plugins-empty-state {
-  margin: 16px;
-  padding: 24px 20px;
-  border-radius: var(--callout-border-radius);
-  background: var(--callout-color);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.plugins-empty-state-title {
-  font-weight: 600;
-  font-size: 16px;
-}
-
-.plugins-empty-state-message {
-  margin: 0;
-  color: var(--text-color-muted);
-  font-size: 14px;
-  line-height: 1.5;
-  max-width: 32em;
 }
 
 /* @chunk plugins */

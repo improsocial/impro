@@ -702,11 +702,14 @@ export default async function searchView({
           profileItems: recentProfileItems,
         });
       } else {
-        bodyTemplate = html`<div class="search-placeholder">
-          <div class="search-placeholder-icon">
+        bodyTemplate = html`<div
+          class="empty-state"
+          data-testid="search-placeholder"
+        >
+          <div class="empty-state-icon">
             <app-icon icon="search-line"></app-icon>
           </div>
-          <div class="search-placeholder-text">
+          <div>
             ${isAuthenticated
               ? "Start typing to search for users, posts, and feeds."
               : html`Start typing to search for users.<br />Sign in to search

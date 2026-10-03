@@ -87,13 +87,9 @@ export default async function communityPluginsView({
                   ></div>
                 </div>`
               : listings.length === 0
-                ? html`<div class="plugins-empty-state">
-                    <div class="plugins-empty-state-title">
-                      No community plugins to show
-                    </div>
-                    <p class="plugins-empty-state-message">
-                      The registry is empty right now.
-                    </p>
+                ? html`<div class="empty-state" data-testid="empty-state">
+                    <h3>No community plugins to show</h3>
+                    <div>The registry is empty right now.</div>
                   </div>`
                 : html`<ul class="plugin-list">
                     ${listings.map((listing) => {
