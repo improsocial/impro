@@ -8,7 +8,12 @@ import { Signal, SignalMap, effect } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
-import { respondToConfirm } from "../../testHelpers.js";
+import { respondToConfirm, waitFor } from "../../testHelpers.js";
+
+async function confirmInstall(installing) {
+  await respondToConfirm(true);
+  return installing;
+}
 
 function emptyDataLayer() {
   const dataLayer = new EventEmitter();
@@ -175,7 +180,7 @@ describe("installPlugin", () => {
         },
       },
     });
-    await service.installPlugin("alpha");
+    await confirmInstall(service.installPlugin("alpha"));
     assert.deepEqual(state.installedPlugins, [
       {
         id: "alpha",
@@ -207,7 +212,7 @@ describe("installPlugin", () => {
       },
     });
     assert.deepEqual(service.$pluginsInfo.get(), []);
-    await service.installPlugin("alpha");
+    await confirmInstall(service.installPlugin("alpha"));
     const info = service.$pluginsInfo.get();
     assert.deepEqual(info.length, 1);
     assert.deepEqual(info[0].id, "alpha");
@@ -228,7 +233,7 @@ describe("installPlugin", () => {
     };
     let caught = null;
     try {
-      await service.installPlugin("alpha");
+      await confirmInstall(service.installPlugin("alpha"));
     } catch (error) {
       caught = error;
     }
@@ -272,15 +277,29 @@ describe("installPlugin", () => {
     assert.deepEqual(loadCalls, []);
   });
 
-  it("does not prompt on install when manifest has no permissions", async () => {
-    const { service, state } = makeService({
+  it("prompts on install even when manifest has no permissions", async () => {
+    const { service, state, loadCalls } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
     });
-    await service.installPlugin("alpha");
-    assert.deepEqual(state.installedPlugins.length, 1);
+    const installing = service.installPlugin("alpha");
+    await waitFor(() =>
+      document.querySelector(
+        '[data-testid="install-prompt"][data-teststate="no-permissions"]',
+      ),
+    );
+    await respondToConfirm(false);
+    let caught = null;
+    try {
+      await installing;
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof PermissionsDeclinedError);
+    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(loadCalls, []);
   });
 });
 
@@ -298,7 +317,7 @@ describe("updatePlugin", () => {
         },
       },
     });
-    await service.installPlugin("alpha");
+    await confirmInstall(service.installPlugin("alpha"));
 
     service.sourceProvider.getLiveManifest = async () => ({
       id: "alpha",
@@ -332,7 +351,7 @@ describe("updatePlugin", () => {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
     });
-    await service.installPlugin("alpha");
+    await confirmInstall(service.installPlugin("alpha"));
 
     const result = await service.updatePlugin("alpha");
     assert.deepEqual(result, { updated: false });
@@ -1052,8 +1071,8 @@ describe("installUnregisteredPlugin", () => {
         },
       },
     });
-    const result = await service.installUnregisteredPlugin(
-      "https://github.com/ow/alpha",
+    const result = await confirmInstall(
+      service.installUnregisteredPlugin("https://github.com/ow/alpha"),
     );
     assert.deepEqual(result, { id: "alpha", name: "Alpha" });
     assert.deepEqual(state.installedPlugins, [
@@ -1079,8 +1098,10 @@ describe("installUnregisteredPlugin", () => {
         "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
     });
-    await service.installUnregisteredPlugin(
-      "https://github.com/ow/alpha.git/tree/main",
+    await confirmInstall(
+      service.installUnregisteredPlugin(
+        "https://github.com/ow/alpha.git/tree/main",
+      ),
     );
     assert.deepEqual(state.installedPlugins[0].repo, "ow/alpha");
   });
@@ -1095,8 +1116,10 @@ describe("installUnregisteredPlugin", () => {
         },
       },
     });
-    const result = await service.installUnregisteredPlugin(
-      "https://tangled.org/@ow.example.com/alpha",
+    const result = await confirmInstall(
+      service.installUnregisteredPlugin(
+        "https://tangled.org/@ow.example.com/alpha",
+      ),
     );
     assert.deepEqual(result, { id: "alpha", name: "Alpha" });
     assert.deepEqual(
@@ -1122,8 +1145,10 @@ describe("installUnregisteredPlugin", () => {
         },
       },
     });
-    await service.installUnregisteredPlugin(
-      "https://tangled.sh/@ow.example.com/alpha",
+    await confirmInstall(
+      service.installUnregisteredPlugin(
+        "https://tangled.sh/@ow.example.com/alpha",
+      ),
     );
     assert.deepEqual(
       state.installedPlugins[0].repo,
@@ -1205,7 +1230,9 @@ describe("installUnregisteredPlugin", () => {
     };
     let caught = null;
     try {
-      await service.installUnregisteredPlugin("https://github.com/ow/alpha");
+      await confirmInstall(
+        service.installUnregisteredPlugin("https://github.com/ow/alpha"),
+      );
     } catch (error) {
       caught = error;
     }
@@ -2848,7 +2875,7 @@ describe("updating a plugin that adds userFetch", () => {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
     });
-    await service.installPlugin("alpha");
+    await confirmInstall(service.installPlugin("alpha"));
     service.sourceProvider.getLiveManifest = async () => ({
       id: "alpha",
       name: "Alpha",

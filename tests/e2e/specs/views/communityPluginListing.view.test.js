@@ -86,6 +86,12 @@ test.describe("Community plugin listing view", () => {
       res.url().includes("app.bsky.actor.putPreferences"),
     );
     await button.click();
+    await expect(
+      page.locator(
+        '[data-testid="install-prompt"][data-teststate="no-permissions"]',
+      ),
+    ).toBeVisible();
+    await page.locator('[data-testid="modal-confirm-button"]').click();
     await putPrefs;
 
     await expect(button).toHaveText("Uninstall", { timeout: 10000 });

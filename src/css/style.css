@@ -8214,10 +8214,6 @@ context-menu-item-group > context-menu-item > button {
   flex-direction: column;
 }
 
-.permission-prompt {
-  display: block;
-}
-
 .permission-prompt-intro {
   display: block;
   font-size: 15px;
@@ -8266,11 +8262,21 @@ context-menu-item-group > context-menu-item > button {
   word-break: break-all;
 }
 
-.permission-prompt-note {
-  display: block;
+.permission-prompt-baseline {
   margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--generic-border-color);
+}
+
+.permission-prompt-baseline summary {
   font-size: 13px;
+  cursor: pointer;
+  user-select: none;
   color: var(--text-color-muted);
+}
+
+.permission-prompt-baseline .permission-prompt-section {
+  margin-top: 8px;
 }
 
 /* Shared modal base styles */
@@ -8329,6 +8335,7 @@ context-menu-item-group > context-menu-item > button {
 .modal-dialog-message {
   font-size: 14px;
   line-height: 1.5;
+  margin-top: 1em;
   margin-bottom: 16px;
   color: var(--text-color);
 }

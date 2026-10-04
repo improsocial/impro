@@ -51,9 +51,9 @@ class ConfirmModal extends Modal {
               ${title}
             </h2>`
           : null}
-        <p class="modal-dialog-message" data-testid="modal-message">
+        <div class="modal-dialog-message" data-testid="modal-message">
           ${message}
-        </p>
+        </div>
         <div class="modal-dialog-buttons">
           <button
             class="modal-dialog-button cancel-button"

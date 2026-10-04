@@ -47,6 +47,7 @@ test.describe("Unregistered plugin install flow", () => {
     await page
       .locator('[data-testid="install-unregistered-plugin-submit"]')
       .click();
+    await page.locator('[data-testid="modal-confirm-button"]').click();
     await putPrefs;
     await expect(page.locator('[data-testid="toast"]')).toContainText(
       `Installed ${PLUGIN_NAME}`,

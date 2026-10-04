@@ -4,10 +4,11 @@ import {
   showPluginModal as _showPluginModal,
   updatePluginModal as _updatePluginModal,
   hidePluginModal,
-  showPluginInstallPermissionsModal,
+  showPluginInstallModal,
   showPluginFetchPermissionModal,
 } from "/js/plugins/pluginModal.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
+import { Permissions } from "/js/plugins/pluginPermissions.js";
 import { respondToConfirm, waitFor } from "../../testHelpers.js";
 
 function showPluginModal(opts) {
@@ -447,17 +448,50 @@ describe("hidePluginModal", () => {
 });
 
 describe("permission prompts", () => {
-  it("describes a userFetch scope in the install prompt", async () => {
-    const prompting = showPluginInstallPermissionsModal({
+  it("shows the no-permissions install prompt for an empty manifest", async () => {
+    const prompting = showPluginInstallModal({
       pluginName: "Alpha",
-      permissions: { userFetch: true },
+      permissions: Permissions.parse({}),
     });
     await waitFor(() =>
-      document.querySelector('[data-testid="permission-prompt"]'),
+      document.querySelector('[data-testid="install-prompt"]'),
     );
-    const prompt = document.querySelector('[data-testid="permission-prompt"]');
+    const prompt = document.querySelector('[data-testid="install-prompt"]');
+    assert.equal(prompt.dataset.teststate, "no-permissions");
+    assert(
+      prompt.querySelector(
+        '[data-testid="install-prompt-baseline"] .permission-prompt-list li',
+      ),
+    );
+    await respondToConfirm(false);
+    assert.equal(await prompting, false);
+  });
+
+  it("describes a userFetch scope in the install prompt", async () => {
+    const prompting = showPluginInstallModal({
+      pluginName: "Alpha",
+      permissions: Permissions.parse({ userFetch: true }),
+    });
+    await waitFor(() =>
+      document.querySelector('[data-testid="install-prompt"]'),
+    );
+    const prompt = document.querySelector('[data-testid="install-prompt"]');
+    assert.equal(prompt.dataset.teststate, "permissions");
     // A userFetch-only manifest must not render an empty permission list
-    assert(prompt.querySelector(".permission-prompt-section"));
+    assert(
+      prompt.querySelector(
+        ".permission-prompt-sections .permission-prompt-section",
+      ),
+    );
+    assert(
+      prompt.querySelector(
+        '[data-testid="install-prompt-baseline"] .permission-prompt-list li',
+      ),
+    );
+    assert.equal(
+      prompt.querySelector('[data-testid="install-prompt-baseline"]').open,
+      false,
+    );
     await respondToConfirm(false);
     await prompting;
   });
