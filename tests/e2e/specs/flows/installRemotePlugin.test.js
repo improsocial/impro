@@ -38,6 +38,7 @@ test.describe("Remote plugin install flow", () => {
       res.url().includes("app.bsky.actor.putPreferences"),
     );
     await installButton.click();
+    await page.locator('[data-testid="modal-confirm-button"]').click();
     await putPrefs;
 
     // Navigate back to the plugins list; the installed plugin should appear.

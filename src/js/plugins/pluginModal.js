@@ -163,16 +163,58 @@ function permissionsListTemplate({ permissions }) {
   return html`<div class="permission-prompt-sections">${sections}</div>`;
 }
 
-export async function showPluginInstallPermissionsModal({
-  pluginName,
-  permissions,
-}) {
+const BASELINE_CAPABILITIES = [
+  "Change how the app looks",
+  "Add menu items, pages, and feed filters",
+  "Read public Bluesky data (profiles, posts, follows)",
+  "Store their own settings and data",
+];
+
+function baselineCapabilitiesTemplate() {
+  return permissionsSectionTemplate({
+    title: "All plugins can:",
+    items: BASELINE_CAPABILITIES,
+  });
+}
+
+export async function showPluginInstallModal({ pluginName, permissions }) {
   const name = pluginName ?? "This plugin";
+  if (permissions.isEmpty()) {
+    return confirmModal(
+      html`<div
+        class="permission-prompt"
+        data-testid="install-prompt"
+        data-teststate="no-permissions"
+      >
+        <div
+          class="permission-prompt-sections"
+          data-testid="install-prompt-baseline"
+        >
+          ${baselineCapabilitiesTemplate()}
+        </div>
+      </div>`,
+      {
+        title: "Install plugin?",
+        confirmButtonText: "Install",
+      },
+    );
+  }
   return confirmModal(
-    html`<span class="permission-prompt" data-testid="permission-prompt">
+    html`<div
+      class="permission-prompt"
+      data-testid="install-prompt"
+      data-teststate="permissions"
+    >
       <span class="permission-prompt-intro">${name} wants permission to:</span>
       ${permissionsListTemplate({ permissions })}
-    </span>`,
+      <details
+        class="permission-prompt-baseline"
+        data-testid="install-prompt-baseline"
+      >
+        <summary>View baseline permissions</summary>
+        ${baselineCapabilitiesTemplate()}
+      </details>
+    </div>`,
     {
       title: "Grant permissions?",
       confirmButtonText: "Allow and install",
@@ -183,15 +225,15 @@ export async function showPluginInstallPermissionsModal({
 export async function showPluginFetchPermissionModal({ pluginName, origin }) {
   const name = pluginName ?? "This plugin";
   return confirmModal(
-    html`<span class="permission-prompt" data-testid="fetch-permission-prompt">
+    html`<div class="permission-prompt" data-testid="fetch-permission-prompt">
       <span class="permission-prompt-intro">${name} wants permission to:</span>
       <div class="permission-prompt-sections">
         ${permissionsSectionTemplate({
           title: "Send network requests to:",
           items: [html`<code>${origin}</code>`],
         })}
-      </div></span
-    >`,
+      </div>
+    </div>`,
     {
       title: "Allow network access?",
       confirmButtonText: "Allow",
@@ -209,10 +251,10 @@ export async function showPluginUpdatePermissionsModal({
     ? `${name} v${pluginVersion} requests new permissions:`
     : `${name} requests new permissions:`;
   return confirmModal(
-    html`<span class="permission-prompt" data-testid="permission-update-prompt">
+    html`<div class="permission-prompt" data-testid="permission-update-prompt">
       <span class="permission-prompt-intro">${heading}</span>
       ${permissionsListTemplate({ permissions: permissionsDiff })}
-    </span>`,
+    </div>`,
     {
       title: "Grant new permissions?",
       confirmButtonText: "Allow and update",

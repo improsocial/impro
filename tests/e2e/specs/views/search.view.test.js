@@ -22,10 +22,12 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
     await expect(view.locator(".search-input")).toBeVisible({ timeout: 10000 });
-    await expect(view.locator(".search-placeholder")).toBeVisible();
-    await expect(view.locator(".search-placeholder-text")).toContainText(
-      "Start typing to search for users, posts, and feeds.",
-    );
+    await expect(
+      view.locator('[data-testid="search-placeholder"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="search-placeholder"]'),
+    ).toContainText("Start typing to search for users, posts, and feeds.");
   });
 
   test("should display profile search results", async ({ page }) => {
@@ -238,7 +240,9 @@ test.describe("Search view", () => {
     await view.locator(".search-clear-button").click();
 
     // Should return to placeholder state
-    await expect(view.locator(".search-placeholder")).toBeVisible({
+    await expect(
+      view.locator('[data-testid="search-placeholder"]'),
+    ).toBeVisible({
       timeout: 10000,
     });
     await expect(view.locator(".search-clear-button")).not.toBeVisible();
@@ -1055,7 +1059,9 @@ test.describe("Search view", () => {
 
       await input.fill("");
 
-      await expect(view.locator(".search-placeholder")).toBeVisible({
+      await expect(
+        view.locator('[data-testid="search-placeholder"]'),
+      ).toBeVisible({
         timeout: 10000,
       });
     });
@@ -1388,7 +1394,9 @@ test.describe("Search view", () => {
       await expect(view.locator('[data-testid="search-recent"]')).toBeVisible({
         timeout: 10000,
       });
-      await expect(view.locator(".search-placeholder")).not.toBeVisible();
+      await expect(
+        view.locator('[data-testid="search-placeholder"]'),
+      ).not.toBeVisible();
       const rows = view.locator('[data-testid="search-recent-row"]');
       await expect(rows).toHaveCount(2);
       await expect(rows.nth(0)).toContainText("dogs");
@@ -1412,7 +1420,9 @@ test.describe("Search view", () => {
 
       const view = page.locator("#search-view");
       const input = view.locator(".search-input");
-      await expect(view.locator(".search-placeholder")).toBeVisible({
+      await expect(
+        view.locator('[data-testid="search-placeholder"]'),
+      ).toBeVisible({
         timeout: 10000,
       });
       await input.fill("kittens");
@@ -1585,7 +1595,9 @@ test.describe("Search view", () => {
         .first()
         .click();
 
-      await expect(view.locator(".search-placeholder")).toBeVisible({
+      await expect(
+        view.locator('[data-testid="search-placeholder"]'),
+      ).toBeVisible({
         timeout: 10000,
       });
       await expect(
@@ -1609,7 +1621,9 @@ test.describe("Search view", () => {
       await page.goto("/search");
 
       const view = page.locator("#search-view");
-      await expect(view.locator(".search-placeholder")).toBeVisible({
+      await expect(
+        view.locator('[data-testid="search-placeholder"]'),
+      ).toBeVisible({
         timeout: 10000,
       });
 

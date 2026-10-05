@@ -3,7 +3,7 @@ import {
   showPluginModal,
   updatePluginModal,
   hidePluginModal,
-  showPluginInstallPermissionsModal,
+  showPluginInstallModal,
   showPluginUpdatePermissionsModal,
 } from "/js/plugins/pluginModal.js";
 import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
@@ -867,15 +867,13 @@ export class PluginService extends ReactiveStore {
     }
     const permissions =
       this.permissionsManager.getManifestPermissions(manifest);
-    if (!permissions.isEmpty()) {
-      if (
-        !(await showPluginInstallPermissionsModal({
-          pluginName: manifest.name,
-          permissions,
-        }))
-      ) {
-        throw new PermissionsDeclinedError();
-      }
+    if (
+      !(await showPluginInstallModal({
+        pluginName: manifest.name,
+        permissions,
+      }))
+    ) {
+      throw new PermissionsDeclinedError();
     }
     const { name, version, author, description } = manifest;
     await this.prefManager.addInstalledPlugin({
@@ -909,18 +907,6 @@ export class PluginService extends ReactiveStore {
       console.error("Failed to fetch manifest", e);
       throw new Error("Failed to fetch manifest");
     }
-    const permissions =
-      this.permissionsManager.getManifestPermissions(manifest);
-    if (!permissions.isEmpty()) {
-      if (
-        !(await showPluginInstallPermissionsModal({
-          pluginName: manifest.name,
-          permissions,
-        }))
-      ) {
-        throw new PermissionsDeclinedError();
-      }
-    }
     const { id, name, version, author, description } = manifest;
     if (await this.remoteRegistry.getListing(id)) {
       throw new Error(`Plugin ${id} is in the registry; install it from there`);
@@ -931,6 +917,16 @@ export class PluginService extends ReactiveStore {
     const installedPlugins = await this.prefManager.getInstalledPlugins();
     if (installedPlugins.some((plugin) => plugin.id === id)) {
       throw new Error(`Plugin ${id} already installed`);
+    }
+    const permissions =
+      this.permissionsManager.getManifestPermissions(manifest);
+    if (
+      !(await showPluginInstallModal({
+        pluginName: manifest.name,
+        permissions,
+      }))
+    ) {
+      throw new PermissionsDeclinedError();
     }
     await this.prefManager.addInstalledPlugin({
       id,

@@ -71,7 +71,7 @@ test.describe("Installed plugins view", () => {
     await page.goto("/plugins/installed");
 
     const view = page.locator("#installed-plugins-view");
-    await expect(view.locator(".plugins-empty-state")).toBeVisible({
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
     });
     await expect(view.locator(".plugin-list-item")).toHaveCount(0);
@@ -149,7 +149,9 @@ test.describe("Installed plugins view", () => {
 
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(page.locator(".plugin-list-item")).toHaveCount(0);
-    await expect(page.locator(".plugins-empty-state")).toBeVisible();
+    await expect(
+      page.locator('#installed-plugins-view [data-testid="empty-state"]'),
+    ).toBeVisible();
   });
 
   test("uninstall button does nothing when cancelled", async ({ page }) => {
