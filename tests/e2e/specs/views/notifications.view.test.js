@@ -538,6 +538,157 @@ test.describe("Notifications view", () => {
     );
   });
 
+  test.describe("Subscribed post bundles", () => {
+    const hoursAgo = (hours) =>
+      new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+    function subscribedPost(author, rkey) {
+      return createPost({
+        uri: `at://${author.did}/app.bsky.feed.post/${rkey}`,
+        text: `Post ${rkey} from ${author.displayName}`,
+        authorHandle: author.handle,
+        authorDisplayName: author.displayName,
+      });
+    }
+
+    function subscribedPostNotification(post, author, indexedAt) {
+      return createNotification({
+        reason: "subscribed-post",
+        author,
+        uri: post.uri,
+        indexedAt,
+      });
+    }
+
+    test("should bundle subscribed posts from the same author within 48h", async ({
+      page,
+    }) => {
+      const posts = [
+        subscribedPost(alice, "a3"),
+        subscribedPost(alice, "a2"),
+        subscribedPost(alice, "a1"),
+      ];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(10)),
+        subscribedPostNotification(posts[2], alice, hoursAgo(40)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-avatar")).toHaveCount(1);
+      await expect(item.locator(".notification-preview-text")).toContainText(
+        "Post a3 from Alice",
+      );
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.pathname).toBe("/notifications/activity");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
+
+    test("should split subscribed posts more than 48h apart", async ({
+      page,
+    }) => {
+      const posts = [subscribedPost(alice, "a2"), subscribedPost(alice, "a1")];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(60)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const items = view.locator(".notification-item");
+      await expect(items).toHaveCount(2, { timeout: 10000 });
+      for (const [index, post] of posts.entries()) {
+        const href = await items.nth(index).getAttribute("href");
+        const url = new URL(href, "http://localhost");
+        expect(url.pathname).toBe("/notifications/activity");
+        expect(url.searchParams.get("posts")).toBe(post.uri);
+      }
+    });
+
+    test("should bundle subscribed posts from different authors", async ({
+      page,
+    }) => {
+      const posts = [
+        subscribedPost(alice, "a2"),
+        subscribedPost(bob, "b1"),
+        subscribedPost(alice, "a1"),
+      ];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], bob, hoursAgo(2)),
+        subscribedPostNotification(posts[2], alice, hoursAgo(3)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-avatar")).toHaveCount(2);
+      await expect(item.locator(".notification-profile-link")).toHaveText(
+        "Alice",
+      );
+      await expect(
+        item.locator('[data-testid="notification-others-button"]'),
+      ).toBeVisible();
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
+
+    test("should keep a bundle when its newest post was deleted", async ({
+      page,
+    }) => {
+      const deletedPost = subscribedPost(alice, "a3");
+      const posts = [subscribedPost(alice, "a2"), subscribedPost(alice, "a1")];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(deletedPost, alice, hoursAgo(1)),
+        subscribedPostNotification(posts[0], alice, hoursAgo(2)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(3)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-preview-text")).toContainText(
+        "Post a2 from Alice",
+      );
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
+  });
+
   test("should show unread indicator on unread notifications", async ({
     page,
   }) => {
