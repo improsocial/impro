@@ -100,6 +100,12 @@ function applyLabels(post, preferences) {
 // Match social-app: hide notifications from blocked / muted
 // users unless the viewer follows them (a follow overrides a mute).
 function shouldHideNotification(notification) {
+  if (
+    notification.reason === "subscribed-post" &&
+    notification.post?.viewer?.hasMutedWord
+  ) {
+    return true;
+  }
   const viewer = notification.author?.viewer;
   if (!viewer) return false;
   if (viewer.blocking) return true;
@@ -1002,8 +1008,7 @@ export class Derived extends ReactiveStore {
     }
     if (notification.reason === "subscribed-post") {
       const post = this.$hydratedPosts.get(notification.uri);
-      // NOTE: LEXICON DEVIATION
-      return { ...notification, reasonSubject: post };
+      return { ...notification, post };
     }
     return notification;
   }

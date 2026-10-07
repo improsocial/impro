@@ -38,6 +38,7 @@ export class MockServer {
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
     this.listMembersFailure = null;
+    this.getPostsFailure = null;
     this.createRecordFailures = new Map();
     this.convoForMembersError = null;
     this.chatActorStatus = {
@@ -586,6 +587,10 @@ export class MockServer {
 
   failListMembers({ status = 500, error = "InternalServerError", message }) {
     this.listMembersFailure = { status, error, message };
+  }
+
+  failGetPosts({ status = 500, error = "InternalServerError", message } = {}) {
+    this.getPostsFailure = { status, error, message };
   }
 
   setConvoDelay(convoId, delayMs) {
@@ -1308,6 +1313,14 @@ export class MockServer {
     );
 
     await page.route("**/xrpc/app.bsky.feed.getPosts*", async (route) => {
+      if (this.getPostsFailure) {
+        const { status, error, message } = this.getPostsFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message: message ?? error }),
+        });
+      }
       const url = new URL(route.request().url());
       const uris = url.searchParams.getAll("uris");
       const delayMs = Math.max(

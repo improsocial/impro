@@ -1,6 +1,8 @@
 // shared constants, etc.
 
 export const NOTIFICATIONS_PAGE_SIZE = 40;
+export const NOTIFICATION_GROUP_WINDOW_HOURS = 48;
+export const NOTIFICATION_ACTIVITY_MAX_POSTS = 25;
 export const FEED_PAGE_SIZE = 40;
 export const HASHTAG_FEED_PAGE_SIZE = 40;
 export const BOOKMARKS_PAGE_SIZE = 40;

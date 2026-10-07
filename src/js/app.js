@@ -5,6 +5,7 @@ import postQuotesView from "/js/views/postQuotes.view.js";
 import postRepostsView from "/js/views/postReposts.view.js";
 import loginView from "/js/views/login.view.js";
 import notificationsView from "/js/views/notifications.view.js";
+import notificationActivityView from "/js/views/notificationActivity.view.js";
 import chatView from "/js/views/chat.view.js";
 import chatRequestsView from "/js/views/chatRequests.view.js";
 import chatDetailView from "/js/views/chatDetail.view.js";
@@ -274,6 +275,9 @@ export async function main() {
     scrollRestore: "always",
   });
   router.addRoute("/login", () => loginView, { layout: false });
+  router.addRoute("/notifications/activity", () => notificationActivityView, {
+    layoutOptions: { activeNavItem: "notifications" },
+  });
   router.addRoute("/notifications", () => notificationsView, {
     layoutOptions: { activeNavItem: "notifications", isNavItemPage: true },
     scrollRestore: "always",

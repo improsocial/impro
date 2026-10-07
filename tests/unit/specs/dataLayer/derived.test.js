@@ -1756,7 +1756,7 @@ describe("$notifications", () => {
     assert.deepEqual(result[0].parentPost, null);
   });
 
-  it("should attach the post as reasonSubject for subscribed-post notifications", () => {
+  it("should attach the post for subscribed-post notifications", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
     dataStore.$posts.set("s1", { uri: "s1", record: { text: "s" } });
@@ -1764,7 +1764,27 @@ describe("$notifications", () => {
       createNotification({ reason: "subscribed-post", author, uri: "s1" }),
     ]);
     const result = derived.$notifications.get();
-    assert.deepEqual(result[0].reasonSubject.uri, "s1");
+    assert.deepEqual(result[0].post.uri, "s1");
+  });
+
+  it("should filter out subscribed-post notifications whose post has a muted word", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        postHasMutedWord: (post) => post.uri === "muted",
+      }),
+    });
+    dataStore.$posts.set("muted", { uri: "muted", record: { text: "m" } });
+    dataStore.$posts.set("clean", { uri: "clean", record: { text: "c" } });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "subscribed-post", author, uri: "muted" }),
+      createNotification({ reason: "subscribed-post", author, uri: "clean" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(
+      result.map((notification) => notification.uri),
+      ["clean"],
+    );
   });
 
   it("should pass through notifications with other reasons unchanged", () => {
