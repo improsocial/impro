@@ -6869,6 +6869,10 @@ sidebar-search {
   align-items: center;
 }
 
+#search-view .feeds-list-item-actions {
+  align-self: flex-start;
+}
+
 .context-menu-button {
   border: none;
   background: none;
