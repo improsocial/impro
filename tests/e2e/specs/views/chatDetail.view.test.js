@@ -59,6 +59,52 @@ test.describe("Chat detail view", () => {
     );
   });
 
+  test.describe("day titles", () => {
+    test.use({ timezoneId: "UTC" });
+
+    test("should format day titles by how long ago the day was", async ({
+      page,
+    }) => {
+      await page.clock.setFixedTime(new Date("2026-10-07T18:00:00.000Z"));
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      const messages = [
+        "2026-10-07T12:00:00.000Z",
+        "2026-10-04T12:00:00.000Z",
+        "2026-09-20T12:00:00.000Z",
+        "2025-12-25T12:00:00.000Z",
+      ].map((sentAt, i) =>
+        createMessage({
+          id: `msg-${i}`,
+          text: `Message ${i}`,
+          senderDid: alice.did,
+          sentAt,
+        }),
+      );
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", messages);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('[data-testid="message-day-title"] strong'),
+      ).toHaveText(["December 25, 2025", "September 20", "Sunday", "Today"], {
+        timeout: 10000,
+      });
+    });
+  });
+
   test("should render emoji-only messages enlarged without a bubble", async ({
     page,
   }) => {

@@ -707,8 +707,26 @@ export default async function chatDetailView({
     return new Date(new Date(timestamp).setHours(0, 0, 0, 0));
   }
 
-  function getDayOfWeek(date) {
-    return date.toLocaleDateString("en-US", { weekday: "long" });
+  function formatDayTitle(date) {
+    const today = getDateFromTimestamp(Date.now());
+    const daysAgo = Math.round((today - date) / (24 * 60 * 60 * 1000));
+    if (daysAgo === 0) {
+      return "Today";
+    }
+    if (daysAgo < 7) {
+      return date.toLocaleDateString("en-US", { weekday: "long" });
+    }
+    if (date.getFullYear() === today.getFullYear()) {
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+      });
+    }
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   function isSameDate(date1, date2) {
@@ -1116,10 +1134,8 @@ export default async function chatDetailView({
   }
 
   function messageDayTitleTemplate({ date, startTime }) {
-    const isToday = isSameDate(date, new Date());
-    return html`<div class="message-day-title">
-      <strong>${isToday ? "Today" : getDayOfWeek(date)}</strong> at
-      ${formatShortTime(startTime)}
+    return html`<div class="message-day-title" data-testid="message-day-title">
+      <strong>${formatDayTitle(date)}</strong> at ${formatShortTime(startTime)}
     </div>`;
   }
 
