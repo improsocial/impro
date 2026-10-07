@@ -1,4 +1,8 @@
-import { isInvalidSwapError, isRecordNotFoundError } from "/js/api.js";
+import {
+  isInvalidSwapError,
+  isRecordNotFoundError,
+  isRetryableError,
+} from "/js/api.js";
 import {
   parseUri,
   buildUri,
@@ -51,7 +55,14 @@ export class Mutations {
       type: "addLike",
     });
     try {
-      const like = await this.api.createLikeRecord(post);
+      let like;
+      try {
+        like = await this.api.createLikeRecord(post);
+      } catch (error) {
+        // Retry once on failure
+        if (!isRetryableError(error)) throw error;
+        like = await this.api.createLikeRecord(post);
+      }
       const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
       if (!latestPost.viewer?.like) {
         this.dataStore.$posts.set(post.uri, {

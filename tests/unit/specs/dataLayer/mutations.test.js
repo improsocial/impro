@@ -200,6 +200,94 @@ describe("addLike", () => {
     assert.deepEqual(storedPost.viewer.like, "server-like-uri");
     assert.deepEqual(applyPostPatches(patchStore, storedPost).likeCount, 6);
   });
+
+  describe("retry", () => {
+    let dataStore;
+    let patchStore;
+    let mockPreferencesProvider;
+
+    beforeEach(() => {
+      dataStore = new DataStore(createSessionState(null));
+      patchStore = new PatchStore();
+      mockPreferencesProvider = {
+        requirePreferences: () => Preferences.createLoggedOutPreferences(),
+      };
+    });
+
+    function makeApiError(status) {
+      return new ApiError({
+        status,
+        statusText: "Error",
+        data: null,
+        headers: new Headers(),
+        url: "",
+      });
+    }
+
+    for (const [label, makeError] of [
+      ["a network error", () => new TypeError("Failed to fetch")],
+      ["a 5xx error", () => makeApiError(502)],
+    ]) {
+      it(`should retry once and succeed after ${label}`, async (t) => {
+        t.mock.method(console, "warn", () => {});
+        const createLikeRecord = t.mock.fn(async () => ({ uri: "like-123" }));
+        createLikeRecord.mock.mockImplementationOnce(async () => {
+          throw makeError();
+        });
+        const mutations = makeMutations(
+          { createLikeRecord },
+          dataStore,
+          patchStore,
+          mockPreferencesProvider,
+        );
+
+        await mutations.addLike(testPost);
+
+        assert.equal(createLikeRecord.mock.callCount(), 2);
+        const storedPost = dataStore.$posts.get(testPost.uri);
+        assert.deepEqual(storedPost.viewer.like, "like-123");
+        assert.deepEqual(storedPost.likeCount, 6);
+      });
+    }
+
+    it("should not retry a 4xx error", async (t) => {
+      t.mock.method(console, "error", () => {});
+      const createLikeRecord = t.mock.fn(async () => {
+        throw makeApiError(400);
+      });
+      const mutations = makeMutations(
+        { createLikeRecord },
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      );
+
+      await assert.rejects(mutations.addLike(testPost), ApiError);
+
+      assert.equal(createLikeRecord.mock.callCount(), 1);
+      assert.deepEqual(applyPostPatches(patchStore, testPost), testPost);
+    });
+
+    it("should throw and remove the patch if the retry also fails", async (t) => {
+      t.mock.method(console, "warn", () => {});
+      t.mock.method(console, "error", () => {});
+      const createLikeRecord = t.mock.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+      const mutations = makeMutations(
+        { createLikeRecord },
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      );
+
+      await assert.rejects(mutations.addLike(testPost), /Failed to fetch/);
+
+      assert.equal(createLikeRecord.mock.callCount(), 2);
+      assert.equal(dataStore.$posts.get(testPost.uri), null);
+      assert.deepEqual(applyPostPatches(patchStore, testPost), testPost);
+    });
+  });
 });
 
 describe("removeLike", () => {

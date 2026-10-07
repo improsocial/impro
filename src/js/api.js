@@ -38,6 +38,12 @@ export function isInvalidSwapError(error) {
   return error instanceof ApiError && error.data?.error === "InvalidSwap";
 }
 
+export function isRetryableError(error) {
+  if (error instanceof ApiError) return error.status >= 500;
+  // fetch rejects with a TypeError on network failure
+  return error instanceof TypeError;
+}
+
 class PublicSession {
   constructor() {
     this.serviceEndpoint = PUBLIC_SERVICE_ENDPOINT_URL;
