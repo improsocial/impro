@@ -1,7 +1,8 @@
-import { Poller } from "/js/utils.js";
+import { Poller, wait } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
+const OPEN_CONVO_CONFIRM_DELAY_MS = 7000;
 
 export class ChatNotificationService {
   constructor(api) {
@@ -10,6 +11,7 @@ export class ChatNotificationService {
     this.$numUnreadRequestConvos = new Signal.State(0);
     this._optimisticallyReadIds = new Set();
     this._lastServerTotal = 0;
+    this._openConvoId = null;
     this.poller = new Poller(
       () => this.fetchNumNotifications(),
       POLLING_INTERVAL_SECONDS * 1000,
@@ -29,11 +31,26 @@ export class ChatNotificationService {
     };
   }
 
+  setOpenConvoId(convoId) {
+    this._openConvoId = convoId;
+  }
+
+  clearOpenConvoId(convoId) {
+    if (this._openConvoId === convoId) {
+      this._openConvoId = null;
+    }
+  }
+
   async fetchNumNotifications() {
-    const { unreadAcceptedConvos = 0, unreadRequestConvos = 0 } =
-      await this.api.getChatUnreadCounts();
+    let counts = await this.api.getChatUnreadCounts();
+    // If a chat it currently open, wait for it to be marked read before updating the count
+    if (this._openConvoId && getServerTotal(counts) > this._lastServerTotal) {
+      await wait(OPEN_CONVO_CONFIRM_DELAY_MS);
+      counts = await this.api.getChatUnreadCounts();
+    }
+    const { unreadRequestConvos = 0 } = counts;
     this.$numUnreadRequestConvos.set(unreadRequestConvos);
-    const serverTotal = unreadAcceptedConvos + unreadRequestConvos;
+    const serverTotal = getServerTotal(counts);
     // The server total dropped by `delta` since the last poll — that many
     // optimistic reads have been confirmed, so stop subtracting them.
     const delta = Math.max(0, this._lastServerTotal - serverTotal);
@@ -62,4 +79,8 @@ export class ChatNotificationService {
       }
     }
   }
+}
+
+function getServerTotal({ unreadAcceptedConvos = 0, unreadRequestConvos = 0 }) {
+  return unreadAcceptedConvos + unreadRequestConvos;
 }

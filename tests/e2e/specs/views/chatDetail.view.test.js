@@ -2617,6 +2617,58 @@ test.describe("Chat detail view", () => {
     expect(panelBox.y).toBeLessThan(messageBox.y);
   });
 
+  test("should mark the convo as read when a new message arrives while open", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    mockServer.addConvos([createConvo({ id: "convo-1", otherMember: alice })]);
+    mockServer.addConvoMessages("convo-1", [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const updateReadRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes("chat.bsky.convo.updateRead") &&
+        request.postDataJSON()?.convoId === "convo-1",
+      { timeout: 15000 },
+    );
+    mockServer.addChatLogs([
+      createMessageLog({
+        convoId: "convo-1",
+        message: createMessage({
+          id: "msg-new",
+          text: "Just arrived!",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T13:00:00.000Z",
+        }),
+      }),
+    ]);
+
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+      timeout: 15000,
+    });
+    await updateReadRequest;
+  });
+
   test.describe("Scrolling on new messages", () => {
     const alice = createProfile({
       did: "did:plc:alice1",

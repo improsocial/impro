@@ -1627,15 +1627,23 @@ export default async function chatDetailView({
   });
 
   // Mark messages as read when new messages are loaded
+  let lastSeenMessageTimestamp = null;
   pageEffect(root, () => {
     const latestMessageTimestamp = $latestMessageTimestamp.get();
     if (!latestMessageTimestamp) return;
+    const isIncomingMessage =
+      lastSeenMessageTimestamp !== null &&
+      latestMessageTimestamp !== lastSeenMessageTimestamp;
+    lastSeenMessageTimestamp = latestMessageTimestamp;
     const convo = dataLayer.derived.$convos.get(convoId);
-    if (!convo?.unreadCount) return;
+    const hasUnread = !!convo?.unreadCount;
+    if (!hasUnread && !isIncomingMessage) return;
     dataLayer.mutations.markConvoAsRead(convoId);
-    chatNotificationService?.markNotificationsAsReadForConvo(convoId, {
-      isRequest: convo.status === "request",
-    });
+    if (hasUnread) {
+      chatNotificationService?.markNotificationsAsReadForConvo(convoId, {
+        isRequest: convo.status === "request",
+      });
+    }
   });
 
   async function loadPageData() {
@@ -1652,10 +1660,12 @@ export default async function chatDetailView({
     }
     // The fetcher runs whenever the page is visible, in both restore directions
     messageFetcher.start();
+    chatNotificationService?.setOpenConvoId(convoId);
   });
 
   onPageHide(root, () => {
     messageFetcher.stop();
+    chatNotificationService?.clearOpenConvoId(convoId);
   });
 
   bindToPage(root, document, "click", handleActiveOutsideClick);

@@ -303,3 +303,96 @@ describe("markNotificationsAsReadForConvo", () => {
     assert.deepEqual(service.$numUnreadRequestConvos.get(), 0);
   });
 });
+
+describe("open convo confirmation", () => {
+  beforeEach(() => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+  });
+  afterEach(() => {
+    mock.timers.reset();
+  });
+
+  function createSequencedApi(totals) {
+    const api = {
+      calls: 0,
+      getChatUnreadCounts: async () => {
+        const total = totals[Math.min(api.calls, totals.length - 1)];
+        api.calls++;
+        return { unreadAcceptedConvos: total, unreadRequestConvos: 0 };
+      },
+    };
+    return api;
+  }
+
+  it("re-checks an increase after a delay while a chat is open", async () => {
+    const api = createSequencedApi([0, 1, 0]);
+    const service = new ChatNotificationService(api);
+    await service.fetchNumNotifications();
+
+    service.setOpenConvoId("convo-1");
+    const fetchPromise = service.fetchNumNotifications();
+    await flushMicrotasks();
+    assert.deepEqual(api.calls, 2);
+    assert.deepEqual(service.$numNotifications.get(), 0);
+
+    mock.timers.tick(7000);
+    await fetchPromise;
+    assert.deepEqual(api.calls, 3);
+    assert.deepEqual(service.$numNotifications.get(), 0);
+  });
+
+  it("shows an increase that persists through the re-check", async () => {
+    const api = createSequencedApi([0, 1, 1]);
+    const service = new ChatNotificationService(api);
+    await service.fetchNumNotifications();
+
+    service.setOpenConvoId("convo-1");
+    const fetchPromise = service.fetchNumNotifications();
+    await flushMicrotasks();
+    mock.timers.tick(7000);
+    await fetchPromise;
+
+    assert.deepEqual(service.$numNotifications.get(), 1);
+  });
+
+  it("applies a decrease immediately while a chat is open", async () => {
+    const api = createSequencedApi([2, 1]);
+    const service = new ChatNotificationService(api);
+    await service.fetchNumNotifications();
+
+    service.setOpenConvoId("convo-1");
+    await service.fetchNumNotifications();
+
+    assert.deepEqual(api.calls, 2);
+    assert.deepEqual(service.$numNotifications.get(), 1);
+  });
+
+  it("applies an increase immediately once the chat is closed", async () => {
+    const api = createSequencedApi([0, 1]);
+    const service = new ChatNotificationService(api);
+    await service.fetchNumNotifications();
+
+    service.setOpenConvoId("convo-1");
+    service.clearOpenConvoId("convo-1");
+    await service.fetchNumNotifications();
+
+    assert.deepEqual(api.calls, 2);
+    assert.deepEqual(service.$numNotifications.get(), 1);
+  });
+
+  it("keeps the open convo when a different convo is cleared", async () => {
+    const api = createSequencedApi([0, 1, 0]);
+    const service = new ChatNotificationService(api);
+    await service.fetchNumNotifications();
+
+    service.setOpenConvoId("convo-2");
+    service.clearOpenConvoId("convo-1");
+    const fetchPromise = service.fetchNumNotifications();
+    await flushMicrotasks();
+    mock.timers.tick(7000);
+    await fetchPromise;
+
+    assert.deepEqual(api.calls, 3);
+    assert.deepEqual(service.$numNotifications.get(), 0);
+  });
+});

@@ -4065,7 +4065,7 @@ describe("markConvoAsRead", () => {
     assert.deepEqual(dataStore.$convos.get("missing"), null);
   });
 
-  it("should not call the api when the convo has no unread messages", async () => {
+  it("should call the api even when the cached convo has no unread messages", async () => {
     const convoId = "convo-read";
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
@@ -4087,7 +4087,7 @@ describe("markConvoAsRead", () => {
 
     await mutations.markConvoAsRead(convoId);
 
-    assert.deepEqual(callCount, 0);
+    assert.deepEqual(callCount, 1);
   });
 });
 
