@@ -1,5 +1,6 @@
 import { getRKey, parseUri, hasValidHandle } from "/js/dataHelpers.js";
-import { isNil } from "/js/utils.js";
+import { isNil, unique } from "/js/utils.js";
+import { NOTIFICATION_ACTIVITY_MAX_POSTS } from "/js/config.js";
 
 function encodePathSegment(segment) {
   return encodeURIComponent(segment).replace(/%3A/g, ":").replace(/%40/g, "@");
@@ -82,6 +83,15 @@ export function linkToSearchPostsByProfile(profile) {
   query.set("q", searchString);
   query.set("tab", "top");
   return `/search?${query.toString()}`;
+}
+
+export function linkToNotificationActivity(postUris) {
+  const query = new URLSearchParams();
+  query.set(
+    "posts",
+    unique(postUris).slice(0, NOTIFICATION_ACTIVITY_MAX_POSTS).join(","),
+  );
+  return `/notifications/activity?${query.toString()}`;
 }
 
 function getPermalinkOrigin() {

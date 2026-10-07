@@ -14,6 +14,7 @@ import {
   linkToProfileFollowing,
   linkToFeed,
   linkToStarterPack,
+  linkToNotificationActivity,
   getPermalinkForStarterPack,
   linkToCommunityPlugin,
   linkToPluginSettings,
@@ -213,6 +214,43 @@ describe("linkToProfileFollowing", () => {
     assert.deepEqual(
       linkToProfileFollowing(profile),
       "/profile/did:plc:bob/following",
+    );
+  });
+});
+
+describe("linkToNotificationActivity", () => {
+  function getPostsParam(link) {
+    const url = new URL(link, "https://example.com");
+    assert.deepEqual(url.pathname, "/notifications/activity");
+    return url.searchParams.get("posts");
+  }
+
+  it("should encode the post uris as a comma-joined query param", () => {
+    const uris = [
+      "at://did:plc:alice/app.bsky.feed.post/1",
+      "at://did:plc:alice/app.bsky.feed.post/2",
+    ];
+    const link = linkToNotificationActivity(uris);
+    assert(!link.includes("at://"));
+    assert.deepEqual(getPostsParam(link), uris.join(","));
+  });
+
+  it("should dedupe uris", () => {
+    const uri = "at://did:plc:alice/app.bsky.feed.post/1";
+    assert.deepEqual(
+      getPostsParam(linkToNotificationActivity([uri, uri])),
+      uri,
+    );
+  });
+
+  it("should cap the list at 25 uris", () => {
+    const uris = Array.from(
+      { length: 30 },
+      (_, i) => `at://did:plc:alice/app.bsky.feed.post/${i}`,
+    );
+    assert.deepEqual(
+      getPostsParam(linkToNotificationActivity(uris)),
+      uris.slice(0, 25).join(","),
     );
   });
 });
