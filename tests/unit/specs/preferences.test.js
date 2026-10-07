@@ -1036,6 +1036,32 @@ describe("Preferences.hasMutedWord - embed text matching", () => {
     assert.deepEqual(result, true);
   });
 
+  it("should match muted word in gallery item alt text", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out these images",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.gallery",
+        items: [
+          { $type: "app.bsky.embed.gallery#image", alt: "Normal image" },
+          { $type: "app.bsky.embed.gallery#image", alt: "This is spam" },
+        ],
+      },
+      languages: [],
+      author: null,
+    });
+
+    assert.deepEqual(result, true);
+  });
+
   it("should match muted word in any image alt text", () => {
     const obj = [
       {

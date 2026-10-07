@@ -103,6 +103,19 @@ test.describe("Post embeds view — gallery carousel", () => {
     });
   }
 
+  test("renders a 3-image gallery as a grid, not a carousel", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildGalleryPost({ count: 3 }));
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="post-images"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="image-carousel"]')).toHaveCount(0);
+    await expect(view.locator(".post-image")).toHaveCount(3);
+  });
+
   test("renders 5+ image gallery as a carousel with counter and slides", async ({
     page,
   }) => {

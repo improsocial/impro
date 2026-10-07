@@ -33,6 +33,7 @@ import {
   buildGifExternal,
   restoreGifFromDraftUri,
   getLinkCardMeta,
+  MAX_GALLERY_IMAGES,
 } from "/js/embedHelpers.js";
 import "/js/components/app-icon.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
@@ -385,26 +386,31 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
   return html`
     <div class="post-composer-image-preview">
       ${images.map(
-        (img, index) => html`
-          <div class="image-preview-item">
+        (image) => html`
+          <div
+            class="image-preview-item"
+            data-testid="composer-image-preview-item"
+          >
             <img
-              src="${img.dataUrl}"
-              alt="${img.alt || "Preview"}"
-              @click=${() => onEditAltText(index)}
+              src="${image.dataUrl}"
+              alt="${image.alt || "Preview"}"
+              data-testid="composer-image-alt"
+              @click=${() => onEditAltText(image.id)}
               style="cursor: pointer;"
             />
             <button
               class="image-preview-remove-button"
+              data-testid="composer-image-remove"
               @click=${(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onRemove(index);
+                onRemove(image.id);
               }}
             >
               <app-icon icon="close-line"></app-icon>
             </button>
-            <div class="alt-indicator ${img.alt ? "has-alt" : "no-alt"}">
-              ${altIndicatorContentTemplate(!!img.alt)}
+            <div class="alt-indicator ${image.alt ? "has-alt" : "no-alt"}">
+              ${altIndicatorContentTemplate(!!image.alt)}
             </div>
           </div>
         `,
@@ -489,8 +495,8 @@ function composerPostTemplate({
       ${postState.images.length > 0
         ? imagePreviewTemplate({
             images: postState.images,
-            onRemove: (index) => onRemoveImage(index),
-            onEditAltText: (index) => onEditAltText(index),
+            onRemove: (imageId) => onRemoveImage(imageId),
+            onEditAltText: (imageId) => onEditAltText(imageId),
           })
         : ""}
       ${postState.video
@@ -855,10 +861,10 @@ class PostComposer extends Component {
                       onRemovePost: () => this.handleRemovePost(postState.id),
                       onInput: (e) => this.handleInput(postState.id, e),
                       onPaste: (e) => this.handlePaste(postState.id, e),
-                      onRemoveImage: (imageIndex) =>
-                        this.handleRemoveImage(postState.id, imageIndex),
-                      onEditAltText: (imageIndex) =>
-                        this.handleEditAltText(postState.id, imageIndex),
+                      onRemoveImage: (imageId) =>
+                        this.handleRemoveImage(postState.id, imageId),
+                      onEditAltText: (imageId) =>
+                        this.handleEditAltText(postState.id, imageId),
                       onRemoveVideo: () => this.handleRemoveVideo(postState.id),
                       onEditVideoAltText: () =>
                         this.handleEditVideoAltText(postState.id),
@@ -913,7 +919,7 @@ class PostComposer extends Component {
                       @click=${() => this.handleMediaButtonClick()}
                       .disabled=${hasVideo ||
                       hasGif ||
-                      activePost.images.length >= 4}
+                      activePost.images.length >= MAX_GALLERY_IMAGES}
                     >
                       <app-icon icon="image-line"></app-icon>
                     </button>
@@ -1286,22 +1292,37 @@ class PostComposer extends Component {
   }
 
   async addImageFiles(postId, files) {
-    const maxImages = 4;
     const currentImages = this._getPost(postId)?.images;
     if (!currentImages) return;
-    const remainingSlots = maxImages - currentImages.length;
+    const remainingSlots = Math.max(
+      MAX_GALLERY_IMAGES - currentImages.length,
+      0,
+    );
 
-    if (files.length > remainingSlots) {
-      showToast("You can select up to 4 images in total", { style: "warning" });
+    if (remainingSlots === 0) {
+      showToast(
+        `You can only add up to ${MAX_GALLERY_IMAGES} images per post`,
+        { style: "warning" },
+      );
+      return;
+    }
+    const acceptedFiles = files.slice(0, remainingSlots);
+    if (acceptedFiles.length < files.length) {
+      showToast(
+        `Only ${acceptedFiles.length} of ${files.length} images added; limit is ${MAX_GALLERY_IMAGES}`,
+        { style: "warning" },
+      );
     }
 
     const newImages = [];
-    for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
-      const file = files[i];
+    for (const file of acceptedFiles) {
       const dataUrl = await readFileAsDataUrl(file);
       newImages.push({
+        id: crypto.randomUUID(),
         file,
         dataUrl,
+        alt: "",
+        localRefPath: null,
       });
     }
     const postState = this._getPost(postId);
@@ -1319,21 +1340,22 @@ class PostComposer extends Component {
     this._isDirty = true;
   }
 
-  handleRemoveImage(postId, index) {
+  handleRemoveImage(postId, imageId) {
     const postState = this._getPost(postId);
     if (!postState) return;
     this._updatePost(postId, {
-      images: postState.images.filter(
-        (image, imageIndex) => imageIndex !== index,
-      ),
+      images: postState.images.filter((image) => image.id !== imageId),
     });
     this._isDirty = true;
   }
 
-  handleEditAltText(postId, index) {
+  handleEditAltText(postId, imageId) {
     const postState = this._getPost(postId);
     if (!postState) return;
-    const image = postState.images[index];
+    const image = postState.images.find(
+      (selectedImage) => selectedImage.id === imageId,
+    );
+    if (!image) return;
     this._openAltTextDialog({
       value: image.alt,
       imageUrl: image.dataUrl,
@@ -1341,8 +1363,8 @@ class PostComposer extends Component {
         const latestPost = this._getPost(postId);
         if (!latestPost) return;
         this._updatePost(postId, {
-          images: latestPost.images.map((selectedImage, imageIndex) =>
-            imageIndex === index
+          images: latestPost.images.map((selectedImage) =>
+            selectedImage.id === imageId
               ? { ...selectedImage, alt: altText }
               : selectedImage,
           ),
@@ -2117,15 +2139,13 @@ class PostComposer extends Component {
             const file = new File([blob], "draft-image", {
               type: blob.type || "image/jpeg",
             });
-            const image = {
+            restoredImages.push({
+              id: crypto.randomUUID(),
               file,
               dataUrl: await readFileAsDataUrl(blob),
+              alt: item.alt ?? "",
               localRefPath: item.localRef.path,
-            };
-            if (item.alt) {
-              image.alt = item.alt;
-            }
-            restoredImages.push(image);
+            });
           } catch (error) {
             console.warn("Failed to restore draft image", error);
             unrestoredImages.push(item);

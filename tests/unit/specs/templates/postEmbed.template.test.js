@@ -163,6 +163,18 @@ describe("postEmbedTemplate - gallery", () => {
     assert(container.querySelector('[data-testid="post-images"]') !== null);
   });
 
+  for (const count of [2, 3, 4]) {
+    it(`renders a ${count}-image gallery as a grid, not a carousel`, () => {
+      const container = renderEmbed(galleryEmbed(count));
+      assert(
+        container.querySelector('[data-testid="image-carousel"]') === null,
+      );
+      const grid = container.querySelector('[data-testid="post-images"]');
+      assert(grid !== null);
+      assert.deepEqual(grid.querySelectorAll("img").length, count);
+    });
+  }
+
   it("does not render a carousel for a legacy 2-image post", () => {
     const embed = {
       $type: "app.bsky.embed.images#view",
@@ -213,10 +225,11 @@ describe("postEmbedTemplate - gallery", () => {
           alt: "",
           aspectRatio: { width: 4, height: 3 },
         },
+        ...galleryEmbed(3).items,
       ],
     });
     const carousel = container.querySelector('[data-testid="image-carousel"]');
-    assert.deepEqual(carousel.images.length, 2);
+    assert.deepEqual(carousel.images.length, 5);
     assert.deepEqual(carousel.images[0].thumb, "https://example.com/g0.jpg");
     assert.deepEqual(carousel.images[1].thumb, "https://example.com/g1.jpg");
   });
@@ -236,6 +249,7 @@ describe("postEmbedTemplate - gallery", () => {
           $type: "app.bsky.embed.gallery#viewImage",
           thumbnail: "https://example.com/g1-only.jpg",
         },
+        ...galleryEmbed(3).items,
       ],
     });
     const carousel = container.querySelector('[data-testid="image-carousel"]');
@@ -1136,6 +1150,25 @@ describe("recordEmbedTemplate - condensed quoted posts", () => {
       container.querySelectorAll(".quoted-post-media-thumb").length,
       4,
     );
+  });
+
+  it("renders gallery thumbnails, capped at four, when condensed", () => {
+    const items = Array.from({ length: 6 }, (unused, index) => ({
+      $type: "app.bsky.embed.gallery#viewImage",
+      thumbnail: `thumb${index}.jpg`,
+      fullsize: `full${index}.jpg`,
+      alt: `alt ${index}`,
+      aspectRatio: { width: 1, height: 1 },
+    }));
+    const record = makeViewRecord({
+      embeds: [{ $type: "app.bsky.embed.gallery#view", items }],
+    });
+    const container = renderRecord(record, { condensed: true });
+    const thumbs = container.querySelectorAll(".quoted-post-media-thumb");
+    assert.deepEqual(thumbs.length, 4);
+    assert.deepEqual(thumbs[0].getAttribute("src"), "thumb0.jpg");
+    assert.deepEqual(thumbs[0].getAttribute("alt"), "alt 0");
+    assert.deepEqual(container.querySelector(".post-embed"), null);
   });
 
   it("renders a video thumbnail with a play button when condensed", () => {

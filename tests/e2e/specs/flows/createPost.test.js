@@ -10,6 +10,17 @@ import {
   createStarterPack,
 } from "../../../shared/factories.js";
 
+const tinyPngBase64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+function tinyPngFiles(count) {
+  return Array.from({ length: count }, (_, index) => ({
+    name: `tiny-${index}.png`,
+    mimeType: "image/png",
+    buffer: Buffer.from(tinyPngBase64, "base64"),
+  }));
+}
+
 test.describe("Create post flow", () => {
   test("should show created post on profile after composing from home", async ({
     page,
@@ -465,7 +476,7 @@ test.describe("Create post flow", () => {
     await expect(profileView).toContainText("#testing");
   });
 
-  test("media picker is disabled once 4 images are selected", async ({
+  test("media picker is disabled once 10 images are selected", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -481,23 +492,62 @@ test.describe("Create post flow", () => {
     await expect(pickerButton).toBeVisible();
     await expect(pickerButton).toBeEnabled();
 
-    const pngBase64 =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
     const mediaInput = composer.locator(".media-picker-input");
-    await mediaInput.setInputFiles(
-      [0, 1, 2, 3].map((index) => ({
-        name: `tiny-${index}.png`,
-        mimeType: "image/png",
-        buffer: Buffer.from(pngBase64, "base64"),
-      })),
-    );
-    await expect(composer.locator(".image-preview-item")).toHaveCount(4, {
-      timeout: 10000,
-    });
+    await mediaInput.setInputFiles(tinyPngFiles(4));
+    await expect(
+      composer.locator('[data-testid="composer-image-preview-item"]'),
+    ).toHaveCount(4, { timeout: 10000 });
+    await expect(pickerButton).toBeEnabled();
+
+    await mediaInput.setInputFiles(tinyPngFiles(6));
+    await expect(
+      composer.locator('[data-testid="composer-image-preview-item"]'),
+    ).toHaveCount(10, { timeout: 10000 });
     await expect(pickerButton).toBeDisabled();
 
-    await composer.locator(".image-preview-remove-button").first().click();
+    await composer
+      .locator('[data-testid="composer-image-remove"]')
+      .first()
+      .click();
     await expect(pickerButton).toBeEnabled();
+  });
+
+  test("publishes 5+ images as a gallery rendered in a carousel", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/intent/compose");
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type("A gallery");
+
+    await composer
+      .locator(".media-picker-input")
+      .setInputFiles(tinyPngFiles(6));
+    await expect(
+      composer.locator('[data-testid="composer-image-preview-item"]'),
+    ).toHaveCount(6, { timeout: 10000 });
+
+    await composer.locator('[data-testid="composer-submit-button"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    const feedItem = profileView.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+    await expect(
+      feedItem.locator('[data-testid="image-carousel"]'),
+    ).toBeVisible();
+    await expect(
+      feedItem.locator('[data-testid="carousel-slide"]'),
+    ).toHaveCount(6);
   });
 
   test("rejects unsupported video file types with a toast", async ({

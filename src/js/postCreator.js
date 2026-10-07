@@ -1,7 +1,11 @@
 import { getPostLangs, isNil, wait } from "/js/utils.js";
 import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
-import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
+import {
+  fetchAndCompressLinkCardImage,
+  LEGACY_IMAGES_EMBED_MAX,
+  MAX_GALLERY_IMAGES,
+} from "/js/embedHelpers.js";
 import {
   getUnresolvedFacetsFromText,
   resolveFacets,
@@ -193,33 +197,54 @@ export class PostCreator {
       return null;
     }
 
-    const uploadedImages = [];
-    for (const img of images) {
-      signal?.throwIfAborted();
-      const compressedImage = await this.imageCompressor.compressImage(
-        img.dataUrl,
+    if (images.length > MAX_GALLERY_IMAGES) {
+      console.warn(
+        `Post has ${images.length} images; only the first ${MAX_GALLERY_IMAGES} will be attached`,
       );
-      const blob = await this.api.uploadBlob(compressedImage.blob, { signal });
-
-      uploadedImages.push({
-        $type: "app.bsky.embed.images#image",
-        alt: img.alt || "",
-        image: {
-          $type: "blob",
-          ref: {
-            $link: blob.ref.$link,
-          },
-          mimeType: blob.mimeType,
-          size: blob.size,
-        },
-        aspectRatio: {
-          $type: "app.bsky.embed.defs#aspectRatio",
-          width: compressedImage.width,
-          height: compressedImage.height,
-        },
-      });
     }
+    const isGallery = images.length > LEGACY_IMAGES_EMBED_MAX;
 
+    signal?.throwIfAborted();
+    const uploadedImages = await Promise.all(
+      images.slice(0, MAX_GALLERY_IMAGES).map(async (image) => {
+        const compressedImage = await this.imageCompressor.compressImage(
+          image.dataUrl,
+        );
+        if (compressedImage.width < 1 || compressedImage.height < 1) {
+          throw new Error("Unable to read image dimensions");
+        }
+        signal?.throwIfAborted();
+        const blob = await this.api.uploadBlob(compressedImage.blob, {
+          signal,
+        });
+        return {
+          $type: isGallery
+            ? "app.bsky.embed.gallery#image"
+            : "app.bsky.embed.images#image",
+          alt: image.alt || "",
+          image: {
+            $type: "blob",
+            ref: {
+              $link: blob.ref.$link,
+            },
+            mimeType: blob.mimeType,
+            size: blob.size,
+          },
+          aspectRatio: {
+            $type: "app.bsky.embed.defs#aspectRatio",
+            width: compressedImage.width,
+            height: compressedImage.height,
+          },
+        };
+      }),
+    );
+
+    if (isGallery) {
+      return {
+        $type: "app.bsky.embed.gallery",
+        items: uploadedImages,
+      };
+    }
     return {
       $type: "app.bsky.embed.images",
       images: uploadedImages,

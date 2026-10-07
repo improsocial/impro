@@ -36,6 +36,13 @@ function getContentTextFromEmbed(embed) {
         }
       }
       break;
+    case "app.bsky.embed.gallery":
+      for (const item of embed.items) {
+        if (item.alt) {
+          texts.push(item.alt);
+        }
+      }
+      break;
     case "app.bsky.embed.external":
       if (embed.external.title) {
         texts.push(embed.external.title);

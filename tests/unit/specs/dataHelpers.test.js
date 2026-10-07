@@ -14,6 +14,7 @@ import {
   isCurateList,
   getQuotedPost,
   getImagesFromDraftPost,
+  getImagesFromPost,
   getLocalRefsFromDraft,
   getBlockedQuote,
   createEmbedFromPost,
@@ -2503,6 +2504,60 @@ describe("isVideoLink", () => {
     assert(!isVideoLink("https://example.com/watch?v=dQw4w9WgXcQ"));
     assert(!isVideoLink("not a url"));
     assert(!isVideoLink(null));
+  });
+});
+
+describe("getImagesFromPost", () => {
+  const galleryView = {
+    $type: "app.bsky.embed.gallery#view",
+    items: [
+      {
+        $type: "app.bsky.embed.gallery#viewImage",
+        thumbnail: "thumb1.jpg",
+        fullsize: "full1.jpg",
+        alt: "first",
+      },
+      { $type: "app.bsky.embed.gallery#viewSomethingElse" },
+    ],
+  };
+
+  it("returns legacy images embed images", () => {
+    const images = [{ thumb: "thumb.jpg", fullsize: "full.jpg", alt: "" }];
+    assert.deepEqual(
+      getImagesFromPost({
+        embed: { $type: "app.bsky.embed.images#view", images },
+      }),
+      images,
+    );
+  });
+
+  it("maps gallery items to images with a thumb field", () => {
+    assert.deepEqual(getImagesFromPost({ embed: galleryView }), [
+      {
+        thumb: "thumb1.jpg",
+        $type: "app.bsky.embed.gallery#viewImage",
+        fullsize: "full1.jpg",
+        alt: "first",
+      },
+    ]);
+  });
+
+  it("reads a gallery nested in recordWithMedia", () => {
+    const images = getImagesFromPost({
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia#view",
+        media: galleryView,
+        record: {},
+      },
+    });
+    assert.deepEqual(
+      images.map((image) => image.thumb),
+      ["thumb1.jpg"],
+    );
+  });
+
+  it("returns an empty list for posts without images", () => {
+    assert.deepEqual(getImagesFromPost({ embed: null }), []);
   });
 });
 

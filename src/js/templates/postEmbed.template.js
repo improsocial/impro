@@ -5,8 +5,12 @@ import {
   doHideAuthorOnUnauthenticated,
   getLabelNameAndDescription,
   parseYouTubeVideoFromUrl,
+  galleryItemsToImages,
 } from "/js/dataHelpers.js";
-import { parseAltFromGifDescription } from "/js/embedHelpers.js";
+import {
+  parseAltFromGifDescription,
+  LEGACY_IMAGES_EMBED_MAX,
+} from "/js/embedHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
@@ -29,15 +33,6 @@ import "/js/components/moderation-warning.js";
 import "/js/components/image-carousel.js";
 import "/js/components/youtube-embed.js";
 import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
-
-function galleryItemsToImages(items) {
-  return (items ?? [])
-    .filter(
-      (item) =>
-        !item.$type || item.$type === "app.bsky.embed.gallery#viewImage",
-    )
-    .map(({ thumbnail, ...rest }) => ({ thumb: thumbnail, ...rest }));
-}
 
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
   return mediaLabel
@@ -117,9 +112,15 @@ function showNestedEmbed(embed) {
 }
 
 function condensedMediaTemplate({ embed, lazyLoadImages }) {
-  if (embed?.$type === "app.bsky.embed.images#view") {
+  const images =
+    embed?.$type === "app.bsky.embed.gallery#view"
+      ? galleryItemsToImages(embed.items)
+      : embed?.$type === "app.bsky.embed.images#view"
+        ? embed.images
+        : [];
+  if (images.length > 0) {
     return html`<div class="quoted-post-media-thumbs">
-      ${embed.images
+      ${images
         .slice(0, 4)
         .map(
           (image) =>
@@ -742,7 +743,7 @@ export function postEmbedTemplate({
       const images = galleryItemsToImages(embed.items);
       if (images.length === 0) return null;
       const children =
-        images.length === 1
+        images.length <= LEGACY_IMAGES_EMBED_MAX
           ? imagesTemplate({ images, lazyLoad: lazyLoadImages })
           : imageCarouselTemplate({ images });
       return moderationWarningWrapperTemplate({ mediaLabel, children });

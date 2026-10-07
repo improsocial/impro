@@ -53,6 +53,20 @@ describe("post-composer", () => {
     element._updatePost(getFirstPost(element).id, patch);
   }
 
+  function makeSelectedImage(dataUrl) {
+    return {
+      id: crypto.randomUUID(),
+      file: {},
+      dataUrl,
+      alt: "",
+      localRefPath: null,
+    };
+  }
+
+  function makeSelectedImages(count) {
+    return Array.from({ length: count }, () => makeSelectedImage("data:..."));
+  }
+
   describe("PostComposer - rendering", () => {
     it("should render dialog element", () => {
       const element = createPostComposer();
@@ -706,17 +720,19 @@ describe("post-composer", () => {
       assert(input.multiple);
     });
 
-    it("should disable image button when 4 images are selected", async () => {
+    it("keeps the image button enabled with 9 images selected", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, {
-        images: [
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-        ],
-      });
+      patchFirstPost(element, { images: makeSelectedImages(9) });
+      await nextFrame();
+      const imageButton = element.querySelector(".image-picker-button");
+      assert(!imageButton.disabled);
+    });
+
+    it("should disable image button when 10 images are selected", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: makeSelectedImages(10) });
       await nextFrame();
       const imageButton = element.querySelector(".image-picker-button");
       assert(imageButton.disabled);
@@ -865,23 +881,17 @@ describe("post-composer", () => {
       assert(event.defaultPrevented);
     });
 
-    it("adds multiple pasted images up to the 4-image cap", async () => {
+    it("adds multiple pasted images up to the 10-image cap", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, {
-        images: [
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-        ],
-      });
+      patchFirstPost(element, { images: makeSelectedImages(8) });
       const event = makePasteEvent([
         makeImageFile("a.png"),
         makeImageFile("b.png"),
         makeImageFile("c.png"),
       ]);
       element.handlePaste(getFirstPost(element).id, event);
-      await waitFor(() => getFirstPost(element).images.length === 4);
+      await waitFor(() => getFirstPost(element).images.length === 10);
     });
 
     it("does not add pasted images when a video is already selected", async () => {
@@ -943,28 +953,48 @@ describe("post-composer", () => {
       );
     });
 
-    it("respects the 4-image cap when many are dropped at once", async () => {
+    it("adds the remaining slots and shows a partial toast when too many are dropped", async () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
-      patchFirstPost(element, {
-        images: [
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-          { file: {}, dataUrl: "data:..." },
-        ],
-      });
+      patchFirstPost(element, { images: makeSelectedImages(3) });
+      const files = Array.from({ length: 12 }, (_, i) =>
+        makeImageFile(`${i}.png`),
+      );
+      dispatchOnWindow(makeDragEvent("drop", { files }));
+      await waitFor(() => getFirstPost(element).images.length === 10);
+      assert(toastText().includes("Only 7 of 12 images added"));
+    });
+
+    it("shows a full-cap toast and adds nothing when 10 images are already selected", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const existingImages = makeSelectedImages(10);
+      patchFirstPost(element, { images: existingImages });
+      dispatchOnWindow(
+        makeDragEvent("drop", { files: [makeImageFile("a.png")] }),
+      );
+      await waitFor(() => toastText().includes("up to 10 images"));
+      assert.deepEqual(getFirstPost(element).images, existingImages);
+    });
+
+    it("gives each added image a unique id and an empty alt", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
       dispatchOnWindow(
         makeDragEvent("drop", {
-          files: [
-            makeImageFile("a.png"),
-            makeImageFile("b.png"),
-            makeImageFile("c.png"),
-          ],
+          files: [makeImageFile("a.png"), makeImageFile("b.png")],
         }),
       );
-      await waitFor(() => getFirstPost(element).images.length === 4);
-      assert(toastText().includes("up to 4 images"));
+      await waitFor(() => getFirstPost(element).images.length === 2);
+      const [first, second] = getFirstPost(element).images;
+      assert(first.id);
+      assert(second.id);
+      assert.notEqual(first.id, second.id);
+      assert.deepEqual(first.alt, "");
+      assert.deepEqual(first.localRefPath, null);
     });
 
     it("routes a dropped video through the video processing pipeline", async () => {
@@ -1819,7 +1849,7 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "with image", facets: [] },
       });
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:a")] });
       const result = await element.saveDraft();
       assert.deepEqual(result, true);
       const image = getFirstPost(element).images[0];
@@ -1868,15 +1898,15 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "with image", facets: [] },
       });
-      const originalImage = { file: {}, dataUrl: "data:a" };
+      const originalImage = makeSelectedImage("data:a");
       patchFirstPost(element, { images: [originalImage] });
       const savePromise = element.saveDraft();
-      const addedImage = { file: {}, dataUrl: "data:b" };
+      const addedImage = makeSelectedImage("data:b");
       patchFirstPost(element, { images: [addedImage, originalImage] });
       resolveCreate("draft-1");
       assert.deepEqual(await savePromise, true);
       const [first, second] = getFirstPost(element).images;
-      assert.deepEqual(first.localRefPath, undefined);
+      assert.deepEqual(first.localRefPath, null);
       assert(second.localRefPath.startsWith("image:"));
     });
 
@@ -1922,7 +1952,7 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:a")] });
       element.markSaved("draft-1", ["image:a"]);
       element.clearComposer();
       assert.deepEqual(getFirstPost(element).text, "");
@@ -2126,7 +2156,7 @@ describe("post-composer", () => {
           ],
         },
       });
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:new" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:new")] });
       assert.deepEqual(await element.saveDraft(), true);
       const savedArgs = updateDraft.mock.calls[0].arguments[0];
       const items = savedArgs.draft.posts[0].embedGallery.items;
@@ -2557,19 +2587,26 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, {
-        images: [
-          { file: {}, dataUrl: "data:a" },
-          { file: {}, dataUrl: "data:b" },
-        ],
+        images: [makeSelectedImage("data:a"), makeSelectedImage("data:b")],
       });
       await nextFrame();
-      element
-        .querySelector(".image-preview-item .image-preview-remove-button")
-        .click();
+      element.querySelector('[data-testid="composer-image-remove"]').click();
       const images = getFirstPost(element).images;
       assert.deepEqual(images.length, 1);
       assert.deepEqual(images[0].dataUrl, "data:b");
       assert.deepEqual(element._isDirty, true);
+    });
+
+    it("removes the clicked image by id when images share a data URL", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const images = makeSelectedImages(3);
+      patchFirstPost(element, { images });
+      await nextFrame();
+      element
+        .querySelectorAll('[data-testid="composer-image-remove"]')[1]
+        .click();
+      assert.deepEqual(getFirstPost(element).images, [images[0], images[2]]);
     });
 
     it("closes the external link preview and rejects the URL", async () => {
@@ -2822,7 +2859,7 @@ describe("post-composer", () => {
     it("edits image alt text through the alt-text dialog", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:a")] });
       await nextFrame();
       element.querySelector(".image-preview-item img").click();
       const dialog = document.body.querySelector("image-alt-text-dialog");
@@ -2848,13 +2885,13 @@ describe("post-composer", () => {
     it("closes the image alt-text dialog without saving on close", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:a")] });
       await nextFrame();
       element.querySelector(".image-preview-item img").click();
       const dialog = document.body.querySelector("image-alt-text-dialog");
       dialog.querySelector('[data-testid="alt-text-close"]').click();
       await nextFrame();
-      assert.deepEqual(getFirstPost(element).images[0].alt, undefined);
+      assert.deepEqual(getFirstPost(element).images[0].alt, "");
       assert.deepEqual(
         document.body.querySelector("image-alt-text-dialog"),
         null,
@@ -3880,6 +3917,51 @@ describe("post-composer", () => {
       assert.deepEqual(getFirstPost(element).unrestoredImages, null);
     });
 
+    it("restores all images of a 6-image draft with ids and alt text", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.draftMediaStore,
+        "readBlob",
+        async () => new globalThis.window.Blob(["img"], { type: "image/png" }),
+      );
+      connectElement(element);
+      const items = Array.from({ length: 6 }, (_, i) => ({
+        $type: "app.bsky.draft.defs#draftEmbedImage",
+        alt: `alt ${i}`,
+        localRef: {
+          $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+          path: `image:${i}`,
+        },
+      }));
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          posts: [
+            {
+              text: "six images",
+              embedGallery: {
+                $type: "app.bsky.draft.defs#draftEmbedGallery",
+                items,
+              },
+            },
+          ],
+        },
+      });
+      const images = getFirstPost(element).images;
+      assert.deepEqual(
+        images.map((image) => image.localRefPath),
+        items.map((item) => item.localRef.path),
+      );
+      assert.deepEqual(
+        images.map((image) => image.alt),
+        items.map((item) => item.alt),
+      );
+      assert.deepEqual(new Set(images.map((image) => image.id)).size, 6);
+    });
+
     it("marks images unrestored when the local bytes are missing", async () => {
       const element = createPostComposer();
       element.dataLayer = makeTestDataLayer();
@@ -4145,7 +4227,7 @@ describe("post-composer", () => {
     it("rejects a video when images are already selected", async () => {
       const element = createPostComposer();
       connectElement(element);
-      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      patchFirstPost(element, { images: [makeSelectedImage("data:a")] });
       await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
       assert.deepEqual(getFirstPost(element).video, null);
       assert(toastText().includes("multiple media types"));
