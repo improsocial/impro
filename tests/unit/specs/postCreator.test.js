@@ -267,6 +267,127 @@ describe("images embed preparation", () => {
   });
 });
 
+describe("gallery embed preparation", () => {
+  function makeImages(count) {
+    return Array.from({ length: count }, (_, i) => ({
+      dataUrl: `data:image/jpeg;base64,${i}`,
+      alt: `alt ${i}`,
+    }));
+  }
+
+  it("emits a legacy embed.images record for 4 images", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await createSinglePost(pc, { postText: "hi", images: makeImages(4) });
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.images");
+    assert.deepEqual(api.lastEmbed.images.length, 4);
+    assert.deepEqual(api.lastEmbed.items, undefined);
+  });
+
+  it("emits an embed.gallery record with tagged items for 5 images", async () => {
+    const api = makeApi();
+    const imageCompressor = makeImageCompressor();
+    imageCompressor.compressImage = async () => ({
+      blob: new Blob(["x"], { type: "image/jpeg" }),
+      width: 300,
+      height: 200,
+    });
+    const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
+    await createSinglePost(pc, { postText: "hi", images: makeImages(5) });
+    const embed = api.lastEmbed;
+    assert.deepEqual(embed.$type, "app.bsky.embed.gallery");
+    assert.deepEqual(embed.images, undefined);
+    assert.deepEqual(embed.items.length, 5);
+    for (const [index, item] of embed.items.entries()) {
+      assert.deepEqual(item.$type, "app.bsky.embed.gallery#image");
+      assert.deepEqual(item.alt, `alt ${index}`);
+      assert.deepEqual(item.image.ref.$link, "bafyimg");
+      assert.deepEqual(item.aspectRatio.width, 300);
+      assert.deepEqual(item.aspectRatio.height, 200);
+    }
+  });
+
+  it("keeps image order when uploads finish out of order", async () => {
+    const api = makeApi();
+    let uploadCount = 0;
+    api.uploadBlob = async () => {
+      const uploadIndex = uploadCount++;
+      await new Promise((resolve) =>
+        setTimeout(resolve, (5 - uploadIndex) * 5),
+      );
+      return {
+        ref: { $link: `bafyimg${uploadIndex}` },
+        mimeType: "image/jpeg",
+        size: 100,
+      };
+    };
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await createSinglePost(pc, { postText: "hi", images: makeImages(5) });
+    assert.deepEqual(
+      api.lastEmbed.items.map((item) => item.image.ref.$link),
+      ["bafyimg0", "bafyimg1", "bafyimg2", "bafyimg3", "bafyimg4"],
+    );
+    assert.deepEqual(
+      api.lastEmbed.items.map((item) => item.alt),
+      ["alt 0", "alt 1", "alt 2", "alt 3", "alt 4"],
+    );
+  });
+
+  it("attaches only the first 10 images", async (t) => {
+    t.mock.method(console, "warn", () => {});
+    const api = makeApi();
+    const imageCompressor = makeImageCompressor();
+    const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
+    const images = makeImages(12);
+    await createSinglePost(pc, { postText: "hi", images });
+    assert.deepEqual(api.lastEmbed.items.length, 10);
+    assert.deepEqual(
+      imageCompressor.compressed,
+      images.slice(0, 10).map((image) => image.dataUrl),
+    );
+  });
+
+  it("wraps a gallery in recordWithMedia when quoting", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await createSinglePost(pc, {
+      postText: "hi",
+      images: makeImages(6),
+      quotedRecord: { uri: "at://x", cid: "c" },
+    });
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.recordWithMedia");
+    assert.deepEqual(api.lastEmbed.media.$type, "app.bsky.embed.gallery");
+    assert.deepEqual(api.lastEmbed.media.items.length, 6);
+  });
+
+  it("fails instead of publishing an image with zero dimensions", async () => {
+    const api = makeApi();
+    const imageCompressor = makeImageCompressor();
+    imageCompressor.compressImage = async () => ({
+      blob: new Blob(["x"], { type: "image/jpeg" }),
+      width: 0,
+      height: 0,
+    });
+    const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
+    await assert.rejects(
+      createSinglePost(pc, { postText: "hi", images: makeImages(1) }),
+    );
+    assert.deepEqual(api.lastWrites, null);
+  });
+});
+
 describe("external embed preparation", () => {
   it("produces no embed when external is missing", async () => {
     const api = makeApi();

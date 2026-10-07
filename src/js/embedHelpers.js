@@ -8,6 +8,9 @@ import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { fetchWithTimeout, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 
+export const LEGACY_IMAGES_EMBED_MAX = 4;
+export const MAX_GALLERY_IMAGES = 10;
+
 // Fetch a remote image and return a compressed { blob, ... } ready for
 // api.uploadBlob.
 export async function fetchAndCompressLinkCardImage(

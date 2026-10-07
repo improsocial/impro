@@ -3322,6 +3322,7 @@ streaming-video.is-paused .gif-play-toggle app-icon {
 
 .image-preview-item {
   position: relative;
+  flex-shrink: 0;
   width: 120px;
   height: 120px;
   border-radius: var(--image-preview-border-radius);
@@ -7320,9 +7321,9 @@ sidebar-search {
 
 .post-composer-image-preview {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px;
+  overflow-x: auto;
 }
 
 .post-composer-video-preview {

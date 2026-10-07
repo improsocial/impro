@@ -676,6 +676,17 @@ export class MockServer {
           aspectRatio: img.aspectRatio,
         })),
       };
+    } else if (recordEmbed?.$type === "app.bsky.embed.gallery") {
+      embed = {
+        $type: "app.bsky.embed.gallery#view",
+        items: recordEmbed.items.map((item) => ({
+          $type: "app.bsky.embed.gallery#viewImage",
+          thumbnail: "",
+          fullsize: "",
+          alt: item.alt || "",
+          aspectRatio: item.aspectRatio,
+        })),
+      };
     } else if (recordEmbed?.$type === "app.bsky.embed.video") {
       embed = {
         $type: "app.bsky.embed.video#view",
