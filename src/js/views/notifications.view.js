@@ -190,7 +190,6 @@ export default async function notificationsView({
   }
 
   function isWithinGroupWindow(notificationGroup, notification) {
-    if (notificationGroup.type !== "subscribed-post") return true;
     const head = notificationGroup.notifications[0];
     const ageDifferenceMs =
       new Date(head.indexedAt) - new Date(notification.indexedAt);

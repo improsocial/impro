@@ -240,6 +240,40 @@ test.describe("Notifications view", () => {
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
   });
 
+  test("should not group follows more than 48h apart", async ({ page }) => {
+    const hoursAgo = (hours) =>
+      new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: hoursAgo(1),
+      }),
+      createNotification({
+        reason: "follow",
+        author: bob,
+        indexedAt: hoursAgo(10),
+      }),
+      createNotification({
+        reason: "follow",
+        author: charlie,
+        indexedAt: hoursAgo(60),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    await expect(items.nth(0).locator(".notification-avatar")).toHaveCount(2);
+    await expect(items.nth(1).locator(".notification-avatar")).toHaveCount(1);
+    await expect(items.nth(1)).toContainText("Charlie");
+  });
+
   test("should show the starter pack a follow came from", async ({ page }) => {
     const mockServer = new MockServer();
     const starterPack = createStarterPack({
