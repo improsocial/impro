@@ -7,7 +7,7 @@ const OPEN_CONVO_CONFIRM_DELAY_MS = 7000;
 export class ChatNotificationService {
   constructor(api) {
     this.api = api;
-    this.$numNotifications = new Signal.State(0);
+    this.$numNotifications = new Signal.State(null);
     this.$numUnreadRequestConvos = new Signal.State(0);
     this._optimisticallyReadIds = new Set();
     this._lastServerTotal = 0;

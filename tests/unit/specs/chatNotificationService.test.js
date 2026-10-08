@@ -21,10 +21,10 @@ function createMockApi({
 }
 
 describe("constructor", () => {
-  it("should initialize with zero notifications", () => {
+  it("should initialize with a null count until loaded", () => {
     const api = createMockApi();
     const service = new ChatNotificationService(api);
-    assert.deepEqual(service.$numNotifications.get(), 0);
+    assert.equal(service.$numNotifications.get(), null);
     assert.deepEqual(service.$numUnreadRequestConvos.get(), 0);
   });
 });
@@ -55,7 +55,7 @@ describe("fetchNumNotifications", () => {
     const api = createMockApi({ unreadAcceptedConvos: 1 });
     const service = new ChatNotificationService(api);
 
-    assert.deepEqual(service.$numNotifications.get(), 0);
+    assert.equal(service.$numNotifications.get(), null);
 
     await service.fetchNumNotifications();
 
