@@ -1,6 +1,9 @@
 import { html } from "/js/lib/lit-html.js";
 import { getDisplayName } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import "/js/components/app-icon.js";
@@ -115,7 +118,7 @@ function identityTemplate({ profile, account }) {
             clickAction: "none",
             showLiveBadge: false,
           })
-        : html`<div class="avatar-placeholder"></div>`}
+        : avatarPlaceholderTemplate()}
     </span>
     <span class="account-switcher-names">
       <span class="account-switcher-display-name">

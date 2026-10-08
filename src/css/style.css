@@ -1227,14 +1227,6 @@ input[type="color"]::-moz-color-swatch {
   border-radius: 5px;
 }
 
-.avatar-placeholder {
-  width: var(--avatar-size-post);
-  height: var(--avatar-size-post);
-  border-radius: var(--avatar-border-radius);
-  border: var(--hair) solid var(--post-border-color);
-  background-color: var(--image-placeholder-color);
-}
-
 header {
   z-index: var(--header-z-index);
   background-color: var(--background-color);
@@ -1479,8 +1471,7 @@ tab-bar:not([full-width]) {
     padding-bottom: 0 !important;
   }
 
-  .sidebar .sidebar-profile-avatar .avatar-image-frame,
-  .sidebar .sidebar-profile-avatar .avatar-placeholder {
+  .sidebar .sidebar-profile-avatar .avatar-image-frame {
     width: var(--avatar-size-sidebar-compact);
     height: var(--avatar-size-sidebar-compact);
   }
@@ -1560,8 +1551,7 @@ tab-bar:not([full-width]) {
   }
 }
 
-.sidebar-profile-avatar .avatar-image-frame,
-.sidebar-profile-avatar .avatar-placeholder {
+.sidebar-profile-avatar .avatar-image-frame {
   width: var(--avatar-size-sidebar);
   height: var(--avatar-size-sidebar);
 }
@@ -1902,11 +1892,6 @@ button.sidebar-plugin-nav-item {
 }
 
 .footer-nav-item .avatar-image-frame {
-  width: var(--avatar-size-footer-nav);
-  height: var(--avatar-size-footer-nav);
-}
-
-.footer-nav-item .avatar-placeholder {
   width: var(--avatar-size-footer-nav);
   height: var(--avatar-size-footer-nav);
 }
@@ -4039,8 +4024,7 @@ image-carousel {
   flex-shrink: 0;
 }
 
-.convo-avatar .avatar-image-frame,
-.convo-avatar .avatar-placeholder {
+.convo-avatar .avatar-image-frame {
   width: var(--avatar-size-convo);
   height: var(--avatar-size-convo);
 }
@@ -4051,7 +4035,9 @@ image-carousel {
   height: var(--avatar-size-convo);
 }
 
-.avatar-group > .avatar-placeholder {
+.avatar-group > .avatar,
+.avatar-group > .avatar .avatar-image-frame {
+  display: block;
   width: 100%;
   height: 100%;
 }
@@ -4601,8 +4587,7 @@ image-carousel {
   align-self: flex-start;
 }
 
-.message-avatar .avatar-image-frame,
-.message-avatar .avatar-placeholder {
+.message-avatar .avatar-image-frame {
   width: var(--avatar-size-message);
   height: var(--avatar-size-message);
 }
@@ -5769,7 +5754,6 @@ chat-input .rich-text-input-placeholder {
 
 .reaction-row-avatar .avatar,
 .reaction-row-avatar .avatar-image-frame,
-.reaction-row-avatar .avatar-placeholder,
 .reaction-row-avatar .avatar-image {
   width: 42px;
   height: 42px;
@@ -9153,10 +9137,6 @@ context-menu-item-group > context-menu-item > button {
   margin-left: -8px;
 }
 
-.settings-account-avatar-stack .avatar:first-child {
-  margin-left: 0;
-}
-
 .settings-account-avatar-stack .avatar .avatar-image-frame {
   width: 24px;
   height: 24px;
@@ -9450,7 +9430,6 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .account-switcher-item .avatar,
-.account-switcher-item .avatar-placeholder,
 .account-switcher-item .skeleton-avatar {
   width: 40px;
   height: 40px;

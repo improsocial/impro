@@ -1,11 +1,12 @@
 import { html } from "/js/lib/lit-html.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 
 export function avatarGroupTemplate({ authors }) {
   if (authors.length === 0) {
-    return html`<div class="avatar-group">
-      <div class="avatar-placeholder"></div>
-    </div>`;
+    return html`<div class="avatar-group">${avatarPlaceholderTemplate()}</div>`;
   }
   if (authors.length === 1) {
     return avatarTemplate({

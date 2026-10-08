@@ -1,7 +1,10 @@
 import { html, ref } from "/js/lib/lit-html.js";
 import { classnames, enableLongPress } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { formatNumNotifications } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 
@@ -78,7 +81,7 @@ export function footerTemplate({
       template: () =>
         html`${currentUser
           ? avatarTemplate({ author: currentUser, clickAction: "none" })
-          : html`<div class="avatar-placeholder"></div>`}`,
+          : avatarPlaceholderTemplate()}`,
     },
   ];
 

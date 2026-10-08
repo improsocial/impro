@@ -15,7 +15,10 @@ import {
   getInteractionTimestamp,
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
@@ -79,7 +82,7 @@ export default async function chatView({
             }
             return otherUser
               ? avatarTemplate({ author: otherUser })
-              : html`<div class="avatar-placeholder"></div>`;
+              : avatarPlaceholderTemplate();
           })()}
         </div>
         <div class="convo-content">

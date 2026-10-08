@@ -25,7 +25,7 @@ describe("avatarGroupTemplate", () => {
     const container = renderTemplate([]);
     const group = container.querySelector(".avatar-group");
     assert(group !== null);
-    assert(group.querySelector(".avatar-placeholder") !== null);
+    assert(group.querySelector("[data-testid='avatar-placeholder']") !== null);
   });
 
   it("should render a single avatar without the group wrapper", () => {

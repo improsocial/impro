@@ -99,6 +99,12 @@ function getAvatarFullSizeUrl(author, isLabeler) {
   }
 }
 
+export function avatarPlaceholderTemplate() {
+  return html`<div class="avatar" data-testid="avatar-placeholder">
+    <div class="avatar-image-frame"></div>
+  </div>`;
+}
+
 export function avatarTemplate({
   author,
   clickAction = "default",

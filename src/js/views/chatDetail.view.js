@@ -22,7 +22,10 @@ import {
   groupReactions,
 } from "/js/dataHelpers.js";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
@@ -971,7 +974,7 @@ export default async function chatDetailView({
             ? html`<div class="message-avatar">
                 ${author
                   ? avatarTemplate({ author })
-                  : html`<div class="avatar-placeholder"></div>`}
+                  : avatarPlaceholderTemplate()}
               </div>`
             : !isCurrentUser && !showAvatar
               ? html`<div class="message-avatar-spacer"></div>`

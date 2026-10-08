@@ -14,7 +14,10 @@ import "/js/components/context-menu-item.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 export default async function settingsView({
@@ -73,13 +76,9 @@ export default async function settingsView({
               >
                 ${accounts.slice(0, 5).map((account) => {
                   const profile = accountProfiles[account.did] ?? null;
-                  if (!profile) {
-                    return null;
-                  }
-                  return avatarTemplate({
-                    author: profile,
-                    clickAction: "none",
-                  });
+                  return profile
+                    ? avatarTemplate({ author: profile, clickAction: "none" })
+                    : avatarPlaceholderTemplate();
                 })}
               </span>`}
       </button>
@@ -105,14 +104,14 @@ export default async function settingsView({
                       }
                     }}
                   >
-                    ${profile
-                      ? html`<span class="vertical-nav-icon"
-                          >${avatarTemplate({
+                    <span class="vertical-nav-icon"
+                      >${profile
+                        ? avatarTemplate({
                             author: profile,
                             clickAction: "none",
-                          })}</span
-                        >`
-                      : null}
+                          })
+                        : avatarPlaceholderTemplate()}</span
+                    >
                     <span class="vertical-nav-label">
                       ${getDisplayName(account)}
                       ${account.needsReauth
@@ -401,7 +400,9 @@ export default async function settingsView({
       .then((profiles) => {
         const profilesByDid = {};
         for (const profile of profiles) {
-          profilesByDid[profile.did] = profile;
+          if (profile) {
+            profilesByDid[profile.did] = profile;
+          }
         }
         $otherAccountProfiles.set(profilesByDid);
       });
