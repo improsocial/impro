@@ -777,13 +777,20 @@ export default async function notificationsView({
     }
   }
 
+  const tabScrollState = new Map();
+
   async function handleTabClick(tab) {
-    if (tab === state.$activeTab.get()) {
+    const currentTab = state.$activeTab.get();
+    if (tab === currentTab) {
       scrollAndReloadNotifications();
       return;
     }
+    tabScrollState.set(currentTab, window.scrollY);
     state.$activeTab.set(tab);
-    window.scrollTo(0, 0);
+    const savedScrollY = tabScrollState.get(tab) ?? 0;
+    requestAnimationFrame(() => {
+      window.scrollTo(0, savedScrollY);
+    });
     if (tab === "mentions" && !dataLayer.derived.$mentionNotifications.get()) {
       await loadMentionNotifications({ reload: true });
     }

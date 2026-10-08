@@ -1734,6 +1734,59 @@ test.describe("Notifications view", () => {
       await expect(view).toContainText("A mention post");
     });
 
+    test("should preserve each tab's scroll position when switching tabs", async ({
+      page,
+    }) => {
+      const likedPosts = [];
+      const notifications = [];
+      for (let i = 1; i <= 30; i++) {
+        const post = createPost({
+          uri: `at://did:plc:testuser123/app.bsky.feed.post/scrollpost${i}`,
+          text: `Liked post ${i}`,
+          authorHandle: "testuser.bsky.social",
+          authorDisplayName: "Test User",
+        });
+        likedPosts.push(post);
+        notifications.push(
+          createNotification({
+            reason: "like",
+            author: createProfile({
+              did: `did:plc:liker${i}`,
+              handle: `liker${i}.bsky.social`,
+              displayName: `Liker ${i}`,
+            }),
+            reasonSubject: post.uri,
+            indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+          }),
+        );
+      }
+
+      const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const items = view.locator(".notification-item");
+      await expect(items.nth(20)).toBeVisible({ timeout: 10000 });
+
+      await page.evaluate(() => window.scrollTo(0, 600));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
+
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+        .toBe(0);
+
+      await view.locator(".tab-bar-button").nth(0).click();
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+        .toBe(600);
+    });
+
     function createPagedMentionNotifications(count) {
       const mentionPosts = [];
       const notifications = [];
