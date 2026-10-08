@@ -1558,6 +1558,36 @@ describe("unmuteActor", () => {
   });
 });
 
+describe("muteThread", () => {
+  it("should mute thread", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.muteThread("at://did:plc:target/app.bsky.feed.post/root");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.muteThread"));
+    assert.equal(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assert.equal(body.root, "at://did:plc:target/app.bsky.feed.post/root");
+  });
+});
+
+describe("unmuteThread", () => {
+  it("should unmute thread", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.unmuteThread("at://did:plc:target/app.bsky.feed.post/root");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.unmuteThread"));
+    assert.equal(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assert.equal(body.root, "at://did:plc:target/app.bsky.feed.post/root");
+  });
+});
+
 describe("blockActor", () => {
   it("should create block record", async () => {
     const session = createMockSession({

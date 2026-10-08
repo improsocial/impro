@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
@@ -12,6 +12,7 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
 import { trackDisposable } from "../../testHelpers.js";
+import { createPost } from "../../../shared/factories.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -6044,5 +6045,81 @@ describe("updatePostInteractionSettings", () => {
       threadgateAllowRules: null,
       postgateEmbeddingRules: null,
     });
+  });
+});
+
+describe("setThreadMuted", () => {
+  const rootUri = "at://did:plc:alice/app.bsky.feed.post/root";
+  const root = createPost({ uri: rootUri, text: "root" });
+  const rootRef = { uri: root.uri, cid: root.cid };
+  const reply = createPost({
+    uri: "at://did:plc:bob/app.bsky.feed.post/reply",
+    text: "reply",
+    reply: { root: rootRef, parent: rootRef },
+  });
+  const otherPost = createPost({
+    uri: "at://did:plc:carol/app.bsky.feed.post/other",
+    text: "other",
+  });
+
+  function storedThreadMuted(dataStore, uri) {
+    return dataStore.$posts.get(uri).viewer.threadMuted;
+  }
+
+  function setup(mockApi) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    for (const post of [root, reply, otherPost]) {
+      dataStore.$posts.set(post.uri, post);
+    }
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should mute the record root and update stored thread posts", async () => {
+    const muteThread = mock.fn(async () => ({}));
+    const { mutations, dataStore, patchStore } = setup({ muteThread });
+
+    const promise = mutations.setThreadMuted(reply, true);
+    assert.deepEqual(
+      patchStore.$threadMutePatches.get(rootUri).map((patch) => patch.body),
+      [{ type: "setThreadMuted", muted: true }],
+    );
+    await promise;
+
+    assert.equal(muteThread.mock.callCount(), 1);
+    assert.deepEqual(muteThread.mock.calls[0].arguments, [rootUri]);
+    assert.equal(storedThreadMuted(dataStore, rootUri), true);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), true);
+    assert.equal(storedThreadMuted(dataStore, otherPost.uri), undefined);
+    assert.deepEqual(patchStore.$threadMutePatches.get(rootUri), []);
+  });
+
+  it("should use the post's own uri when it is not a reply", async () => {
+    const unmuteThread = mock.fn(async () => ({}));
+    const { mutations, dataStore } = setup({ unmuteThread });
+    await mutations.setThreadMuted(root, false);
+    assert.deepEqual(unmuteThread.mock.calls[0].arguments, [rootUri]);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), false);
+  });
+
+  it("should roll back on failure without updating stored posts", async () => {
+    const error = new Error("boom");
+    const { mutations, dataStore, patchStore } = setup({
+      muteThread: async () => {
+        throw error;
+      },
+    });
+    await assert.rejects(mutations.setThreadMuted(reply, true), error);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), undefined);
+    assert.deepEqual(patchStore.$threadMutePatches.get(rootUri), []);
   });
 });

@@ -1425,3 +1425,75 @@ describe("Message Patches - convergence", () => {
     assert.deepEqual(patched.reactions.length, 3);
   });
 });
+
+describe("thread mute patches", () => {
+  const rootUri = "at://did:plc:test/app.bsky.feed.post/root";
+
+  it("should add patches in order", () => {
+    const patchStore = new PatchStore();
+    patchStore.addThreadMutePatch(rootUri, {
+      type: "setThreadMuted",
+      muted: true,
+    });
+    patchStore.addThreadMutePatch(rootUri, {
+      type: "setThreadMuted",
+      muted: false,
+    });
+    const patches = patchStore.$threadMutePatches.get(rootUri);
+    assert.deepEqual(
+      patches.map((patch) => patch.body.muted),
+      [true, false],
+    );
+  });
+
+  it("should remove a patch by id", () => {
+    const patchStore = new PatchStore();
+    const firstId = patchStore.addThreadMutePatch(rootUri, {
+      type: "setThreadMuted",
+      muted: true,
+    });
+    patchStore.addThreadMutePatch(rootUri, {
+      type: "setThreadMuted",
+      muted: false,
+    });
+    patchStore.removeThreadMutePatch(rootUri, firstId);
+    const patches = patchStore.$threadMutePatches.get(rootUri);
+    assert.deepEqual(
+      patches.map((patch) => patch.body.muted),
+      [false],
+    );
+  });
+
+  it("should apply patches in order so the last one wins", () => {
+    const patchStore = new PatchStore();
+    const post = { uri: rootUri, viewer: {} };
+    const patches = [
+      { id: "1", body: { type: "setThreadMuted", muted: true } },
+      { id: "2", body: { type: "setThreadMuted", muted: false } },
+    ];
+    const patched = patchStore.applyThreadMutePatches(post, patches);
+    assert.equal(patched.viewer.threadMuted ?? false, false);
+    assert.deepEqual(
+      patchStore.applyThreadMutePatches(post, patches.slice(0, 1)).viewer
+        .threadMuted,
+      true,
+    );
+  });
+
+  it("should return the same post when the value is unchanged", () => {
+    const patchStore = new PatchStore();
+    const post = { uri: rootUri, viewer: { threadMuted: true } };
+    const patched = patchStore.applyThreadMutePatch(post, {
+      type: "setThreadMuted",
+      muted: true,
+    });
+    assert.equal(patched, post);
+  });
+
+  it("should throw on an unknown patch type", () => {
+    const patchStore = new PatchStore();
+    assert.throws(() =>
+      patchStore.applyThreadMutePatch({ viewer: {} }, { type: "bogus" }),
+    );
+  });
+});

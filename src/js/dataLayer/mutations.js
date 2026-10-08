@@ -15,6 +15,7 @@ import {
   unpinPostInFeed,
   valueForPinnedItem,
   buildCdnUrl,
+  getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import {
   batch,
@@ -2172,6 +2173,27 @@ export class Mutations {
     }
   }
 
+  async setThreadMuted(post, muted) {
+    const rootUri = getReplyRootFromPost(post).uri;
+    const patchId = this.patchStore.addThreadMutePatch(rootUri, {
+      type: "setThreadMuted",
+      muted,
+    });
+    try {
+      if (muted) {
+        await this.api.muteThread(rootUri);
+      } else {
+        await this.api.unmuteThread(rootUri);
+      }
+      this._updatePostsByThreadRoot(rootUri, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, threadMuted: muted },
+      }));
+    } finally {
+      this.patchStore.removeThreadMutePatch(rootUri, patchId);
+    }
+  }
+
   async markConvoAsRead(convoId) {
     await this.api.markConvoAsRead(convoId);
     const latest = this.dataStore.$convos.get(convoId);
@@ -2310,6 +2332,14 @@ export class Mutations {
   _updatePostsByAuthor(profileDid, updateFunc) {
     for (const post of this.dataStore.$posts.values()) {
       if (post?.author?.did === profileDid) {
+        this.dataStore.$posts.set(post.uri, updateFunc(post));
+      }
+    }
+  }
+
+  _updatePostsByThreadRoot(rootUri, updateFunc) {
+    for (const post of this.dataStore.$posts.values()) {
+      if (post?.viewer && getReplyRootFromPost(post).uri === rootUri) {
         this.dataStore.$posts.set(post.uri, updateFunc(post));
       }
     }

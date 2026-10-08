@@ -12,6 +12,7 @@ export class PatchStore extends ReactiveStore {
     this.$profilePatches = new SignalMap();
     this.$messagePatches = new SignalMap();
     this.$convoPatches = new SignalMap();
+    this.$threadMutePatches = new SignalMap();
     this.$preferencePatches = new Signal.State([]);
     this.$currentUserPatches = new Signal.State([]);
     this.$authorFeedPatches = new SignalMap();
@@ -352,6 +353,51 @@ export class PatchStore extends ReactiveStore {
     switch (patchBody.type) {
       case "setConvoMuted":
         return { ...convo, muted: patchBody.muted };
+      default:
+        throw new Error(`Unknown patch type: ${patchBody.type}`);
+    }
+  }
+
+  /* Thread Mute Patches */
+
+  _getThreadMutePatches(rootUri) {
+    return this.$threadMutePatches.get(rootUri) || [];
+  }
+
+  addThreadMutePatch(rootUri, patchBody) {
+    const patchId = this.uuid.create();
+    this.$threadMutePatches.set(rootUri, [
+      ...this._getThreadMutePatches(rootUri),
+      { id: patchId, body: patchBody },
+    ]);
+    return patchId;
+  }
+
+  removeThreadMutePatch(rootUri, patchId) {
+    this.$threadMutePatches.set(
+      rootUri,
+      this._getThreadMutePatches(rootUri).filter(({ id }) => id !== patchId),
+    );
+  }
+
+  applyThreadMutePatches(post, patches) {
+    let patchedPost = post;
+    for (const patch of patches) {
+      patchedPost = this.applyThreadMutePatch(patchedPost, patch.body);
+    }
+    return patchedPost;
+  }
+
+  applyThreadMutePatch(post, patchBody) {
+    switch (patchBody.type) {
+      case "setThreadMuted":
+        if ((post.viewer.threadMuted ?? false) === patchBody.muted) {
+          return post;
+        }
+        return {
+          ...post,
+          viewer: { ...post.viewer, threadMuted: patchBody.muted },
+        };
       default:
         throw new Error(`Unknown patch type: ${patchBody.type}`);
     }

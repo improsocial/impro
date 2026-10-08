@@ -1129,6 +1129,28 @@ export class Api {
     return res;
   }
 
+  async muteThread(rootUri) {
+    const res = await this.appViewRequest("app.bsky.graph.muteThread", {
+      method: "POST",
+      body: {
+        root: rootUri,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async unmuteThread(rootUri) {
+    const res = await this.appViewRequest("app.bsky.graph.unmuteThread", {
+      method: "POST",
+      body: {
+        root: rootUri,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
   async blockActor(profile) {
     const res = await this.request("com.atproto.repo.createRecord", {
       method: "POST",

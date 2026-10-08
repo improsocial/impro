@@ -61,6 +61,7 @@ function postContextMenuTemplate({
   onClickShowLess,
   onClickHidePost,
   onClickMute,
+  onClickMuteThread,
   onClickBlock,
   onClickReport,
   onClickDelete,
@@ -139,6 +140,18 @@ function postContextMenuTemplate({
                 </context-menu-item-group>
               `
             : null}
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-mute-thread"
+              data-teststate=${post.viewer?.threadMuted ? "muted" : "unmuted"}
+              icon=${post.viewer?.threadMuted
+                ? "speaker-volume-line"
+                : "speaker-slash-line"}
+              @click=${() => onClickMuteThread(post, !post.viewer?.threadMuted)}
+            >
+              ${post.viewer?.threadMuted ? "Unmute thread" : "Mute thread"}
+            </context-menu-item>
+          </context-menu-item-group>
           ${!isUserPost
             ? html`
                 ${!post.viewer?.isHidden
@@ -383,6 +396,7 @@ export function postActionBarTemplate({
   onClickShowMore = noop,
   onClickHidePost = noop,
   onClickMute = noop,
+  onClickMuteThread = noop,
   onClickBlock = noop,
   onClickDelete = noop,
   onClickReport = noop,
@@ -548,6 +562,7 @@ export function postActionBarTemplate({
                 onClickShowLess,
                 onClickHidePost,
                 onClickMute,
+                onClickMuteThread,
                 onClickBlock,
                 onClickReport,
                 onClickDelete,

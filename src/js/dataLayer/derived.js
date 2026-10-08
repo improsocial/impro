@@ -26,6 +26,7 @@ import {
   getJoinLinkCodeFromEmbed,
   isFollowingFeedUri,
   isStatusValid,
+  getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
@@ -911,6 +912,16 @@ export class Derived extends ReactiveStore {
     result = this.attachJoinLinkPreview(result);
     result = applyMutedWords(result, preferences);
     result = applyIsHidden(result, preferences);
+    if (result.viewer) {
+      const rootUri = getReplyRootFromPost(result).uri;
+      const threadMutePatches = this.patchStore.$threadMutePatches.get(rootUri);
+      if (threadMutePatches?.length) {
+        result = this.patchStore.applyThreadMutePatches(
+          result,
+          threadMutePatches,
+        );
+      }
+    }
     return applyLabels(result, preferences);
   }
 

@@ -2939,3 +2939,135 @@ describe("patched overlays ($patchedPosts / $patchedProfiles / $patchedConvos / 
     assert.deepEqual(derived.$patchedMessages.get("missing"), null);
   });
 });
+
+describe("thread mute hydration", () => {
+  const rootUri = "at://did:plc:alice/app.bsky.feed.post/root";
+  const rootRef = { uri: rootUri, cid: "bafyreitestroot" };
+  const root = createPost({ uri: rootUri, text: "root" });
+  const reply = createPost({
+    uri: "at://did:plc:bob/app.bsky.feed.post/reply",
+    text: "reply",
+    reply: { root: rootRef, parent: rootRef },
+  });
+  const deepReply = createPost({
+    uri: "at://did:plc:carol/app.bsky.feed.post/deep",
+    text: "deep",
+    reply: {
+      root: rootRef,
+      parent: { uri: reply.uri, cid: reply.cid },
+    },
+  });
+  const otherThreadPost = createPost({
+    uri: "at://did:plc:dave/app.bsky.feed.post/other",
+    text: "other",
+  });
+  const quoteOfRoot = createPost({
+    uri: "at://did:plc:erin/app.bsky.feed.post/quote",
+    text: "quote",
+    recordEmbed: { $type: "app.bsky.embed.record", record: rootRef },
+  });
+
+  function setup(posts) {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    for (const post of posts) {
+      dataStore.$posts.set(post.uri, post);
+    }
+    return { dataStore, derived, patchStore };
+  }
+
+  function addThreadMutePatch(patchStore, muted) {
+    patchStore.addThreadMutePatch(rootUri, { type: "setThreadMuted", muted });
+  }
+
+  function isThreadMuted(derived, uri) {
+    return derived.$hydratedPosts.get(uri).viewer.threadMuted;
+  }
+
+  it("should follow the server value with no override", () => {
+    const mutedRoot = createPost({
+      uri: rootUri,
+      text: "root",
+      viewer: { threadMuted: true },
+    });
+    const { derived } = setup([mutedRoot, otherThreadPost]);
+    assert.equal(isThreadMuted(derived, rootUri), true);
+    assert.equal(isThreadMuted(derived, otherThreadPost.uri), undefined);
+  });
+
+  it("should not change post identity when the value is unchanged", () => {
+    const { derived } = setup([otherThreadPost]);
+    const hydrated = derived.$hydratedPosts.get(otherThreadPost.uri);
+    assert.deepEqual(hydrated.viewer, otherThreadPost.viewer);
+  });
+
+  it("should let a pending patch beat the server value", () => {
+    const mutedRoot = createPost({
+      uri: rootUri,
+      text: "root",
+      viewer: { threadMuted: true },
+    });
+    const { derived, patchStore } = setup([mutedRoot]);
+    addThreadMutePatch(patchStore, false);
+    assert.equal(isThreadMuted(derived, rootUri), false);
+  });
+
+  it("should let the last pending patch win", () => {
+    const { derived, patchStore } = setup([root]);
+    addThreadMutePatch(patchStore, true);
+    assert.equal(isThreadMuted(derived, rootUri), true);
+    addThreadMutePatch(patchStore, false);
+    assert(!isThreadMuted(derived, rootUri));
+  });
+
+  it("should apply a patch to every post in the thread", () => {
+    const { derived, patchStore } = setup([
+      root,
+      reply,
+      deepReply,
+      otherThreadPost,
+      quoteOfRoot,
+    ]);
+    addThreadMutePatch(patchStore, true);
+    assert.equal(isThreadMuted(derived, rootUri), true);
+    assert.equal(isThreadMuted(derived, reply.uri), true);
+    assert.equal(isThreadMuted(derived, deepReply.uri), true);
+    assert.equal(isThreadMuted(derived, otherThreadPost.uri), undefined);
+    assert.equal(isThreadMuted(derived, quoteOfRoot.uri), undefined);
+  });
+
+  it("should keep a loaded feed item when its thread is muted", () => {
+    const feedURI = "at://did:test/app.bsky.feed.generator/test";
+    const { derived, dataStore, patchStore } = setup([reply]);
+    dataStore.$feeds.set(feedURI, {
+      feed: [
+        createFeedItem({
+          post: reply,
+          reason: {
+            $type: "app.bsky.feed.defs#reasonRepost",
+            by: createProfile({ did: "did:plc:frank", handle: "frank.test" }),
+            indexedAt: "2025-01-01T00:00:00.000Z",
+          },
+        }),
+      ],
+      cursor: null,
+    });
+    addThreadMutePatch(patchStore, true);
+    const { feed } = derived.$hydratedFeeds.get(feedURI);
+    assert.equal(feed.length, 1);
+    assert.equal(feed[0].post.viewer.threadMuted, true);
+  });
+
+  it("should leave posts without a viewer untouched", () => {
+    const loggedOutRoot = createPost({
+      uri: rootUri,
+      text: "root",
+      loggedOut: true,
+    });
+    const { derived, patchStore } = setup([loggedOutRoot]);
+    addThreadMutePatch(patchStore, true);
+    assert.equal(derived.$hydratedPosts.get(rootUri).viewer, undefined);
+  });
+});
