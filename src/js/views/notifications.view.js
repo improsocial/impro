@@ -930,6 +930,7 @@ export default async function notificationsView({
     const loadError =
       dataLayer.requests.statusStore.getError("loadNotifications");
     if (hadNotifications && loadError) {
+      console.warn(loadError);
       showToast("Couldn't refresh notifications", { style: "error" });
     } else {
       state.$loadMoreError.set(null);
