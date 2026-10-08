@@ -23,17 +23,22 @@ function bindMiddleClickRedispatch() {
   });
 }
 
-// Runs attach whenever the page becomes active (first entry or a return from
-// the route cache) and detach when it's swapped out.
-function bindActive(root, attach, detach) {
-  root.addEventListener("page-show", attach);
-  root.addEventListener("page-hide", detach);
-}
-
 // Lifecycle helpers
 
+// Runs handler whenever the page becomes active (first entry or a return from
+// the route cache). A function returned by the handler is called as cleanup
+// when the page is hidden.
 export function onPageShow(root, handler) {
-  root.addEventListener("page-show", (event) => handler(event.detail));
+  let cleanup = null;
+  root.addEventListener("page-show", (event) => {
+    cleanup?.();
+    const result = handler(event.detail);
+    cleanup = typeof result === "function" ? result : null;
+  });
+  root.addEventListener("page-hide", () => {
+    cleanup?.();
+    cleanup = null;
+  });
 }
 
 export function onPageHide(root, handler) {
@@ -42,18 +47,17 @@ export function onPageHide(root, handler) {
 
 export function bindToPage(root, source, event, handler) {
   if (!source) return;
-  const usesEmitterApi = typeof source.on === "function";
-  bindActive(
-    root,
-    () =>
-      usesEmitterApi
-        ? source.on(event, handler)
-        : source.addEventListener(event, handler),
-    () =>
-      usesEmitterApi
-        ? source.off(event, handler)
-        : source.removeEventListener(event, handler),
-  );
+  if (typeof source.on === "function") {
+    onPageShow(root, () => {
+      source.on(event, handler);
+      return () => source.off(event, handler);
+    });
+    return;
+  }
+  onPageShow(root, () => {
+    source.addEventListener(event, handler);
+    return () => source.removeEventListener(event, handler);
+  });
 }
 
 export class Layout extends EventTarget {
@@ -63,18 +67,7 @@ export class Layout extends EventTarget {
 }
 
 export function pageEffect(root, callback, options) {
-  let dispose;
-  bindActive(
-    root,
-    () => {
-      dispose?.();
-      dispose = effect(callback, options);
-    },
-    () => {
-      dispose?.();
-      dispose = null;
-    },
-  );
+  onPageShow(root, () => effect(callback, options));
 }
 
 const APP_TITLE = document.title;
@@ -84,17 +77,13 @@ export function bindPageTitle(root, callback, options) {
     const res = callback();
     document.title = res ? `${res} — ${APP_TITLE}` : APP_TITLE;
   };
-  let dispose;
-  const attach = () => {
-    dispose?.();
-    dispose = effect(titleCb, options);
-  };
-  const detach = () => {
-    dispose?.();
-    dispose = null;
-    document.title = APP_TITLE;
-  };
-  bindActive(root, attach, detach);
+  onPageShow(root, () => {
+    const dispose = effect(titleCb, options);
+    return () => {
+      dispose();
+      document.title = APP_TITLE;
+    };
+  });
 }
 
 export class Router extends EventEmitter {

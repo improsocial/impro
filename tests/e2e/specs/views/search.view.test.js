@@ -405,6 +405,56 @@ test.describe("Search view", () => {
     await expect(topPanel).toContainText("A top ranked post");
   });
 
+  test("should keep visited tabs mounted and restore their scroll positions", async ({
+    page,
+  }) => {
+    const createPosts = (sort) =>
+      Array.from({ length: 25 }, (_, index) =>
+        createPost({
+          uri: `at://did:plc:author${index + 1}/app.bsky.feed.post/${sort}${index + 1}`,
+          text: `${sort} result #${index + 1}.`,
+          authorHandle: `author${index + 1}.bsky.social`,
+          authorDisplayName: `Author ${index + 1}`,
+        }),
+      );
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts(createPosts("top"), { sort: "top" });
+    mockServer.addSearchPosts(createPosts("latest"), { sort: "latest" });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=post&tab=top");
+
+    const view = page.locator("#search-view");
+    const topPanel = view.locator(".search-post-results-top");
+    const latestPanel = view.locator(".search-post-results-latest");
+    const getScrollY = () => page.evaluate(() => window.scrollY);
+
+    await expect(topPanel.locator("[data-post-uri]")).toHaveCount(25, {
+      timeout: 10000,
+    });
+    await topPanel
+      .locator("[data-post-uri]")
+      .filter({ hasText: "top result #15." })
+      .scrollIntoViewIfNeeded();
+    const topScrollY = await getScrollY();
+    await topPanel.evaluate((panel) => {
+      panel.dataset.marker = "original";
+    });
+
+    await view.locator('[data-testid="tab-latest"]').click();
+    await expect(latestPanel.locator("[data-post-uri]")).toHaveCount(25, {
+      timeout: 10000,
+    });
+    await expect(topPanel).toBeHidden();
+    await expect.poll(getScrollY).toBe(0);
+
+    await view.locator('[data-testid="tab-top"]').click();
+    await expect(topPanel).toBeVisible();
+    await expect(topPanel).toHaveAttribute("data-marker", "original");
+    await expect.poll(getScrollY).toBe(topScrollY);
+  });
+
   test("should render tabs in order: Top, Latest, People, Feeds, Starter Packs", async ({
     page,
   }) => {

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
-import { wait } from "/js/utils.js";
+import { wait, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   doHideAuthorOnUnauthenticated,
@@ -11,7 +11,12 @@ import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButt
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { ApiError } from "/js/api.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
@@ -137,6 +142,10 @@ export default async function profileView({
     await loadAuthorFeed({ reload: true });
   }
 
+  const tabScroll = new TabScrollMemory({
+    minScrollY: () => fixedTabBar.getStuckScrollY(),
+  });
+
   async function handleTabClick(tab) {
     const currentTab = state.$activeTab.get();
     if (tab === currentTab) {
@@ -151,8 +160,10 @@ export default async function profileView({
       }
       return;
     }
-    // switch tab
-    state.$activeTab.set(tab);
+    const switched = await tabScroll.switch(currentTab, tab, () =>
+      state.$activeTab.set(tab),
+    );
+    if (!switched) return;
     // Load feed if needed
     if (tab === "feeds") {
       if (!dataLayer.derived.$actorFeeds.get(profileDid)) {
@@ -562,6 +573,11 @@ export default async function profileView({
       root,
     );
   });
+
+  const fixedTabBar = new StickyFixer(() =>
+    root.querySelector(".profile-tab-bar"),
+  );
+  onPageShow(root, () => fixedTabBar.start());
 
   async function loadAuthorFeed({ reload = false } = {}) {
     const activeTab = state.$activeTab.get();

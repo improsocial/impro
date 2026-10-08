@@ -204,6 +204,59 @@ describe("tab-bar", () => {
     });
   });
 
+  describe("TabBar - scroll freeze", () => {
+    const clickTab = (element, index) =>
+      element.querySelectorAll(".tab-bar-button")[index].click();
+
+    afterEach(() => {
+      mock.timers.reset();
+    });
+
+    it("should freeze scrolling when an inactive tab is clicked", () => {
+      const element = createTabBar({ activeTab: "one" });
+      document.body.appendChild(element);
+      clickTab(element, 1);
+      assert(element.classList.contains("is-scroll-frozen"));
+    });
+
+    it("should not freeze scrolling when the active tab is clicked", () => {
+      const element = createTabBar({ activeTab: "one" });
+      document.body.appendChild(element);
+      clickTab(element, 0);
+      assert(!element.classList.contains("is-scroll-frozen"));
+    });
+
+    it("should not freeze scrolling when full-width is set", () => {
+      const element = createTabBar({ activeTab: "one", fullWidth: true });
+      document.body.appendChild(element);
+      clickTab(element, 1);
+      assert(!element.classList.contains("is-scroll-frozen"));
+    });
+
+    it("should unfreeze a frame after switching to the new tab", async () => {
+      const element = createTabBar({ activeTab: "one" });
+      document.body.appendChild(element);
+      clickTab(element, 1);
+
+      element.setAttribute("active-tab", "two");
+      assert(element.classList.contains("is-scroll-frozen"));
+      await waitForAnimationFrame();
+      assert(!element.classList.contains("is-scroll-frozen"));
+    });
+
+    it("should unfreeze if the host never switches tabs", () => {
+      mock.timers.enable({ apis: ["setTimeout"] });
+      const element = createTabBar({ activeTab: "one" });
+      document.body.appendChild(element);
+      clickTab(element, 1);
+
+      mock.timers.tick(499);
+      assert(element.classList.contains("is-scroll-frozen"));
+      mock.timers.tick(1);
+      assert(!element.classList.contains("is-scroll-frozen"));
+    });
+  });
+
   describe("TabBar - reinitialization protection", () => {
     it("should not reinitialize when connectedCallback fires again", () => {
       const element = createTabBar({ activeTab: "one" });

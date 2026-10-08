@@ -112,6 +112,69 @@ describe("ScrollLock", () => {
     }
   });
 
+  describe("with a fixed header", () => {
+    let scrollYDescriptor;
+    let originalScrollTo;
+    let scrollToCalls;
+
+    beforeEach(() => {
+      const header = container.querySelector("header");
+      header.style.position = "fixed";
+      header.getBoundingClientRect = () => ({ height: 100 });
+      scrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+      Object.defineProperty(window, "scrollY", {
+        configurable: true,
+        get: () => 3600,
+      });
+      originalScrollTo = window.scrollTo;
+      scrollToCalls = [];
+      window.scrollTo = (...args) => scrollToCalls.push(args);
+    });
+
+    afterEach(() => {
+      if (scrollYDescriptor) {
+        Object.defineProperty(window, "scrollY", scrollYDescriptor);
+      } else {
+        delete window.scrollY;
+      }
+      window.scrollTo = originalScrollTo;
+    });
+
+    it("doesn't compensate for the header height when pinning", () => {
+      createLock();
+      const main = container.querySelector("main");
+      assert.deepEqual(main.style.marginTop, "-3600px");
+    });
+
+    it("leaves the header's inline position alone", () => {
+      const header = container.querySelector("header");
+      header.style.left = "5px";
+      header.style.width = "300px";
+      const lock = createLock();
+      assert(!header.classList.contains("scroll-lock-pinned"));
+      lock.release();
+      assert.deepEqual(header.style.left, "5px");
+      assert.deepEqual(header.style.width, "300px");
+    });
+
+    it("restores the scroll position on unlock", () => {
+      const main = container.querySelector("main");
+      main.getBoundingClientRect = () => ({ top: -3500 });
+      const lock = createLock();
+      lock.release();
+      assert.deepEqual(scrollToCalls[0], [0, 3600]);
+    });
+
+    it("follows main if it moved while locked", () => {
+      const main = container.querySelector("main");
+      main.getBoundingClientRect = () => ({ top: -3500 });
+      const lock = createLock();
+      main.getBoundingClientRect = () => ({ top: -3540 });
+      lock.release();
+      assert.deepEqual(scrollToCalls[0], [0, 3640]);
+    });
+  });
+
   it("restores a locked scrollable ancestor's overflow on unlock", () => {
     const scrollable = document.createElement("div");
     scrollable.style.overflowY = "auto";

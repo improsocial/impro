@@ -125,7 +125,10 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+    const activePanel = view.locator(".feed-container:not([hidden])");
+    await expect(
+      activePanel.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({
       timeout: 10000,
     });
   });
@@ -147,15 +150,21 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/testuser.bsky.social/lists/ownlist");
 
     const view = page.locator("#list-detail-view");
+    const activePanel = view.locator(".feed-container:not([hidden])");
     await expect(view.locator('[data-testid="tab-people"]')).toBeVisible({
       timeout: 10000,
     });
     await view.locator('[data-testid="tab-people"]').click();
+    await expect(
+      view.locator('[data-testid="list-tab-content"]'),
+    ).toHaveAttribute("data-teststate", "people");
 
     await expect(
-      view.locator('[data-testid="list-empty-add-people-button"]'),
+      activePanel.locator('[data-testid="list-empty-add-people-button"]'),
     ).toBeVisible({ timeout: 10000 });
-    await view.locator('[data-testid="list-empty-add-people-button"]').click();
+    await activePanel
+      .locator('[data-testid="list-empty-add-people-button"]')
+      .click();
     await expect(
       page.locator('[data-testid="manage-list-members-dialog"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -178,11 +187,12 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/testuser.bsky.social/lists/ownlist");
 
     const view = page.locator("#list-detail-view");
+    const activePanel = view.locator(".feed-container:not([hidden])");
     await expect(
       view.locator('[data-testid="list-tab-content"]'),
     ).toHaveAttribute("data-teststate", "posts", { timeout: 10000 });
     await expect(
-      view.locator('[data-testid="list-empty-add-people-button"]'),
+      activePanel.locator('[data-testid="list-empty-add-people-button"]'),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -197,11 +207,14 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+    const activePanel = view.locator(".feed-container:not([hidden])");
+    await expect(
+      activePanel.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({
       timeout: 10000,
     });
     await expect(
-      view.locator('[data-testid="list-empty-add-people-button"]'),
+      activePanel.locator('[data-testid="list-empty-add-people-button"]'),
     ).toHaveCount(0);
   });
 
@@ -216,16 +229,22 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
+    const activePanel = view.locator(".feed-container:not([hidden])");
     await expect(view.locator('[data-testid="tab-people"]')).toBeVisible({
       timeout: 10000,
     });
     await view.locator('[data-testid="tab-people"]').click();
+    await expect(
+      view.locator('[data-testid="list-tab-content"]'),
+    ).toHaveAttribute("data-teststate", "people");
 
-    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+    await expect(
+      activePanel.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({
       timeout: 10000,
     });
     await expect(
-      view.locator('[data-testid="list-empty-add-people-button"]'),
+      activePanel.locator('[data-testid="list-empty-add-people-button"]'),
     ).toHaveCount(0);
   });
 
@@ -373,6 +392,9 @@ test.describe("List Detail view", () => {
 
     const view = page.locator("#list-detail-view");
     await view.locator('[data-testid="tab-people"]').click();
+    await expect(
+      view.locator('[data-testid="list-tab-content"]'),
+    ).toHaveAttribute("data-teststate", "people");
 
     const followsBackRow = view
       .locator(".profile-list-item")
@@ -430,6 +452,9 @@ test.describe("List Detail view", () => {
 
     const view = page.locator("#list-detail-view");
     await view.locator('[data-testid="tab-people"]').click();
+    await expect(
+      view.locator('[data-testid="list-tab-content"]'),
+    ).toHaveAttribute("data-teststate", "people");
 
     const targetRow = view
       .locator(".profile-list-item")
@@ -1050,6 +1075,9 @@ test.describe("List Detail view", () => {
       );
 
       await view.locator('[data-testid="tab-people"]').click();
+      await expect(
+        view.locator('[data-testid="list-tab-content"]'),
+      ).toHaveAttribute("data-teststate", "people");
       const memberRow = view
         .locator(".profile-list-item")
         .filter({ hasText: "member1.bsky.social" });
@@ -1187,5 +1215,69 @@ test.describe("List Detail view", () => {
         view.locator('[data-testid="menu-action-list-opt-out"]'),
       ).toHaveCount(0);
     });
+  });
+
+  test("should restore each tab's scroll position once the tab bar is stuck", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    mockServer.addListFeedItems(
+      LIST_URI,
+      Array.from({ length: 30 }, (_, index) =>
+        createPost({
+          uri: `at://did:plc:author${index + 1}/app.bsky.feed.post/p${index + 1}`,
+          text: `List post #${index + 1}.`,
+          authorHandle: `author${index + 1}.bsky.social`,
+          authorDisplayName: `Author ${index + 1}`,
+        }),
+      ),
+    );
+    mockServer.addListMembers(
+      LIST_URI,
+      Array.from({ length: 30 }, (_, index) =>
+        createProfile({
+          did: `did:plc:member${index + 1}`,
+          handle: `member${index + 1}.bsky.social`,
+          displayName: `Member #${index + 1}.`,
+        }),
+      ),
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    const activePanel = view.locator(".feed-container:not([hidden])");
+    const tabBar = view.locator(".list-detail-tab-bar");
+    const getScrollY = () => page.evaluate(() => window.scrollY);
+    await expect(activePanel.locator('[data-testid="feed-item"]')).toHaveCount(
+      30,
+      { timeout: 10000 },
+    );
+
+    await activePanel
+      .locator('[data-testid="feed-item"]')
+      .filter({ hasText: "List post #20." })
+      .scrollIntoViewIfNeeded();
+    const postsScrollY = await getScrollY();
+
+    // An unvisited tab opens with the tab bar stuck at the top
+    await view.locator('[data-testid="tab-people"]').click();
+    await expect(activePanel).toContainText("Member #1.");
+    await expect
+      .poll(async () => (await tabBar.boundingBox()).y)
+      .toBeCloseTo(0, 0);
+    expect(await getScrollY()).toBeLessThan(postsScrollY);
+
+    await activePanel.getByText("Member #25.").scrollIntoViewIfNeeded();
+    const peopleScrollY = await getScrollY();
+
+    await view.locator('[data-testid="tab-posts"]').click();
+    await expect.poll(getScrollY).toBe(postsScrollY);
+
+    await view.locator('[data-testid="tab-people"]').click();
+    await expect.poll(getScrollY).toBe(peopleScrollY);
   });
 });

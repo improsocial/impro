@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { classnames } from "/js/utils.js";
+import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import {
   cdnImageUrl,
   isCurateList,
@@ -62,6 +62,16 @@ export default async function listDetailView({
 
   const state = new ReactiveStore("listDetailView");
   state.$activeTab = new Signal.State("posts");
+
+  const tabScroll = new TabScrollMemory({
+    minScrollY: () => fixedTabBar.getStuckScrollY(),
+  });
+
+  function handleTabClick(tab) {
+    const currentTab = state.$activeTab.get();
+    if (tab === currentTab) return;
+    tabScroll.switch(currentTab, tab, () => state.$activeTab.set(tab));
+  }
 
   function listSubscriptionButtonTemplate({ list, listInteractionHandler }) {
     const isMuted = !!list.viewer?.muted;
@@ -346,8 +356,7 @@ export default async function listDetailView({
                       ]}
                       active-tab=${activeTab}
                       full-width
-                      @tab-click=${(event) =>
-                        state.$activeTab.set(event.detail)}
+                      @tab-click=${(event) => handleTabClick(event.detail)}
                     ></tab-bar>
                   </div>`
                 : html`<hr />`}
@@ -356,8 +365,11 @@ export default async function listDetailView({
                 data-testid="list-tab-content"
                 data-teststate=${activeTab}
               >
-                ${activeTab === "posts" && isCurate
-                  ? html`<div class="feed-container">
+                ${isCurate
+                  ? html`<div
+                      class="feed-container"
+                      ?hidden=${activeTab !== "posts"}
+                    >
                       ${postFeedTemplate({
                         feed,
                         currentUser,
@@ -379,36 +391,47 @@ export default async function listDetailView({
                           </button>`
                         : ""}
                     </div>`
-                  : html`<div class="feed-container">
-                      ${profileListTemplate({
-                        profiles: members,
-                        hasMore: hasMoreMembers,
-                        onLoadMore: () => loadMembers(),
-                        emptyMessage: "This list has no members.",
-                        showEndMessage: true,
-                        isAuthenticated,
-                        currentUserDid: currentUser?.did ?? null,
-                        profileInteractionHandler,
-                        pluginService,
-                        ...(isModeration ? { rightItemTemplate: null } : {}),
-                      })}
-                      ${members?.length === 0 && isCurrentUserList
-                        ? html`<button
-                            class="rounded-button rounded-button-primary list-empty-add-people-button"
-                            data-testid="list-empty-add-people-button"
-                            @click=${() => handleAddPeople(list)}
-                          >
-                            <app-icon icon="user-plus-line"></app-icon> Add
-                            people to list
-                          </button>`
-                        : ""}
-                    </div>`}
+                  : ""}
+                <div
+                  class="feed-container"
+                  ?hidden=${isCurate && activeTab === "posts"}
+                >
+                  ${profileListTemplate({
+                    profiles: members,
+                    hasMore: hasMoreMembers,
+                    onLoadMore: () => loadMembers(),
+                    emptyMessage: "This list has no members.",
+                    showEndMessage: true,
+                    isAuthenticated,
+                    currentUserDid: currentUser?.did ?? null,
+                    profileInteractionHandler,
+                    pluginService,
+                    ...(isModeration ? { rightItemTemplate: null } : {}),
+                  })}
+                  ${members?.length === 0 && isCurrentUserList
+                    ? html`<button
+                        class="rounded-button rounded-button-primary list-empty-add-people-button"
+                        data-testid="list-empty-add-people-button"
+                        @click=${() => handleAddPeople(list)}
+                      >
+                        <app-icon icon="user-plus-line"></app-icon> Add people
+                        to list
+                      </button>`
+                    : ""}
+                </div>
               </div>
             </main>`}
       </div>`,
       root,
     );
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
+  const fixedTabBar = new StickyFixer(() =>
+    root.querySelector(".list-detail-tab-bar"),
+  );
+  onPageShow(root, () => fixedTabBar.start());
 
   async function handleOptOut(list) {
     const optedOut = await starterPackInteractionHandler.handleOptOut(list);

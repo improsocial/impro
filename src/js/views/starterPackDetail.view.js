@@ -13,6 +13,7 @@ import {
   getPermalinkForStarterPack,
 } from "/js/navigation.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
+import { TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
@@ -253,6 +254,16 @@ export default async function starterPackDetailView({
   state.$isFollowingAll = new Signal.State(false);
   state.$hasFetchedStarterPack = new Signal.State(false);
 
+  const tabScroll = new TabScrollMemory({
+    minScrollY: () => fixedTabBar.getStuckScrollY(),
+  });
+
+  function handleTabClick(tab) {
+    const currentTab = state.$activeTab.get();
+    if (tab === currentTab) return;
+    tabScroll.switch(currentTab, tab, () => state.$activeTab.set(tab));
+  }
+
   bindPageTitle(root, () => {
     return (
       dataLayer.derived.$starterPacks.get(starterPackUri)?.record?.name ?? null
@@ -338,7 +349,7 @@ export default async function starterPackDetailView({
                     .tabs=${tabs}
                     active-tab=${activeTab}
                     full-width
-                    @tab-click=${(event) => state.$activeTab.set(event.detail)}
+                    @tab-click=${(event) => handleTabClick(event.detail)}
                   ></tab-bar>
                 </div>
                 <div
@@ -346,42 +357,51 @@ export default async function starterPackDetailView({
                   data-testid="starter-pack-tab-content"
                   data-teststate=${activeTab}
                 >
-                  ${activeTab === "people"
-                    ? html`<div class="feed-container">
-                        ${profileListTemplate({
-                          profiles: members,
-                          hasMore: false,
-                          emptyMessage: "This starter pack has no members.",
-                          showEndMessage: true,
-                          isAuthenticated,
-                          currentUserDid: currentUser?.did ?? null,
-                          profileInteractionHandler,
-                          pluginService,
-                        })}
-                      </div>`
-                    : activeTab === "feeds"
-                      ? feedGeneratorListTemplate({
+                  <div class="feed-container" ?hidden=${activeTab !== "people"}>
+                    ${profileListTemplate({
+                      profiles: members,
+                      hasMore: false,
+                      emptyMessage: "This starter pack has no members.",
+                      showEndMessage: true,
+                      isAuthenticated,
+                      currentUserDid: currentUser?.did ?? null,
+                      profileInteractionHandler,
+                      pluginService,
+                    })}
+                  </div>
+                  ${feeds.length > 0
+                    ? html`<div ?hidden=${activeTab !== "feeds"}>
+                        ${feedGeneratorListTemplate({
                           feedGenerators: feeds,
                           currentUserDid: currentUser?.did ?? null,
-                        })
-                      : html`<div class="feed-container">
-                          ${postFeedTemplate({
-                            feed,
-                            currentUser,
-                            isAuthenticated,
-                            hiddenPostUris,
-                            onLoadMore: () => loadFeed(listUri),
-                            postInteractionHandler,
-                            pluginService,
-                            showEndMessage: true,
-                          })}
-                        </div>`}
+                        })}
+                      </div>`
+                    : ""}
+                  <div class="feed-container" ?hidden=${activeTab !== "posts"}>
+                    ${postFeedTemplate({
+                      feed,
+                      currentUser,
+                      isAuthenticated,
+                      hiddenPostUris,
+                      onLoadMore: () => loadFeed(listUri),
+                      postInteractionHandler,
+                      pluginService,
+                      showEndMessage: true,
+                    })}
+                  </div>
                 </div>
               </main>`}
       </div>`,
       root,
     );
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
+  const fixedTabBar = new StickyFixer(() =>
+    root.querySelector(".starter-pack-detail-tab-bar"),
+  );
+  onPageShow(root, () => fixedTabBar.start());
 
   pageEffect(root, () => {
     if (state.$activeTab.get() !== "feeds") return;

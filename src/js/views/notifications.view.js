@@ -5,7 +5,13 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { formatRelativeTime, batch, unique } from "/js/utils.js";
+import {
+  formatRelativeTime,
+  batch,
+  unique,
+  TabScrollMemory,
+  StickyFixer,
+} from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   bindToPage,
@@ -776,7 +782,7 @@ export default async function notificationsView({
     }
   }
 
-  const tabScrollState = new Map();
+  const tabScroll = new TabScrollMemory();
 
   async function handleTabClick(tab) {
     const currentTab = state.$activeTab.get();
@@ -784,12 +790,10 @@ export default async function notificationsView({
       scrollAndReloadNotifications();
       return;
     }
-    tabScrollState.set(currentTab, window.scrollY);
-    state.$activeTab.set(tab);
-    const savedScrollY = tabScrollState.get(tab) ?? 0;
-    requestAnimationFrame(() => {
-      window.scrollTo(0, savedScrollY);
-    });
+    const switched = await tabScroll.switch(currentTab, tab, () =>
+      state.$activeTab.set(tab),
+    );
+    if (!switched) return;
     if (tab === "mentions" && !dataLayer.derived.$mentionNotifications.get()) {
       await loadMentionNotifications({ reload: true });
     }
@@ -898,6 +902,9 @@ export default async function notificationsView({
       root,
     );
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
 
   async function loadNotifications({ reload = false } = {}) {
     await dataLayer.requests.loadNotifications({

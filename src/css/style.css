@@ -1391,6 +1391,10 @@ tab-bar:not([full-width]) {
   scrollbar-width: none;
 }
 
+tab-bar.is-scroll-frozen {
+  overflow-x: hidden;
+}
+
 .profile-card {
   margin-bottom: 8px;
 }

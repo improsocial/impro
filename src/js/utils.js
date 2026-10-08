@@ -995,6 +995,155 @@ export function pinScrollPosition({
   return stop;
 }
 
+// Switches a sticky element to position: fixed
+// while it's stuck, leaving a spacer in its place.
+export class StickyFixer {
+  #getElement;
+  #pinned = null;
+
+  constructor(getElement) {
+    this.#getElement = getElement;
+  }
+
+  start() {
+    window.addEventListener("scroll", this.#update, { passive: true });
+    window.addEventListener("resize", this.#update);
+    this.#update();
+    return () => {
+      window.removeEventListener("scroll", this.#update);
+      window.removeEventListener("resize", this.#update);
+      if (this.#pinned) this.#unpin();
+    };
+  }
+
+  // The scroll position at which the element starts sticking
+  getStuckScrollY() {
+    if (this.#pinned) {
+      return this.#measureStuckScrollY(
+        this.#pinned.spacer,
+        this.#pinned.stickyTop,
+      );
+    }
+    const element = this.#getElement();
+    if (!element) return null;
+    const style = window.getComputedStyle(element);
+    if (style.position !== "sticky") return null;
+    return this.#measureStuckScrollY(element, parseFloat(style.top));
+  }
+
+  #measureStuckScrollY(element, stickyTop) {
+    return window.scrollY + element.getBoundingClientRect().top - stickyTop;
+  }
+
+  #update = () => {
+    const element = this.#getElement();
+    if (this.#pinned && this.#pinned.element !== element) {
+      this.#unpin();
+    }
+    if (!element) return;
+    if (!this.#pinned) {
+      const style = window.getComputedStyle(element);
+      if (style.position !== "sticky") return;
+      const stickyTop = parseFloat(style.top);
+      if (element.getBoundingClientRect().top > stickyTop) return;
+      this.#pin(element, stickyTop);
+    }
+    const { spacer, stickyTop } = this.#pinned;
+    // Clamped so overscroll bounce at the top doesn't unpin an element that
+    // starts at the top of the page
+    const scrollY = Math.max(window.scrollY, 0);
+    if (scrollY < this.#measureStuckScrollY(spacer, stickyTop)) {
+      this.#unpin();
+      return;
+    }
+    this.#syncHorizontalPosition();
+  };
+
+  #syncHorizontalPosition() {
+    const { element, spacer } = this.#pinned;
+    const { left, width } = spacer.getBoundingClientRect();
+    if (left === this.#pinned.left && width === this.#pinned.width) return;
+    element.style.left = `${left}px`;
+    element.style.width = `${width}px`;
+    this.#pinned.left = left;
+    this.#pinned.width = width;
+  }
+
+  #pin(element, stickyTop) {
+    const spacer = document.createElement("div");
+    spacer.style.height = `${element.getBoundingClientRect().height}px`;
+    element.before(spacer);
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      spacer.style.height = `${entry.borderBoxSize[0].blockSize}px`;
+    });
+    resizeObserver.observe(element);
+    const { position, top, left, width, right } = element.style;
+    this.#pinned = {
+      element,
+      spacer,
+      stickyTop,
+      resizeObserver,
+      previousStyle: { position, top, left, width, right },
+      left: null,
+      width: null,
+    };
+    Object.assign(element.style, {
+      position: "fixed",
+      top: `${stickyTop}px`,
+      right: "auto",
+    });
+    this.#syncHorizontalPosition();
+  }
+
+  #unpin() {
+    const { element, spacer, resizeObserver, previousStyle } = this.#pinned;
+    resizeObserver.disconnect();
+    spacer.remove();
+    Object.assign(element.style, previousStyle);
+    this.#pinned = null;
+  }
+}
+
+export class TabScrollMemory {
+  #positions = new Map();
+  #minScrollY;
+  #switching = false;
+
+  constructor({ minScrollY = null } = {}) {
+    this.#minScrollY = minScrollY;
+  }
+
+  async switch(fromTab, toTab, applySwitch) {
+    if (this.#switching) return false;
+    this.#switching = true;
+    try {
+      this.#positions.set(fromTab, window.scrollY);
+      await raf();
+      const scrollY = this.#resolve(this.#positions.get(toTab) ?? 0);
+      applySwitch();
+      await raf();
+      window.scrollTo(0, scrollY);
+      return true;
+    } finally {
+      this.#switching = false;
+    }
+  }
+
+  clear() {
+    this.#positions.clear();
+  }
+
+  #resolve(savedScrollY) {
+    if (!this.#minScrollY) return savedScrollY;
+    const minScrollY = this.#minScrollY();
+    if (minScrollY === null) return savedScrollY;
+    if (window.scrollY < minScrollY) {
+      return window.scrollY;
+    }
+    return Math.max(savedScrollY, minScrollY);
+  }
+}
+
 const LONG_PRESS_TIMEOUT_MS = 500;
 const LONG_PRESS_MOVE_CANCEL_THRESHOLD_PX = 10;
 const LONG_PRESS_GHOST_CLICK_WINDOW_MS = 400;

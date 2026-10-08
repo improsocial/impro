@@ -1669,6 +1669,9 @@ test.describe("Notifications view", () => {
 
       // Switch to Mentions tab
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
 
@@ -1709,6 +1712,9 @@ test.describe("Notifications view", () => {
       });
 
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       await expect(
@@ -1759,6 +1765,9 @@ test.describe("Notifications view", () => {
 
       // Switch to Mentions then back to All
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
       await expect(view).toContainText("A mention post", { timeout: 10000 });
 
       await view.locator(".tab-bar-button").nth(0).click();
@@ -1811,6 +1820,9 @@ test.describe("Notifications view", () => {
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
 
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
       await expect
         .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
         .toBe(0);
@@ -1870,6 +1882,9 @@ test.describe("Notifications view", () => {
 
       const view = page.locator("#notifications-view");
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       const items = activePanel.locator(".notification-reply-wrapper");
@@ -1906,6 +1921,9 @@ test.describe("Notifications view", () => {
 
       const view = page.locator("#notifications-view");
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       const items = activePanel.locator(".notification-reply-wrapper");
