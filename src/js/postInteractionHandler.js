@@ -214,6 +214,22 @@ export class PostInteractionHandler {
     }
   }
 
+  async handleMuteThread(post, doMute) {
+    try {
+      await this.dataLayer.mutations.setThreadMuted(post, doMute);
+      showToast(
+        doMute
+          ? "You will no longer receive notifications for this thread"
+          : "You will now receive notifications for this thread",
+      );
+    } catch (error) {
+      console.error(error);
+      showToast(doMute ? "Failed to mute thread" : "Failed to unmute thread", {
+        style: "error",
+      });
+    }
+  }
+
   async handleBlockAuthor(profile, doBlock) {
     if (doBlock) {
       const confirmed = await confirmModal(

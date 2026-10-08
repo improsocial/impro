@@ -539,6 +539,11 @@ export class Requests {
       default:
         throw new Error(`Unknown pinned item type: ${type}`);
     }
+    // Apply thread mutes on load so muting in the UI doesn't hide threads from feeds
+    feed = {
+      ...feed,
+      feed: feed.feed.filter((item) => item.post.viewer?.threadMuted !== true),
+    };
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);

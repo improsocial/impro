@@ -49,6 +49,8 @@ export class MockServer {
     this.createGroupError = null;
     this.createGroupRequests = [];
     this.leaveConvoError = null;
+    this.threadMuteError = null;
+    this.threadMuteRequests = [];
     this.typeaheadProfiles = [];
     this.typeaheadDelayMs = 0;
     this.externalLinkCards = new Map();
@@ -491,6 +493,10 @@ export class MockServer {
 
   setCreateGroupError(errorName) {
     this.createGroupError = errorName;
+  }
+
+  setThreadMuteError(errorName) {
+    this.threadMuteError = errorName;
   }
 
   setExternalLinkCard(url, meta) {
@@ -1811,6 +1817,41 @@ export class MockServer {
         body: "{}",
       });
     });
+
+    const handleThreadMute = (route, threadMuted) => {
+      const body = route.request().postDataJSON();
+      this.threadMuteRequests.push({ root: body?.root, threadMuted });
+      if (this.threadMuteError) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: this.threadMuteError,
+            message: this.threadMuteError,
+          }),
+        });
+      }
+      [...this.timelinePosts, ...this.posts, ...this.searchPosts]
+        .filter(
+          (post) => (post.record?.reply?.root?.uri ?? post.uri) === body?.root,
+        )
+        .forEach((post) => {
+          post.viewer = { ...post.viewer, threadMuted };
+        });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    };
+
+    await page.route("**/xrpc/app.bsky.graph.muteThread*", (route) =>
+      handleThreadMute(route, true),
+    );
+
+    await page.route("**/xrpc/app.bsky.graph.unmuteThread*", (route) =>
+      handleThreadMute(route, false),
+    );
 
     await page.route("**/xrpc/app.bsky.graph.muteActorList*", (route) => {
       const body = route.request().postDataJSON();

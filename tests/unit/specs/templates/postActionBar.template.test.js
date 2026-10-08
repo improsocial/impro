@@ -461,6 +461,72 @@ describe("postActionBarTemplate - plugin context menu items", () => {
     container.remove();
   });
 
+  async function renderAndOpenMenu(props) {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(
+      postActionBarTemplate({
+        currentUser: { did: "did:plc:test" },
+        pluginService: { getPostContextMenuItems: async () => [] },
+        ...props,
+      }),
+      container,
+    );
+    const menu = await openPostContextMenu(container);
+    container.remove();
+    return menu;
+  }
+
+  it("should show mute thread on others' posts", async () => {
+    const menu = await renderAndOpenMenu({ post, isAuthenticated: true });
+    const item = menu.querySelector(
+      '[data-testid="menu-action-post-mute-thread"]',
+    );
+    assert.equal(item.dataset.teststate, "unmuted");
+  });
+
+  it("should show mute thread on the user's own posts", async () => {
+    const menu = await renderAndOpenMenu({
+      post,
+      isAuthenticated: true,
+      isUserPost: true,
+    });
+    assert(
+      menu.querySelector('[data-testid="menu-action-post-mute-thread"]') !==
+        null,
+    );
+  });
+
+  it("should hide mute thread when logged out", async () => {
+    const menu = await renderAndOpenMenu({ post, isAuthenticated: false });
+    assert(
+      menu.querySelector('[data-testid="menu-action-post-mute-thread"]') ===
+        null,
+    );
+  });
+
+  it("should call onClickMuteThread with the toggled value", async () => {
+    const onClickMuteThread = mock.fn();
+    const mutedPost = {
+      ...post,
+      viewer: { ...post.viewer, threadMuted: true },
+    };
+    const menu = await renderAndOpenMenu({
+      post: mutedPost,
+      isAuthenticated: true,
+      onClickMuteThread,
+    });
+    const item = menu.querySelector(
+      '[data-testid="menu-action-post-mute-thread"]',
+    );
+    assert.equal(item.dataset.teststate, "muted");
+    item.click();
+    assert.deepEqual(onClickMuteThread.mock.calls[0].arguments, [
+      mutedPost,
+      false,
+    ]);
+  });
+
   it("should pass null feed meta when the post is not in a feed", async () => {
     const menuCalls = [];
     const pluginService = {
