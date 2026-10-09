@@ -2,16 +2,21 @@ import { html, keyed, render } from "/js/lib/lit-html.js";
 import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { classnames } from "/js/utils.js";
+import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
-import { Signal, ReactiveStore } from "/js/signals.js";
+import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import {
   linkToProfile,
   linkToProfileByDid,
   linkToStarterPack,
 } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
+import {
+  bindToPage,
+  pageEffect,
+  bindPageTitle,
+  onPageShow,
+} from "/js/router.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
@@ -46,8 +51,9 @@ export default async function searchView({
   state.$committedQuery = new Signal.State(initialQuery);
   state.$showTypeahead = new Signal.State(false);
   state.$recentProfilesLoading = new Signal.State(true);
+  state.$visitedTabs = new SignalSet();
 
-  const tabScrollState = new Map();
+  const tabScroll = new TabScrollMemory();
   const loadedTabs = new Set();
 
   const TAB_LOADERS = {
@@ -104,7 +110,8 @@ export default async function searchView({
     state.$showTypeahead.set(false);
     state.$committedQuery.set("");
     loadedTabs.clear();
-    tabScrollState.clear();
+    tabScroll.clear();
+    state.$visitedTabs.clear();
     const url = new URL(window.location);
     url.searchParams.delete("q");
     window.history.replaceState({}, "", url);
@@ -146,7 +153,8 @@ export default async function searchView({
     window.history.replaceState({}, "", url);
     if (queryChanged) {
       loadedTabs.clear();
-      tabScrollState.clear();
+      tabScroll.clear();
+      state.$visitedTabs.clear();
     }
     loadTabIfNeeded(state.$activeTab.get());
     root.querySelector(".search-input")?.blur();
@@ -235,7 +243,8 @@ export default async function searchView({
       state.$showTypeahead.set(false);
       state.$committedQuery.set(q);
       loadedTabs.clear();
-      tabScrollState.clear();
+      tabScroll.clear();
+      state.$visitedTabs.clear();
       loadTabIfNeeded(state.$activeTab.get());
     }
     hydrateAndPruneRecentProfiles();
@@ -248,11 +257,11 @@ export default async function searchView({
       }
       return;
     }
-    tabScrollState.set(state.$activeTab.get(), window.scrollY);
-    state.$activeTab.set(tab);
-    loadTabIfNeeded(tab);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, tabScrollState.get(tab) ?? 0);
+    const currentTab = state.$activeTab.get();
+    tabScroll.switch(currentTab, tab, () => {
+      state.$visitedTabs.add(currentTab);
+      state.$activeTab.set(tab);
+      loadTabIfNeeded(tab);
     });
   }
 
@@ -578,11 +587,11 @@ export default async function searchView({
     });
   }
 
-  function getActivePanelTemplate(activeTab, committedQuery, currentUser) {
+  function getPanelTemplate(tab, committedQuery, currentUser) {
     const status = dataLayer.requests.statusStore.$statuses.get(
-      TAB_STATUS_PREFIXES[activeTab] + committedQuery,
+      TAB_STATUS_PREFIXES[tab] + committedQuery,
     );
-    switch (activeTab) {
+    switch (tab) {
       case "top":
         return html`<div
           class="search-results-panel search-post-results search-post-results-top"
@@ -671,14 +680,25 @@ export default async function searchView({
         onCommit: commitSearch,
       });
     } else if (mode === "results") {
+      const shownTab = isAuthenticated ? activeTab : "profiles";
+      const searchTabs = isAuthenticated
+        ? [
+            "top",
+            "latest",
+            "profiles",
+            "feeds",
+            ...(starterPackSearchEnabled ? ["starterPacks"] : []),
+          ]
+        : ["profiles"];
       bodyTemplate = html`<div class="search-tab-panels">
-        <div class="search-tab-panel">
-          ${getActivePanelTemplate(
-            isAuthenticated ? activeTab : "profiles",
-            committedQuery,
-            currentUser,
-          )}
-        </div>
+        ${searchTabs.map(
+          (tab) =>
+            html`<div class="search-tab-panel" ?hidden=${tab !== shownTab}>
+              ${tab === shownTab || state.$visitedTabs.has(tab)
+                ? getPanelTemplate(tab, committedQuery, currentUser)
+                : null}
+            </div>`,
+        )}
       </div>`;
     } else {
       const recentTerms = isAuthenticated
@@ -792,4 +812,7 @@ export default async function searchView({
       root,
     );
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
 }

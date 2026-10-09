@@ -469,6 +469,82 @@ test.describe("Profile view", () => {
     );
   });
 
+  test.describe("Tab scroll positions", () => {
+    test.beforeEach(async ({ page }) => {
+      const createPosts = (prefix) =>
+        Array.from({ length: 30 }, (_, index) =>
+          createPost({
+            uri: `at://did:plc:otheruser1/app.bsky.feed.post/${prefix}${index + 1}`,
+            text: `${prefix} #${index + 1}.`,
+            authorHandle: otherUser.handle,
+            authorDisplayName: otherUser.displayName,
+          }),
+        );
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      mockServer.addAuthorFeedPosts(
+        otherUser.did,
+        "posts_and_author_threads",
+        createPosts("post"),
+      );
+      mockServer.addAuthorFeedPosts(
+        otherUser.did,
+        "posts_with_media",
+        createPosts("media"),
+      );
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+      await expect(
+        page.locator('#profile-view [data-testid="feed-item"]').first(),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    const getScrollY = (page) => page.evaluate(() => window.scrollY);
+    const visibleFeedItem = (page, text) =>
+      page
+        .locator(
+          '#profile-view .feed-container:not([hidden]) [data-testid="feed-item"]',
+        )
+        .filter({ hasText: text });
+
+    test("should keep the scroll position when the tab bar isn't stuck", async ({
+      page,
+    }) => {
+      const tabBar = page.locator("#profile-view tab-bar");
+      await tabBar.locator('[data-testid="tab-media"]').click();
+      await expect(visibleFeedItem(page, "media #1.")).toBeVisible();
+      expect(await getScrollY(page)).toBe(0);
+    });
+
+    test("should restore each tab's scroll position once the tab bar is stuck", async ({
+      page,
+    }) => {
+      const tabBar = page.locator("#profile-view tab-bar");
+      const stickyTabBar = page.locator("#profile-view .profile-tab-bar");
+
+      await visibleFeedItem(page, "post #20.").scrollIntoViewIfNeeded();
+      const postsScrollY = await getScrollY(page);
+
+      // An unvisited tab opens with the tab bar stuck at the top
+      await tabBar.locator('[data-testid="tab-media"]').click();
+      await expect(visibleFeedItem(page, "media #1.")).toBeVisible();
+      await expect
+        .poll(async () => (await stickyTabBar.boundingBox()).y)
+        .toBeCloseTo(0, 0);
+      expect(await getScrollY(page)).toBeLessThan(postsScrollY);
+
+      await visibleFeedItem(page, "media #25.").scrollIntoViewIfNeeded();
+      const mediaScrollY = await getScrollY(page);
+
+      await tabBar.locator('[data-testid="tab-posts"]').click();
+      await expect.poll(() => getScrollY(page)).toBe(postsScrollY);
+
+      await tabBar.locator('[data-testid="tab-media"]').click();
+      await expect.poll(() => getScrollY(page)).toBe(mediaScrollY);
+    });
+  });
+
   test("should show Likes tab on own profile", async ({ page }) => {
     const currentUserProfile = {
       ...userProfile,

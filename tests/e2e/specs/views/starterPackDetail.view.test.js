@@ -638,4 +638,61 @@ test.describe("Starter Pack Detail view", () => {
       otherView.locator('[data-testid="menu-action-starter-pack-delete"]'),
     ).toHaveCount(0);
   });
+
+  test("should restore each tab's scroll position once the tab bar is stuck", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupPack(mockServer);
+    mockServer.addListMembers(
+      LIST_URI,
+      Array.from({ length: 30 }, (_, index) =>
+        createProfile({
+          did: `did:plc:member${index + 1}`,
+          handle: `member${index + 1}.bsky.social`,
+          displayName: `Member #${index + 1}.`,
+        }),
+      ),
+    );
+    mockServer.addListFeedItems(
+      LIST_URI,
+      Array.from({ length: 30 }, (_, index) =>
+        createPost({
+          uri: `at://did:plc:author${index + 1}/app.bsky.feed.post/p${index + 1}`,
+          text: `Pack post #${index + 1}.`,
+          authorHandle: `author${index + 1}.bsky.social`,
+          authorDisplayName: `Author ${index + 1}`,
+        }),
+      ),
+    );
+    await mockServer.setup(page);
+
+    const view = await openPack(page);
+    const activePanel = view.locator(".feed-container:not([hidden])");
+    const tabBar = view.locator(".starter-pack-detail-tab-bar");
+    const getScrollY = () => page.evaluate(() => window.scrollY);
+
+    await activePanel.getByText("Member #20.").scrollIntoViewIfNeeded();
+    const peopleScrollY = await getScrollY();
+
+    // An unvisited tab opens with the tab bar stuck at the top
+    await view.locator('[data-testid="tab-posts"]').click();
+    await expect(activePanel).toContainText("Pack post #1.");
+    await expect
+      .poll(async () => (await tabBar.boundingBox()).y)
+      .toBeCloseTo(0, 0);
+    expect(await getScrollY()).toBeLessThan(peopleScrollY);
+
+    await activePanel
+      .locator('[data-testid="feed-item"]')
+      .filter({ hasText: "Pack post #25." })
+      .scrollIntoViewIfNeeded();
+    const postsScrollY = await getScrollY();
+
+    await view.locator('[data-testid="tab-people"]').click();
+    await expect.poll(getScrollY).toBe(peopleScrollY);
+
+    await view.locator('[data-testid="tab-posts"]').click();
+    await expect.poll(getScrollY).toBe(postsScrollY);
+  });
 });

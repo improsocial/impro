@@ -34,26 +34,29 @@ let activeVideo = null;
 // the viewport, even if another video is closer to the ideal position
 let activeVideoIsManual = false;
 
+const ACTIVE_VIDEO_SETTLE_MS = 150;
+let activeVideoUpdateTimer = null;
+
+function scheduleActiveVideoUpdate() {
+  if (allElements.size === 0) {
+    return;
+  }
+  clearTimeout(activeVideoUpdateTimer);
+  activeVideoUpdateTimer = setTimeout(
+    updateActiveVideo,
+    ACTIVE_VIDEO_SETTLE_MS,
+  );
+}
+
 const activeVideoObserver = new IntersectionObserver(
-  () => updateActiveVideo(),
+  scheduleActiveVideoUpdate,
   { threshold: 0 },
 );
 
-let activeVideoUpdateScheduled = false;
-document.addEventListener(
-  "scroll",
-  () => {
-    if (activeVideoUpdateScheduled || allElements.size === 0) {
-      return;
-    }
-    activeVideoUpdateScheduled = true;
-    requestAnimationFrame(() => {
-      activeVideoUpdateScheduled = false;
-      updateActiveVideo();
-    });
-  },
-  { capture: true, passive: true },
-);
+document.addEventListener("scroll", scheduleActiveVideoUpdate, {
+  capture: true,
+  passive: true,
+});
 
 // Vertical center of the element, or null when no part of it is on screen
 function measureOnScreenCenter(element) {

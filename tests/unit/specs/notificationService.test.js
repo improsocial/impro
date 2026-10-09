@@ -33,10 +33,10 @@ describe("NotificationService", () => {
   });
 
   describe("constructor", () => {
-    it("should initialize with zero notifications", () => {
+    it("should initialize with a null count until loaded", () => {
       const api = createMockApi();
       const service = new NotificationService(api);
-      assert.deepEqual(service.$numNotifications.get(), 0);
+      assert.equal(service.$numNotifications.get(), null);
     });
   });
 
@@ -54,11 +54,29 @@ describe("NotificationService", () => {
       const api = createMockApi({ numNotifications: 3 });
       const service = new NotificationService(api);
 
-      assert.deepEqual(service.$numNotifications.get(), 0);
+      assert.equal(service.$numNotifications.get(), null);
 
       await service.fetchNumNotifications();
 
       assert.deepEqual(service.$numNotifications.get(), 3);
+    });
+
+    it("sets a zero count on the first fetch", async () => {
+      const api = createMockApi({ numNotifications: 0 });
+      const service = new NotificationService(api);
+
+      await service.fetchNumNotifications();
+
+      assert.equal(service.$numNotifications.get(), 0);
+    });
+
+    it("keeps the count null while a first increase is unverified", async () => {
+      const api = createMockApi({ numNotifications: 3, topUri: null });
+      const service = new NotificationService(api);
+
+      await service.fetchNumNotifications();
+
+      assert.equal(service.$numNotifications.get(), null);
     });
 
     it("commits the increased count once the list reflects a new top item", async () => {
@@ -244,7 +262,7 @@ describe("NotificationService", () => {
       const api = createMockApi({ numNotifications: 7 });
       const service = new NotificationService(api);
 
-      assert.deepEqual(service.$numNotifications.get(), 0);
+      assert.equal(service.$numNotifications.get(), null);
 
       await service.fetchNumNotifications();
 

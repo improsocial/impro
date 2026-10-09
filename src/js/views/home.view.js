@@ -22,6 +22,7 @@ import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
+import { TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
 const requestIdle =
@@ -135,7 +136,7 @@ export default async function homeView({
     showToast("Feedback sent to feed operator");
   }
 
-  const feedScrollState = new Map();
+  const feedScroll = new TabScrollMemory();
 
   async function scrollAndReloadFeed() {
     if (window.scrollY > 0) {
@@ -155,16 +156,12 @@ export default async function homeView({
       scrollAndReloadFeed();
       return;
     }
-    // Save scroll state
-    feedScrollState.set(currentFeedUri, window.scrollY);
-    state.$materializedFeedUris.add(currentFeedUri);
-    // Switch feed
-    dataLayer.mutations.setSelectedFeedUri(feedUri);
-    // Scroll to saved position for new feed
-    const savedScrollY = feedScrollState.get(feedUri) ?? 0;
-    requestAnimationFrame(() => {
-      window.scrollTo(0, savedScrollY);
+    // Switch feed, restoring its saved scroll position
+    const switched = await feedScroll.switch(currentFeedUri, feedUri, () => {
+      state.$materializedFeedUris.add(currentFeedUri);
+      dataLayer.mutations.setSelectedFeedUri(feedUri);
     });
+    if (!switched) return;
     if (!dataLayer.hasCachedFeed(feedUri)) {
       await loadCurrentFeed();
     }
@@ -353,6 +350,9 @@ export default async function homeView({
     }
     scheduleMaterializeFeeds(pinnedItems);
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
 
   function getFeedRequestDescriptor(uri) {
     const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];

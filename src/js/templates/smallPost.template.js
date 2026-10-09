@@ -245,6 +245,8 @@ export function smallPostTemplate({
               postInteractionHandler.handleHidePost(post),
             onClickMute: (profile, doMute) =>
               postInteractionHandler.handleMuteAuthor(profile, doMute),
+            onClickMuteThread: (post, doMute) =>
+              postInteractionHandler.handleMuteThread(post, doMute),
             onClickBlock: (profile, doBlock) =>
               postInteractionHandler.handleBlockAuthor(profile, doBlock),
             onClickDelete: (post) => {

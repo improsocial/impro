@@ -10,7 +10,10 @@ import {
   getGroupConvoOwner,
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
@@ -82,7 +85,7 @@ export default async function chatRequestsView({
               }
               return otherMember
                 ? avatarTemplate({ author: otherMember })
-                : html`<div class="avatar-placeholder"></div>`;
+                : avatarPlaceholderTemplate();
             })()}
           </div>
           <div class="convo-content">

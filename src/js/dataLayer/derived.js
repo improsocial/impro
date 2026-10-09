@@ -26,6 +26,7 @@ import {
   getJoinLinkCodeFromEmbed,
   isFollowingFeedUri,
   isStatusValid,
+  getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
@@ -100,6 +101,12 @@ function applyLabels(post, preferences) {
 // Match social-app: hide notifications from blocked / muted
 // users unless the viewer follows them (a follow overrides a mute).
 function shouldHideNotification(notification) {
+  if (
+    notification.reason === "subscribed-post" &&
+    notification.post?.viewer?.hasMutedWord
+  ) {
+    return true;
+  }
   const viewer = notification.author?.viewer;
   if (!viewer) return false;
   if (viewer.blocking) return true;
@@ -905,6 +912,16 @@ export class Derived extends ReactiveStore {
     result = this.attachJoinLinkPreview(result);
     result = applyMutedWords(result, preferences);
     result = applyIsHidden(result, preferences);
+    if (result.viewer) {
+      const rootUri = getReplyRootFromPost(result).uri;
+      const threadMutePatches = this.patchStore.$threadMutePatches.get(rootUri);
+      if (threadMutePatches?.length) {
+        result = this.patchStore.applyThreadMutePatches(
+          result,
+          threadMutePatches,
+        );
+      }
+    }
     return applyLabels(result, preferences);
   }
 
@@ -1002,8 +1019,7 @@ export class Derived extends ReactiveStore {
     }
     if (notification.reason === "subscribed-post") {
       const post = this.$hydratedPosts.get(notification.uri);
-      // NOTE: LEXICON DEVIATION
-      return { ...notification, reasonSubject: post };
+      return { ...notification, post };
     }
     return notification;
   }

@@ -11,7 +11,10 @@ function getHeaderElement(container) {
 function lockScroll(container) {
   // Important: read scrollY before pinning the header
   const scrollY = window.scrollY;
-  const header = getHeaderElement(container);
+  let header = getHeaderElement(container);
+  if (header && window.getComputedStyle(header).position === "fixed") {
+    header = null;
+  }
   let headerHeight = 0;
   if (header) {
     headerHeight = header.getBoundingClientRect().height;
@@ -44,25 +47,27 @@ function lockScroll(container) {
     header.style.width = columnRect.width - borderLeft - borderRight + "px";
     header.style.right = "auto";
   }
+  return {
+    header,
+    main,
+    scrollY,
+    lockedMainTop: main ? main.getBoundingClientRect().top : null,
+  };
 }
 
-function unlockScroll(container, { restoreScroll = true } = {}) {
-  const header = getHeaderElement(container);
-  let headerHeight = 0;
-  if (header) {
-    headerHeight = header.getBoundingClientRect().height;
-  }
+function unlockScroll(
+  { header, main, scrollY, lockedMainTop },
+  { restoreScroll = true } = {},
+) {
   let scrollTo = 0;
-  const main = container.querySelector("main");
   if (main) {
-    scrollTo = -1 * (main.getBoundingClientRect().top - headerHeight);
+    // Follows main if it moved while locked
+    scrollTo = scrollY + lockedMainTop - main.getBoundingClientRect().top;
     main.style.marginTop = "";
     main.style.display = "";
   }
   if (header) {
     header.classList.remove("scroll-lock-pinned");
-  }
-  if (header) {
     header.style.left = "";
     header.style.width = "";
     header.style.right = "";
@@ -102,7 +107,7 @@ function findScrollableAncestor(element) {
 class ScrollLockManager {
   #getContainer = null;
   #leases = new Set();
-  #lockedContainer = null;
+  #lockState = null;
 
   setContainerProvider(getContainer) {
     this.#getContainer = getContainer;
@@ -123,9 +128,9 @@ class ScrollLockManager {
       }
 
       this.#leases.delete(release);
-      if (this.#leases.size === 0 && this.#lockedContainer) {
-        unlockScroll(this.#lockedContainer, { restoreScroll });
-        this.#lockedContainer = null;
+      if (this.#leases.size === 0 && this.#lockState) {
+        unlockScroll(this.#lockState, { restoreScroll });
+        this.#lockState = null;
       }
     };
 
@@ -137,8 +142,7 @@ class ScrollLockManager {
         );
         return { release };
       }
-      lockScroll(container);
-      this.#lockedContainer = container;
+      this.#lockState = lockScroll(container);
     }
 
     this.#leases.add(release);

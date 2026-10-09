@@ -5,6 +5,7 @@ import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
+import { TabScrollMemory, StickyFixer } from "/js/utils.js";
 
 export default async function hashtagView({
   root,
@@ -31,7 +32,7 @@ export default async function hashtagView({
 
   const { postInteractionHandler } = interactionHandlers;
 
-  const feedScrollState = new Map();
+  const feedScroll = new TabScrollMemory();
 
   async function scrollAndReloadFeed() {
     if (window.scrollY > 0) {
@@ -46,16 +47,11 @@ export default async function hashtagView({
       scrollAndReloadFeed();
       return;
     }
-    // Save scroll state
-    feedScrollState.set(currentSort, window.scrollY);
-    // Switch sort
-    state.$currentSort.set(sortValue);
-    // Scroll to saved scroll state
-    if (feedScrollState.has(sortValue)) {
-      window.scrollTo(0, feedScrollState.get(sortValue));
-    } else {
-      window.scrollTo(0, 0);
-    }
+    // Switch sort, restoring its saved scroll position
+    const switched = await feedScroll.switch(currentSort, sortValue, () => {
+      state.$currentSort.set(sortValue);
+    });
+    if (!switched) return;
     // Load feed if not cached
     const hashtagKey = `${hashtag}-${sortValue}`;
     const feed = dataLayer.derived.$hydratedHashtagFeeds.get(hashtagKey);
@@ -107,6 +103,9 @@ export default async function hashtagView({
       root,
     );
   });
+
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
 
   async function loadCurrentFeed({ reload = false } = {}) {
     await dataLayer.requests.loadHashtagFeed(

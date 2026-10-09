@@ -175,6 +175,30 @@ describe("loadNextFeedPage", () => {
     assert.equal(dataStore.$postNumbering.get("post3"), null);
   });
 
+  it("should drop items from muted threads", async () => {
+    const mutedItem = {
+      post: { uri: "post1", viewer: { threadMuted: true } },
+    };
+    const unmutedItem = {
+      post: { uri: "post2", viewer: { threadMuted: false } },
+    };
+    const mockApi = {
+      getFeed: async () => ({
+        feed: [mutedItem, unmutedItem],
+        cursor: "cursor123",
+      }),
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+
+    assert.deepEqual(dataStore.$feeds.get(feedURI), {
+      feed: [unmutedItem],
+      cursor: "cursor123",
+    });
+  });
+
   it("should load initial feed page", async () => {
     const mockFeed = {
       feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],

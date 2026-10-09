@@ -159,6 +159,47 @@ test.describe("Settings view", () => {
       );
     });
 
+    test("shows avatar placeholders for accounts whose profile hasn't loaded", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const loadedProfile = createProfile({
+        did: "did:plc:loadeduser123",
+        handle: "loadeduser.bsky.social",
+      });
+      mockServer.addProfile(loadedProfile);
+      await mockServer.setup(page);
+
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        { did: loadedProfile.did, handle: loadedProfile.handle },
+        { did: "did:plc:unloadeduser456", handle: "unloaded.bsky.social" },
+      ]);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      const stack = view.locator(
+        '[data-testid="settings-account-avatar-stack"]',
+      );
+      await expect(stack.locator('[data-testid="avatar"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(
+        stack.locator('[data-testid="avatar-placeholder"]'),
+      ).toHaveCount(1);
+
+      await view
+        .locator('[data-testid="settings-switch-account-toggle"]')
+        .click();
+
+      const rows = view.locator('[data-testid="settings-account-row"]');
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0).locator('[data-testid="avatar"]')).toBeVisible();
+      await expect(
+        rows.nth(1).locator('[data-testid="avatar-placeholder"]'),
+      ).toBeVisible();
+    });
+
     test("shows a spinner in place of the ellipsis button while switching accounts", async ({
       page,
     }) => {

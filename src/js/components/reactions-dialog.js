@@ -4,7 +4,10 @@ import { effect } from "/js/signals.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
 import "/js/components/app-icon.js";
 
@@ -221,7 +224,7 @@ class ReactionsDialog extends Component {
                               author: profile,
                               clickAction: "none",
                             })
-                          : html`<div class="avatar-placeholder"></div>`}
+                          : avatarPlaceholderTemplate()}
                       </div>
                       <div class="reaction-row-info">
                         <div class="reaction-row-name">${displayName}</div>

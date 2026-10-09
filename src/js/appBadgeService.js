@@ -14,18 +14,33 @@ export class AppBadgeService {
 
   start() {
     return effect(() => {
-      const activityCount =
-        this.notificationService.$numNotifications.get() ?? 0;
-      const chatCount =
-        this.chatNotificationService.$numNotifications.get() ?? 0;
+      const activityCount = this.notificationService.$numNotifications.get();
+      const chatCount = this.chatNotificationService.$numNotifications.get();
       const pushEnabled = this.pushNotificationService?.isEnabled ?? false;
+
+      if (activityCount === 0 && chatCount === 0) {
+        closeDisplayedNotifications();
+      }
 
       if (!("setAppBadge" in navigator)) return;
       const badgeEnabled = !isTouchOnlyDevice() || pushEnabled;
-      const total = badgeEnabled ? activityCount + chatCount : 0;
+      const total = badgeEnabled ? (activityCount ?? 0) + (chatCount ?? 0) : 0;
       const applied =
         total > 0 ? navigator.setAppBadge(total) : navigator.clearAppBadge();
       applied?.catch?.(() => {});
     });
+  }
+}
+
+async function closeDisplayedNotifications() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const notifications = (await registration?.getNotifications()) ?? [];
+    for (const notification of notifications) {
+      notification.close();
+    }
+  } catch (error) {
+    console.warn("Failed to close displayed notifications", error);
   }
 }

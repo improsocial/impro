@@ -8,7 +8,7 @@ const VERIFY_RETRY_MS = 1000;
 export class NotificationService {
   constructor(api) {
     this.api = api;
-    this.$numNotifications = new Signal.State(0);
+    this.$numNotifications = new Signal.State(null);
     this.$numNotifications.__debugName = "$numNotifications";
     this._lastVerifiedTopUri = null;
     this.poller = new Poller(

@@ -293,6 +293,8 @@ export function largePostTemplate({
                 },
                 onClickMute: (profile, doMute) =>
                   postInteractionHandler.handleMuteAuthor(profile, doMute),
+                onClickMuteThread: (post, doMute) =>
+                  postInteractionHandler.handleMuteThread(post, doMute),
                 onClickBlock: async (profile, doBlock) => {
                   const success =
                     await postInteractionHandler.handleBlockAuthor(

@@ -8,7 +8,10 @@ import {
   raf,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate,
+} from "/js/templates/avatar.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
@@ -296,7 +299,7 @@ export function sidebarTemplate({
         >
           ${currentUser
             ? html`${avatarTemplate({ author: currentUser })}`
-            : html`<div class="avatar-placeholder"></div>`}
+            : avatarPlaceholderTemplate()}
         </div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name" data-testid="sidebar-profile-name">

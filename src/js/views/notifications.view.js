@@ -5,7 +5,13 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { formatRelativeTime, batch } from "/js/utils.js";
+import {
+  formatRelativeTime,
+  batch,
+  unique,
+  TabScrollMemory,
+  StickyFixer,
+} from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   bindToPage,
@@ -14,6 +20,7 @@ import {
   onPageShow,
 } from "/js/router.js";
 import {
+  linkToNotificationActivity,
   linkToPost,
   linkToProfile,
   linkToStarterPack,
@@ -34,7 +41,10 @@ import { verificationBadgeTemplate } from "/js/templates/verificationBadge.templ
 import { getTimestampFromRkey } from "/js/atproto.js";
 import { profileListModal } from "/js/modals/profileList.modal.js";
 import "/js/components/tab-bar.js";
-import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
+import {
+  NOTIFICATIONS_PAGE_SIZE,
+  NOTIFICATION_GROUP_WINDOW_HOURS,
+} from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -168,6 +178,7 @@ export default async function notificationsView({
     "starterpack-joined",
     "verified",
     "unverified",
+    "subscribed-post",
   ];
 
   // Check if you're following the author of the notification,
@@ -182,6 +193,13 @@ export default async function notificationsView({
     const followedTimestamp =
       new Date(notification.record?.createdAt).getTime() * 1000;
     return followedTimestamp > followingTimestamp;
+  }
+
+  function isWithinGroupWindow(notificationGroup, notification) {
+    const head = notificationGroup.notifications[0];
+    const ageDifferenceMs =
+      new Date(head.indexedAt) - new Date(notification.indexedAt);
+    return ageDifferenceMs < NOTIFICATION_GROUP_WINDOW_HOURS * 60 * 60 * 1000;
   }
 
   function groupNotificationsForBatch(notifications) {
@@ -199,7 +217,8 @@ export default async function notificationsView({
         (group) =>
           group.type === type &&
           group.subject === subject &&
-          group.starterPack?.uri === starterPack?.uri,
+          group.starterPack?.uri === starterPack?.uri &&
+          isWithinGroupWindow(group, notification),
       );
 
       if (existingGroup && GROUPED_NOTIFICATION_TYPES.includes(type)) {
@@ -232,12 +251,14 @@ export default async function notificationsView({
       const post = notifications[0]?.post;
       return !post || isEmptyPost(post);
     }
-    if (type === "subscribed-post") {
-      return (
-        !notificationGroup.subject || isEmptyPost(notificationGroup.subject)
-      );
-    }
     return false;
+  }
+
+  function isUnavailableSubscribedPost(notification) {
+    return (
+      notification.reason === "subscribed-post" &&
+      (!notification.post || isEmptyPost(notification.post))
+    );
   }
 
   function groupNotificationsByType(notifications) {
@@ -247,28 +268,38 @@ export default async function notificationsView({
     // Only group notifications per page
     const batchedNotifications = batch(notifications, NOTIFICATIONS_PAGE_SIZE);
     return batchedNotifications
-      .flatMap((batch) => groupNotificationsForBatch(batch))
+      .flatMap((batch) =>
+        groupNotificationsForBatch(
+          batch.filter(
+            (notification) => !isUnavailableSubscribedPost(notification),
+          ),
+        ),
+      )
       .filter(
         (notificationGroup) => !shouldHideNotificationGroup(notificationGroup),
       );
   }
 
   function notificationAvatarsTemplate({ notifications, maxAvatars = 5 }) {
-    const displayCount = Math.min(notifications.length, maxAvatars);
+    const authors = unique(
+      notifications.map((notification) => notification.author),
+      { by: "did" },
+    );
+    const displayCount = Math.min(authors.length, maxAvatars);
     return html`
       <div class="notification-avatars">
-        ${notifications
+        ${authors
           .slice(0, displayCount)
           .map(
-            (notif) => html`
+            (author) => html`
               <div class="notification-avatar">
-                ${avatarTemplate({ author: notif.author })}
+                ${avatarTemplate({ author })}
               </div>
             `,
           )}
-        ${notifications.length > maxAvatars
+        ${authors.length > maxAvatars
           ? html`<div class="notification-more">
-              +${notifications.length - maxAvatars}
+              +${authors.length - maxAvatars}
             </div>`
           : ""}
       </div>
@@ -276,19 +307,22 @@ export default async function notificationsView({
   }
 
   function notificationProfileNamesTemplate({ notificationGroup, title }) {
-    const { notifications } = notificationGroup;
-    const firstNotif = notifications[0];
-    const displayName = getDisplayName(firstNotif.author);
-    const otherCount = notifications.length - 1;
+    const authors = unique(
+      notificationGroup.notifications.map(
+        (notification) => notification.author,
+      ),
+      { by: "did" },
+    );
+    const firstAuthor = authors[0];
+    const displayName = getDisplayName(firstAuthor);
+    const otherCount = authors.length - 1;
     return html`<span
-      ><a
-        class="notification-profile-link"
-        href="${linkToProfile(firstNotif.author)}"
+      ><a class="notification-profile-link" href="${linkToProfile(firstAuthor)}"
         >${displayName}</a
       >${verificationBadgeTemplate({
-        profile: firstNotif.author,
+        profile: firstAuthor,
       })}${automatedAccountBadgeTemplate({
-        profile: firstNotif.author,
+        profile: firstAuthor,
       })}${otherCount > 0
         ? html`<span>
             and
@@ -298,17 +332,14 @@ export default async function notificationsView({
               data-testid="notification-others-button"
               @click=${(event) => {
                 event.stopPropagation();
-                profileListModal(
-                  notifications.map((notif) => notif.author),
-                  {
-                    title,
-                    isAuthenticated,
-                    currentUserDid: dataLayer.derived.$currentUser.get()?.did,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                    pluginService,
-                  },
-                );
+                profileListModal(authors, {
+                  title,
+                  isAuthenticated,
+                  currentUserDid: dataLayer.derived.$currentUser.get()?.did,
+                  profileInteractionHandler:
+                    interactionHandlers.profileInteractionHandler,
+                  pluginService,
+                });
               }}
             >
               ${otherCount} ${otherCount === 1 ? "other" : "others"}
@@ -372,12 +403,13 @@ export default async function notificationsView({
   function subscribedPostNotificationTemplate({ notificationGroup }) {
     const { notifications } = notificationGroup;
     const firstNotif = notifications[0];
-    const post = notificationGroup.subject;
+    const post = firstNotif.post;
     const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
-    const profileLink = linkToProfile(post.author);
     return notificationItemTemplate({
-      href: isUnavailablePost(post) ? null : linkToPost(post),
+      href: linkToNotificationActivity(
+        notifications.map((notification) => notification.post.uri),
+      ),
       isUnread,
       children: html`
         <div class="notification-icon">
@@ -386,12 +418,11 @@ export default async function notificationsView({
         <div class="notification-content">
           ${notificationAvatarsTemplate({ notifications })}
           <div class="notification-text">
-            New post from
-            <a class="notification-profile-link" href="${profileLink}"
-              >${getDisplayName(post.author)}</a
-            >${verificationBadgeTemplate({
-              profile: post.author,
-            })}${automatedAccountBadgeTemplate({ profile: post.author })}
+            ${notifications.length === 1 ? "New post from" : "New posts from"}
+            ${notificationProfileNamesTemplate({
+              notificationGroup,
+              title: "New posts",
+            })}
             <span class="notification-time">· ${timeAgo}</span>
           </div>
           ${postPreviewTemplate({ post: post })}
@@ -751,13 +782,18 @@ export default async function notificationsView({
     }
   }
 
+  const tabScroll = new TabScrollMemory();
+
   async function handleTabClick(tab) {
-    if (tab === state.$activeTab.get()) {
+    const currentTab = state.$activeTab.get();
+    if (tab === currentTab) {
       scrollAndReloadNotifications();
       return;
     }
-    state.$activeTab.set(tab);
-    window.scrollTo(0, 0);
+    const switched = await tabScroll.switch(currentTab, tab, () =>
+      state.$activeTab.set(tab),
+    );
+    if (!switched) return;
     if (tab === "mentions" && !dataLayer.derived.$mentionNotifications.get()) {
       await loadMentionNotifications({ reload: true });
     }
@@ -867,6 +903,9 @@ export default async function notificationsView({
     );
   });
 
+  const fixedHeader = new StickyFixer(() => root.querySelector("header"));
+  onPageShow(root, () => fixedHeader.start());
+
   async function loadNotifications({ reload = false } = {}) {
     await dataLayer.requests.loadNotifications({
       reload,
@@ -904,6 +943,7 @@ export default async function notificationsView({
     const loadError =
       dataLayer.requests.statusStore.getError("loadNotifications");
     if (hadNotifications && loadError) {
+      console.warn(loadError);
       showToast("Couldn't refresh notifications", { style: "error" });
     } else {
       state.$loadMoreError.set(null);

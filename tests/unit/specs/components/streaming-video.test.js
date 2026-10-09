@@ -404,6 +404,53 @@ describe("streaming-video", () => {
       assert.deepEqual(first.calls.play, 2);
     });
 
+    describe("on scroll", () => {
+      beforeEach(() => {
+        mock.timers.enable({ apis: ["setTimeout"] });
+      });
+
+      afterEach(() => {
+        mock.timers.reset();
+      });
+
+      function scroll() {
+        document.dispatchEvent(new window.Event("scroll"));
+      }
+
+      it("should not measure videos until scrolling settles", () => {
+        const only = createCandidate();
+        let measurements = 0;
+        only.element.getBoundingClientRect = () => {
+          measurements++;
+          return { top: 0, bottom: 200, width: 400, height: 200 };
+        };
+        scroll();
+        mock.timers.tick(100);
+        scroll();
+        mock.timers.tick(149);
+        assert.deepEqual(measurements, 0);
+        mock.timers.tick(1);
+        assert(measurements > 0);
+      });
+
+      it("should switch videos once scrolling settles", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        updateActiveVideo();
+        first.placeAt(-200);
+        second.placeAt(220);
+        scroll();
+        assert.deepEqual(first.calls.pause, 0);
+        mock.timers.tick(150);
+        assert.deepEqual(first.calls.pause, 1);
+        // enableStreaming resolves before play is called
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.deepEqual(second.calls.play, 1);
+      });
+    });
+
     describe("with autoplay disabled", () => {
       beforeEach(() => {
         deviceState.$autoplayDisabledSetting.set(true);

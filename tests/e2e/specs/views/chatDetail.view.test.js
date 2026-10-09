@@ -59,6 +59,52 @@ test.describe("Chat detail view", () => {
     );
   });
 
+  test.describe("day titles", () => {
+    test.use({ timezoneId: "UTC" });
+
+    test("should format day titles by how long ago the day was", async ({
+      page,
+    }) => {
+      await page.clock.setFixedTime(new Date("2026-10-07T18:00:00.000Z"));
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      const messages = [
+        "2026-10-07T12:00:00.000Z",
+        "2026-10-04T12:00:00.000Z",
+        "2026-09-20T12:00:00.000Z",
+        "2025-12-25T12:00:00.000Z",
+      ].map((sentAt, i) =>
+        createMessage({
+          id: `msg-${i}`,
+          text: `Message ${i}`,
+          senderDid: alice.did,
+          sentAt,
+        }),
+      );
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", messages);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('[data-testid="message-day-title"] strong'),
+      ).toHaveText(["December 25, 2025", "September 20", "Sunday", "Today"], {
+        timeout: 10000,
+      });
+    });
+  });
+
   test("should render emoji-only messages enlarged without a bubble", async ({
     page,
   }) => {
@@ -2569,6 +2615,58 @@ test.describe("Chat detail view", () => {
       .locator('.message-wrapper[data-message-id="msg-1"]')
       .boundingBox();
     expect(panelBox.y).toBeLessThan(messageBox.y);
+  });
+
+  test("should mark the convo as read when a new message arrives while open", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    mockServer.addConvos([createConvo({ id: "convo-1", otherMember: alice })]);
+    mockServer.addConvoMessages("convo-1", [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const updateReadRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes("chat.bsky.convo.updateRead") &&
+        request.postDataJSON()?.convoId === "convo-1",
+      { timeout: 15000 },
+    );
+    mockServer.addChatLogs([
+      createMessageLog({
+        convoId: "convo-1",
+        message: createMessage({
+          id: "msg-new",
+          text: "Just arrived!",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T13:00:00.000Z",
+        }),
+      }),
+    ]);
+
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+      timeout: 15000,
+    });
+    await updateReadRequest;
   });
 
   test.describe("Scrolling on new messages", () => {

@@ -38,6 +38,12 @@ export function isInvalidSwapError(error) {
   return error instanceof ApiError && error.data?.error === "InvalidSwap";
 }
 
+export function isRetryableError(error) {
+  if (error instanceof ApiError) return error.status >= 500;
+  // fetch rejects with a TypeError on network failure
+  return error instanceof TypeError;
+}
+
 class PublicSession {
   constructor() {
     this.serviceEndpoint = PUBLIC_SERVICE_ENDPOINT_URL;
@@ -1117,6 +1123,28 @@ export class Api {
       method: "POST",
       body: {
         actor: did,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async muteThread(rootUri) {
+    const res = await this.appViewRequest("app.bsky.graph.muteThread", {
+      method: "POST",
+      body: {
+        root: rootUri,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async unmuteThread(rootUri) {
+    const res = await this.appViewRequest("app.bsky.graph.unmuteThread", {
+      method: "POST",
+      body: {
+        root: rootUri,
       },
       parseJson: false,
     });

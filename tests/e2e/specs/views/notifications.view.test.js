@@ -240,6 +240,40 @@ test.describe("Notifications view", () => {
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
   });
 
+  test("should not group follows more than 48h apart", async ({ page }) => {
+    const hoursAgo = (hours) =>
+      new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: hoursAgo(1),
+      }),
+      createNotification({
+        reason: "follow",
+        author: bob,
+        indexedAt: hoursAgo(10),
+      }),
+      createNotification({
+        reason: "follow",
+        author: charlie,
+        indexedAt: hoursAgo(60),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    await expect(items.nth(0).locator(".notification-avatar")).toHaveCount(2);
+    await expect(items.nth(1).locator(".notification-avatar")).toHaveCount(1);
+    await expect(items.nth(1)).toContainText("Charlie");
+  });
+
   test("should show the starter pack a follow came from", async ({ page }) => {
     const mockServer = new MockServer();
     const starterPack = createStarterPack({
@@ -536,6 +570,157 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".notification-preview-text")).toContainText(
       "Fresh off the press",
     );
+  });
+
+  test.describe("Subscribed post bundles", () => {
+    const hoursAgo = (hours) =>
+      new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+    function subscribedPost(author, rkey) {
+      return createPost({
+        uri: `at://${author.did}/app.bsky.feed.post/${rkey}`,
+        text: `Post ${rkey} from ${author.displayName}`,
+        authorHandle: author.handle,
+        authorDisplayName: author.displayName,
+      });
+    }
+
+    function subscribedPostNotification(post, author, indexedAt) {
+      return createNotification({
+        reason: "subscribed-post",
+        author,
+        uri: post.uri,
+        indexedAt,
+      });
+    }
+
+    test("should bundle subscribed posts from the same author within 48h", async ({
+      page,
+    }) => {
+      const posts = [
+        subscribedPost(alice, "a3"),
+        subscribedPost(alice, "a2"),
+        subscribedPost(alice, "a1"),
+      ];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(10)),
+        subscribedPostNotification(posts[2], alice, hoursAgo(40)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-avatar")).toHaveCount(1);
+      await expect(item.locator(".notification-preview-text")).toContainText(
+        "Post a3 from Alice",
+      );
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.pathname).toBe("/notifications/activity");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
+
+    test("should split subscribed posts more than 48h apart", async ({
+      page,
+    }) => {
+      const posts = [subscribedPost(alice, "a2"), subscribedPost(alice, "a1")];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(60)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const items = view.locator(".notification-item");
+      await expect(items).toHaveCount(2, { timeout: 10000 });
+      for (const [index, post] of posts.entries()) {
+        const href = await items.nth(index).getAttribute("href");
+        const url = new URL(href, "http://localhost");
+        expect(url.pathname).toBe("/notifications/activity");
+        expect(url.searchParams.get("posts")).toBe(post.uri);
+      }
+    });
+
+    test("should bundle subscribed posts from different authors", async ({
+      page,
+    }) => {
+      const posts = [
+        subscribedPost(alice, "a2"),
+        subscribedPost(bob, "b1"),
+        subscribedPost(alice, "a1"),
+      ];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(posts[0], alice, hoursAgo(1)),
+        subscribedPostNotification(posts[1], bob, hoursAgo(2)),
+        subscribedPostNotification(posts[2], alice, hoursAgo(3)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-avatar")).toHaveCount(2);
+      await expect(item.locator(".notification-profile-link")).toHaveText(
+        "Alice",
+      );
+      await expect(
+        item.locator('[data-testid="notification-others-button"]'),
+      ).toBeVisible();
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
+
+    test("should keep a bundle when its newest post was deleted", async ({
+      page,
+    }) => {
+      const deletedPost = subscribedPost(alice, "a3");
+      const posts = [subscribedPost(alice, "a2"), subscribedPost(alice, "a1")];
+      const mockServer = new MockServer();
+      mockServer.addPosts(posts);
+      mockServer.addNotifications([
+        subscribedPostNotification(deletedPost, alice, hoursAgo(1)),
+        subscribedPostNotification(posts[0], alice, hoursAgo(2)),
+        subscribedPostNotification(posts[1], alice, hoursAgo(3)),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const item = view.locator(".notification-item");
+      await expect(item).toHaveCount(1, { timeout: 10000 });
+      await expect(item.locator(".notification-preview-text")).toContainText(
+        "Post a2 from Alice",
+      );
+      const href = await item.getAttribute("href");
+      const url = new URL(href, "http://localhost");
+      expect(url.searchParams.get("posts")).toBe(
+        posts.map((post) => post.uri).join(","),
+      );
+    });
   });
 
   test("should show unread indicator on unread notifications", async ({
@@ -1484,6 +1669,9 @@ test.describe("Notifications view", () => {
 
       // Switch to Mentions tab
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
 
@@ -1524,6 +1712,9 @@ test.describe("Notifications view", () => {
       });
 
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       await expect(
@@ -1574,6 +1765,9 @@ test.describe("Notifications view", () => {
 
       // Switch to Mentions then back to All
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
       await expect(view).toContainText("A mention post", { timeout: 10000 });
 
       await view.locator(".tab-bar-button").nth(0).click();
@@ -1581,6 +1775,62 @@ test.describe("Notifications view", () => {
       // Both follow and mention should be visible again
       await expect(view).toContainText("followed you", { timeout: 10000 });
       await expect(view).toContainText("A mention post");
+    });
+
+    test("should preserve each tab's scroll position when switching tabs", async ({
+      page,
+    }) => {
+      const likedPosts = [];
+      const notifications = [];
+      for (let i = 1; i <= 30; i++) {
+        const post = createPost({
+          uri: `at://did:plc:testuser123/app.bsky.feed.post/scrollpost${i}`,
+          text: `Liked post ${i}`,
+          authorHandle: "testuser.bsky.social",
+          authorDisplayName: "Test User",
+        });
+        likedPosts.push(post);
+        notifications.push(
+          createNotification({
+            reason: "like",
+            author: createProfile({
+              did: `did:plc:liker${i}`,
+              handle: `liker${i}.bsky.social`,
+              displayName: `Liker ${i}`,
+            }),
+            reasonSubject: post.uri,
+            indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+          }),
+        );
+      }
+
+      const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const items = view.locator(".notification-item");
+      await expect(items.nth(20)).toBeVisible({ timeout: 10000 });
+
+      await page.evaluate(() => window.scrollTo(0, 600));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
+
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+        .toBe(0);
+
+      await view.locator(".tab-bar-button").nth(0).click();
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+        .toBe(600);
     });
 
     function createPagedMentionNotifications(count) {
@@ -1632,6 +1882,9 @@ test.describe("Notifications view", () => {
 
       const view = page.locator("#notifications-view");
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       const items = activePanel.locator(".notification-reply-wrapper");
@@ -1668,6 +1921,9 @@ test.describe("Notifications view", () => {
 
       const view = page.locator("#notifications-view");
       await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
 
       const activePanel = view.locator(".notifications-feed:not([hidden])");
       const items = activePanel.locator(".notification-reply-wrapper");

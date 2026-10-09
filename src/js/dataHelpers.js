@@ -570,16 +570,30 @@ export function getPostUrisFromReposts(reposts) {
   return unique(reposts.map((repost) => getPostUriFromRepost(repost)));
 }
 
-export function getImagesFromPost(post) {
-  if (post?.embed?.$type === "app.bsky.embed.images#view") {
-    return post.embed.images;
+export function galleryItemsToImages(items) {
+  return (items ?? [])
+    .filter(
+      (item) =>
+        !item.$type || item.$type === "app.bsky.embed.gallery#viewImage",
+    )
+    .map(({ thumbnail, ...rest }) => ({ thumb: thumbnail, ...rest }));
+}
+
+function getImagesFromMediaEmbed(embed) {
+  if (embed?.$type === "app.bsky.embed.images#view") {
+    return embed.images;
   }
-  if (post?.embed?.$type === "app.bsky.embed.recordWithMedia#view") {
-    if (post.embed.media?.$type === "app.bsky.embed.images#view") {
-      return post.embed.media.images;
-    }
+  if (embed?.$type === "app.bsky.embed.gallery#view") {
+    return galleryItemsToImages(embed.items);
   }
   return [];
+}
+
+export function getImagesFromPost(post) {
+  if (post?.embed?.$type === "app.bsky.embed.recordWithMedia#view") {
+    return getImagesFromMediaEmbed(post.embed.media);
+  }
+  return getImagesFromMediaEmbed(post?.embed);
 }
 
 export function getVideoFromPost(post) {

@@ -26,6 +26,8 @@ import {
   enableLongPress,
   TimeoutError,
   pinScrollPosition,
+  TabScrollMemory,
+  StickyFixer,
   KVIndexedDB,
   isOnlyEmoji,
   batchPerTick,
@@ -1375,6 +1377,132 @@ describe("pinScrollPosition", () => {
   });
 });
 
+describe("TabScrollMemory", () => {
+  let scrollY;
+  let scrollYDescriptor;
+  let originalScrollTo;
+  let scrollToCalls;
+
+  beforeEach(() => {
+    scrollY = 0;
+    scrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => scrollY,
+    });
+    originalScrollTo = window.scrollTo;
+    scrollToCalls = [];
+    window.scrollTo = (...args) => {
+      scrollToCalls.push(args);
+      scrollY = args[1];
+    };
+  });
+
+  afterEach(() => {
+    if (scrollYDescriptor) {
+      Object.defineProperty(window, "scrollY", scrollYDescriptor);
+    } else {
+      delete window.scrollY;
+    }
+    window.scrollTo = originalScrollTo;
+  });
+
+  it("applies the switch a frame later", async () => {
+    const tabScroll = new TabScrollMemory();
+    const applySwitch = mock.fn();
+    const pending = tabScroll.switch("a", "b", applySwitch);
+
+    assert.equal(applySwitch.mock.callCount(), 0);
+    await pending;
+    assert.equal(applySwitch.mock.callCount(), 1);
+  });
+
+  it("scrolls an unvisited tab to the top", async () => {
+    scrollY = 1200;
+    const tabScroll = new TabScrollMemory();
+    await tabScroll.switch("a", "b", () => {});
+    assert.deepEqual(scrollToCalls, [[0, 0]]);
+  });
+
+  it("restores each tab's saved position", async () => {
+    const tabScroll = new TabScrollMemory();
+    scrollY = 1200;
+    await tabScroll.switch("a", "b", () => {});
+    scrollY = 300;
+    await tabScroll.switch("b", "a", () => {});
+    assert.equal(scrollY, 1200);
+    await tabScroll.switch("a", "b", () => {});
+    assert.equal(scrollY, 300);
+  });
+
+  it("forgets saved positions when cleared", async () => {
+    const tabScroll = new TabScrollMemory();
+    scrollY = 1200;
+    await tabScroll.switch("a", "b", () => {});
+    tabScroll.clear();
+    await tabScroll.switch("b", "a", () => {});
+    assert.equal(scrollY, 0);
+  });
+
+  it("ignores a switch while another is in flight", async () => {
+    const tabScroll = new TabScrollMemory();
+    const firstSwitch = mock.fn();
+    const secondSwitch = mock.fn();
+    const first = tabScroll.switch("a", "b", firstSwitch);
+    const second = tabScroll.switch("a", "c", secondSwitch);
+
+    assert.equal(await second, false);
+    assert.equal(await first, true);
+    assert.equal(firstSwitch.mock.callCount(), 1);
+    assert.equal(secondSwitch.mock.callCount(), 0);
+  });
+
+  it("accepts a new switch once the previous one finishes", async () => {
+    const tabScroll = new TabScrollMemory();
+    await tabScroll.switch("a", "b", () => {});
+    assert.equal(await tabScroll.switch("b", "c", () => {}), true);
+  });
+
+  it("restores the saved position when the minimum is unavailable", async () => {
+    const tabScroll = new TabScrollMemory({ minScrollY: () => null });
+    scrollY = 1200;
+    await tabScroll.switch("a", "b", () => {});
+    scrollY = 300;
+    await tabScroll.switch("b", "a", () => {});
+    assert.equal(scrollY, 1200);
+  });
+
+  describe("with a minimum scroll position", () => {
+    const createTabScroll = () =>
+      new TabScrollMemory({ minScrollY: () => 400 });
+
+    it("keeps the current position until it's reached", async () => {
+      const tabScroll = createTabScroll();
+      scrollY = 2000;
+      await tabScroll.switch("a", "b", () => {});
+      scrollY = 150;
+      await tabScroll.switch("b", "a", () => {});
+      assert.equal(scrollY, 150);
+    });
+
+    it("raises saved positions above it once reached", async () => {
+      const tabScroll = createTabScroll();
+      scrollY = 2000;
+      await tabScroll.switch("a", "b", () => {});
+      assert.equal(scrollY, 400);
+    });
+
+    it("restores saved positions below it once reached", async () => {
+      const tabScroll = createTabScroll();
+      scrollY = 2000;
+      await tabScroll.switch("a", "b", () => {});
+      scrollY = 3000;
+      await tabScroll.switch("b", "a", () => {});
+      assert.equal(scrollY, 2000);
+    });
+  });
+});
+
 describe("KVIndexedDB", () => {
   afterEach(() => {
     delete globalThis.indexedDB;
@@ -2122,5 +2250,192 @@ describe("truncateGraphemes", () => {
       "hello…",
     );
     assert.equal(truncateGraphemes("hello", 5, { suffix: "…" }), "hello");
+  });
+});
+
+describe("StickyFixer", () => {
+  let root;
+  let element;
+  let scrollYDescriptor;
+  let originalResizeObserver;
+  let resizeObserverCallback;
+  let scrollY;
+  let fixedElement;
+  let stop;
+
+  const setScrollY = (value) => {
+    scrollY = value;
+  };
+  const getSpacer = () => element.previousElementSibling;
+  const start = () => {
+    fixedElement = new StickyFixer(() => root.querySelector(".tabs"));
+    stop = fixedElement.start();
+  };
+  const scroll = () => window.dispatchEvent(new window.Event("scroll"));
+
+  beforeEach(() => {
+    root = document.createElement("div");
+    root.innerHTML = '<div class="above"></div><div class="tabs"></div>';
+    element = root.querySelector(".tabs");
+    element.style.position = "sticky";
+    element.style.top = "0px";
+    element.getBoundingClientRect = () => ({ top: 0, height: 46 });
+    document.body.append(root);
+    scrollY = 0;
+    scrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => scrollY,
+    });
+    originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(callback) {
+        resizeObserverCallback = callback;
+      }
+      observe() {}
+      disconnect() {
+        resizeObserverCallback = null;
+      }
+    };
+  });
+
+  afterEach(() => {
+    stop();
+    root.remove();
+    if (scrollYDescriptor) {
+      Object.defineProperty(window, "scrollY", scrollYDescriptor);
+    } else {
+      delete window.scrollY;
+    }
+    globalThis.ResizeObserver = originalResizeObserver;
+  });
+
+  it("pins a stuck sticky element as fixed with a spacer in its place", () => {
+    setScrollY(500);
+    start();
+
+    assert.equal(element.style.position, "fixed");
+    assert.equal(element.style.top, "0px");
+    assert(!getSpacer().classList.contains("above"));
+    assert.equal(getSpacer().style.height, "46px");
+  });
+
+  it("leaves a sticky element that isn't stuck in place", () => {
+    element.getBoundingClientRect = () => ({ top: 200, height: 46 });
+    start();
+
+    assert.equal(element.style.position, "sticky");
+    assert(getSpacer().classList.contains("above"));
+  });
+
+  it("sizes the pinned element to its spacer", () => {
+    setScrollY(500);
+    start();
+    getSpacer().getBoundingClientRect = () => ({
+      top: -100,
+      left: 20,
+      width: 600,
+    });
+    scroll();
+
+    assert.equal(element.style.left, "20px");
+    assert.equal(element.style.width, "600px");
+  });
+
+  it("skips repositioning when the spacer hasn't moved", () => {
+    setScrollY(500);
+    start();
+    getSpacer().getBoundingClientRect = () => ({
+      top: -100,
+      left: 20,
+      width: 600,
+    });
+    scroll();
+    element.style.left = "999px";
+    scroll();
+
+    assert.equal(element.style.left, "999px");
+  });
+
+  it("keeps the spacer the same height as the pinned element", () => {
+    setScrollY(500);
+    start();
+    resizeObserverCallback([{ borderBoxSize: [{ blockSize: 92 }] }]);
+
+    assert.equal(getSpacer().style.height, "92px");
+  });
+
+  it("unpins once scrolled back above where the element sticks", () => {
+    setScrollY(500);
+    start();
+    getSpacer().getBoundingClientRect = () => ({ top: 50, left: 0, width: 0 });
+    setScrollY(250);
+    scroll();
+
+    assert.equal(element.style.position, "sticky");
+    assert(getSpacer().classList.contains("above"));
+  });
+
+  it("stays pinned through overscroll at the top of the page", () => {
+    start();
+    getSpacer().getBoundingClientRect = () => ({ top: 40, left: 0, width: 0 });
+    setScrollY(-40);
+    scroll();
+
+    assert.equal(element.style.position, "fixed");
+  });
+
+  it("unpins and stops updating when stopped", () => {
+    setScrollY(500);
+    start();
+    stop();
+
+    assert.equal(element.style.position, "sticky");
+    assert(getSpacer().classList.contains("above"));
+    scroll();
+    assert.equal(element.style.position, "sticky");
+  });
+
+  it("unpins an element that was replaced by a re-render", () => {
+    setScrollY(500);
+    start();
+    const replacement = document.createElement("div");
+    replacement.className = "tabs";
+    replacement.style.position = "sticky";
+    replacement.style.top = "0px";
+    replacement.getBoundingClientRect = () => ({ top: 200, height: 46 });
+    const spacer = getSpacer();
+    element.remove();
+    root.append(replacement);
+    scroll();
+
+    assert(!spacer.isConnected);
+    assert.equal(replacement.style.position, "sticky");
+  });
+
+  it("reports the scroll position where the element starts sticking", () => {
+    element.getBoundingClientRect = () => ({ top: 300, height: 46 });
+    setScrollY(100);
+    start();
+    assert.equal(fixedElement.getStuckScrollY(), 400);
+
+    element.getBoundingClientRect = () => ({ top: 0, height: 46 });
+    setScrollY(900);
+    scroll();
+    getSpacer().getBoundingClientRect = () => ({ top: -500 });
+    assert.equal(fixedElement.getStuckScrollY(), 400);
+  });
+
+  it("reports no stuck position for a missing element", () => {
+    element.getBoundingClientRect = () => ({ top: 200, height: 46 });
+    start();
+    element.remove();
+    assert.equal(fixedElement.getStuckScrollY(), null);
+  });
+
+  it("reports no stuck position for an element that isn't sticky", () => {
+    element.style.position = "static";
+    start();
+    assert.equal(fixedElement.getStuckScrollY(), null);
   });
 });

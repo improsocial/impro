@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
@@ -12,6 +12,7 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
 import { trackDisposable } from "../../testHelpers.js";
+import { createPost } from "../../../shared/factories.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -199,6 +200,94 @@ describe("addLike", () => {
     assert.deepEqual(storedPost.likeCount, 6);
     assert.deepEqual(storedPost.viewer.like, "server-like-uri");
     assert.deepEqual(applyPostPatches(patchStore, storedPost).likeCount, 6);
+  });
+
+  describe("retry", () => {
+    let dataStore;
+    let patchStore;
+    let mockPreferencesProvider;
+
+    beforeEach(() => {
+      dataStore = new DataStore(createSessionState(null));
+      patchStore = new PatchStore();
+      mockPreferencesProvider = {
+        requirePreferences: () => Preferences.createLoggedOutPreferences(),
+      };
+    });
+
+    function makeApiError(status) {
+      return new ApiError({
+        status,
+        statusText: "Error",
+        data: null,
+        headers: new Headers(),
+        url: "",
+      });
+    }
+
+    for (const [label, makeError] of [
+      ["a network error", () => new TypeError("Failed to fetch")],
+      ["a 5xx error", () => makeApiError(502)],
+    ]) {
+      it(`should retry once and succeed after ${label}`, async (t) => {
+        t.mock.method(console, "warn", () => {});
+        const createLikeRecord = t.mock.fn(async () => ({ uri: "like-123" }));
+        createLikeRecord.mock.mockImplementationOnce(async () => {
+          throw makeError();
+        });
+        const mutations = makeMutations(
+          { createLikeRecord },
+          dataStore,
+          patchStore,
+          mockPreferencesProvider,
+        );
+
+        await mutations.addLike(testPost);
+
+        assert.equal(createLikeRecord.mock.callCount(), 2);
+        const storedPost = dataStore.$posts.get(testPost.uri);
+        assert.deepEqual(storedPost.viewer.like, "like-123");
+        assert.deepEqual(storedPost.likeCount, 6);
+      });
+    }
+
+    it("should not retry a 4xx error", async (t) => {
+      t.mock.method(console, "error", () => {});
+      const createLikeRecord = t.mock.fn(async () => {
+        throw makeApiError(400);
+      });
+      const mutations = makeMutations(
+        { createLikeRecord },
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      );
+
+      await assert.rejects(mutations.addLike(testPost), ApiError);
+
+      assert.equal(createLikeRecord.mock.callCount(), 1);
+      assert.deepEqual(applyPostPatches(patchStore, testPost), testPost);
+    });
+
+    it("should throw and remove the patch if the retry also fails", async (t) => {
+      t.mock.method(console, "warn", () => {});
+      t.mock.method(console, "error", () => {});
+      const createLikeRecord = t.mock.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+      const mutations = makeMutations(
+        { createLikeRecord },
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      );
+
+      await assert.rejects(mutations.addLike(testPost), /Failed to fetch/);
+
+      assert.equal(createLikeRecord.mock.callCount(), 2);
+      assert.equal(dataStore.$posts.get(testPost.uri), null);
+      assert.deepEqual(applyPostPatches(patchStore, testPost), testPost);
+    });
   });
 });
 
@@ -3977,7 +4066,7 @@ describe("markConvoAsRead", () => {
     assert.deepEqual(dataStore.$convos.get("missing"), null);
   });
 
-  it("should not call the api when the convo has no unread messages", async () => {
+  it("should call the api even when the cached convo has no unread messages", async () => {
     const convoId = "convo-read";
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
@@ -3999,7 +4088,7 @@ describe("markConvoAsRead", () => {
 
     await mutations.markConvoAsRead(convoId);
 
-    assert.deepEqual(callCount, 0);
+    assert.deepEqual(callCount, 1);
   });
 });
 
@@ -5956,5 +6045,81 @@ describe("updatePostInteractionSettings", () => {
       threadgateAllowRules: null,
       postgateEmbeddingRules: null,
     });
+  });
+});
+
+describe("setThreadMuted", () => {
+  const rootUri = "at://did:plc:alice/app.bsky.feed.post/root";
+  const root = createPost({ uri: rootUri, text: "root" });
+  const rootRef = { uri: root.uri, cid: root.cid };
+  const reply = createPost({
+    uri: "at://did:plc:bob/app.bsky.feed.post/reply",
+    text: "reply",
+    reply: { root: rootRef, parent: rootRef },
+  });
+  const otherPost = createPost({
+    uri: "at://did:plc:carol/app.bsky.feed.post/other",
+    text: "other",
+  });
+
+  function storedThreadMuted(dataStore, uri) {
+    return dataStore.$posts.get(uri).viewer.threadMuted;
+  }
+
+  function setup(mockApi) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    for (const post of [root, reply, otherPost]) {
+      dataStore.$posts.set(post.uri, post);
+    }
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should mute the record root and update stored thread posts", async () => {
+    const muteThread = mock.fn(async () => ({}));
+    const { mutations, dataStore, patchStore } = setup({ muteThread });
+
+    const promise = mutations.setThreadMuted(reply, true);
+    assert.deepEqual(
+      patchStore.$threadMutePatches.get(rootUri).map((patch) => patch.body),
+      [{ type: "setThreadMuted", muted: true }],
+    );
+    await promise;
+
+    assert.equal(muteThread.mock.callCount(), 1);
+    assert.deepEqual(muteThread.mock.calls[0].arguments, [rootUri]);
+    assert.equal(storedThreadMuted(dataStore, rootUri), true);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), true);
+    assert.equal(storedThreadMuted(dataStore, otherPost.uri), undefined);
+    assert.deepEqual(patchStore.$threadMutePatches.get(rootUri), []);
+  });
+
+  it("should use the post's own uri when it is not a reply", async () => {
+    const unmuteThread = mock.fn(async () => ({}));
+    const { mutations, dataStore } = setup({ unmuteThread });
+    await mutations.setThreadMuted(root, false);
+    assert.deepEqual(unmuteThread.mock.calls[0].arguments, [rootUri]);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), false);
+  });
+
+  it("should roll back on failure without updating stored posts", async () => {
+    const error = new Error("boom");
+    const { mutations, dataStore, patchStore } = setup({
+      muteThread: async () => {
+        throw error;
+      },
+    });
+    await assert.rejects(mutations.setThreadMuted(reply, true), error);
+    assert.equal(storedThreadMuted(dataStore, reply.uri), undefined);
+    assert.deepEqual(patchStore.$threadMutePatches.get(rootUri), []);
   });
 });

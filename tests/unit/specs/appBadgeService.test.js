@@ -26,6 +26,7 @@ function flushEffects() {
 
 describe("AppBadgeService", () => {
   let badgeCalls;
+  let displayedNotifications;
   let originalMatchMedia;
   let disposers;
 
@@ -54,7 +55,13 @@ describe("AppBadgeService", () => {
 
   beforeEach(() => {
     badgeCalls = [];
+    displayedNotifications = [];
     disposers = [];
+    navigator.serviceWorker = {
+      getRegistration: async () => ({
+        getNotifications: async () => displayedNotifications,
+      }),
+    };
     originalMatchMedia = window.matchMedia;
     navigator.setAppBadge = async (count) => {
       badgeCalls.push(count);
@@ -70,6 +77,7 @@ describe("AppBadgeService", () => {
     }
     delete navigator.setAppBadge;
     delete navigator.clearAppBadge;
+    delete navigator.serviceWorker;
     window.matchMedia = originalMatchMedia;
   });
 
@@ -187,5 +195,81 @@ describe("AppBadgeService", () => {
     await flushEffects();
 
     assert.deepEqual(badgeCalls, [4]);
+  });
+
+  describe("displayed notifications", () => {
+    function displayNotification() {
+      const notification = { closed: false };
+      notification.close = () => {
+        notification.closed = true;
+      };
+      displayedNotifications.push(notification);
+      return notification;
+    }
+
+    it("closes displayed notifications once everything is read", async () => {
+      const notification = displayNotification();
+      const notificationService = createMockNotificationService({
+        numNotifications: 2,
+      });
+      const chatNotificationService = createMockNotificationService({
+        numNotifications: 1,
+      });
+      startSync(notificationService, chatNotificationService);
+      await flushEffects();
+      assert.equal(notification.closed, false);
+
+      notificationService.$numNotifications.set(0);
+      await flushEffects();
+      assert.equal(notification.closed, false);
+
+      chatNotificationService.$numNotifications.set(0);
+      await flushEffects();
+      assert.equal(notification.closed, true);
+    });
+
+    it("closes displayed notifications on start when nothing is unread", async () => {
+      const notification = displayNotification();
+      startSync(
+        createMockNotificationService(),
+        createMockNotificationService(),
+      );
+      await flushEffects();
+
+      assert.equal(notification.closed, true);
+    });
+
+    it("waits for both counts to load before closing", async () => {
+      const notification = displayNotification();
+      const notificationService = createMockNotificationService({
+        numNotifications: null,
+      });
+      const chatNotificationService = createMockNotificationService({
+        numNotifications: null,
+      });
+      startSync(notificationService, chatNotificationService);
+      await flushEffects();
+
+      notificationService.$numNotifications.set(0);
+      await flushEffects();
+      assert.equal(notification.closed, false);
+
+      chatNotificationService.$numNotifications.set(0);
+      await flushEffects();
+      assert.equal(notification.closed, true);
+    });
+
+    it("closes notifications on touch-only devices even when push is disabled", async () => {
+      simulateTouchOnlyDevice();
+      const notification = displayNotification();
+      startSync(
+        createMockNotificationService(),
+        createMockNotificationService(),
+        createMockPushNotificationService({ enabled: false }),
+      );
+      await flushEffects();
+
+      assert.equal(notification.closed, true);
+    });
   });
 });

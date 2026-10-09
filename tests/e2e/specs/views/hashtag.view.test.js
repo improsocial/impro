@@ -132,4 +132,51 @@ test.describe("Hashtag view", () => {
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
+
+  test("should restore each tab's scroll position", async ({ page }) => {
+    const createPosts = (sort) =>
+      Array.from({ length: 25 }, (_, index) =>
+        createPost({
+          uri: `at://did:plc:author${index + 1}/app.bsky.feed.post/${sort}${index + 1}`,
+          text: `${sort} #javascript post #${index + 1}.`,
+          authorHandle: `author${index + 1}.bsky.social`,
+          authorDisplayName: `Author ${index + 1}`,
+        }),
+      );
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts(createPosts("top"), { sort: "top" });
+    mockServer.addSearchPosts(createPosts("latest"), { sort: "latest" });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/hashtag/javascript");
+
+    const view = page.locator("#hashtag-view");
+    const activeFeed = view.locator(".feed-container:not([hidden])");
+    const getScrollY = () => page.evaluate(() => window.scrollY);
+    await expect(activeFeed.locator('[data-testid="feed-item"]')).toHaveCount(
+      25,
+      { timeout: 10000 },
+    );
+    await expect(view.locator('[data-testid="header"]')).toHaveCSS(
+      "position",
+      "fixed",
+    );
+
+    await activeFeed
+      .locator('[data-testid="feed-item"]')
+      .filter({ hasText: "top #javascript post #15." })
+      .scrollIntoViewIfNeeded();
+    const topScrollY = await getScrollY();
+
+    await view.locator('[data-testid="tab-latest"]').click();
+    await expect(activeFeed.locator('[data-testid="feed-item"]')).toHaveCount(
+      25,
+      { timeout: 10000 },
+    );
+    await expect.poll(getScrollY).toBe(0);
+
+    await view.locator('[data-testid="tab-top"]').click();
+    await expect.poll(getScrollY).toBe(topScrollY);
+  });
 });

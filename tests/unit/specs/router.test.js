@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Router, Layout } from "/js/router.js";
+import { Router, Layout, onPageShow } from "/js/router.js";
 
 class TestLayout extends Layout {
   constructor() {
@@ -1487,5 +1487,66 @@ describe("page event dispatch", () => {
     await router.load("/a");
 
     assert.deepEqual(rendered.length, 2);
+  });
+});
+
+describe("onPageShow", () => {
+  let root;
+
+  const showPage = (detail = {}) =>
+    root.dispatchEvent(new window.CustomEvent("page-show", { detail }));
+  const hidePage = () =>
+    root.dispatchEvent(new window.CustomEvent("page-hide"));
+
+  beforeEach(() => {
+    root = document.createElement("div");
+  });
+
+  it("runs the handler with the page-show detail", () => {
+    const handler = mock.fn();
+    onPageShow(root, handler);
+    showPage({ action: "restore", scrollY: 120 });
+    assert.deepEqual(handler.mock.calls[0].arguments, [
+      { action: "restore", scrollY: 120 },
+    ]);
+  });
+
+  it("calls a returned cleanup on page hide", () => {
+    const cleanup = mock.fn();
+    const handler = mock.fn(() => cleanup);
+    onPageShow(root, handler);
+
+    showPage();
+    assert.equal(cleanup.mock.callCount(), 0);
+    hidePage();
+    assert.equal(cleanup.mock.callCount(), 1);
+
+    showPage();
+    assert.equal(handler.mock.callCount(), 2);
+  });
+
+  it("cleans up before running again on a repeated page show", () => {
+    const calls = [];
+    onPageShow(root, () => {
+      calls.push("show");
+      return () => calls.push("cleanup");
+    });
+
+    showPage();
+    showPage();
+    assert.deepEqual(calls, ["show", "cleanup", "show"]);
+  });
+
+  it("ignores return values that aren't functions", () => {
+    onPageShow(root, async () => {});
+    showPage();
+    assert.doesNotThrow(() => hidePage());
+  });
+
+  it("ignores a page hide before the first page show", () => {
+    const handler = mock.fn(() => () => {});
+    onPageShow(root, handler);
+    hidePage();
+    assert.equal(handler.mock.callCount(), 0);
   });
 });
