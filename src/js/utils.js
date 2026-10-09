@@ -1087,12 +1087,12 @@ export class StickyFixer {
       left: null,
       width: null,
     };
+    this.#syncHorizontalPosition();
     Object.assign(element.style, {
       position: "fixed",
       top: `${stickyTop}px`,
       right: "auto",
     });
-    this.#syncHorizontalPosition();
   }
 
   #unpin() {
