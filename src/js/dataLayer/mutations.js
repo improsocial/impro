@@ -190,26 +190,6 @@ export class Mutations {
           repostCount: latestPost.repostCount - 1,
         });
       }
-      // If the current user's author feed is loaded, remove the repost from it.
-      const currentUser = this.dataStore.$currentUser.get();
-      if (currentUser) {
-        const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-        if (authorFeed) {
-          this.dataStore.$authorFeeds.set(authorFeedURI, {
-            feed: authorFeed.feed.filter((feedItem) => {
-              if (
-                feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
-                feedItem.reason?.uri === post.viewer.repost
-              ) {
-                return false;
-              }
-              return true;
-            }),
-            cursor: authorFeed.cursor,
-          });
-        }
-      }
     } catch (error) {
       console.error(error);
       throw error;

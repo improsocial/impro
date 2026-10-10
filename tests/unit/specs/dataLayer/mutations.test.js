@@ -2338,7 +2338,7 @@ describe("deleteRepost", () => {
     assert.deepEqual(stored.repostCount, 4);
   });
 
-  it("should remove the matching repost feed item from the author feed", async () => {
+  it("should keep the repost feed item in the author feed until the next reload", async () => {
     const matchingItem = {
       post: testPost,
       reason: {
@@ -2359,8 +2359,7 @@ describe("deleteRepost", () => {
     await mutations.deleteRepost(testPost);
 
     const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0].post.uri, otherItem.post.uri);
+    assert.deepEqual(feed.feed, [matchingItem, otherItem]);
     assert.deepEqual(feed.cursor, "c1");
   });
 });
