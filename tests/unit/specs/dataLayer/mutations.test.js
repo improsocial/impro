@@ -5981,6 +5981,27 @@ describe("setSelectedFeedUri", () => {
   });
 });
 
+describe("updatePostLanguageHistory", () => {
+  it("moves the published language combination to the front", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), {});
+    dataStore.sessionState.$postLanguageHistory.set([["en"], ["ja"], ["pt"]]);
+    mutations.updatePostLanguageHistory(["ja"]);
+    assert.deepEqual(dataStore.sessionState.$postLanguageHistory.get(), [
+      ["ja"],
+      ["en"],
+      ["pt"],
+    ]);
+    mutations.updatePostLanguageHistory(["en", "ja"]);
+    assert.deepEqual(dataStore.sessionState.$postLanguageHistory.get(), [
+      ["en", "ja"],
+      ["ja"],
+      ["en"],
+      ["pt"],
+    ]);
+  });
+});
+
 describe("updatePostInteractionSettings", () => {
   function makePreferenceMutations(initialPrefs) {
     let updatedPreferences = null;

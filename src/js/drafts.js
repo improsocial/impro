@@ -249,5 +249,8 @@ export function buildDraftFromComposerSnapshot(snapshot) {
   if (snapshot.postgateEmbeddingRules?.length > 0) {
     draft.postgateEmbeddingRules = snapshot.postgateEmbeddingRules;
   }
+  if (snapshot.langs?.length > 0) {
+    draft.langs = snapshot.langs;
+  }
   return { draft, media };
 }

@@ -10,6 +10,7 @@ import {
 } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { getPrimaryPostLanguage } from "/js/utils.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { createGif } from "../../../shared/factories.js";
 import "/js/components/post-composer.js";
@@ -34,6 +35,7 @@ describe("post-composer", () => {
 
   function createPostComposer({ draftsEnabled = true } = {}) {
     const element = document.createElement("post-composer");
+    element.dataLayer = makeTestDataLayer();
     element.draftsEnabled = draftsEnabled;
     element.currentUser = {
       did: "did:plc:test",
@@ -259,6 +261,164 @@ describe("post-composer", () => {
 
       await element.close();
       assert(eventFired);
+    });
+  });
+
+  describe("PostComposer - post language", () => {
+    async function sendAndCaptureDetail(element) {
+      patchFirstPost(element, { text: "Hello world" });
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      await element.send();
+      return receivedDetail;
+    }
+
+    function getLanguageButton(element) {
+      return element.querySelector('[data-testid="composer-language-button"]');
+    }
+
+    it("sends the primary language by default", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("lists history entries plus the primary language in the menu", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([
+        ["ja"],
+        ["en", "ja"],
+      ]);
+      connectElement(element);
+      await nextFrame();
+      const testids = [
+        ...element.querySelectorAll(
+          '.post-language-menu context-menu-item[data-testid^="menu-action-post-language-"]',
+        ),
+      ].map((item) => item.dataset.testid);
+      assert.deepEqual(testids, [
+        "menu-action-post-language-ja",
+        "menu-action-post-language-en-ja",
+        `menu-action-post-language-${getPrimaryPostLanguage()}`,
+      ]);
+      const primaryItem = element.querySelector(
+        `[data-testid="menu-action-post-language-${getPrimaryPostLanguage()}"]`,
+      );
+      assert.deepEqual(primaryItem.dataset.teststate, "selected");
+    });
+
+    it("uses a language combination picked from the menu", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([["en", "ja"]]);
+      connectElement(element);
+      await nextFrame();
+      element
+        .querySelector('[data-testid="menu-action-post-language-en-ja"] button')
+        .click();
+      await nextFrame();
+      assert.deepEqual(
+        getLanguageButton(element).textContent.trim(),
+        "English, Japanese",
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="menu-action-post-language-en-ja"]')
+          .dataset.teststate,
+        "selected",
+      );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["en", "ja"]);
+    });
+
+    it("moves the check mark when the selection changes", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([["ja"], ["de"]]);
+      connectElement(element);
+      await nextFrame();
+      const getItem = (code) =>
+        element.querySelector(
+          `[data-testid="menu-action-post-language-${code}"]`,
+        );
+      const checkedTestids = () =>
+        [
+          ...element.querySelectorAll(
+            '.post-language-menu app-icon[icon="check"]',
+          ),
+        ].map((icon) => icon.closest("context-menu-item").dataset.testid);
+
+      getItem("ja").querySelector("button").click();
+      await nextFrame();
+      assert.deepEqual(checkedTestids(), ["menu-action-post-language-ja"]);
+
+      getItem("de").querySelector("button").click();
+      await nextFrame();
+      assert.deepEqual(checkedTestids(), ["menu-action-post-language-de"]);
+      assert.deepEqual(getItem("ja").dataset.teststate, "unselected");
+      assert.deepEqual(getItem("de").dataset.teststate, "selected");
+      assert.deepEqual(getLanguageButton(element).textContent.trim(), "German");
+    });
+
+    it("applies languages chosen in the dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.openPostLanguageDialog();
+      const dialog = document.querySelector("post-language-dialog");
+      dialog.dispatchEvent(
+        new CustomEvent("select-languages", {
+          detail: { languages: ["de", "fr"] },
+        }),
+      );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["de", "fr"]);
+    });
+
+    it("falls back to the primary language when the dialog returns none", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.setPostLanguages(["de"]);
+      element.openPostLanguageDialog();
+      document
+        .querySelector("post-language-dialog")
+        .dispatchEvent(
+          new CustomEvent("select-languages", { detail: { languages: [] } }),
+        );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("resets the language when the composer is cleared", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.setPostLanguages(["ja"]);
+      element.clearComposer();
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("saves the chosen languages in the draft snapshot", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.buildDraftSnapshot().langs, null);
+      element.setPostLanguages(["ja", "en"]);
+      assert.deepEqual(element.buildDraftSnapshot().langs, ["ja", "en"]);
+    });
+
+    it("restores known draft languages", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          langs: ["ja", "not-a-language"],
+          posts: [{ text: "draft" }],
+        },
+      });
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["ja"]);
     });
   });
 
@@ -1317,6 +1477,7 @@ describe("post-composer", () => {
 
     it("preserves quotedRecord set before connectedCallback and renders its preview", () => {
       const preSeeded = document.createElement("post-composer");
+      preSeeded.dataLayer = element.dataLayer;
       preSeeded.currentUser = element.currentUser;
       preSeeded.quotedRecord = {
         $type: "app.bsky.feed.defs#generatorView",

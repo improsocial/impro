@@ -46,6 +46,7 @@ export class PostComposerService {
           posts,
           replyTo: sendReplyTo,
           replyRoot: sendReplyRoot,
+          langs,
           threadgateAllow,
           postgateEmbeddingRules,
           draft,
@@ -59,10 +60,12 @@ export class PostComposerService {
             posts,
             replyTo: sendReplyTo,
             replyRoot: sendReplyRoot,
+            langs,
             threadgateAllow,
             postgateEmbeddingRules,
             signal,
           });
+          this.dataLayer.mutations.updatePostLanguageHistory(langs);
           let toastMessage = "Your post was sent";
           if (posts.length > 1) {
             toastMessage = "Your posts were sent";

@@ -469,6 +469,9 @@ export class Derived extends ReactiveStore {
     this.$trendingHidden = new Signal.Computed(() =>
       this.sessionState.$trendingHidden.get(),
     );
+    this.$postLanguageHistory = new Signal.Computed(() =>
+      this.sessionState.$postLanguageHistory.get(),
+    );
     this.$postSearchResultsTop = new Signal.Computed(() =>
       this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
     );
