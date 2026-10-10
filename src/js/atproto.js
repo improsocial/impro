@@ -232,6 +232,12 @@ export class IdentityResolver {
   }
 
   setDidForHandle(handle, did) {
+    if (
+      this.handleToDidMap.get(handle) === did &&
+      !this.notFoundAt.has(handle)
+    ) {
+      return;
+    }
     this.notFoundAt.delete(handle);
     this.endpointCache.delete(handle);
     this.handleToDidMap.set(handle, did);

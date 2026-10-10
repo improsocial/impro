@@ -19,16 +19,13 @@ function setup() {
 
 const flushEffects = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-describe("notifications precaching", () => {
-  it("should cache author identities from stored notifications", async () => {
+describe("profile precaching", () => {
+  it("should cache identities for profiles stored before setup", () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
-    dataStore.$notifications.set({
-      notifications: [
-        { author: { handle: "alice.test", did: "did:plc:alice" } },
-        { author: { handle: "bob.test", did: "did:plc:bob" } },
-      ],
-      cursor: "c1",
-    });
+    dataStore.setProfiles([
+      { handle: "alice.test", did: "did:plc:alice" },
+      { handle: "bob.test", did: "did:plc:bob" },
+    ]);
 
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
@@ -36,33 +33,81 @@ describe("notifications precaching", () => {
     assert.deepEqual(resolvedHandles.get("bob.test"), "did:plc:bob");
   });
 
-  it("should cache identities when notifications load after setup", async () => {
+  it("should cache identities for profiles stored after setup", async () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
-    dataStore.$notifications.set({
-      notifications: [
-        { author: { handle: "carol.test", did: "did:plc:carol" } },
-      ],
-      cursor: null,
-    });
+    dataStore.setProfiles([{ handle: "carol.test", did: "did:plc:carol" }]);
     await flushEffects();
 
     assert.deepEqual(resolvedHandles.get("carol.test"), "did:plc:carol");
   });
-});
 
-describe("search typeahead precaching", () => {
-  it("should cache identities from typeahead search results", async () => {
+  it("should cache the new handle when a stored profile's handle changes", async () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
-    dataStore.$searchTypeaheadResults.set({
-      actors: [{ handle: "dave.test", did: "did:plc:dave" }],
+    dataStore.setProfiles([{ handle: "old.test", did: "did:plc:dave" }]);
+    await flushEffects();
+    dataStore.setProfiles([{ handle: "new.test", did: "did:plc:dave" }]);
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("new.test"), "did:plc:dave");
+  });
+
+  it("should not cache invalid handles", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.setProfiles([{ handle: "handle.invalid", did: "did:plc:eve" }]);
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.size, 0);
+  });
+});
+
+describe("current user precaching", () => {
+  it("should cache the current user's identity", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.setCurrentUser({ handle: "me.test", did: "did:plc:me" });
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("me.test"), "did:plc:me");
+  });
+});
+
+describe("chat precaching", () => {
+  it("should cache convo members", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.$convos.set("convo1", {
+      id: "convo1",
+      members: [{ handle: "chatter.test", did: "did:plc:chatter" }],
+    });
+    dataStore.$convoMemberLists.set("convo2", {
+      members: [{ handle: "groupie.test", did: "did:plc:groupie" }],
+      cursor: null,
     });
     await flushEffects();
 
-    assert.deepEqual(resolvedHandles.get("dave.test"), "did:plc:dave");
+    assert.deepEqual(resolvedHandles.get("chatter.test"), "did:plc:chatter");
+    assert.deepEqual(resolvedHandles.get("groupie.test"), "did:plc:groupie");
+  });
+
+  it("should cache join link preview owners", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.$joinLinkPreviewsByCode.set("code1", {
+      code: "code1",
+      owner: { handle: "host.test", did: "did:plc:host" },
+    });
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("host.test"), "did:plc:host");
   });
 });
 
