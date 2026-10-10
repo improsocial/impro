@@ -1,7 +1,7 @@
-import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
-import { MockServer } from "../../mockServer.js";
-import { notificationService } from "../../testData.js";
+import { test, expect } from "../../../base.js";
+import { login } from "../../../helpers.js";
+import { MockServer } from "../../../mockServer.js";
+import { notificationService } from "../../../testData.js";
 
 // Stubs the Notification API so permission prompts are deterministic in CI
 // (headless browsers have no real OS notification center to grant/deny).
