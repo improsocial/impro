@@ -66,6 +66,16 @@ export const isIOS = () =>
   (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 export const isFirefox = () => /firefox/i.test(navigator.userAgent);
 
+export function whenElementVisible(element, callback) {
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    observer.disconnect();
+    callback();
+  });
+  observer.observe(element);
+  return () => observer.disconnect();
+}
+
 export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   let fn = fnOrKey;
   if (typeof fnOrKey === "string") {

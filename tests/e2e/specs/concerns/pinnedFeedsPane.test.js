@@ -99,4 +99,29 @@ test.describe("Pinned feeds pane", () => {
     await expect(page).toHaveURL("/feeds");
     await expect(page.locator("#feeds-view")).toBeVisible({ timeout: 10000 });
   });
+
+  test("defers loading pinned feeds until the pane is shown", async ({
+    page,
+  }) => {
+    const feedGeneratorRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("app.bsky.feed.getFeedGenerators")) {
+        feedGeneratorRequests.push(request);
+      }
+    });
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/notifications");
+    await expect(page.locator("#notifications-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await page.waitForLoadState("networkidle");
+    expect(feedGeneratorRequests).toHaveLength(0);
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.locator('[data-testid="pinned-feeds-item"]')).toHaveCount(
+      2,
+      { timeout: 10000 },
+    );
+    expect(feedGeneratorRequests).toHaveLength(1);
+  });
 });

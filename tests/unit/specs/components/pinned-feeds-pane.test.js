@@ -1,7 +1,10 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/pinned-feeds-pane.js";
-import { makeTestDataLayer } from "../../testHelpers.js";
+import {
+  installFakeIntersectionObserver,
+  makeTestDataLayer,
+} from "../../testHelpers.js";
 import { createFeedGenerator, createList } from "../../../shared/factories.js";
 
 describe("pinned-feeds-pane", () => {
@@ -28,6 +31,7 @@ describe("pinned-feeds-pane", () => {
   let element;
   let routerGo;
   let previousRouter;
+  let fakeIntersectionObserver;
 
   function mount({ showSelected = true, moreFeedsActive = false } = {}) {
     element = document.createElement("pinned-feeds-pane");
@@ -59,12 +63,16 @@ describe("pinned-feeds-pane", () => {
     routerGo = mock.fn(async () => {});
     previousRouter = window.router;
     window.router = { go: routerGo };
+    fakeIntersectionObserver = installFakeIntersectionObserver({
+      isIntersecting: true,
+    });
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
     window.router = previousRouter;
     window.history.replaceState(null, "", "/");
+    fakeIntersectionObserver.restore();
   });
 
   it("renders skeleton rows while pinned items are loading", () => {
@@ -231,5 +239,20 @@ describe("pinned-feeds-pane", () => {
       element.querySelector("[data-testid='pinned-feeds-pane']"),
       null,
     );
+  });
+
+  it("does not load pinned items until the pane is visible", async () => {
+    fakeIntersectionObserver.setIntersecting(false);
+    const ensurePinnedItems = mock.method(
+      dataLayer.declarative,
+      "ensurePinnedItems",
+      async () => {},
+    );
+    mount();
+    await flushMicrotasks();
+    assert.deepEqual(ensurePinnedItems.mock.callCount(), 0);
+
+    fakeIntersectionObserver.setIntersecting(true);
+    assert.deepEqual(ensurePinnedItems.mock.callCount(), 1);
   });
 });

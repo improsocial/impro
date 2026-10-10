@@ -173,6 +173,48 @@ export async function flushMicrotasks(turns = 5) {
   }
 }
 
+// Replaces IntersectionObserver with one whose intersection state the test
+// controls. Call restore() in afterEach.
+export function installFakeIntersectionObserver({
+  isIntersecting = false,
+} = {}) {
+  const OriginalIntersectionObserver = globalThis.IntersectionObserver;
+  const observers = new Set();
+  globalThis.IntersectionObserver = class {
+    constructor(callback) {
+      this.callback = callback;
+      this.targets = new Set();
+    }
+    observe(target) {
+      this.targets.add(target);
+      observers.add(this);
+      this.callback([{ target, isIntersecting }], this);
+    }
+    unobserve(target) {
+      this.targets.delete(target);
+    }
+    disconnect() {
+      this.targets.clear();
+      observers.delete(this);
+    }
+  };
+  return {
+    setIntersecting(nextIsIntersecting) {
+      isIntersecting = nextIsIntersecting;
+      for (const observer of [...observers]) {
+        const entries = [...observer.targets].map((target) => ({
+          target,
+          isIntersecting,
+        }));
+        if (entries.length > 0) observer.callback(entries, observer);
+      }
+    },
+    restore() {
+      globalThis.IntersectionObserver = OriginalIntersectionObserver;
+    },
+  };
+}
+
 export function setDocumentVisibility(state) {
   Object.defineProperty(document, "visibilityState", {
     value: state,

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
-import { classnames } from "/js/utils.js";
+import { classnames, whenElementVisible } from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/app-icon.js";
 
@@ -103,8 +103,10 @@ class PinnedFeedsPane extends Component {
       throw new Error("pinned-feeds-pane requires a dataLayer property");
     }
     this.$failed = new Signal.State(false);
-    this._disposers = [effect(() => this.render())];
-    this.load();
+    this._disposers = [
+      effect(() => this.render()),
+      whenElementVisible(this, () => this.load()),
+    ];
   }
 
   disconnectedCallback() {
