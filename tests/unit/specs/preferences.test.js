@@ -6,6 +6,7 @@ import {
   INSTALLED_PLUGINS_PREF_TYPE,
   SEARCH_HISTORY_PREF_TYPE,
   GIF_HISTORY_PREF_TYPE,
+  THREAD_VIEW_PREF_TYPE,
 } from "/js/preferences.js";
 import { createGif } from "../../shared/factories.js";
 import { createMinimalGifObject } from "/js/embedHelpers.js";
@@ -3521,5 +3522,69 @@ describe("Preferences.setPostInteractionSettings", () => {
       postgateEmbeddingRules: [DISABLE_RULE],
     });
     assert.deepEqual(original.obj, []);
+  });
+});
+
+describe("Preferences.getThreadView", () => {
+  it("should default to linear when there is no thread view preference", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(preferences.getThreadView(), "linear");
+  });
+
+  it("should return tree when lab_treeViewEnabled is true", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: THREAD_VIEW_PREF_TYPE,
+          sort: "top",
+          lab_treeViewEnabled: true,
+        },
+      ],
+      [],
+    );
+    assert.deepEqual(preferences.getThreadView(), "tree");
+  });
+
+  it("should return linear when lab_treeViewEnabled is false", () => {
+    const preferences = new Preferences(
+      [{ $type: THREAD_VIEW_PREF_TYPE, lab_treeViewEnabled: false }],
+      [],
+    );
+    assert.deepEqual(preferences.getThreadView(), "linear");
+  });
+});
+
+describe("Preferences.setThreadView", () => {
+  it("should create the thread view preference when missing", () => {
+    const preferences = new Preferences([], []);
+    const newPreferences = preferences.setThreadView("tree");
+    assert.deepEqual(preferences.obj, []);
+    assert.deepEqual(newPreferences.obj, [
+      { $type: THREAD_VIEW_PREF_TYPE, lab_treeViewEnabled: true },
+    ]);
+  });
+
+  it("should preserve sort and unknown keys on the existing preference", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: THREAD_VIEW_PREF_TYPE,
+          sort: "hotness",
+          someFutureKey: 1,
+          lab_treeViewEnabled: true,
+        },
+      ],
+      [],
+    );
+    const newPreferences = preferences.setThreadView("linear");
+    assert.deepEqual(newPreferences.obj, [
+      {
+        $type: THREAD_VIEW_PREF_TYPE,
+        sort: "hotness",
+        someFutureKey: 1,
+        lab_treeViewEnabled: false,
+      },
+    ]);
+    assert.deepEqual(newPreferences.getThreadView(), "linear");
   });
 });

@@ -24,6 +24,7 @@ export const INSTALLED_PLUGINS_PREF_TYPE =
 export const SEARCH_HISTORY_PREF_TYPE =
   "app.bsky.actor.defs#improSearchHistoryPref";
 export const GIF_HISTORY_PREF_TYPE = "app.bsky.actor.defs#improGifHistoryPref";
+export const THREAD_VIEW_PREF_TYPE = "app.bsky.actor.defs#threadViewPref";
 
 function getContentTextFromEmbed(embed) {
   const texts = [];
@@ -611,6 +612,23 @@ export class Preferences {
     return clone;
   }
 
+  getThreadView() {
+    const pref = Preferences.getThreadViewPreference(this.obj);
+    return pref?.lab_treeViewEnabled === true ? "tree" : "linear";
+  }
+
+  setThreadView(view) {
+    const clone = this.clone();
+    let pref = Preferences.getThreadViewPreference(clone.obj);
+    if (!pref) {
+      pref = { $type: THREAD_VIEW_PREF_TYPE };
+      clone.obj.push(pref);
+    }
+    // NOTE: LEXICON DEVIATION - lab_treeViewEnabled isn't in the lexicon, but it's what social-app stores
+    pref.lab_treeViewEnabled = view === "tree";
+    return clone;
+  }
+
   hasMutedWord({ text, facets, embed, languages, author }) {
     const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
     if (!mutedWordsPreference) {
@@ -804,6 +822,10 @@ export class Preferences {
       obj,
       "app.bsky.actor.defs#postInteractionSettingsPref",
     );
+  }
+
+  static getThreadViewPreference(obj) {
+    return Preferences.getPreferenceByType(obj, THREAD_VIEW_PREF_TYPE);
   }
 
   static getSavedFeedsPreference(obj) {

@@ -16,10 +16,12 @@ import {
   valueForPinnedItem,
   buildCdnUrl,
   getReplyRootFromPost,
+  insertReplyIntoThread,
 } from "/js/dataHelpers.js";
 import {
   addPostLanguagesToHistory,
   batch,
+  isNil,
   getCurrentTimestamp,
   truncateGraphemes,
   wait,
@@ -626,6 +628,23 @@ export class Mutations {
     });
     const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeRecentSearch(q);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async setThreadView(view) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "setThreadView",
+      view,
+    });
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setThreadView(view);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {
@@ -2013,18 +2032,30 @@ export class Mutations {
         post.viewer.priorityReply = true;
       }
       this.dataStore.setPosts(hydratedPosts);
+      const replyToPost = replyTo
+        ? this.dataStore.$posts.get(replyTo.uri)
+        : null;
+      if (!isNil(replyToPost?.replyCount)) {
+        this.dataStore.$posts.set(replyTo.uri, {
+          ...replyToPost,
+          replyCount: replyToPost.replyCount + 1,
+        });
+      }
       const rootPost = hydratedPosts[0];
-      // If it's a reply, update the reply post thread in the store
+      // If it's a reply, add it under the replied-to post in every cached thread that contains it
       if (replyTo) {
-        const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
-        if (replyPostThread) {
-          this.dataStore.setPostThread(replyTo.uri, {
-            ...replyPostThread,
-            replies: [
-              createNestedThreadViewPost(hydratedPosts),
-              ...replyPostThread.replies,
-            ],
-          });
+        const newReply = createNestedThreadViewPost(hydratedPosts);
+        for (const [uri, postThread] of [
+          ...this.dataStore.$postThreads.entries(),
+        ]) {
+          const updatedPostThread = insertReplyIntoThread(
+            postThread,
+            replyTo.uri,
+            newReply,
+          );
+          if (updatedPostThread !== postThread) {
+            this.dataStore.setPostThread(uri, updatedPostThread);
+          }
         }
       }
       const { repo: did } = parseUri(rootPost.uri);
@@ -2054,6 +2085,14 @@ export class Mutations {
   async deletePost(post) {
     // no optimistic update
     await this.api.deletePost(post);
+    const parentUri = post.record.reply?.parent.uri;
+    const parentPost = parentUri ? this.dataStore.$posts.get(parentUri) : null;
+    if (!isNil(parentPost?.replyCount)) {
+      this.dataStore.$posts.set(parentUri, {
+        ...parentPost,
+        replyCount: Math.max(0, parentPost.replyCount - 1),
+      });
+    }
     // Replace the post with a not found post.
     // This *should* remove the post from all relevant places in the UI.
     this.dataStore.$posts.set(post.uri, createNotFoundPost(post.uri));

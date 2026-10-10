@@ -78,4 +78,49 @@ test.describe("Settings Content and media view", () => {
       ),
     ).not.toHaveAttribute("checked", { timeout: 10000 });
   });
+
+  test("should save threaded replies to preferences and keep it after a reload", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.setThreadViewPref({ sort: "top" });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const view = page.locator("#settings-content-and-media-view");
+    const toggle = view.locator('[data-testid="thread-view-toggle"]');
+    await expect(toggle).toBeVisible({ timeout: 10000 });
+    await expect(toggle).not.toHaveAttribute("checked");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("checked", "");
+    await expect
+      .poll(() => mockServer.threadViewPref)
+      .toEqual({ sort: "top", lab_treeViewEnabled: true });
+
+    await page.reload();
+    await expect(
+      page.locator(
+        '#settings-content-and-media-view [data-testid="thread-view-toggle"]',
+      ),
+    ).toHaveAttribute("checked", "", { timeout: 10000 });
+  });
+
+  test("should disable the threaded replies toggle until preferences load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.getPreferencesDelayMs = 1000;
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const toggle = page.locator(
+      '#settings-content-and-media-view [data-testid="thread-view-toggle"]',
+    );
+    await expect(toggle).toHaveAttribute("disabled", "", { timeout: 10000 });
+    await expect(toggle).not.toHaveAttribute("disabled", { timeout: 10000 });
+  });
 });

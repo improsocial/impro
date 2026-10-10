@@ -120,9 +120,12 @@ export class MockServer {
     // Seeded/captured improSearchHistoryPref state; null means the preference
     // is absent from getPreferences and no putPreferences has written it.
     this.searchHistory = null;
+    // Seeded/captured app.bsky.actor.defs#threadViewPref; null means absent.
+    this.threadViewPref = null;
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
     this.putPreferencesDelayMs = 0;
+    this.getPreferencesDelayMs = 0;
     // Override the source served for the local test plugin's main.js; defaults
     // to the standard fixture when null.
     this.localPluginSource = null;
@@ -563,6 +566,10 @@ export class MockServer {
     if (delayMs > 0) {
       this.postThreadDelays.set(postUri, delayMs);
     }
+  }
+
+  setThreadViewPref(threadViewPref) {
+    this.threadViewPref = threadViewPref;
   }
 
   setPostThreadOther(postUri, threadOther) {
@@ -1138,92 +1145,108 @@ export class MockServer {
       }),
     );
 
-    await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          preferences: [
-            {
-              $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-              items: [
-                {
-                  type: "timeline",
-                  value: "following",
-                  pinned: true,
-                  id: "timeline-following",
-                },
-                ...this.pinnedFeedUris.map((uri) => ({
-                  type: "feed",
-                  value: uri,
-                  pinned: true,
-                  id: uri,
-                })),
-                ...this.pinnedListUris.map((uri) => ({
-                  type: "list",
-                  value: uri,
-                  pinned: true,
-                  id: uri,
-                })),
-                ...this.savedFeedUris.map((uri) => ({
-                  type: "feed",
-                  value: uri,
-                  pinned: false,
-                  id: uri,
-                })),
-              ],
-            },
-            ...(this.hiddenPostUris.length > 0
-              ? [
+    await page.route(
+      "**/xrpc/app.bsky.actor.getPreferences*",
+      async (route) => {
+        if (this.getPreferencesDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.getPreferencesDelayMs),
+          );
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
                   {
-                    $type: "app.bsky.actor.defs#improHiddenPostsPref",
-                    items: this.hiddenPostUris,
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
                   },
-                ]
-              : []),
-            ...(this.searchHistory
-              ? [
-                  {
-                    $type: "app.bsky.actor.defs#improSearchHistoryPref",
-                    ...this.searchHistory,
-                  },
-                ]
-              : []),
-            ...(this.labelerSubscriptions.length > 0
-              ? [
-                  {
-                    $type: "app.bsky.actor.defs#labelersPref",
-                    labelers: this.labelerSubscriptions.map((did) => ({
-                      did,
-                    })),
-                  },
-                ]
-              : []),
-            ...this.contentLabelPrefs,
-            ...(this.mutedWords.length > 0
-              ? [
-                  {
-                    $type: "app.bsky.actor.defs#mutedWordsPref",
-                    items: this.mutedWords,
-                  },
-                ]
-              : []),
-            ...[...this.pluginSettings.entries()].map(([pluginId, data]) => ({
-              $type: "app.bsky.actor.defs#improPluginSettingsPref",
-              pluginId,
-              data,
-            })),
-            ...(this.installedPlugins.length > 0
-              ? [
-                  {
-                    $type: "app.bsky.actor.defs#improInstalledPluginsPref",
-                    plugins: this.installedPlugins,
-                  },
-                ]
-              : []),
-          ],
-        }),
-      }),
+                  ...this.pinnedFeedUris.map((uri) => ({
+                    type: "feed",
+                    value: uri,
+                    pinned: true,
+                    id: uri,
+                  })),
+                  ...this.pinnedListUris.map((uri) => ({
+                    type: "list",
+                    value: uri,
+                    pinned: true,
+                    id: uri,
+                  })),
+                  ...this.savedFeedUris.map((uri) => ({
+                    type: "feed",
+                    value: uri,
+                    pinned: false,
+                    id: uri,
+                  })),
+                ],
+              },
+              ...(this.hiddenPostUris.length > 0
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#improHiddenPostsPref",
+                      items: this.hiddenPostUris,
+                    },
+                  ]
+                : []),
+              ...(this.searchHistory
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#improSearchHistoryPref",
+                      ...this.searchHistory,
+                    },
+                  ]
+                : []),
+              ...(this.threadViewPref
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#threadViewPref",
+                      ...this.threadViewPref,
+                    },
+                  ]
+                : []),
+              ...(this.labelerSubscriptions.length > 0
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#labelersPref",
+                      labelers: this.labelerSubscriptions.map((did) => ({
+                        did,
+                      })),
+                    },
+                  ]
+                : []),
+              ...this.contentLabelPrefs,
+              ...(this.mutedWords.length > 0
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#mutedWordsPref",
+                      items: this.mutedWords,
+                    },
+                  ]
+                : []),
+              ...[...this.pluginSettings.entries()].map(([pluginId, data]) => ({
+                $type: "app.bsky.actor.defs#improPluginSettingsPref",
+                pluginId,
+                data,
+              })),
+              ...(this.installedPlugins.length > 0
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+                      plugins: this.installedPlugins,
+                    },
+                  ]
+                : []),
+            ],
+          }),
+        });
+      },
     );
 
     await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
@@ -3143,6 +3166,13 @@ export class MockServer {
             searches: searchHistoryPref.searches || [],
             profiles: searchHistoryPref.profiles || [],
           };
+        }
+        const threadViewPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#threadViewPref",
+        );
+        if (threadViewPref) {
+          const { $type, ...rest } = threadViewPref;
+          this.threadViewPref = rest;
         }
         const labelersPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#labelersPref",

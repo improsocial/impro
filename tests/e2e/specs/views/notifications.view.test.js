@@ -157,6 +157,7 @@ test.describe("Notifications view", () => {
 
       await login(page);
       await page.goto("/");
+      await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
       await page.evaluate(() => {
         window.__sameDocument = true;
       });

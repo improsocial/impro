@@ -277,6 +277,24 @@ export function createNestedThreadViewPost(posts) {
   return current;
 }
 
+export function insertReplyIntoThread(node, parentUri, reply) {
+  if (!node.post || !node.replies) {
+    return node;
+  }
+  if (node.post.uri === parentUri) {
+    return { ...node, replies: [reply, ...node.replies] };
+  }
+  let didChange = false;
+  const replies = node.replies.map((child) => {
+    const updatedChild = insertReplyIntoThread(child, parentUri, reply);
+    if (updatedChild !== child) {
+      didChange = true;
+    }
+    return updatedChild;
+  });
+  return didChange ? { ...node, replies } : node;
+}
+
 export function flattenParents(postThread) {
   const parents = [];
   let current = postThread.parent;

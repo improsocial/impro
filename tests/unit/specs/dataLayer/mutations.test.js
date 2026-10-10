@@ -2462,6 +2462,66 @@ describe("pinFeed", () => {
   });
 });
 
+describe("setThreadView", () => {
+  function setup({ updatePreferences }) {
+    const preferences = new Preferences([], []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences,
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, patchStore };
+  }
+
+  it("should save the thread view and apply an optimistic patch until it resolves", async () => {
+    let updateResolve;
+    let updatedPreferences = null;
+    const { mutations, patchStore } = setup({
+      updatePreferences: (prefs) => {
+        updatedPreferences = prefs;
+        return new Promise((resolve) => {
+          updateResolve = resolve;
+        });
+      },
+    });
+
+    const promise = mutations.setThreadView("tree");
+    const patches = patchStore.$preferencePatches.get();
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body, { type: "setThreadView", view: "tree" });
+    assert.deepEqual(
+      patchStore
+        .applyPreferencePatches(new Preferences([], []), patches)
+        .getThreadView(),
+      "tree",
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    updateResolve();
+    await promise;
+    assert.deepEqual(updatedPreferences.getThreadView(), "tree");
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+
+  it("should remove the patch and rethrow when saving fails", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const { mutations, patchStore } = setup({
+      updatePreferences: async () => {
+        throw new Error("network");
+      },
+    });
+    await assert.rejects(mutations.setThreadView("tree"), /network/);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+});
+
 describe("unpinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 
@@ -3328,6 +3388,61 @@ describe("createThread", () => {
     assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
   });
 
+  it("should insert the reply under a nested post in cached threads", async () => {
+    const rootUri = "at://did:plc:other/app.bsky.feed.post/root";
+    const nestedUri = "at://did:plc:other/app.bsky.feed.post/nested";
+    const siblingUri = "at://did:plc:other/app.bsky.feed.post/sibling";
+    const replyTo = { uri: nestedUri, cid: "cid-nested" };
+    const rootThread = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: rootUri },
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: siblingUri },
+          replies: [],
+        },
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: replyTo,
+          replies: [],
+        },
+      ],
+    };
+    const { mutations, dataStore } = setup({ replyPostThread: rootThread });
+    const siblingNode = rootThread.replies[0];
+
+    await mutations.createThread({
+      posts: [{ postText: "hi" }],
+      replyTo,
+      replyRoot: { uri: rootUri, cid: "cid-root" },
+    });
+
+    const updatedThread = dataStore.$postThreads.get(rootUri);
+    assert.notEqual(updatedThread, rootThread);
+    assert.equal(updatedThread.replies[0], siblingNode);
+    const nestedNode = updatedThread.replies[1];
+    assert.deepEqual(nestedNode.replies.length, 1);
+    assert.deepEqual(nestedNode.replies[0].post.uri, newPostUri);
+  });
+
+  it("should increment the reply count of the replied-to post", async () => {
+    const replyTo = createPost({
+      uri: "at://did:plc:other/app.bsky.feed.post/parent",
+      replyCount: 3,
+    });
+    const { mutations, dataStore } = setup();
+    dataStore.$posts.set(replyTo.uri, replyTo);
+
+    await mutations.createThread({
+      posts: [{ postText: "hi" }],
+      replyTo,
+      replyRoot: replyTo,
+    });
+
+    assert.deepEqual(dataStore.$posts.get(replyTo.uri).replyCount, 4);
+  });
+
   it("should extend the OP run numbering when the OP replies to their own thread", async () => {
     const replyTo = {
       uri: `at://${currentUserDid}/app.bsky.feed.post/root`,
@@ -3455,6 +3570,7 @@ describe("deletePost", () => {
     const post = {
       uri: "at://did:plc:me/app.bsky.feed.post/abc",
       cid: "cid-abc",
+      record: { text: "hi" },
     };
     let apiCalledWith = null;
     const dataStore = new DataStore(createSessionState(null));
@@ -3462,7 +3578,7 @@ describe("deletePost", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    dataStore.$posts.set(post.uri, { ...post, record: { text: "hi" } });
+    dataStore.$posts.set(post.uri, post);
     const mutations = makeMutations(
       {
         deletePost: async (passed) => {
@@ -3480,6 +3596,33 @@ describe("deletePost", () => {
     const stored = dataStore.$posts.get(post.uri);
     assert.deepEqual(stored.uri, post.uri);
     assert.deepEqual(stored.$type, "app.bsky.feed.defs#notFoundPost");
+  });
+
+  it("should decrement the parent's reply count when deleting a reply", async () => {
+    const parent = createPost({
+      uri: "at://did:plc:other/app.bsky.feed.post/parent",
+      replyCount: 2,
+    });
+    const reply = createPost({
+      uri: "at://did:plc:me/app.bsky.feed.post/reply",
+      reply: {
+        parent: { uri: parent.uri, cid: parent.cid },
+        root: { uri: parent.uri, cid: parent.cid },
+      },
+    });
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$posts.set(parent.uri, parent);
+    dataStore.$posts.set(reply.uri, reply);
+    const mutations = makeMutations(
+      { deletePost: async () => {} },
+      dataStore,
+      new PatchStore(),
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+    );
+
+    await mutations.deletePost(reply);
+
+    assert.deepEqual(dataStore.$posts.get(parent.uri).replyCount, 1);
   });
 });
 
