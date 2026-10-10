@@ -1,96 +1,69 @@
 import { effect, untrack } from "/js/signals.js";
+import { hasValidHandle } from "/js/dataHelpers.js";
 
 export function setUpIdentityPrecaching(dataLayer, identityResolver) {
-  const setDid = (entity) => {
-    if (entity) {
-      identityResolver.setDidForHandle(entity.handle, entity.did);
-    }
+  const { dataStore } = dataLayer;
+
+  const seenProfiles = new WeakSet();
+  const precacheProfile = (profile) => {
+    if (!profile || seenProfiles.has(profile)) return;
+    seenProfiles.add(profile);
+    if (!profile.did || !hasValidHandle(profile)) return;
+    identityResolver.setDidForHandle(profile.handle, profile.did);
   };
 
-  const seenPostUris = new Set();
-  effect(() => {
-    const postStores = [
-      dataLayer.dataStore.$posts,
-      dataLayer.dataStore.$embeddedPosts,
-    ];
-    for (const postStore of postStores) {
-      for (const uri of postStore.keys()) {
-        if (seenPostUris.has(uri)) continue;
-        seenPostUris.add(uri);
-        const post = untrack(() => postStore.get(uri));
-        if (!post) continue;
+  // Watch a signal map and precache identities from profiles on change
+  function precacheFromSignalMap($map, getProfiles) {
+    const seenValues = new WeakSet();
+    effect(() => {
+      for (const key of $map.keys()) {
+        const value = untrack(() => $map.get(key));
+        if (!value || seenValues.has(value)) continue;
+        seenValues.add(value);
         try {
-          setDid(post.author);
+          getProfiles(value).forEach(precacheProfile);
         } catch (error) {
-          console.error("error when setting DID from post", post);
+          console.error("error when precaching identities", value);
           console.error(error);
         }
       }
-    }
-  });
+    });
+  }
 
-  const seenFeedGeneratorUris = new Set();
-  effect(() => {
-    const uris = [...dataLayer.dataStore.$feedGenerators.keys()];
-    for (const uri of uris) {
-      if (seenFeedGeneratorUris.has(uri)) continue;
-      seenFeedGeneratorUris.add(uri);
-      const feedGenerator = untrack(() =>
-        dataLayer.dataStore.$feedGenerators.get(uri),
-      );
-      if (!feedGenerator) continue;
-      try {
-        setDid(feedGenerator.creator);
-      } catch (error) {
-        console.error(
-          "error when setting DID from feed generator",
-          feedGenerator,
-        );
-        console.error(error);
-      }
-    }
-  });
-
-  effect(() => {
-    const profileSearchResults =
-      dataLayer.dataStore.$profileSearchResults.get();
-    if (!profileSearchResults) return;
-    for (const searchResult of profileSearchResults.actors) {
-      setDid(searchResult);
-    }
-  });
+  // Post authors, notification authors, search results, and profile lists
+  // (likes, followers, list members, etc.) are all merged into $profiles
+  precacheFromSignalMap(dataStore.$profiles, (profile) => [profile]);
+  precacheFromSignalMap(dataStore.$feedGenerators, (feedGenerator) => [
+    feedGenerator.creator,
+  ]);
+  precacheFromSignalMap(dataStore.$lists, (list) => [list.creator]);
+  precacheFromSignalMap(dataStore.$actorLists, (page) =>
+    page.lists.map((list) => list.creator),
+  );
+  precacheFromSignalMap(dataStore.$starterPacks, (starterPack) => [
+    starterPack.creator,
+  ]);
+  precacheFromSignalMap(dataStore.$feeds, (page) =>
+    page.feed.map((feedItem) => feedItem.reason?.by),
+  );
+  precacheFromSignalMap(dataStore.$authorFeeds, (page) =>
+    page.feed.map((feedItem) => feedItem.reason?.by),
+  );
+  precacheFromSignalMap(dataStore.$convos, (convo) => convo.members);
+  precacheFromSignalMap(dataStore.$convoMemberLists, (page) => page.members);
+  precacheFromSignalMap(dataStore.$joinLinkPreviewsByCode, (preview) => [
+    preview.owner,
+  ]);
 
   effect(() => {
-    const typeaheadResults = dataLayer.dataStore.$searchTypeaheadResults.get();
-    if (!typeaheadResults) return;
-    for (const searchResult of typeaheadResults.actors) {
-      setDid(searchResult);
-    }
+    precacheProfile(dataStore.$currentUser.get());
   });
 
   effect(() => {
     const preferences = dataLayer.preferencesProvider.$preferences.get();
     if (!preferences) return;
     for (const labelerDef of preferences.labelerDefs) {
-      try {
-        setDid(labelerDef.creator);
-      } catch (error) {
-        console.error("error when setting DID from labeler", labelerDef);
-        console.error(error);
-      }
-    }
-  });
-
-  effect(() => {
-    const data = dataLayer.dataStore.$notifications.get();
-    if (!data) return;
-    for (const notification of data.notifications) {
-      try {
-        setDid(notification.author);
-      } catch (error) {
-        console.error("error when setting DID from notification", notification);
-        console.error(error);
-      }
+      precacheProfile(labelerDef.creator);
     }
   });
 }
