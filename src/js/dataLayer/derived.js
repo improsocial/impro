@@ -459,6 +459,11 @@ export class Derived extends ReactiveStore {
       if (!preferences) return [];
       return preferences.getRecentGifs();
     });
+    this.$threadView = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      if (!preferences) return null;
+      return preferences.getThreadView();
+    });
     this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
     this.$chatActorStatus = new Signal.Computed(() =>
       this.dataStore.$chatActorStatus.get(),

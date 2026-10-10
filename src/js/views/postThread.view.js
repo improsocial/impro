@@ -1,7 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { sortBy, maxBy, pinScrollPosition } from "/js/utils.js";
+import {
+  sortBy,
+  maxBy,
+  pinScrollPosition,
+  isMobileViewport,
+  classnames,
+} from "/js/utils.js";
 import {
   bindToPage,
   pageEffect,
@@ -18,7 +24,6 @@ import {
   flattenParents,
   isBlockedPost,
   isNotFoundPost,
-  isUnavailablePost,
   isEmptyPost,
   isMutedPost,
   getReplyRootFromPost,
@@ -32,6 +37,10 @@ import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+
+const THREAD_TREE_MAX_DEPTH_MOBILE = 4;
+const THREAD_TREE_MAX_DEPTH_DESKTOP = 6;
+const THREAD_TREE_BRANCHING_FACTOR = 10;
 
 export default async function postThreadView({
   root,
@@ -178,42 +187,111 @@ export default async function postThreadView({
     return !!post.viewer?.like ? likeCount - 1 : likeCount;
   }
 
-  function buildReplyChains(replies, postAuthor) {
-    const replyChains = [];
-    for (const reply of replies) {
-      if (doShowReply(reply)) {
-        replyChains.push(buildReplyChain(reply));
-      }
-    }
-    let sortedReplyChains = sortBy(
-      replyChains,
-      (chain) => getLikesWithoutUser(chain[0].post),
+  function sortReplies(replies, postAuthor) {
+    let sortedReplies = sortBy(
+      replies,
+      (reply) => getLikesWithoutUser(reply.post),
       {
         direction: "desc",
       },
     );
     // Put replies by the post author first
     if (postAuthor) {
-      sortedReplyChains = [
-        ...sortedReplyChains.filter(
-          (chain) => chain[0].post.author?.did === postAuthor.did,
+      sortedReplies = [
+        ...sortedReplies.filter(
+          (reply) => reply.post.author?.did === postAuthor.did,
         ),
-        ...sortedReplyChains.filter(
-          (chain) => chain[0].post.author?.did !== postAuthor.did,
+        ...sortedReplies.filter(
+          (reply) => reply.post.author?.did !== postAuthor.did,
         ),
       ];
     }
     // If there's a recent reply from the user, put it at the top
-    const recentReplyFromUser = sortedReplyChains.find(
-      (chain) => chain[0].post.viewer?.priorityReply,
+    const recentReplyFromUser = sortedReplies.find(
+      (reply) => reply.post.viewer?.priorityReply,
     );
     if (recentReplyFromUser) {
-      sortedReplyChains = [
+      sortedReplies = [
         recentReplyFromUser,
-        ...sortedReplyChains.filter((chain) => chain !== recentReplyFromUser),
+        ...sortedReplies.filter((reply) => reply !== recentReplyFromUser),
       ];
     }
-    return sortedReplyChains;
+    return sortedReplies;
+  }
+
+  function buildReplyChains(replies, postAuthor) {
+    return sortReplies(getShownReplies(replies), postAuthor).map((reply) =>
+      buildReplyChain(reply),
+    );
+  }
+
+  function buildThreadTree(postThread, { maxDepth, postAuthor }) {
+    function walk(
+      reply,
+      depth,
+      parentSkippedIndices,
+      isLastSibling,
+      parentHasMore,
+      rows,
+    ) {
+      const skippedIndentIndices = new Set(parentSkippedIndices);
+      if (depth > 1 && isLastSibling && !parentHasMore) {
+        skippedIndentIndices.add(depth - 2);
+      }
+      const replies = depth < maxDepth ? (reply.replies ?? []) : [];
+      const shownReplies = sortReplies(getShownReplies(replies), postAuthor);
+      const keptReplies = shownReplies.slice(0, THREAD_TREE_BRANCHING_FACTOR);
+      const numLoadedReplies = replies.filter(
+        (child) => !isNotFoundPost(child.post ?? child),
+      ).length;
+      const moreReplies =
+        Math.max(0, (reply.post.replyCount ?? 0) - numLoadedReplies) +
+        (shownReplies.length - keptReplies.length);
+      rows.push({
+        type: "post",
+        key: reply.post.uri,
+        reply,
+        depth,
+        skippedIndentIndices,
+        showChildReplyLine: keptReplies.length > 0 || moreReplies > 0,
+      });
+      keptReplies.forEach((child, i) => {
+        walk(
+          child,
+          depth + 1,
+          skippedIndentIndices,
+          i === keptReplies.length - 1,
+          moreReplies > 0,
+          rows,
+        );
+      });
+      if (moreReplies > 0) {
+        rows.push({
+          type: "readMore",
+          key: `readMore:${reply.post.uri}`,
+          depth,
+          ownerUri: reply.post.uri,
+          moreReplies,
+          skippedIndentIndices,
+        });
+      }
+    }
+
+    const topLevelReplies = postThread.replies ?? [];
+    const items = [];
+    for (const reply of sortReplies(
+      getShownReplies(topLevelReplies),
+      postAuthor,
+    )) {
+      walk(reply, 1, new Set(), true, false, items);
+    }
+    const hiddenItems = [];
+    for (const reply of topLevelReplies.filter(
+      (reply) => !doShowReply(reply) && doPutReplyInHiddenSection(reply),
+    )) {
+      walk(reply, 1, new Set(), true, false, hiddenItems);
+    }
+    return { items, hiddenItems };
   }
 
   function getReplyContext(replyIndex, numReplies) {
@@ -277,13 +355,164 @@ export default async function postThreadView({
     return false;
   }
 
-  function postThreadRepliesTemplate({ replies, postAuthor, currentUser }) {
+  function linearRepliesTemplate({ replies, postAuthor, currentUser }) {
     const hiddenSectionReplies = replies.filter((reply) =>
       doPutReplyInHiddenSection(reply),
     );
     const replyChains = buildReplyChains(replies, postAuthor);
     const isEmpty =
       replyChains.length === 0 && hiddenSectionReplies.length === 0;
+    const content = html`<div class="post-thread-reply-chains">
+        ${replyChains.map((replyChain, i) =>
+          // there can be a lot of images in a reply chain, so lazy load them after the first few
+          replyChainTemplate({
+            replyChain,
+            currentUser,
+            lazyLoadImages: i > 20,
+          }),
+        )}
+      </div>
+      ${hiddenSectionReplies.length > 0
+        ? html`<hidden-replies-section>
+            ${hiddenSectionReplies.map((reply) =>
+              smallPostTemplate({
+                post: reply.post,
+                currentUser,
+                isAuthenticated,
+                isUserPost: currentUser?.did === reply.post?.author?.did,
+                postInteractionHandler,
+                ignoreContentWarning: true,
+                ignoreMuteWarning: true,
+                lazyLoadImages: true,
+                pluginService,
+              }),
+            )}
+          </hidden-replies-section>`
+        : ""}`;
+    return { isEmpty, content };
+  }
+
+  function treeIndentColumnsTemplate({ depth, skippedIndentIndices }) {
+    return Array.from({ length: Math.max(0, depth - 1) }).map(
+      (_, i) =>
+        html`<span
+          class=${classnames("tree-indent-column", {
+            "is-skipped": skippedIndentIndices.has(i),
+          })}
+        ></span>`,
+    );
+  }
+
+  function treeReplyRowTemplate({
+    row,
+    currentUser,
+    lazyLoadImages,
+    isHiddenRoot,
+  }) {
+    const post = row.reply.post;
+    return html`<div
+      class=${classnames("post-thread-tree-row", {
+        "is-depth-1": row.depth === 1,
+      })}
+      data-testid="thread-tree-reply"
+      data-depth=${row.depth}
+    >
+      ${treeIndentColumnsTemplate(row)}
+      <div class="tree-row-content">
+        ${row.depth > 1 ? html`<span class="tree-elbow"></span>` : ""}
+        ${row.showChildReplyLine
+          ? html`<span class="tree-child-line"></span>`
+          : ""}
+        ${smallPostTemplate({
+          post,
+          currentUser,
+          isAuthenticated,
+          isUserPost: currentUser?.did === post.author?.did,
+          postInteractionHandler,
+          replyContext: null,
+          postNumbering: row.reply.postNumbering,
+          ignoreContentWarning: isHiddenRoot,
+          ignoreMuteWarning: isHiddenRoot,
+          lazyLoadImages,
+          pluginService,
+        })}
+      </div>
+    </div>`;
+  }
+
+  function treeReadMoreTemplate({ row }) {
+    return html`<div class="post-thread-tree-row tree-read-more-row">
+      ${treeIndentColumnsTemplate(row)}
+      <span class="tree-read-more-elbow"></span>
+      <a
+        class="tree-read-more-link"
+        data-testid="thread-read-more"
+        href=${linkToPostFromUri(row.ownerUri)}
+      >
+        <app-icon icon="chevron-right-circle-line"></app-icon>
+        Read ${row.moreReplies} more
+        ${row.moreReplies === 1 ? "reply" : "replies"}
+      </a>
+    </div>`;
+  }
+
+  function treeRowsTemplate({ rows, currentUser, isHiddenSection }) {
+    return rows.map((row, i) =>
+      row.type === "readMore"
+        ? treeReadMoreTemplate({ row })
+        : treeReplyRowTemplate({
+            row,
+            currentUser,
+            lazyLoadImages: isHiddenSection || i > 20,
+            isHiddenRoot: isHiddenSection && row.depth === 1,
+          }),
+    );
+  }
+
+  function treeRepliesTemplate({ postThread, postAuthor, currentUser }) {
+    const { items, hiddenItems } = buildThreadTree(postThread, {
+      maxDepth: isMobileViewport()
+        ? THREAD_TREE_MAX_DEPTH_MOBILE
+        : THREAD_TREE_MAX_DEPTH_DESKTOP,
+      postAuthor,
+    });
+    const isEmpty = items.length === 0 && hiddenItems.length === 0;
+    const content = html`<div
+        class="post-thread-tree"
+        data-testid="post-thread-tree"
+      >
+        ${treeRowsTemplate({
+          rows: items,
+          currentUser,
+          isHiddenSection: false,
+        })}
+      </div>
+      ${hiddenItems.length > 0
+        ? html`<hidden-replies-section>
+            ${treeRowsTemplate({
+              rows: hiddenItems,
+              currentUser,
+              isHiddenSection: true,
+            })}
+          </hidden-replies-section>`
+        : ""}`;
+    return { isEmpty, content };
+  }
+
+  function postThreadRepliesTemplate({
+    postThread,
+    postAuthor,
+    currentUser,
+    threadView,
+  }) {
+    const { isEmpty, content } =
+      threadView === "tree"
+        ? treeRepliesTemplate({ postThread, postAuthor, currentUser })
+        : linearRepliesTemplate({
+            replies: postThread.replies,
+            postAuthor,
+            currentUser,
+          });
     return html`
       <div class="post-thread-replies">
         ${isEmpty
@@ -297,34 +526,7 @@ export default async function postThreadView({
                 context-uri=${postUri}
                 .pluginService=${pluginService}
               ></plugin-slot>
-              <div class="post-thread-reply-chains">
-                ${replyChains.map((replyChain, i) =>
-                  // there can be a lot of images in a reply chain, so lazy load them after the first few
-                  replyChainTemplate({
-                    replyChain,
-                    currentUser,
-                    lazyLoadImages: i > 20,
-                  }),
-                )}
-              </div>
-              ${hiddenSectionReplies.length > 0
-                ? html`<hidden-replies-section>
-                    ${hiddenSectionReplies.map((reply) =>
-                      smallPostTemplate({
-                        post: reply.post,
-                        currentUser,
-                        isAuthenticated,
-                        isUserPost:
-                          currentUser?.did === reply.post?.author?.did,
-                        postInteractionHandler,
-                        ignoreContentWarning: true,
-                        ignoreMuteWarning: true,
-                        lazyLoadImages: true,
-                        pluginService,
-                      }),
-                    )}
-                  </hidden-replies-section>`
-                : ""} `}
+              ${content}`}
         <plugin-slot
           name="post-thread-view:after-replies"
           context-uri=${postUri}
@@ -395,6 +597,7 @@ export default async function postThreadView({
     currentUser,
     hasFollowedInView,
     loadError,
+    threadView,
   }) {
     try {
       const mainPost = isEmptyPost(postThread) ? postThread : postThread.post;
@@ -538,16 +741,19 @@ export default async function postThreadView({
               : ""}
             ${(() => {
               if (loadError) {
-                return threadLoadErrorTemplate({ onRetry: retryLoadPostThread });
+                return threadLoadErrorTemplate({
+                  onRetry: retryLoadPostThread,
+                });
               }
               if (hiddenUnauthenticated) {
                 return "";
               }
-              if (replies) {
+              if (replies && threadView !== null) {
                 return postThreadRepliesTemplate({
-                  replies,
+                  postThread,
                   postAuthor,
                   currentUser,
+                  threadView,
                 });
               }
               const numReplies = mainPost?.replyCount;
@@ -632,6 +838,7 @@ export default async function postThreadView({
     const postThreadRequestStatus =
       dataLayer.requests.statusStore.$statuses.get("loadPostThread-" + postUri);
     const hasFollowedInView = state.$hasFollowedInView.get();
+    const threadView = dataLayer.derived.$threadView.get();
 
     render(
       html`<div id="post-detail-view">
@@ -647,6 +854,7 @@ export default async function postThreadView({
                 currentUser,
                 hasFollowedInView,
                 loadError,
+                threadView,
               });
             } else {
               return threadSkeletonTemplate();
@@ -689,6 +897,9 @@ export default async function postThreadView({
 
   onPageShow(root, async ({ action, scrollY }) => {
     userHasScrolled = false;
+    dataLayer.preferencesProvider.requirePreferences().catch((error) => {
+      console.warn("Failed to load preferences", error);
+    });
     if (action === "restore") {
       window.scrollTo(0, scrollY);
     } else {

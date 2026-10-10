@@ -3071,3 +3071,19 @@ describe("thread mute hydration", () => {
     assert.equal(derived.$hydratedPosts.get(rootUri).viewer, undefined);
   });
 });
+
+describe("$threadView", () => {
+  it("is null until preferences load, then reflects the thread view preference", () => {
+    const { derived } = makeDerived(new DataStore(createSessionState(null)));
+    derived.preferencesProvider.$preferences.set(null);
+    assert.equal(derived.$threadView.get(), null);
+
+    derived.preferencesProvider.$preferences.set(new Preferences([], []));
+    assert.equal(derived.$threadView.get(), "linear");
+
+    derived.preferencesProvider.$preferences.set(
+      new Preferences([], []).setThreadView("tree"),
+    );
+    assert.equal(derived.$threadView.get(), "tree");
+  });
+});

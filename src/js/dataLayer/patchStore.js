@@ -451,6 +451,8 @@ export class PatchStore extends ReactiveStore {
         return preferences.removeRecentSearch(patchBody.q);
       case "removeRecentSearchProfile":
         return preferences.removeRecentSearchProfile(patchBody.did);
+      case "setThreadView":
+        return preferences.setThreadView(patchBody.view);
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

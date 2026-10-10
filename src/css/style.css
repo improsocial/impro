@@ -135,6 +135,13 @@ html {
   --avatar-border-color: var(--generic-border-color);
   --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
   --reply-context-line-width: 2px;
+  --thread-tree-post-padding-x: 16px;
+  --thread-tree-avatar-center: calc(
+    var(--thread-tree-post-padding-x) + var(--avatar-size-thread-tree) / 2
+  );
+  --thread-tree-column-width: calc(
+    var(--thread-tree-avatar-center) + var(--reply-context-line-width) / 2
+  );
 
   /* button colors */
   --primary-button-color: var(--highlight-color);
@@ -156,6 +163,7 @@ html {
   /* avatar sizes */
   --avatar-size-quoted-post: 16px;
   --avatar-size-footer-nav: 24px;
+  --avatar-size-thread-tree: 24px;
   --avatar-size-followed-by: 24px;
   --avatar-size-reply-prompt: 28px;
   --avatar-size-message: 32px;
@@ -1555,6 +1563,10 @@ tab-bar.is-scroll-frozen {
   }
 }
 
+.sidebar-profile-avatar .avatar {
+  display: flex;
+}
+
 .sidebar-profile-avatar .avatar-image-frame {
   width: var(--avatar-size-sidebar);
   height: var(--avatar-size-sidebar);
@@ -2528,6 +2540,110 @@ container-link {
 
 .post-thread-extra-space {
   height: 100px;
+}
+
+.post-thread-tree {
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+.post-thread-tree-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.post-thread-tree-row.is-depth-1:not(:first-child) {
+  border-top: var(--hair) solid var(--post-border-color);
+}
+
+.tree-indent-column {
+  flex-shrink: 0;
+  width: var(--thread-tree-column-width);
+  border-right: var(--reply-context-line-width) solid
+    var(--reply-context-line-color);
+}
+
+.tree-indent-column.is-skipped {
+  border-right-width: 0;
+}
+
+.tree-row-content {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.post-thread-tree-row .post-content-left {
+  width: var(--avatar-size-thread-tree);
+}
+
+.post-thread-tree-row .small-post .avatar-image-frame {
+  width: var(--avatar-size-thread-tree);
+  height: var(--avatar-size-thread-tree);
+}
+
+.tree-elbow {
+  position: absolute;
+  left: calc(var(--reply-context-line-width) * -1);
+  top: 0;
+  width: calc(
+    var(--thread-tree-post-padding-x) + var(--reply-context-line-width)
+  );
+  height: calc(
+    12px + var(--avatar-size-thread-tree) / 2 +
+      var(--reply-context-line-width) / 2
+  );
+  border-left: var(--reply-context-line-width) solid
+    var(--reply-context-line-color);
+  border-bottom: var(--reply-context-line-width) solid
+    var(--reply-context-line-color);
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+.tree-child-line {
+  position: absolute;
+  left: calc(
+    var(--thread-tree-avatar-center) - var(--reply-context-line-width) / 2
+  );
+  top: calc(12px + var(--avatar-size-thread-tree) + 4px);
+  bottom: 0;
+  width: var(--reply-context-line-width);
+  background-color: var(--reply-context-line-color);
+  pointer-events: none;
+}
+
+.tree-read-more-elbow {
+  flex-shrink: 0;
+  margin-left: calc(
+    var(--thread-tree-avatar-center) - var(--reply-context-line-width) / 2
+  );
+  width: var(--thread-tree-post-padding-x);
+  height: 18px;
+  border-left: var(--reply-context-line-width) solid
+    var(--reply-context-line-color);
+  border-bottom: var(--reply-context-line-width) solid
+    var(--reply-context-line-color);
+  border-bottom-left-radius: 8px;
+}
+
+.tree-read-more-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 12px 4px;
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.tree-read-more-link app-icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (hover: hover) {
+  .tree-read-more-link:hover {
+    text-decoration: underline;
+  }
 }
 
 .reply-to-author {
