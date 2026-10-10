@@ -804,6 +804,10 @@ export default async function notificationsView({
     scrollAndReloadNotifications();
   });
 
+  bindToPage(root, window, "notification-open", () => {
+    scrollAndReloadNotifications();
+  });
+
   bindPageTitle(root, () => "Notifications");
 
   pageEffect(root, () => {

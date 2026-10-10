@@ -96,6 +96,81 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".notification-item")).toHaveCount(1);
   });
 
+  test.describe("Push notification click", () => {
+    function dispatchNotificationClick(page, url) {
+      return page.evaluate((url) => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "notification-click", url },
+          }),
+        );
+      }, url);
+    }
+
+    test("should reload notifications when already on the notifications page", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: bob,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await dispatchNotificationClick(page, "/notifications");
+
+      await expect(
+        view.locator(".notification-item .notification-avatar"),
+      ).toHaveCount(2, { timeout: 10000 });
+    });
+
+    test("should navigate in-app to the notification url from another page", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+      await page.evaluate(() => {
+        window.__sameDocument = true;
+      });
+
+      await dispatchNotificationClick(page, "/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
+    });
+  });
+
   test("should display a like notification with post preview", async ({
     page,
   }) => {

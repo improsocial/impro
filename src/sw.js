@@ -52,10 +52,11 @@ self.addEventListener("notificationclick", (event) => {
       const target = new URL(url, self.location.origin);
       for (const client of allClients) {
         if (new URL(client.url).origin !== self.location.origin) continue;
+        client.postMessage({
+          type: "notification-click",
+          url: target.pathname + target.search + target.hash,
+        });
         await client.focus();
-        if ("navigate" in client) {
-          await client.navigate(target.href);
-        }
         return;
       }
       await self.clients.openWindow(target.href);
