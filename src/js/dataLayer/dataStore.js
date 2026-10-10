@@ -167,6 +167,29 @@ export class DataStore extends ReactiveStore {
     }
   }
 
+  setFeedGenerators(feedGenerators) {
+    for (const feedGenerator of feedGenerators) {
+      this.$feedGenerators.set(feedGenerator.uri, feedGenerator);
+    }
+    this.setProfiles(
+      feedGenerators.map((feedGenerator) => feedGenerator.creator),
+    );
+  }
+
+  setLists(lists) {
+    for (const list of lists) {
+      this.$lists.set(list.uri, list);
+    }
+    this.setProfiles(lists.map((list) => list.creator));
+  }
+
+  setStarterPacks(starterPacks) {
+    for (const starterPack of starterPacks) {
+      this.$starterPacks.set(starterPack.uri, starterPack);
+    }
+    this.setProfiles(starterPacks.map((starterPack) => starterPack.creator));
+  }
+
   setCurrentUser(profile) {
     this.$currentUser.set(profile);
     this._saveStatusForProfile(profile);

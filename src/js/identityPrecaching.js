@@ -30,25 +30,9 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
     });
   }
 
-  // Post authors, notification authors, search results, and profile lists
-  // (likes, followers, list members, etc.) are all merged into $profiles
+  // Bsky appview profiles (post authors, search results, etc.) are all merged into $profiles
   precacheFromSignalMap(dataStore.$profiles, (profile) => [profile]);
-  precacheFromSignalMap(dataStore.$feedGenerators, (feedGenerator) => [
-    feedGenerator.creator,
-  ]);
-  precacheFromSignalMap(dataStore.$lists, (list) => [list.creator]);
-  precacheFromSignalMap(dataStore.$actorLists, (page) =>
-    page.lists.map((list) => list.creator),
-  );
-  precacheFromSignalMap(dataStore.$starterPacks, (starterPack) => [
-    starterPack.creator,
-  ]);
-  precacheFromSignalMap(dataStore.$feeds, (page) =>
-    page.feed.map((feedItem) => feedItem.reason?.by),
-  );
-  precacheFromSignalMap(dataStore.$authorFeeds, (page) =>
-    page.feed.map((feedItem) => feedItem.reason?.by),
-  );
+  // Chat service profiles are kept out of $profiles
   precacheFromSignalMap(dataStore.$convos, (convo) => convo.members);
   precacheFromSignalMap(dataStore.$convoMemberLists, (page) => page.members);
   precacheFromSignalMap(dataStore.$joinLinkPreviewsByCode, (preview) => [

@@ -223,6 +223,43 @@ describe("mergeProfile", () => {
   });
 });
 
+describe("setFeedGenerators / setLists / setStarterPacks", () => {
+  const creator = { did: "did:plc:creator", handle: "creator.test" };
+
+  it("should store feed generators by uri and merge their creators", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const feedGenerator = { uri: "at://did:plc:creator/feed/1", creator };
+
+    dataStore.setFeedGenerators([feedGenerator]);
+
+    assert.deepEqual(
+      dataStore.$feedGenerators.get(feedGenerator.uri),
+      feedGenerator,
+    );
+    assert.deepEqual(dataStore.$profiles.get(creator.did), creator);
+  });
+
+  it("should store lists by uri and merge their creators", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const list = { uri: "at://did:plc:creator/list/1", creator };
+
+    dataStore.setLists([list]);
+
+    assert.deepEqual(dataStore.$lists.get(list.uri), list);
+    assert.deepEqual(dataStore.$profiles.get(creator.did), creator);
+  });
+
+  it("should store starter packs by uri and merge their creators", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const starterPack = { uri: "at://did:plc:creator/pack/1", creator };
+
+    dataStore.setStarterPacks([starterPack]);
+
+    assert.deepEqual(dataStore.$starterPacks.get(starterPack.uri), starterPack);
+    assert.deepEqual(dataStore.$profiles.get(creator.did), creator);
+  });
+});
+
 describe("setPostNumberingForFeed", () => {
   it("should save the numbering carried by feed items", () => {
     const dataStore = new DataStore(createSessionState(null));

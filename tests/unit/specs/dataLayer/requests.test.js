@@ -175,6 +175,25 @@ describe("loadNextFeedPage", () => {
     assert.equal(dataStore.$postNumbering.get("post3"), null);
   });
 
+  it("should merge reposters into stored profiles", async () => {
+    const reposter = { did: "did:plc:reposter", handle: "reposter.test" };
+    const mockApi = {
+      getFeed: async () => ({
+        feed: [
+          { post: { uri: "post1" } },
+          { post: { uri: "post2" }, reason: { by: reposter } },
+        ],
+        cursor: "",
+      }),
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+
+    assert.deepEqual(dataStore.$profiles.get(reposter.did), reposter);
+  });
+
   it("should drop items from muted threads", async () => {
     const mutedItem = {
       post: { uri: "post1", viewer: { threadMuted: true } },
@@ -847,6 +866,22 @@ describe("loadNextAuthorFeedPage", () => {
     assert.deepEqual(capturedParams.includePins, true);
     assert.deepEqual(capturedParams.cursor, "");
     assert.deepEqual(dataStore.$authorFeeds.get(`${did}-posts`).feed.length, 1);
+  });
+
+  it("should merge reposters into stored profiles", async () => {
+    const reposter = { did: "did:plc:reposter", handle: "reposter.test" };
+    const mockApi = {
+      getAuthorFeed: async () => ({
+        feed: [{ post: { uri: "p1" }, reason: { by: reposter } }],
+        cursor: "c1",
+      }),
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextAuthorFeedPage(did, "posts");
+
+    assert.deepEqual(dataStore.$profiles.get(reposter.did), reposter);
   });
 
   it("should use posts_with_replies filter for replies feedType", async () => {
@@ -4342,6 +4377,36 @@ describe("loadFeedGenerator / loadList / loadStarterPack", () => {
     await requests.loadStarterPack(starterPack.uri);
 
     assert.deepEqual(dataStore.$starterPacks.get(starterPack.uri), starterPack);
+  });
+
+  it("should merge the creator of each loaded resource into stored profiles", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const feedCreator = { did: "did:plc:feeder", handle: "feeder.test" };
+    const listCreator = { did: "did:plc:lister", handle: "lister.test" };
+    const packCreator = { did: "did:plc:packer", handle: "packer.test" };
+    const mockApi = {
+      getFeedGenerator: async () => ({
+        uri: "at://did:plc:feeder/feed/1",
+        creator: feedCreator,
+      }),
+      getList: async () => ({
+        list: { uri: "at://did:plc:lister/list/1", creator: listCreator },
+        items: [],
+      }),
+      getStarterPack: async () => ({
+        uri: "at://did:plc:packer/pack/1",
+        creator: packCreator,
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadFeedGenerator("at://did:plc:feeder/feed/1");
+    await requests.loadList("at://did:plc:lister/list/1");
+    await requests.loadStarterPack("at://did:plc:packer/pack/1");
+
+    assert.deepEqual(dataStore.$profiles.get(feedCreator.did), feedCreator);
+    assert.deepEqual(dataStore.$profiles.get(listCreator.did), listCreator);
+    assert.deepEqual(dataStore.$profiles.get(packCreator.did), packCreator);
   });
 
   it("should record a starter pack load failure in the status store", async () => {

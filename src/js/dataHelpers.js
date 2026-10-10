@@ -1371,6 +1371,12 @@ export function getPostsFromFeed(feed) {
   return unique(posts, { by: "uri" });
 }
 
+export function getRepostersFromFeed(feed) {
+  return feed.feed
+    .map((feedItem) => feedItem.reason?.by)
+    .filter((profile) => !isNil(profile));
+}
+
 export function getImagesFromDraftPost(draftPost) {
   const items = draftPost.embedGallery?.items ?? draftPost.embedImages ?? [];
   return items.filter((item) => item.localRef?.path);
