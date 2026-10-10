@@ -2586,7 +2586,7 @@ container-link {
   left: calc(var(--reply-context-line-width) * -1);
   top: 0;
   width: calc(
-    var(--thread-tree-post-padding-x) + var(--reply-context-line-width)
+    var(--thread-tree-post-padding-x) + var(--reply-context-line-width) - 2px
   );
   height: calc(
     12px + var(--avatar-size-thread-tree) / 2 +
@@ -2605,7 +2605,7 @@ container-link {
   left: calc(
     var(--thread-tree-avatar-center) - var(--reply-context-line-width) / 2
   );
-  top: calc(12px + var(--avatar-size-thread-tree) + 4px);
+  top: calc(12px + var(--avatar-size-thread-tree) + 2px);
   bottom: 0;
   width: var(--reply-context-line-width);
   background-color: var(--reply-context-line-color);
