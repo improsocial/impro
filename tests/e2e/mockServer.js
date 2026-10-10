@@ -2419,8 +2419,17 @@ export class MockServer {
         }
         const url = new URL(route.request().url());
         const starterPackUri = url.searchParams.get("starterPack");
-        const found =
-          this.starterPacks.find((s) => s.uri === starterPackUri) || {};
+        const found = this.starterPacks.find((s) => s.uri === starterPackUri);
+        if (!found) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "NotFound",
+              message: "Starter pack not found",
+            }),
+          });
+        }
         const starterPack = found.list
           ? { ...found, list: this._withReferenceListOptOut(found.list) }
           : found;
