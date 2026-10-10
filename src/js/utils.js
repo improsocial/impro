@@ -1,4 +1,5 @@
 import { Capacitor } from "/js/lib/capacitor.js";
+import { POST_LANGUAGE_CODES, POST_LANGUAGE_NAMES } from "/js/languages.js";
 
 export function noop() {}
 
@@ -703,9 +704,54 @@ export function getBrowserLanguageCodes() {
   );
 }
 
-export function getPostLangs() {
-  const codes = getBrowserLanguageCodes();
-  return codes.length ? codes.slice(0, 3) : ["en"];
+const MAX_POST_LANGUAGE_HISTORY = 6;
+
+export function arePostLanguagesEqual(languages, otherLanguages) {
+  return (
+    languages.length === otherLanguages.length &&
+    languages.every((code) => otherLanguages.includes(code))
+  );
+}
+
+function getBrowserPostLanguageCodes() {
+  return getBrowserLanguageCodes().filter((code) =>
+    POST_LANGUAGE_CODES.has(code),
+  );
+}
+
+export function getPrimaryPostLanguage() {
+  return getBrowserPostLanguageCodes()[0] ?? "en";
+}
+
+export function getDefaultPostLanguageHistory() {
+  return unique([...getBrowserPostLanguageCodes(), "en", "ja", "pt", "de"])
+    .slice(0, MAX_POST_LANGUAGE_HISTORY)
+    .map((code) => [code]);
+}
+
+export function addPostLanguagesToHistory(history, languages) {
+  return [
+    languages,
+    ...history.filter((entry) => !arePostLanguagesEqual(entry, languages)),
+  ].slice(0, MAX_POST_LANGUAGE_HISTORY);
+}
+
+let languageDisplayNames = null;
+
+export function getNameForLanguageCode(code) {
+  try {
+    languageDisplayNames ??= new Intl.DisplayNames(["en"], {
+      type: "language",
+      fallback: "none",
+    });
+    const name = languageDisplayNames.of(code);
+    if (name) {
+      return name;
+    }
+  } catch {
+    // Malformed codes throw a RangeError
+  }
+  return POST_LANGUAGE_NAMES.get(code) ?? code;
 }
 
 export function sanitizeUri(uri) {

@@ -19,8 +19,12 @@ import {
   buildQueryString,
   ImageLoader,
   compareVersions,
-  getPostLangs,
   getBrowserLanguageCodes,
+  arePostLanguagesEqual,
+  getPrimaryPostLanguage,
+  getDefaultPostLanguageHistory,
+  addPostLanguagesToHistory,
+  getNameForLanguageCode,
   withTimeout,
   wait,
   enableLongPress,
@@ -829,61 +833,6 @@ describe("compareVersions", () => {
   });
 });
 
-describe("getPostLangs", () => {
-  let originalLanguages;
-  let originalLanguage;
-
-  beforeEach(() => {
-    originalLanguages = Object.getOwnPropertyDescriptor(navigator, "languages");
-    originalLanguage = Object.getOwnPropertyDescriptor(navigator, "language");
-  });
-
-  afterEach(() => {
-    if (originalLanguages) {
-      Object.defineProperty(navigator, "languages", originalLanguages);
-    }
-    if (originalLanguage) {
-      Object.defineProperty(navigator, "language", originalLanguage);
-    }
-  });
-
-  function setLanguages(languages, language) {
-    Object.defineProperty(navigator, "languages", {
-      value: languages,
-      configurable: true,
-    });
-    Object.defineProperty(navigator, "language", {
-      value: language,
-      configurable: true,
-    });
-  }
-
-  it("returns base language codes from navigator.languages", () => {
-    setLanguages(["en-US", "fr-FR"], "en-US");
-    assert.deepEqual(getPostLangs(), ["en", "fr"]);
-  });
-
-  it("dedupes language codes", () => {
-    setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
-    assert.deepEqual(getPostLangs(), ["en", "fr"]);
-  });
-
-  it("limits to top 3 codes", () => {
-    setLanguages(["en", "fr", "de", "es", "ja"], "en");
-    assert.deepEqual(getPostLangs(), ["en", "fr", "de"]);
-  });
-
-  it("falls back to navigator.language when languages is empty", () => {
-    setLanguages([], "es-MX");
-    assert.deepEqual(getPostLangs(), ["es"]);
-  });
-
-  it("falls back to ['en'] when no locale info is available", () => {
-    setLanguages([], "");
-    assert.deepEqual(getPostLangs(), ["en"]);
-  });
-});
-
 describe("getBrowserLanguageCodes", () => {
   let originalLanguages;
   let originalLanguage;
@@ -931,6 +880,117 @@ describe("getBrowserLanguageCodes", () => {
   it("returns an empty array when no locale info is available", () => {
     setLanguages([], "");
     assert.deepEqual(getBrowserLanguageCodes(), []);
+  });
+});
+
+describe("post language helpers", () => {
+  let originalLanguages;
+  let originalLanguage;
+
+  beforeEach(() => {
+    originalLanguages = Object.getOwnPropertyDescriptor(navigator, "languages");
+    originalLanguage = Object.getOwnPropertyDescriptor(navigator, "language");
+  });
+
+  afterEach(() => {
+    if (originalLanguages) {
+      Object.defineProperty(navigator, "languages", originalLanguages);
+    }
+    if (originalLanguage) {
+      Object.defineProperty(navigator, "language", originalLanguage);
+    }
+  });
+
+  function setLanguages(languages, language) {
+    Object.defineProperty(navigator, "languages", {
+      value: languages,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "language", {
+      value: language,
+      configurable: true,
+    });
+  }
+
+  it("compares language combinations regardless of order", () => {
+    assert(arePostLanguagesEqual(["ja", "en"], ["ja", "en"]));
+    assert(arePostLanguagesEqual(["ja", "en"], ["en", "ja"]));
+    assert(!arePostLanguagesEqual(["ja"], ["ja", "en"]));
+    assert(!arePostLanguagesEqual(["ja", "de"], ["ja", "en"]));
+  });
+
+  it("uses the first browser language as the primary language", () => {
+    setLanguages(["fr-FR", "en-US"], "fr-FR");
+    assert.deepEqual(getPrimaryPostLanguage(), "fr");
+  });
+
+  it("skips browser languages without a post language code", () => {
+    setLanguages(["fil-PH", "es-MX"], "fil-PH");
+    assert.deepEqual(getPrimaryPostLanguage(), "es");
+    assert.deepEqual(getDefaultPostLanguageHistory(), [
+      ["es"],
+      ["en"],
+      ["ja"],
+      ["pt"],
+      ["de"],
+    ]);
+  });
+
+  it("falls back to English as the primary language", () => {
+    setLanguages([], "");
+    assert.deepEqual(getPrimaryPostLanguage(), "en");
+  });
+
+  it("seeds history with browser languages and common languages, deduped", () => {
+    setLanguages(["ja-JP", "en-US"], "ja-JP");
+    assert.deepEqual(getDefaultPostLanguageHistory(), [
+      ["ja"],
+      ["en"],
+      ["pt"],
+      ["de"],
+    ]);
+  });
+
+  it("caps the seeded history at 6 entries", () => {
+    setLanguages(["fr", "es", "it", "ko", "zh"], "fr");
+    assert.deepEqual(getDefaultPostLanguageHistory(), [
+      ["fr"],
+      ["es"],
+      ["it"],
+      ["ko"],
+      ["zh"],
+      ["en"],
+    ]);
+  });
+
+  it("prepends to history, deduping entries and capping at 6", () => {
+    const history = [["en"], ["ja"], ["en", "ja"], ["pt"], ["de"], ["fr"]];
+    assert.deepEqual(addPostLanguagesToHistory(history, ["pt"]), [
+      ["pt"],
+      ["en"],
+      ["ja"],
+      ["en", "ja"],
+      ["de"],
+      ["fr"],
+    ]);
+    assert.deepEqual(addPostLanguagesToHistory(history, ["ja", "en"]), [
+      ["ja", "en"],
+      ["en"],
+      ["ja"],
+      ["pt"],
+      ["de"],
+      ["fr"],
+    ]);
+  });
+});
+
+describe("getNameForLanguageCode", () => {
+  it("names languages in English", () => {
+    assert.deepEqual(getNameForLanguageCode("ja"), "Japanese");
+  });
+
+  it("falls back to the code when it can't be named", () => {
+    assert.deepEqual(getNameForLanguageCode("not a code!"), "not a code!");
   });
 });
 

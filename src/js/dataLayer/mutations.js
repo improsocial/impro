@@ -18,6 +18,7 @@ import {
   getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import {
+  addPostLanguagesToHistory,
   batch,
   getCurrentTimestamp,
   truncateGraphemes,
@@ -586,6 +587,13 @@ export class Mutations {
 
   setTrendingHidden(hidden) {
     this.sessionState.$trendingHidden.set(hidden);
+  }
+
+  updatePostLanguageHistory(languages) {
+    const history = untrack(() => this.sessionState.$postLanguageHistory.get());
+    this.sessionState.$postLanguageHistory.set(
+      addPostLanguagesToHistory(history, languages),
+    );
   }
 
   async hidePost(post) {
@@ -1985,6 +1993,7 @@ export class Mutations {
     posts,
     replyTo,
     replyRoot,
+    langs,
     threadgateAllow,
     postgateEmbeddingRules,
     signal = null,
@@ -1993,6 +2002,7 @@ export class Mutations {
       posts,
       replyTo,
       replyRoot,
+      langs,
       threadgateAllow,
       postgateEmbeddingRules,
       signal,

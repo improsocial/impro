@@ -180,6 +180,7 @@ describe("buildDraftFromComposerSnapshot", () => {
     const {
       threadgateAllow = null,
       postgateEmbeddingRules = null,
+      langs = null,
       ...postOverrides
     } = overrides;
     return {
@@ -196,6 +197,7 @@ describe("buildDraftFromComposerSnapshot", () => {
       ],
       threadgateAllow,
       postgateEmbeddingRules,
+      langs,
     };
   }
 
@@ -350,6 +352,18 @@ describe("buildDraftFromComposerSnapshot", () => {
     assert.deepEqual(draft.posts[0].labels, labels);
     assert.deepEqual(draft.threadgateAllow.length, 1);
     assert.deepEqual(draft.postgateEmbeddingRules.length, 1);
+  });
+
+  it("carries chosen post languages", () => {
+    const { draft } = buildDraftFromComposerSnapshot(
+      makeDraftSnapshot({ langs: ["ja", "en"] }),
+    );
+    assert.deepEqual(draft.langs, ["ja", "en"]);
+  });
+
+  it("omits langs when no language was chosen", () => {
+    const { draft } = buildDraftFromComposerSnapshot(makeDraftSnapshot());
+    assert.deepEqual(draft.langs, undefined);
   });
 
   it("omits empty postgate rules", () => {
