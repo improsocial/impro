@@ -67,7 +67,10 @@ export default async function communityPluginsView({
               </div>`
             : ""}
           ${error
-            ? html`<div class="error-state">
+            ? html`<div
+                class="error-state"
+                data-testid="community-plugins-error"
+              >
                 <div>Failed to load plugins</div>
                 <button
                   class="rounded-button rounded-button-secondary-inverted"

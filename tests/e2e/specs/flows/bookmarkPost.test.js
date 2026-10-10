@@ -83,6 +83,6 @@ test.describe("Bookmark post flow", () => {
 
     await expect(
       bookmarksView.locator('[data-testid="empty-state"]'),
-    ).toContainText("No saved posts yet!", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 });

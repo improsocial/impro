@@ -385,7 +385,11 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
           <app-icon icon="close-line"></app-icon>
         </button>
         ${!isReady
-          ? html`<div class="video-preview-overlay">
+          ? html`<div
+              class="video-preview-overlay"
+              data-testid="composer-video-overlay"
+              data-teststate=${video.status}
+            >
               ${!isError ? html`<div class="loading-spinner"></div>` : ""}
               <span>${progressLabel}</span>
             </div>`

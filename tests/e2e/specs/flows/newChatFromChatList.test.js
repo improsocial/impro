@@ -68,10 +68,9 @@ test.describe("New chat from chat list flow", () => {
     await login(page);
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
     await chatView.locator('[data-testid="new-chat-button"]').click();
@@ -149,7 +148,7 @@ test.describe("New chat from chat list flow", () => {
     await expect(results.nth(1)).toBeDisabled();
     await expect(
       results.nth(1).locator('[data-testid="not-messageable-hint"]'),
-    ).toContainText("Can't be messaged");
+    ).toBeVisible();
   });
 
   test("should show an error toast and stay on the chat list when the server rejects the chat", async ({

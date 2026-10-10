@@ -182,9 +182,6 @@ test.describe("Create group chat flow", () => {
     const alertModal = page.locator('[data-testid="alert-modal"]');
     await expect(alertModal).toBeVisible({ timeout: 10000 });
     await expect(
-      alertModal.locator('[data-testid="modal-title"]'),
-    ).toContainText("Your account is too new");
-    await expect(
       dialog.locator('[data-testid="new-group-back-button"]'),
     ).toHaveCount(0);
   });

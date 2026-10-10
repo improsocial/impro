@@ -4,13 +4,14 @@ import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.
 import { render } from "/js/lib/lit-html.js";
 
 describe("unavailablePostTemplate", () => {
-  it("should display 'Post unavailable' text", () => {
+  it("should render the unavailable tombstone", () => {
     const result = unavailablePostTemplate();
     const container = document.createElement("div");
     render(result, container);
-    const indicator = container.querySelector(".missing-post-indicator");
-    assert(indicator !== null);
-    assert(indicator.textContent.includes("Post unavailable"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-unavailable']") !==
+        null,
+    );
   });
 
   it("should render an info icon", () => {

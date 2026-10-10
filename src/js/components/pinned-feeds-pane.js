@@ -28,6 +28,7 @@ function pinnedItemTemplate({ item, isCurrent, onSelect }) {
   return html`<button
     class=${classnames("pinned-feeds-item", { active: isCurrent })}
     data-testid="pinned-feeds-item"
+    data-pinned-value=${item.uri}
     title=${item.displayName}
     @click=${onSelect}
   >

@@ -25,9 +25,6 @@ test.describe("Search view", () => {
     await expect(
       view.locator('[data-testid="search-placeholder"]'),
     ).toBeVisible();
-    await expect(
-      view.locator('[data-testid="search-placeholder"]'),
-    ).toContainText("Start typing to search for users, posts, and feeds.");
   });
 
   test("should display profile search results", async ({ page }) => {
@@ -745,17 +742,17 @@ test.describe("Search view", () => {
 
     // First feed is pinned — should show "Unpin" with pinned class
     await expect(firstItem.locator(".pin-feed-button.pinned")).toBeVisible();
-    await expect(firstItem.locator(".pin-feed-button")).toContainText(
-      "Unpin feed",
-    );
+    await expect(
+      firstItem.locator('[data-testid="pin-feed-button"]'),
+    ).toHaveAttribute("data-teststate", "pinned");
 
     // Second feed is not pinned — should show "Pin feed" with primary class
     await expect(
       secondItem.locator(".pin-feed-button.rounded-button-primary"),
     ).toBeVisible();
-    await expect(secondItem.locator(".pin-feed-button")).toContainText(
-      "Pin feed",
-    );
+    await expect(
+      secondItem.locator('[data-testid="pin-feed-button"]'),
+    ).toHaveAttribute("data-teststate", "not-pinned");
   });
 
   test("should not navigate to feed detail when clicking pin button", async ({

@@ -295,7 +295,12 @@ class CreateListDialog extends Component {
                 </div>
 
                 ${this._error
-                  ? html`<div class="form-dialog-error">${this._error}</div>`
+                  ? html`<div
+                      class="form-dialog-error"
+                      data-testid="form-dialog-error"
+                    >
+                      ${this._error}
+                    </div>`
                   : ""}
               </div>
             </div>`}

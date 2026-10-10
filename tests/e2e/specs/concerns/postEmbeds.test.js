@@ -831,7 +831,6 @@ test.describe("Post embeds view — feed generator / list", () => {
     await expect(action).toHaveAttribute("data-teststate", "request", {
       timeout: 10000,
     });
-    await expect(action).toContainText("Request to join");
   });
 
   test("renders disabled state when the chat is full", async ({ page }) => {

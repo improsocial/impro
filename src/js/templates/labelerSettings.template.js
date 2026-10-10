@@ -100,7 +100,9 @@ export function labelerSettingsTemplate({
           class="labeler-settings-header"
           data-testid="labeler-settings-header"
         >
-          <p>This labeler has no configurable labels.</p>
+          <p data-testid="empty-state">
+            This labeler has no configurable labels.
+          </p>
         </div>
       </div>
     `;

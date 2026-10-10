@@ -52,6 +52,7 @@ function memberTrailingTemplate({ member, ownerDid }) {
   return html`<div
     class="group-chat-member-added-by"
     data-testid="member-added-by"
+    data-teststate=${addedBy ? "member" : "invite-link"}
   >
     ${addedBy ? `Added by ${getDisplayName(addedBy)}` : "Added by invite link"}
   </div>`;

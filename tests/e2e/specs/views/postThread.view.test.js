@@ -75,10 +75,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Post",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
       timeout: 10000,
@@ -682,10 +681,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".post-thread-reply-prompt")).toContainText(
-      "Write your reply",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="post-thread-reply-prompt"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should display post action counts on the main post", async ({
@@ -872,10 +870,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".post-thread-reply-prompt")).toContainText(
-      "Write your reply",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="post-thread-reply-prompt"]'),
+    ).toBeVisible({ timeout: 10000 });
 
     // Click the reply prompt to open the composer
     await view.locator(".post-thread-reply-prompt").click();
@@ -1159,10 +1156,9 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/restricted.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      await expect(view).toContainText(
-        "This author has chosen to make their posts visible only to people who are signed in.",
-        { timeout: 10000 },
-      );
+      await expect(
+        view.locator('[data-testid="no-unauthenticated-message"]'),
+      ).toBeVisible({ timeout: 10000 });
       await expect(view).not.toContainText("This post is restricted");
     });
 
@@ -1208,10 +1204,9 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      await expect(view).toContainText(
-        "This author has chosen to make their posts visible only to people who are signed in.",
-        { timeout: 10000 },
-      );
+      await expect(
+        view.locator('[data-testid="no-unauthenticated-message"]'),
+      ).toBeVisible({ timeout: 10000 });
       await expect(view).not.toContainText("Restricted parent");
       await expect(view).toContainText("This is a reply to restricted parent");
     });
@@ -1673,8 +1668,8 @@ test.describe("Post thread view", () => {
       const hiddenSection = view.locator("hidden-replies-section");
       await expect(hiddenSection).toBeVisible();
       await expect(
-        hiddenSection.locator(".hidden-replies-button"),
-      ).toContainText("Show more replies");
+        hiddenSection.locator('[data-testid="hidden-replies-button"]'),
+      ).toBeVisible();
     });
 
     test("should place content-labeled replies in the hidden section", async ({
@@ -1925,8 +1920,8 @@ test.describe("Post thread view", () => {
       const hiddenSection = view.locator("hidden-replies-section");
       await expect(hiddenSection).toBeVisible();
       await expect(
-        hiddenSection.locator(".hidden-replies-button"),
-      ).toContainText("Show more replies");
+        hiddenSection.locator('[data-testid="hidden-replies-button"]'),
+      ).toBeVisible();
     });
 
     test("should not affect replies when getPostThreadOtherV2 returns empty", async ({
@@ -2240,7 +2235,7 @@ test.describe("Post thread view", () => {
       const view = page.locator("#post-detail-view");
       const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Hidden by muted word");
+      await expect(toggle).toHaveAttribute("data-teststate", "muted-word");
     });
 
     test("should show 'Post hidden by you' label for parent with viewer.isHidden", async ({
@@ -2286,7 +2281,7 @@ test.describe("Post thread view", () => {
       const view = page.locator("#post-detail-view");
       const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Post hidden by you");
+      await expect(toggle).toHaveAttribute("data-teststate", "hidden");
     });
   });
 
@@ -2546,7 +2541,7 @@ test.describe("Post thread view", () => {
         timeout: 10000,
       });
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Everybody can reply");
+      await expect(badge).toHaveAttribute("data-teststate", "everybody");
       await expect(
         badge.locator('app-icon[icon="globe-grid-line"]'),
       ).toBeVisible();
@@ -2576,11 +2571,15 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Replies disabled", { timeout: 10000 });
+      await expect(badge).toHaveAttribute("data-teststate", "nobody", {
+        timeout: 10000,
+      });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("Replies to this post are disabled.");
+      await expect(
+        modal.locator('[data-testid="who-can-reply-rule"]'),
+      ).toHaveAttribute("data-teststate", "nobody");
 
       await modal.locator(".primary-button").click();
       await expect(modal).not.toBeAttached();
@@ -2624,13 +2623,17 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Some people can reply", {
+      await expect(badge).toHaveAttribute("data-teststate", "limited", {
         timeout: 10000,
       });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("mentioned users");
+      await expect(
+        modal.locator(
+          '[data-testid="who-can-reply-rule-item"][data-teststate="mention"]',
+        ),
+      ).toBeVisible();
       await expect(modal).toContainText(
         "users followed by @author1.bsky.social",
       );
@@ -2656,14 +2659,18 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Everybody can reply", { timeout: 10000 });
+      await expect(badge).toHaveAttribute("data-teststate", "everybody", {
+        timeout: 10000,
+      });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("Everybody can reply to this post.");
-      await expect(modal).toContainText(
-        "No one but the author can quote this post.",
-      );
+      await expect(
+        modal.locator('[data-testid="who-can-reply-rule"]'),
+      ).toHaveAttribute("data-teststate", "everybody");
+      await expect(
+        modal.locator('[data-testid="who-can-reply-quote-disabled"]'),
+      ).toBeVisible();
     });
   });
 

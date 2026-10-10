@@ -26,7 +26,7 @@ export default async function settingsBlockedAccountsView({
 
   function errorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="blocked-accounts-error">
       <div>Error loading blocked accounts</div>
       ${tryAgainButtonTemplate()}
     </div>`;

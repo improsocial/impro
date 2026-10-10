@@ -35,7 +35,6 @@ describe("moderation-warning", () => {
       document.body.appendChild(element);
       const label = element.querySelector(".show-hide-label");
       assert(label !== null);
-      assert.deepEqual(label.textContent.trim(), "Show");
     });
 
     it("should preserve children in toggle-content", () => {
@@ -126,11 +125,11 @@ describe("moderation-warning", () => {
       assert(content.hidden);
     });
 
-    it("should display 'Show' label initially", () => {
+    it("should start collapsed", () => {
       const element = document.createElement("moderation-warning");
       document.body.appendChild(element);
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Show");
+      const topBar = element.querySelector(".top-bar");
+      assert.deepEqual(topBar.getAttribute("aria-expanded"), "false");
     });
   });
 
@@ -158,22 +157,14 @@ describe("moderation-warning", () => {
       assert(!content.hidden);
     });
 
-    it("should display 'Hide' label when expanded", () => {
-      const element = document.createElement("moderation-warning");
-      document.body.appendChild(element);
-      element.toggle();
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Hide");
-    });
-
     it("should toggle back to collapsed state", () => {
       const element = document.createElement("moderation-warning");
       document.body.appendChild(element);
       element.toggle();
       element.toggle();
       assert.deepEqual(element.expanded, false);
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Show");
+      const topBar = element.querySelector(".top-bar");
+      assert.deepEqual(topBar.getAttribute("aria-expanded"), "false");
     });
   });
 

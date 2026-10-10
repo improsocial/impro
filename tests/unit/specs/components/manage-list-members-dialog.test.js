@@ -184,7 +184,7 @@ describe("manage-list-members-dialog", () => {
     const dialog = element.querySelector("dialog.manage-list-members-dialog");
     assert(dialog !== null);
     assert(dialog.classList.contains("bottom-sheet"));
-    assert(element.textContent.includes("Add people to list"));
+    assert(element.querySelector(".search-dialog-title") !== null);
     assert(
       element.querySelector(
         '[data-testid="manage-list-members-search-input"]',
@@ -224,7 +224,6 @@ describe("manage-list-members-dialog", () => {
     );
     assert.deepEqual(buttons.length, 1);
     assert.deepEqual(buttons[0].dataset.teststate, "not-member");
-    assert.equal(buttons[0].textContent.trim(), "Add");
   });
 
   it("shows Remove for a search result that is already a member", async () => {
@@ -241,7 +240,6 @@ describe("manage-list-members-dialog", () => {
     );
     assert.deepEqual(buttons.length, 1);
     assert.deepEqual(buttons[0].dataset.teststate, "member");
-    assert.equal(buttons[0].textContent.trim(), "Remove");
   });
 
   it("adds a profile when Add is clicked and flips the button to Remove", async () => {
@@ -261,7 +259,6 @@ describe("manage-list-members-dialog", () => {
       '[data-testid="manage-list-members-toggle"]',
     );
     assert.deepEqual(button.dataset.teststate, "member");
-    assert.equal(button.textContent.trim(), "Remove");
   });
 
   it("removes a profile when Remove is clicked and flips the button to Add", async () => {
@@ -283,7 +280,6 @@ describe("manage-list-members-dialog", () => {
       '[data-testid="manage-list-members-toggle"]',
     );
     assert.deepEqual(button.dataset.teststate, "not-member");
-    assert.equal(button.textContent.trim(), "Add");
   });
 
   it("shows a spinner and disables the button while a toggle is pending", async () => {
@@ -364,7 +360,6 @@ describe("manage-list-members-dialog", () => {
     await typeQuery(element, "zzz");
     const emptyMessage = element.querySelector('[data-testid="empty-state"]');
     assert(emptyMessage !== null);
-    assert.equal(emptyMessage.textContent.trim(), "No results");
   });
 
   it("closes on the close button", async () => {

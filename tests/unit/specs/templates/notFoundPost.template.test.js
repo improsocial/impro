@@ -4,13 +4,14 @@ import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 describe("notFoundPostTemplate", () => {
-  it("should display 'Post not found' text", () => {
+  it("should render the not-found tombstone", () => {
     const result = notFoundPostTemplate();
     const container = document.createElement("div");
     render(result, container);
-    const indicator = container.querySelector(".missing-post-indicator");
-    assert(indicator !== null);
-    assert(indicator.textContent.includes("Post not found"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") !==
+        null,
+    );
   });
 
   it("should render a trash can icon", () => {

@@ -48,6 +48,7 @@ function contentWarningTemplate({
       return html`<moderation-warning
         class="post-muted-warning"
         label="Hidden by muted word"
+        data-teststate="muted-word"
         icon-style="closed-eye"
         @click=${stopClick}
         >${children}</moderation-warning
@@ -57,6 +58,7 @@ function contentWarningTemplate({
       return html`<moderation-warning
         class="post-muted-warning"
         label="Post hidden by you"
+        data-teststate="hidden"
         icon-style="closed-eye"
         @click=${stopClick}
         >${children}</moderation-warning

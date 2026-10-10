@@ -298,6 +298,7 @@ export default async function settingsAdvancedView({
                 <button
                   type="submit"
                   class="rounded-button rounded-button-primary settings-button"
+                  data-testid="appview-save-button"
                   ?disabled=${state.$loading.get() || !isDirty()}
                 >
                   Save and reload

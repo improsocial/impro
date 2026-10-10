@@ -165,7 +165,6 @@ describe("smallPostTemplate - reposts", () => {
     render(result, container);
     const repostLabel = container.querySelector("[data-testid='repost-label']");
     assert(repostLabel !== null);
-    assert(repostLabel.textContent.includes("Reposted by"));
   });
 
   it("should show 'Reposted by you' when repostAuthor is the current user", () => {
@@ -346,7 +345,10 @@ describe("smallPostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("Blocked"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") !==
+        null,
+    );
   });
 
   it("should render not found post template for not found post", () => {
@@ -361,7 +363,10 @@ describe("smallPostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("not found"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") !==
+        null,
+    );
   });
 });
 

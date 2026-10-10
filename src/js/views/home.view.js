@@ -173,7 +173,7 @@ export default async function homeView({
   }
 
   function feedErrorTemplate({ feedGenerator }) {
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="feed-error">
       An issue occurred when contacting the feed server.<br />
       Please let the feed owner know about this issue.<br />
       ${feedGenerator.creator

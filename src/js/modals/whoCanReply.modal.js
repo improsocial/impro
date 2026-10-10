@@ -27,10 +27,16 @@ function ruleTemplate({ rule, author, lists }) {
   return html`unknown`;
 }
 
-function threadgateRuleTemplate({ post }) {
-  const settings = normalizeThreadgateAllowSettings(
-    post?.threadgate?.record?.allow,
-  );
+function getThreadgateRuleState(settings) {
+  for (const state of ["everybody", "nobody", "unknown"]) {
+    if (settings.some((rule) => rule.type === state)) {
+      return state;
+    }
+  }
+  return "rules";
+}
+
+function threadgateRuleTemplate({ post, settings }) {
   if (settings.some((rule) => rule.type === "everybody")) {
     return html`Everybody can reply to this post.`;
   }
@@ -52,7 +58,13 @@ function threadgateRuleTemplate({ post }) {
         parts.push(html`, `);
       }
     }
-    parts.push(ruleTemplate({ rule, author, lists }));
+    parts.push(
+      html`<span
+        data-testid="who-can-reply-rule-item"
+        data-teststate=${rule.type}
+        >${ruleTemplate({ rule, author, lists })}</span
+      >`,
+    );
   });
   return html`Only ${parts} can reply.`;
 }
@@ -68,15 +80,24 @@ export class WhoCanReplyModal extends Modal {
 
   render({ dismiss, props: { post } }) {
     const embeddingDisabled = !!post?.viewer?.embeddingDisabled;
+    const settings = normalizeThreadgateAllowSettings(
+      post?.threadgate?.record?.allow,
+    );
     return html`
       <div class="modal-dialog-content">
         <h2 class="modal-dialog-title" data-testid="modal-title">
           Who can interact with this post?
         </h2>
         <div class="modal-dialog-message who-can-reply-body">
-          <span>${threadgateRuleTemplate({ post })}</span>
+          <span
+            data-testid="who-can-reply-rule"
+            data-teststate=${getThreadgateRuleState(settings)}
+            >${threadgateRuleTemplate({ post, settings })}</span
+          >
           ${embeddingDisabled
-            ? html`<span>No one but the author can quote this post.</span>`
+            ? html`<span data-testid="who-can-reply-quote-disabled"
+                >No one but the author can quote this post.</span
+              >`
             : ""}
         </div>
         <div class="modal-dialog-buttons">

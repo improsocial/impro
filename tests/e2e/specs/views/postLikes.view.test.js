@@ -48,10 +48,9 @@ test.describe("Post likes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/likes");
 
     const view = page.locator("#post-likes-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Liked by",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
       "3 likes",
@@ -146,10 +145,9 @@ test.describe("Post likes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/likes");
 
     const view = page.locator("#post-likes-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Liked by",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
@@ -176,10 +174,9 @@ test.describe("Post likes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/likes");
 
     const view = page.locator("#post-likes-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading likes",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="likes-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should render bio, follows-you, and follow-state per liker", async ({
@@ -307,10 +304,9 @@ test.describe("Post likes view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123/likes");
 
       const view = page.locator("#post-likes-view");
-      await expect(view.locator('[data-testid="header-title"]')).toContainText(
-        "Liked by",
-        { timeout: 10000 },
-      );
+      await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+        timeout: 10000,
+      });
 
       await expect(view.locator(".profile-list-item")).toHaveCount(3, {
         timeout: 10000,

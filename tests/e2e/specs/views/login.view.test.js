@@ -13,7 +13,7 @@ test.describe("Login view", () => {
 
     const loginView = page.locator("#login-view");
     await expect(
-      loginView.getByRole("heading", { name: "Sign in" }),
+      loginView.locator('[data-testid="login-title"]'),
     ).toBeVisible();
 
     const handleInput = page.locator('input[name="handle"]');
@@ -24,8 +24,12 @@ test.describe("Login view", () => {
     );
     await expect(handleInput).toBeFocused();
 
-    await expect(page.getByRole("button", { name: "Next" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+    await expect(
+      page.locator('[data-testid="login-next-button"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="login-back-button"]'),
+    ).toBeVisible();
   });
 
   test("should show error for invalid username", async ({ page }) => {
@@ -35,7 +39,7 @@ test.describe("Login view", () => {
     await page.goto("/login");
 
     await page.locator('input[name="handle"]').fill("invalid.test");
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.locator('[data-testid="login-next-button"]').click();
 
     await expect(page.locator(".error-message")).toBeVisible({
       timeout: 10000,
@@ -59,8 +63,8 @@ test.describe("Login view", () => {
     await advanced.locator("summary").click();
     await expect(select).toBeVisible();
     const options = select.locator("option");
-    await expect(options.first()).toHaveText("Bluesky");
-    await expect(options.last()).toHaveText("Custom");
+    await expect(options.first()).toHaveAttribute("value", "bluesky");
+    await expect(options.last()).toHaveAttribute("value", "custom");
     expect(await options.count()).toBeGreaterThanOrEqual(3);
   });
 
@@ -266,7 +270,7 @@ test.describe("Login view", () => {
       await page.locator('[data-testid="account-switcher-add"]').click();
       await expect(page.locator("#login-form")).toBeVisible();
 
-      await page.getByRole("button", { name: "Back" }).click();
+      await page.locator('[data-testid="login-back-button"]').click();
       await expect(
         page.locator('[data-testid="account-switcher-list"]'),
       ).toBeVisible();

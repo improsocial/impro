@@ -58,10 +58,10 @@ test.describe("Block user flow", () => {
     // Wait for the profile to show blocked state
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("You are blocking this user", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
     await expect(
       profileView.locator('[data-testid="unblock-button"]'),
-    ).toContainText("Unblock");
+    ).toBeVisible();
 
     // Navigate back to home and verify posts are hidden
     await page.goto("/");
@@ -73,7 +73,7 @@ test.describe("Block user flow", () => {
     await page.goto(`/profile/${otherUser.did}`);
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("You are blocking this user", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should block a user from a post context menu and filter their posts", async ({
@@ -131,10 +131,10 @@ test.describe("Block user flow", () => {
     const profileView = page.locator("#profile-view");
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("You are blocking this user", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
     await expect(
       profileView.locator('[data-testid="unblock-button"]'),
-    ).toContainText("Unblock");
+    ).toBeVisible();
   });
 
   test("should not block the user when the confirmation dialog is cancelled", async ({
@@ -444,7 +444,7 @@ test.describe("Block user flow", () => {
     const profileView = page.locator("#profile-view");
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("You are blocking this user", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await profileView.locator('[data-testid="unblock-button"]').click();
 

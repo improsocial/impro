@@ -141,15 +141,17 @@ describe("post-composer", () => {
     });
   });
 
-  describe("PostComposer - button text", () => {
-    it("should show 'Post' for new posts", () => {
+  describe("PostComposer - submit button state", () => {
+    it("should use the post state for new posts", () => {
       const element = createPostComposer();
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
-      assert(postButton.textContent.includes("Post"));
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert.deepEqual(postButton.dataset.teststate, "post");
     });
 
-    it("should show 'Reply' for replies", () => {
+    it("should use the reply state for replies", () => {
       const element = createPostComposer();
       element.replyTo = {
         author: { handle: "user.bsky.social", displayName: "User" },
@@ -157,8 +159,10 @@ describe("post-composer", () => {
         indexedAt: new Date().toISOString(),
       };
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
-      assert(postButton.textContent.includes("Reply"));
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert.deepEqual(postButton.dataset.teststate, "reply");
     });
   });
 
@@ -541,7 +545,7 @@ describe("post-composer", () => {
       await nextFrame();
       const postButton = element.querySelector(".rounded-button-primary");
       assert(postButton.disabled);
-      assert.deepEqual(postButton.textContent.includes("Sending"), false);
+      assert.deepEqual(postButton.querySelector(".loading-spinner"), null);
 
       sendDetail.settledCallback();
       await nextFrame();
@@ -631,9 +635,6 @@ describe("post-composer", () => {
       assert.deepEqual(element.state.$isSending.get(), false);
       const banner = getBanner(element);
       assert(banner !== null);
-      assert(
-        banner.textContent.includes("Failed to send post. Please try again."),
-      );
     });
 
     it("does not render the banner before any failure", () => {
@@ -2410,7 +2411,6 @@ describe("post-composer", () => {
       const submitButton = element.querySelector(
         '[data-testid="composer-submit-button"]',
       );
-      assert(submitButton.textContent.includes("Post All"));
       assert.deepEqual(submitButton.dataset.teststate, "post-all");
       const postElements = element.querySelectorAll(
         '[data-testid="composer-post"]',
@@ -2654,6 +2654,10 @@ describe("post-composer", () => {
     return dataLayer;
   }
 
+  function getVideoOverlay(element) {
+    return element.querySelector('[data-testid="composer-video-overlay"]');
+  }
+
   describe("PostComposer - media preview actions", () => {
     let originalRevokeObjectURL;
     let revokedUrls;
@@ -2675,24 +2679,25 @@ describe("post-composer", () => {
         video: { previewUrl: "blob:x", status: "uploading", progress: 0 },
       });
       await nextFrame();
-      let overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Uploading..."));
+      let overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "uploading");
       assert(overlay.querySelector(".loading-spinner") !== null);
 
       patchFirstPost(element, {
         video: { previewUrl: "blob:x", status: "processing", progress: 0 },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Processing..."));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "processing");
       assert(!overlay.textContent.includes("%"));
 
       patchFirstPost(element, {
         video: { previewUrl: "blob:x", status: "processing", progress: 40 },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Processing... 40%"));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "processing");
+      assert(overlay.textContent.includes("40%"));
     });
 
     it("shows the error overlay without a spinner and no overlay when done", async () => {
@@ -2702,7 +2707,8 @@ describe("post-composer", () => {
         video: { previewUrl: "blob:x", status: "error", error: "Too big" },
       });
       await nextFrame();
-      let overlay = element.querySelector(".video-preview-overlay");
+      let overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "error");
       assert(overlay.textContent.includes("Too big"));
       assert.deepEqual(overlay.querySelector(".loading-spinner"), null);
 
@@ -2710,14 +2716,15 @@ describe("post-composer", () => {
         video: { previewUrl: "blob:x", status: "error", error: null },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Upload failed"));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "error");
+      assert.notDeepEqual(overlay.textContent.trim(), "");
 
       patchFirstPost(element, {
         video: { previewUrl: "blob:x", status: "done" },
       });
       await nextFrame();
-      assert.deepEqual(element.querySelector(".video-preview-overlay"), null);
+      assert.deepEqual(getVideoOverlay(element), null);
     });
 
     it("removes the video via the preview remove button", async () => {

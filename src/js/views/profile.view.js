@@ -228,14 +228,14 @@ export default async function profileView({
   function profileErrorTemplate({ error }) {
     if (isNotFoundError(error)) {
       const message = getNotFoundMessage(error);
-      return html`<div class="error-state">
+      return html`<div class="error-state" data-testid="profile-not-found">
         <h3>Not Found</h3>
         <div>${message}</div>
         ${tryAgainButtonTemplate()}
       </div>`;
     }
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="profile-error">
       <div>There was an error loading the profile.</div>
       ${tryAgainButtonTemplate()}
     </div>`;
@@ -243,7 +243,7 @@ export default async function profileView({
 
   function profileUnavailableTemplate() {
     return html`
-      <div class="error-state">
+      <div class="error-state" data-testid="profile-sign-in-required">
         <h1>Sign-In Required</h1>
         <p>
           This account has requested that users sign in to view their profile.
@@ -374,7 +374,12 @@ export default async function profileView({
           })}
           ${isBlocking || isBlockedBy
             ? html`<div class="feed">
-                <div class="feed-end-message">Posts hidden</div>
+                <div
+                  class="feed-end-message"
+                  data-testid="profile-posts-hidden"
+                >
+                  Posts hidden
+                </div>
               </div>`
             : html`
                 <div class="profile-tab-bar" data-scroll-lock-sticky>

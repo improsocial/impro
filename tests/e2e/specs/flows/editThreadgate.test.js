@@ -42,7 +42,7 @@ test.describe("Edit threadgate flow", () => {
     const largePost = page.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
     const badge = page.locator('[data-testid="who-can-reply-badge"]');
-    await expect(badge).toHaveText("Everybody can reply");
+    await expect(badge).toHaveAttribute("data-teststate", "everybody");
 
     await largePost.locator('[data-testid="post-action-more"]').click();
     await page
@@ -63,7 +63,7 @@ test.describe("Edit threadgate flow", () => {
     await dialog.locator('[data-testid="interaction-settings-save"]').click();
 
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
-    await expect(badge).toHaveText("Replies disabled");
+    await expect(badge).toHaveAttribute("data-teststate", "nobody");
 
     expect(mockServer.putThreadgateCalls.length).toBe(1);
     const body = mockServer.putThreadgateCalls[0];
@@ -106,8 +106,10 @@ test.describe("Edit threadgate flow", () => {
     await page.goto(`/profile/${userProfile.handle}/post/own1`);
 
     const badge = page.locator('[data-testid="who-can-reply-badge"]');
-    await expect(badge).toHaveText("Replies disabled", { timeout: 10000 });
-    await expect(badge).toHaveAttribute("data-teststate", "link");
+    await expect(badge).toHaveAttribute("data-teststate", "nobody", {
+      timeout: 10000,
+    });
+    await expect(badge).toHaveClass(/who-can-reply-badge-link/);
 
     await badge.click();
     const dialog = page.locator(
@@ -124,7 +126,7 @@ test.describe("Edit threadgate flow", () => {
     await dialog.locator('[data-testid="interaction-settings-save"]').click();
 
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
-    await expect(badge).toHaveText("Everybody can reply");
+    await expect(badge).toHaveAttribute("data-teststate", "everybody");
 
     expect(mockServer.putThreadgateCalls.length).toBe(1);
     const body = mockServer.putThreadgateCalls[0];
@@ -199,7 +201,7 @@ test.describe("Edit threadgate flow", () => {
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
     const badge = page.locator('[data-testid="who-can-reply-badge"]');
-    await expect(badge).toHaveAttribute("data-teststate", "plain");
+    await expect(badge).not.toHaveClass(/who-can-reply-badge-link/);
     await badge.click();
     await expect(
       page.locator('[data-testid="who-can-reply-modal"]'),

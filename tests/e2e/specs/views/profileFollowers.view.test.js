@@ -208,10 +208,9 @@ test.describe("Profile followers view", () => {
     await page.goto(`/profile/${profileUser.did}/followers`);
 
     const view = page.locator("#profile-followers-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading followers",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="followers-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should render bio, follows-you, and follow-state per follower", async ({

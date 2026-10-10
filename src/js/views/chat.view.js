@@ -164,7 +164,10 @@ export default async function chatView({
       renderItem: (convo) => convoItemTemplate({ convo, currentUser }),
       hasMore,
       onLoadMore: loadConvoList,
-      emptyTemplate: html`<div class="feed-end-message">
+      emptyTemplate: html`<div
+        class="feed-end-message"
+        data-testid="empty-state"
+      >
         <div>No conversations yet!</div>
         <button
           class="rounded-button rounded-button-primary"
@@ -179,7 +182,7 @@ export default async function chatView({
 
   function convosErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="convo-list-error">
       <div>There was an error loading conversations.</div>
       ${tryAgainButtonTemplate()}
     </div>`;

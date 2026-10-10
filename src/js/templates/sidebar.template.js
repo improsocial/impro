@@ -318,6 +318,7 @@ export function sidebarTemplate({
               data-testid="sidebar-profile-stats"
             >
               <a
+                data-testid="sidebar-profile-followers"
                 href="${currentUser
                   ? linkToProfileFollowers(currentUser)
                   : "#"}"
@@ -338,6 +339,7 @@ export function sidebarTemplate({
               </a>
               <span class="sidebar-profile-separator">·</span>
               <a
+                data-testid="sidebar-profile-following"
                 href="${currentUser
                   ? linkToProfileFollowing(currentUser)
                   : "#"}"

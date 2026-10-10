@@ -52,8 +52,8 @@ test.describe("Hashtag view", () => {
 
     const tabs = hashtagView.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(2);
-    await expect(tabs.nth(0)).toContainText("Top");
-    await expect(tabs.nth(1)).toContainText("Latest");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-top");
+    await expect(tabs.nth(1)).toHaveAttribute("data-testid", "tab-latest");
   });
 
   test("should have Top tab active by default", async ({ page }) => {

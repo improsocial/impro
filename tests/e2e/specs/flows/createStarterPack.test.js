@@ -92,7 +92,7 @@ test.describe("Profile → create starter pack flow", () => {
     );
     await expect(feedToggle).toHaveCount(1, { timeout: 10000 });
     await feedToggle.click();
-    await expect(nextButton).toHaveText("Finish");
+    await expect(nextButton).toHaveAttribute("data-teststate", "finish");
     await nextButton.click();
 
     await expect(page).toHaveURL(

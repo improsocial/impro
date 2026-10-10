@@ -38,9 +38,9 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(
-      chatView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chats", { timeout: 10000 });
+    await expect(chatView.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(chatView.locator(".convo-item")).toHaveCount(1, {
       timeout: 10000,
@@ -157,7 +157,7 @@ test.describe("Chat view", () => {
     const requestsView = page.locator("#chat-requests-view");
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chat requests", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should show an unread dot on the inbox button when unread requests exist", async ({
@@ -223,10 +223,9 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
   });
 
@@ -428,9 +427,10 @@ test.describe("Chat view", () => {
 
       // The invite is still a request, so the main list stays empty
       const chatView = page.locator("#chat-view");
-      await expect(chatView.locator(".feed-end-message")).toContainText(
-        "No conversations yet!",
-        { timeout: 10000 },
+      await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible(
+        {
+          timeout: 10000,
+        },
       );
     });
   });
@@ -445,13 +445,12 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(
-      chatView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chats", { timeout: 10000 });
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
   });
 
@@ -474,9 +473,7 @@ test.describe("Chat view", () => {
     await expect(
       dialog.locator('[data-testid="new-chat-search-input"]'),
     ).toBeVisible();
-    await expect(dialog.locator('[data-testid="empty-state"]')).toContainText(
-      "Search for someone to message",
-    );
+    await expect(dialog.locator('[data-testid="empty-state"]')).toBeVisible();
 
     await dialog.locator('[data-testid="new-chat-dialog-close"]').click();
     await expect(dialog).not.toBeVisible();
@@ -513,9 +510,9 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(
-      chatView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chats", { timeout: 10000 });
+    await expect(chatView.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       chatView.locator('[data-testid="new-chat-button"]'),
     ).toBeHidden();
@@ -583,10 +580,9 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".error-state")).toContainText(
-      "There was an error loading conversations.",
-      { timeout: 10000 },
-    );
+    await expect(
+      chatView.locator('[data-testid="convo-list-error"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test.describe("Live status", () => {

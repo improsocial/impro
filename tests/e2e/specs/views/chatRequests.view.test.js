@@ -267,7 +267,7 @@ test.describe("Chat requests view", () => {
     const requestsView = page.locator("#chat-requests-view");
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chat requests", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await expect(requestsView.locator(".chat-request-item")).toHaveCount(1, {
       timeout: 10000,
@@ -285,11 +285,11 @@ test.describe("Chat requests view", () => {
 
     // Should show accept and reject buttons
     await expect(
-      requestsView.locator(".chat-request-button.accept"),
-    ).toContainText("Accept");
+      requestsView.locator('[data-testid="chat-request-accept-button"]'),
+    ).toBeVisible();
     await expect(
-      requestsView.locator(".chat-request-button.reject"),
-    ).toContainText("Reject");
+      requestsView.locator('[data-testid="chat-request-reject-button"]'),
+    ).toBeVisible();
   });
 
   test("should accept a chat request and navigate to the conversation", async ({
@@ -492,13 +492,13 @@ test.describe("Chat requests view", () => {
     const requestsView = page.locator("#chat-requests-view");
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chat requests", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await requestsView.locator('[data-testid="back-button"]').click();
 
     await expect(
       page.locator('#chat-view [data-testid="header-title"]'),
-    ).toContainText("Chats", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should show empty state when there are no chat requests", async ({
@@ -513,7 +513,7 @@ test.describe("Chat requests view", () => {
     const requestsView = page.locator("#chat-requests-view");
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Chat requests", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
     await expect(
       requestsView.locator('[data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -538,10 +538,9 @@ test.describe("Chat requests view", () => {
     await page.goto("/messages/inbox");
 
     const requestsView = page.locator("#chat-requests-view");
-    await expect(requestsView.locator(".error-state")).toContainText(
-      "There was an error loading chat requests.",
-      { timeout: 10000 },
-    );
+    await expect(
+      requestsView.locator('[data-testid="chat-requests-error"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test.describe("Logged-out behavior", () => {

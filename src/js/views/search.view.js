@@ -550,6 +550,8 @@ export default async function searchView({
         "rounded-button-primary": !isPinned,
         pinned: isPinned,
       })}
+      data-testid="pin-feed-button"
+      data-teststate=${isPinned ? "pinned" : "not-pinned"}
       @click=${(e) => {
         e.stopPropagation();
         feedInteractionHandler.handlePinFeed(feedGenerator.uri, !isPinned);

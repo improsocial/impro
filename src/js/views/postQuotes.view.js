@@ -29,7 +29,7 @@ export default async function postQuotesView({
 
   function quotesErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="quotes-error">
       <div>Error loading quotes</div>
       ${tryAgainButtonTemplate()}
     </div>`;

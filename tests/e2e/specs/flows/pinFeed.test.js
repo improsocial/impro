@@ -56,9 +56,11 @@ test.describe("Pin feed flow", () => {
     await expect(homeView.locator(".tab-bar-button")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(homeView.locator(".tab-bar-button.active")).toContainText(
-      "Following",
-    );
+    await expect(
+      homeView.locator(
+        '[data-testid="tab-following"][data-teststate="active"]',
+      ),
+    ).toBeVisible();
   });
 
   test("should show feed in feeds index after pinning from feed detail", async ({
@@ -82,7 +84,9 @@ test.describe("Pin feed flow", () => {
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
 
     // Navigate to the feed detail page and pin it
     await page.goto("/profile/creator1.bsky.social/feed/trending");
@@ -100,7 +104,9 @@ test.describe("Pin feed flow", () => {
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2, {
       timeout: 10000,
     });
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
     await expect(feedsView).toContainText("Trending");
     await expect(feedsView).toContainText("by @creator1.bsky.social");
 
@@ -109,7 +115,7 @@ test.describe("Pin feed flow", () => {
     const homeView = page.locator("#home-view");
     const tabs = homeView.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(2, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
     await expect(tabs.nth(1)).toContainText("Trending");
   });
 
@@ -155,7 +161,7 @@ test.describe("Pin feed flow", () => {
     const homeView = page.locator("#home-view");
     const tabs = homeView.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(2, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
     await expect(tabs.nth(1)).toContainText("Trending");
   });
 
@@ -192,7 +198,9 @@ test.describe("Pin feed flow", () => {
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
     await expect(feedsView).not.toContainText("Trending");
 
     // Navigate to home — unpinned feed should not appear as a tab
@@ -200,7 +208,7 @@ test.describe("Pin feed flow", () => {
     const homeView = page.locator("#home-view");
     const tabs = homeView.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(1, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
   });
 
   test("should remove feed from feeds index after unpinning from feed detail", async ({
@@ -240,7 +248,9 @@ test.describe("Pin feed flow", () => {
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
     await expect(feedsView).not.toContainText("Trending");
 
     // Navigate to home — unpinned feed should not appear as a tab
@@ -248,6 +258,6 @@ test.describe("Pin feed flow", () => {
     const homeView = page.locator("#home-view");
     const tabs = homeView.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(1, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
   });
 });

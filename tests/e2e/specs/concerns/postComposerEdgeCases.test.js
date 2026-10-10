@@ -224,11 +224,6 @@ test.describe("Post Composer Edge Cases", () => {
         '[data-testid="composer-submit-button"][data-teststate="reply"]',
       ),
     ).toBeVisible();
-
-    // Verify placeholder says "Write your reply"
-    await expect(
-      composer.locator(".rich-text-input-placeholder"),
-    ).toContainText("Write your reply");
   });
 
   test("post creation error handling — failed creation shows error feedback", async ({

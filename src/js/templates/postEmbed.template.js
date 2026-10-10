@@ -301,7 +301,9 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
         : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
-    ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
+    ${image.alt
+      ? html`<div class="alt-indicator" data-testid="image-alt-badge">ALT</div>`
+      : ""}
   </div>`;
 }
 

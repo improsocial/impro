@@ -26,7 +26,7 @@ export default async function settingsMutedAccountsView({
 
   function errorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="muted-accounts-error">
       <div>Error loading muted accounts</div>
       ${tryAgainButtonTemplate()}
     </div>`;

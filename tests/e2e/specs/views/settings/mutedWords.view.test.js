@@ -73,9 +73,13 @@ test.describe("Settings Muted Words view", () => {
 
     // List is reversed (newest first)
     await expect(items.nth(0)).toContainText("politics");
-    await expect(items.nth(0)).toContainText("in tags");
+    await expect(
+      items.nth(0).locator('[data-testid="muted-word-item-target"]'),
+    ).toHaveAttribute("data-teststate", "tags");
     await expect(items.nth(1)).toContainText("spoiler");
-    await expect(items.nth(1)).toContainText("in text & tags");
+    await expect(
+      items.nth(1).locator('[data-testid="muted-word-item-target"]'),
+    ).toHaveAttribute("data-teststate", "content-and-tags");
   });
 
   test("should add a muted word", async ({ page }) => {
@@ -193,9 +197,9 @@ test.describe("Settings Muted Words view", () => {
     const view = page.locator("#settings-muted-words-view");
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toBeVisible({ timeout: 10000 });
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expires in",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "active");
   });
 
   test("should add a muted word with duration", async ({ page }) => {
@@ -219,9 +223,9 @@ test.describe("Settings Muted Words view", () => {
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("spoiler");
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expires in",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "active");
   });
 
   test("should add a muted word with tags-only target", async ({ page }) => {
@@ -245,7 +249,9 @@ test.describe("Settings Muted Words view", () => {
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("politics");
-    await expect(item).toContainText("in tags");
+    await expect(
+      item.locator('[data-testid="muted-word-item-target"]'),
+    ).toHaveAttribute("data-teststate", "tags");
   });
 
   test("should add a muted word with exclude-following", async ({ page }) => {
@@ -269,9 +275,9 @@ test.describe("Settings Muted Words view", () => {
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("discourse");
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Excludes users you follow",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-exclude-following"]'),
+    ).toBeVisible();
   });
 
   test("should add a muted word with all options set", async ({ page }) => {
@@ -301,13 +307,15 @@ test.describe("Settings Muted Words view", () => {
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("drama");
-    await expect(item).toContainText("in tags");
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expires in",
-    );
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Excludes users you follow",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-target"]'),
+    ).toHaveAttribute("data-teststate", "tags");
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "active");
+    await expect(
+      item.locator('[data-testid="muted-word-item-exclude-following"]'),
+    ).toBeVisible();
   });
 
   test("should reset form options after adding a word", async ({ page }) => {
@@ -373,9 +381,9 @@ test.describe("Settings Muted Words view", () => {
     const view = page.locator("#settings-muted-words-view");
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toBeVisible({ timeout: 10000 });
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Excludes users you follow",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-exclude-following"]'),
+    ).toBeVisible();
   });
 
   test("should show renew button for expired muted words", async ({ page }) => {
@@ -398,9 +406,9 @@ test.describe("Settings Muted Words view", () => {
     const view = page.locator("#settings-muted-words-view");
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toBeVisible({ timeout: 10000 });
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expired",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "expired");
     await expect(
       item.locator('[data-testid="muted-word-renew"]'),
     ).toBeVisible();
@@ -430,9 +438,9 @@ test.describe("Settings Muted Words view", () => {
     const view = page.locator("#settings-muted-words-view");
     const item = view.locator('[data-testid="muted-word-item"]');
     await expect(item).toBeVisible({ timeout: 10000 });
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expires in",
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "active");
     await expect(
       item.locator('[data-testid="muted-word-renew"]'),
     ).not.toBeVisible();
@@ -468,9 +476,8 @@ test.describe("Settings Muted Words view", () => {
 
     await contextMenu.locator("context-menu-item").nth(1).click();
 
-    await expect(item.locator(".muted-word-item-meta")).toContainText(
-      "Expires in",
-      { timeout: 10000 },
-    );
+    await expect(
+      item.locator('[data-testid="muted-word-item-expiration"]'),
+    ).toHaveAttribute("data-teststate", "active", { timeout: 10000 });
   });
 });

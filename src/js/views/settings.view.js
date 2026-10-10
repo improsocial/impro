@@ -48,7 +48,11 @@ export default async function settingsView({
       <button
         class="vertical-nav-item"
         data-testid="settings-switch-account-toggle"
-        data-teststate=${expanded ? "expanded" : "collapsed"}
+        data-teststate=${hasOthers
+          ? expanded
+            ? "expanded"
+            : "collapsed"
+          : "add"}
         aria-expanded=${hasOthers ? (expanded ? "true" : "false") : null}
         @click=${hasOthers ? onToggle : onAdd}
       >

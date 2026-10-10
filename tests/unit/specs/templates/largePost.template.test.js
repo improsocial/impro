@@ -272,7 +272,10 @@ describe("largePostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("Blocked"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") !==
+        null,
+    );
   });
 
   it("should render not found post template for not found post", () => {
@@ -287,7 +290,10 @@ describe("largePostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("not found"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") !==
+        null,
+    );
   });
 });
 
@@ -362,7 +368,7 @@ describe("largePostTemplate - who can reply badge", () => {
 
   it("opens the read-only modal for non-owners", () => {
     const badge = renderBadgeFor({ isUserPost: false });
-    assert.deepEqual(badge.getAttribute("data-teststate"), "plain");
+    assert(!badge.classList.contains("who-can-reply-badge-link"));
     badge.click();
     assert(
       document.querySelector("[data-testid='who-can-reply-modal']") !== null,
@@ -379,7 +385,7 @@ describe("largePostTemplate - who can reply badge", () => {
         },
       },
     });
-    assert.deepEqual(badge.getAttribute("data-teststate"), "link");
+    assert(badge.classList.contains("who-can-reply-badge-link"));
     badge.click();
     assert.deepEqual(editedPost, post);
     assert.deepEqual(

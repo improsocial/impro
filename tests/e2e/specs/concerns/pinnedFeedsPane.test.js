@@ -36,7 +36,10 @@ test.describe("Pinned feeds pane", () => {
     await expect(pane).toBeVisible();
     const items = pane.locator('[data-testid="pinned-feeds-item"]');
     await expect(items).toHaveCount(2, { timeout: 10000 });
-    await expect(items.nth(0)).toContainText("Following");
+    await expect(items.nth(0)).toHaveAttribute(
+      "data-pinned-value",
+      "following",
+    );
     await expect(items.nth(1)).toContainText("Trending");
     await expect(
       pane.locator('[data-testid="pinned-feeds-more"]'),
@@ -48,8 +51,9 @@ test.describe("Pinned feeds pane", () => {
   }) => {
     await page.goto("/");
     const view = page.locator("#home-view");
-    await expect(view.locator(".tab-bar-button.active")).toContainText(
-      "Following",
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveAttribute(
+      "data-teststate",
+      "active",
       { timeout: 10000 },
     );
 

@@ -94,7 +94,7 @@ test.describe("Starter pack edit flow", () => {
     );
     await nextButton.click();
     await expect(wizard).toHaveAttribute("data-teststate", "feeds");
-    await expect(nextButton).toHaveText("Skip");
+    await expect(nextButton).toHaveAttribute("data-teststate", "skip");
     await nextButton.click();
 
     await expect(wizard).toHaveCount(0, { timeout: 10000 });

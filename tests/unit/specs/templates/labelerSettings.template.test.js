@@ -39,7 +39,7 @@ describe("labelerSettingsTemplate", () => {
       "[data-testid='labeler-settings-header']",
     );
     assert(header !== null);
-    assert(header.textContent.includes("Labels are annotations"));
+    assert.deepEqual(header.querySelector("[data-testid='empty-state']"), null);
   });
 
   it("should render label preference list", () => {
@@ -98,7 +98,11 @@ describe("labelerSettingsTemplate - no configurable labels", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("no configurable labels"));
+    assert(container.querySelector("[data-testid='empty-state']") !== null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-preference-list']"),
+      null,
+    );
   });
 
   it("should not show label preference list when no configurable labels", () => {

@@ -200,7 +200,7 @@ describe("postActionBarTemplate", () => {
       "[data-testid='menu-action-quote-post']",
     );
     assert(quoteItem !== null);
-    assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
+    assert.deepEqual(quoteItem.dataset.teststate, "quotable");
     assert(quoteItem.hasAttribute("disabled"));
   });
 
@@ -222,7 +222,7 @@ describe("postActionBarTemplate", () => {
       "[data-testid='menu-action-quote-post']",
     );
     assert(quoteItem !== null);
-    assert.deepEqual(quoteItem.textContent.trim(), "Quote posts disabled");
+    assert.deepEqual(quoteItem.dataset.teststate, "quotes-disabled");
     assert(quoteItem.hasAttribute("disabled"));
   });
 
@@ -240,7 +240,7 @@ describe("postActionBarTemplate", () => {
       "[data-testid='menu-action-quote-post']",
     );
     assert(quoteItem !== null);
-    assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
+    assert.deepEqual(quoteItem.dataset.teststate, "quotable");
     assert(!quoteItem.hasAttribute("disabled"));
   });
 

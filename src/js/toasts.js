@@ -123,6 +123,7 @@ export function showToast(
   const toast = document.createElement("div");
   toast.classList.add("toast", style);
   toast.dataset.testid = "toast";
+  toast.dataset.teststate = style;
   const resolvedIconTemplate =
     iconTemplate ?? STYLE_ICONS[style] ?? STYLE_ICONS.default;
   render(

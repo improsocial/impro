@@ -4,13 +4,14 @@ import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 describe("blockedPostTemplate", () => {
-  it("should display 'Blocked' text", () => {
+  it("should render the blocked tombstone", () => {
     const result = blockedPostTemplate();
     const container = document.createElement("div");
     render(result, container);
-    const indicator = container.querySelector(".missing-post-indicator");
-    assert(indicator !== null);
-    assert(indicator.textContent.includes("Blocked"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") !==
+        null,
+    );
   });
 
   it("should render an info icon", () => {

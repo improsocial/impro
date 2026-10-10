@@ -333,6 +333,7 @@ function repostMenuTemplate({
     </context-menu-item>
     <context-menu-item
       data-testid="menu-action-quote-post"
+      data-teststate=${canQuotePost ? "quotable" : "quotes-disabled"}
       ?disabled=${!canQuotePost || !currentUser}
       icon="quote-line"
       @click=${() => {

@@ -50,17 +50,25 @@ import "/js/components/container-link.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import { showToast } from "/js/toasts.js";
 
-function notificationItemTemplate({ href, isUnread, children }) {
+function notificationItemTemplate({ type, href, isUnread, children }) {
   const unreadClass = isUnread ? "unread" : "";
   if (href) {
     return html`<container-link
       class="notification-item notification-item-clickable ${unreadClass}"
+      data-testid="notification-item"
+      data-teststate=${type}
       href=${href}
     >
       ${children}
     </container-link>`;
   }
-  return html`<div class="notification-item ${unreadClass}">${children}</div>`;
+  return html`<div
+    class="notification-item ${unreadClass}"
+    data-testid="notification-item"
+    data-teststate=${type}
+  >
+    ${children}
+  </div>`;
 }
 
 export default async function notificationsView({
@@ -355,7 +363,11 @@ export default async function notificationsView({
     const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon">
           <app-icon icon="user-plus"></app-icon>
         </div>
@@ -407,6 +419,7 @@ export default async function notificationsView({
     const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: linkToNotificationActivity(
         notifications.map((notification) => notification.post.uri),
       ),
@@ -441,6 +454,7 @@ export default async function notificationsView({
     const likedPost = firstNotif.subject;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: isUnavailablePost(likedPost) ? null : linkToPost(likedPost),
       isUnread,
       children: html`
@@ -472,6 +486,7 @@ export default async function notificationsView({
     // Get the reposted post for preview
     const repostedPost = firstNotif.subject;
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: isUnavailablePost(repostedPost) ? null : linkToPost(repostedPost),
       isUnread,
       children: html`
@@ -526,6 +541,7 @@ export default async function notificationsView({
     const subjectLink = repo && rkey ? `/profile/${repo}/feed/${rkey}` : null;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: subjectLink,
       isUnread,
       children: html`
@@ -558,6 +574,7 @@ export default async function notificationsView({
       repo && rkey ? `/profile/${repo}/starter-pack/${rkey}` : null;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: subjectLink,
       isUnread,
       children: html`
@@ -586,7 +603,11 @@ export default async function notificationsView({
     const isUnread = !firstNotif.isRead;
 
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon verified-icon">
           <app-icon icon="verified-check"></app-icon>
         </div>
@@ -613,7 +634,11 @@ export default async function notificationsView({
     const otherCount = notifications.length - 1;
 
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon unverified-icon">
           <app-icon icon="verified-check"></app-icon>
         </div>
@@ -642,6 +667,7 @@ export default async function notificationsView({
     const profileLink = linkToProfile(firstNotif.author);
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: profileLink,
       isUnread,
       children: html`
@@ -718,7 +744,7 @@ export default async function notificationsView({
 
   function notificationsErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="notifications-error">
       <div>There was an error loading notifications.</div>
       ${tryAgainButtonTemplate()}
     </div>`;

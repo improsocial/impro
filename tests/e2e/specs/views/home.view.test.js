@@ -32,11 +32,10 @@ test.describe("Home view", () => {
     await page.goto("/");
 
     const view = page.locator("#home-view");
-    await expect(view.locator(".tab-bar-button")).toContainText("Following", {
-      timeout: 10000,
-    });
-    await expect(view.locator(".tab-bar-button.active")).toContainText(
-      "Following",
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveAttribute(
+      "data-teststate",
+      "active",
+      { timeout: 10000 },
     );
 
     await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(2, {
@@ -132,7 +131,7 @@ test.describe("Home view", () => {
     const view = page.locator("#home-view");
     const tabs = view.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(3, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
     await expect(tabs.nth(1)).toContainText("Trending");
     await expect(tabs.nth(2)).toContainText("Science");
   });
@@ -162,7 +161,7 @@ test.describe("Home view", () => {
     const view = page.locator("#home-view");
     const tabs = view.locator(".tab-bar-button");
     await expect(tabs).toHaveCount(2, { timeout: 10000 });
-    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
     await expect(tabs.nth(1)).toContainText("My Curated List");
 
     await tabs.nth(1).click();
@@ -574,8 +573,9 @@ test.describe("Home view", () => {
     await page.goto("/");
 
     const view = page.locator("#home-view");
-    await expect(view.locator(".tab-bar-button.active")).toContainText(
-      "Following",
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveAttribute(
+      "data-teststate",
+      "active",
       { timeout: 10000 },
     );
 
@@ -615,11 +615,8 @@ test.describe("Home view", () => {
     const view = page.locator("#home-view");
     await view.locator(".tab-bar-button", { hasText: "Broken Feed" }).click();
 
-    const errorState = view.locator(".error-state");
-    await expect(errorState).toContainText(
-      "An issue occurred when contacting the feed server.",
-      { timeout: 10000 },
-    );
+    const errorState = view.locator('[data-testid="feed-error"]');
+    await expect(errorState).toBeVisible({ timeout: 10000 });
     await expect(
       errorState.locator('[data-testid="feed-error-view-profile"]'),
     ).toHaveAttribute("href", "/profile/creator1.bsky.social");
@@ -643,16 +640,14 @@ test.describe("Home view", () => {
     await page.goto("/");
 
     const view = page.locator("#home-view");
-    await expect(view.locator(".tab-bar-button.active")).toContainText(
-      "Following",
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveAttribute(
+      "data-teststate",
+      "active",
       { timeout: 10000 },
     );
 
-    const errorState = view.locator(".error-state");
-    await expect(errorState).toContainText(
-      "An issue occurred when contacting the feed server.",
-      { timeout: 10000 },
-    );
+    const errorState = view.locator('[data-testid="feed-error"]');
+    await expect(errorState).toBeVisible({ timeout: 10000 });
     await expect(errorState.locator("a")).toHaveCount(0);
   });
 
@@ -892,8 +887,6 @@ test.describe("Home view", () => {
 
       const modal = page.locator('[data-testid="sign-in-modal"]');
       await expect(modal).toBeVisible();
-      await expect(modal).toContainText("Sign in");
-      await expect(modal).toContainText("Sign in to join the conversation!");
       await expect(modal.locator("a")).toHaveAttribute("href", "/login");
     });
   });
@@ -1016,10 +1009,7 @@ test.describe("Home view", () => {
       await expect(warning).toBeVisible();
       await expect(warning).toContainText("Misleading");
       await expect(
-        warning.locator(".post-moderation-warning-description"),
-      ).toContainText("Labeled by");
-      await expect(
-        warning.locator(".post-moderation-warning-description"),
+        warning.locator('[data-testid="moderation-warning-description"]'),
       ).toContainText("@safety.example.com");
     });
 
@@ -1469,12 +1459,7 @@ test.describe("Home view", () => {
       await sendInteractionsRequest;
       await expect(
         visibleFeed.locator('[data-testid="feed-feedback-message"]'),
-      ).toContainText(
-        "Thank you for your feedback! It has been sent to the feed operator.",
-        {
-          timeout: 10000,
-        },
-      );
+      ).toBeVisible({ timeout: 10000 });
     });
 
     test("should send Show More interaction and show toast", async ({

@@ -567,7 +567,10 @@ export default async function postThreadView({
             : ""}
         </div>
         <div class="post-content-right">
-          <div class="no-unauthenticated-message">
+          <div
+            class="no-unauthenticated-message"
+            data-testid="no-unauthenticated-message"
+          >
             ${NO_UNAUTHENTICATED_MESSAGE}
           </div>
         </div>
@@ -586,7 +589,10 @@ export default async function postThreadView({
           <div class="skeleton-line skeleton-line-medium"></div>
         </div>
       </div>
-      <div class="no-unauthenticated-message no-unauthenticated-message-large">
+      <div
+        class="no-unauthenticated-message no-unauthenticated-message-large"
+        data-testid="no-unauthenticated-message"
+      >
         ${NO_UNAUTHENTICATED_MESSAGE}
       </div>
     </div>`;
@@ -723,6 +729,7 @@ export default async function postThreadView({
               ? html`
                   <div
                     class="post-thread-reply-prompt"
+                    data-testid="post-thread-reply-prompt"
                     @click=${async () => {
                       await handleClickReply(mainPost, root, currentUser);
                     }}

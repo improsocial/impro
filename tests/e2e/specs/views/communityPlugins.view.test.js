@@ -20,10 +20,9 @@ test.describe("Community plugins view", () => {
 
     await page.goto("/plugins/community");
     const view = page.locator("#community-plugins-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Community plugins",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     const items = view.locator(".plugin-list-item");
     await expect(items).toHaveCount(2);
@@ -234,6 +233,6 @@ test.describe("Community plugins view", () => {
     await expect(page).toHaveURL(/\/plugins\/community$/);
     await expect(
       page.locator('#community-plugins-view [data-testid="header-title"]'),
-    ).toContainText("Community plugins", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 });

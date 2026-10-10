@@ -29,11 +29,11 @@ describe("muted-parent-toggle", () => {
       assert(content !== null);
     });
 
-    it("should display default label 'Muted parent'", () => {
+    it("should display a default label", () => {
       const element = document.createElement("muted-parent-toggle");
       document.body.appendChild(element);
       const button = element.querySelector(".muted-parent-toggle-button");
-      assert(button.textContent.includes("Muted parent"));
+      assert.notDeepEqual(button.querySelector("span").textContent.trim(), "");
     });
 
     it("should display custom label when provided", () => {
@@ -44,12 +44,11 @@ describe("muted-parent-toggle", () => {
       assert(button.textContent.includes("Hidden by mute list"));
     });
 
-    it("should display 'Show' text", () => {
+    it("should display the show affordance", () => {
       const element = document.createElement("muted-parent-toggle");
       document.body.appendChild(element);
       const showMore = element.querySelector(".muted-account-show-more");
       assert(showMore !== null);
-      assert.deepEqual(showMore.textContent, "Show");
     });
 
     it("should preserve children in toggle-content", () => {

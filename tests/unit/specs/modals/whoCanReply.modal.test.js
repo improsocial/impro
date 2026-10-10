@@ -50,14 +50,14 @@ describe("WhoCanReplyModal", () => {
 
   it("should render everybody message when no threadgate", () => {
     WhoCanReplyModal.open({ post: everybodyPost });
-    const body = document.querySelector(".who-can-reply-body");
-    assert(body.textContent.includes("Everybody can reply to this post."));
+    const rule = document.querySelector('[data-testid="who-can-reply-rule"]');
+    assert.deepEqual(rule.dataset.teststate, "everybody");
   });
 
   it("should render nobody message when allow is empty", () => {
     WhoCanReplyModal.open({ post: nobodyPost });
-    const body = document.querySelector(".who-can-reply-body");
-    assert(body.textContent.includes("Replies to this post are disabled."));
+    const rule = document.querySelector('[data-testid="who-can-reply-rule"]');
+    assert.deepEqual(rule.dataset.teststate, "nobody");
   });
 
   it("should render followers rule", () => {
@@ -79,17 +79,19 @@ describe("WhoCanReplyModal", () => {
 
   it("should not show quote message when embedding is enabled", () => {
     WhoCanReplyModal.open({ post: everybodyPost });
-    const body = document.querySelector(".who-can-reply-body");
-    assert(!body.textContent.includes("quote this post"));
+    assert.deepEqual(
+      document.querySelector('[data-testid="who-can-reply-quote-disabled"]'),
+      null,
+    );
   });
 
   it("should show quote message when embedding is disabled", () => {
     WhoCanReplyModal.open({
       post: { ...everybodyPost, viewer: { embeddingDisabled: true } },
     });
-    const body = document.querySelector(".who-can-reply-body");
     assert(
-      body.textContent.includes("No one but the author can quote this post."),
+      document.querySelector('[data-testid="who-can-reply-quote-disabled"]') !==
+        null,
     );
   });
 

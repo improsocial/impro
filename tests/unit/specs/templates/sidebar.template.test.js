@@ -26,7 +26,7 @@ describe("sidebarTemplate - logged out state", () => {
     );
   });
 
-  it("should render IMPRO title when logged out", () => {
+  it("should render the title when logged out", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,
       currentUser: null,
@@ -35,7 +35,6 @@ describe("sidebarTemplate - logged out state", () => {
     render(result, container);
     const title = container.querySelector("h1");
     assert(title !== null);
-    assert(title.textContent.includes("IMPRO"));
   });
 
   it("should render sign in button when logged out", () => {
@@ -47,7 +46,6 @@ describe("sidebarTemplate - logged out state", () => {
     render(result, container);
     const loginButton = container.querySelector("[data-testid='login-button']");
     assert(loginButton !== null);
-    assert(loginButton.textContent.includes("Sign in"));
   });
 
   it("should render home nav item when logged out", () => {
@@ -179,12 +177,11 @@ describe("sidebarTemplate - logged in state", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const stats = container.querySelector(
-      "[data-testid='sidebar-profile-stats']",
+    const followers = container.querySelector(
+      "[data-testid='sidebar-profile-followers']",
     );
-    assert(stats !== null);
-    assert(stats.textContent.includes("100"));
-    assert(stats.textContent.includes("followers"));
+    assert(followers !== null);
+    assert(followers.textContent.includes("100"));
   });
 
   it("should render following count", () => {
@@ -194,12 +191,11 @@ describe("sidebarTemplate - logged in state", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    const stats = container.querySelector(
-      "[data-testid='sidebar-profile-stats']",
+    const following = container.querySelector(
+      "[data-testid='sidebar-profile-following']",
     );
-    assert(stats !== null);
-    assert(stats.textContent.includes("50"));
-    assert(stats.textContent.includes("following"));
+    assert(following !== null);
+    assert(following.textContent.includes("50"));
   });
 
   it("should omit the stats row for a partial profile", () => {

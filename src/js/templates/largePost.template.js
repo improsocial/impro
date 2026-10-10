@@ -38,12 +38,14 @@ function mutedWarningTemplate({ post, children }) {
   if (post.viewer?.hasMutedWord) {
     return html`<moderation-warning
       label="Post hidden by muted word"
+      data-teststate="muted-word"
       icon-style="closed-eye"
       >${children}</moderation-warning
     > `;
   } else if (post.viewer?.isHidden) {
     return html`<moderation-warning
       label="Post hidden by you"
+      data-teststate="hidden"
       icon-style="closed-eye"
       >${children}</moderation-warning
     > `;

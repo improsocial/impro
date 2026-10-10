@@ -51,6 +51,7 @@ class ModerationWarning extends Component {
         ${this.labelerName
           ? html`<div
               class="post-moderation-warning-description"
+              data-testid="moderation-warning-description"
               ?hidden=${this.expanded}
             >
               Labeled by

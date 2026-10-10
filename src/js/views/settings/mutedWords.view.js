@@ -144,31 +144,47 @@ export default async function settingsMutedWordsView({
     onRemove,
     onRenew,
   }) {
-    const targetLabel = word.targets.includes("content")
-      ? "text & tags"
-      : "tags";
+    const includesContent = word.targets.includes("content");
+    const targetLabel = includesContent ? "text & tags" : "tags";
     const hasExpiration = !!word.expiresAt;
     const hasExcludeFollowing = word.actorTarget === "exclude-following";
-    const metaParts = [];
-    if (hasExpiration) {
-      metaParts.push(formatExpiration(word.expiresAt));
-    }
-    if (hasExcludeFollowing) {
-      metaParts.push("Excludes users you follow");
-    }
     const expirationDate = word.expiresAt ? new Date(word.expiresAt) : null;
     const isExpired = expirationDate && expirationDate < new Date();
+    const metaParts = [];
+    if (hasExpiration) {
+      metaParts.push(
+        html`<span
+          data-testid="muted-word-item-expiration"
+          data-teststate=${isExpired ? "expired" : "active"}
+          >${formatExpiration(word.expiresAt)}</span
+        >`,
+      );
+    }
+    if (hasExcludeFollowing) {
+      metaParts.push(
+        html`<span data-testid="muted-word-item-exclude-following"
+          >Excludes users you follow</span
+        >`,
+      );
+    }
 
     return html`
       <div class="muted-word-item" data-testid="muted-word-item">
         <div class="muted-word-item-info">
           <div class="muted-word-item-value">
             ${word.value}
-            <span class="muted-word-item-target">in ${targetLabel}</span>
+            <span
+              class="muted-word-item-target"
+              data-testid="muted-word-item-target"
+              data-teststate=${includesContent ? "content-and-tags" : "tags"}
+              >in ${targetLabel}</span
+            >
           </div>
           ${metaParts.length > 0
             ? html`<div class="muted-word-item-meta">
-                ${metaParts.join(" • ")}
+                ${metaParts.map(
+                  (part, i) => html`${i > 0 ? " • " : ""}${part}`,
+                )}
               </div>`
             : ""}
         </div>

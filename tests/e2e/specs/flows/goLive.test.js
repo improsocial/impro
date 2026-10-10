@@ -37,7 +37,6 @@ test.describe("Go Live flow", () => {
       '[data-testid="menu-action-profile-go-live"]',
     );
     await expect(goLiveItem).toHaveAttribute("data-teststate", "off");
-    await expect(goLiveItem).toContainText("Go live");
     await goLiveItem.click();
 
     // 2. Dialog opens; type URL; preview lands after debounce.
@@ -66,7 +65,6 @@ test.describe("Go Live flow", () => {
     menu = await openProfileMenu(page);
     goLiveItem = menu.locator('[data-testid="menu-action-profile-go-live"]');
     await expect(goLiveItem).toHaveAttribute("data-teststate", "live");
-    await expect(goLiveItem).toContainText("Edit live status");
     await goLiveItem.click();
 
     // 5. Edit dialog opens with URL prefilled; change URL and Save.

@@ -251,7 +251,7 @@ export default async function loginView({
       html`<div id="login-view">
         <main>
           <div class="column-left">
-            <h1>Sign in</h1>
+            <h1 data-testid="login-title">Sign in</h1>
             <h2><small>to</small> IMPRO</h2>
           </div>
           <div class="column-right">
@@ -372,6 +372,7 @@ export default async function loginView({
                 <button
                   class="rounded-button rounded-button-secondary"
                   type="button"
+                  data-testid="login-back-button"
                   @click=${() => handleBack()}
                 >
                   Back
@@ -379,6 +380,7 @@ export default async function loginView({
                 <button
                   class="rounded-button rounded-button-primary"
                   type="submit"
+                  data-testid="login-next-button"
                   ?disabled=${loading}
                 >
                   Next

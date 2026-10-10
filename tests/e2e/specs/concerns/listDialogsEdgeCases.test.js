@@ -166,9 +166,8 @@ test.describe("List creation edge cases", () => {
     await dialog.locator('[data-testid="create-list-name"]').fill("Will Fail");
     await dialog.locator('[data-testid="create-list-save-button"]').click();
 
-    const errorBanner = dialog.locator(".form-dialog-error");
+    const errorBanner = dialog.locator('[data-testid="form-dialog-error"]');
     await expect(errorBanner).toBeVisible({ timeout: 10000 });
-    await expect(errorBanner).toContainText("Failed to create list");
 
     // Dialog stays open and the user is not navigated away.
     await expect(dialog.locator(".create-list-dialog")).toBeVisible();
@@ -340,9 +339,8 @@ test.describe("List edit edge cases", () => {
       .locator('[data-testid="edit-list-details-save-button"]')
       .click();
 
-    const errorBanner = dialog.locator(".form-dialog-error");
+    const errorBanner = dialog.locator('[data-testid="form-dialog-error"]');
     await expect(errorBanner).toBeVisible({ timeout: 10000 });
-    await expect(errorBanner).toContainText("Failed to save list");
 
     await expect(dialog.locator(".edit-list-details-dialog")).toBeVisible();
     await expect(

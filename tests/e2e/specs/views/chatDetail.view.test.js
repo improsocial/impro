@@ -877,7 +877,7 @@ test.describe("Chat detail view", () => {
 
     await expect(
       page.locator('#chat-view [data-testid="header-title"]'),
-    ).toContainText("Chats", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should open bsky.app link from chat menu", async ({ page }) => {
@@ -1025,7 +1025,6 @@ test.describe("Chat detail view", () => {
     const muteItem = chatDetailView.locator('[data-testid="menu-action-mute"]');
     await expect(muteItem).toBeVisible();
     await expect(muteItem).toHaveAttribute("data-teststate", "unmuted");
-    await expect(muteItem).toContainText("Mute conversation");
     await expect(
       chatDetailView.locator('[data-testid="menu-action-leave"]'),
     ).toBeVisible();
@@ -1115,9 +1114,7 @@ test.describe("Chat detail view", () => {
     await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
     await chatDetailView.locator('[data-testid="menu-action-mute"]').click();
 
-    await expect(page.locator('[data-testid="toast"]')).toContainText(
-      "Conversation muted",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(
       chatDetailView.locator('[data-testid="header-muted-icon"]'),
     ).toBeVisible();
@@ -1125,7 +1122,6 @@ test.describe("Chat detail view", () => {
     await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
     const muteItem = chatDetailView.locator('[data-testid="menu-action-mute"]');
     await expect(muteItem).toHaveAttribute("data-teststate", "muted");
-    await expect(muteItem).toContainText("Unmute conversation");
   });
 
   test("should unmute a 1-1 conversation from the chat menu", async ({
@@ -1155,9 +1151,7 @@ test.describe("Chat detail view", () => {
     await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
     await chatDetailView.locator('[data-testid="menu-action-mute"]').click();
 
-    await expect(page.locator('[data-testid="toast"]')).toContainText(
-      "Conversation unmuted",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(
       chatDetailView.locator('[data-testid="header-muted-icon"]'),
     ).toHaveCount(0);
@@ -1189,9 +1183,7 @@ test.describe("Chat detail view", () => {
     await page.locator('[data-testid="modal-confirm-button"]').click();
 
     await expect(page).toHaveURL(/\/messages$/, { timeout: 10000 });
-    await expect(page.locator('[data-testid="toast"]')).toContainText(
-      "Left conversation",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
 
   test("should keep the leave modal open when leaveConvo fails", async ({

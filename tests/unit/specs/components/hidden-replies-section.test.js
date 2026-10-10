@@ -29,11 +29,11 @@ describe("hidden-replies-section", () => {
       assert(content !== null);
     });
 
-    it("should display 'Show more replies' text", () => {
+    it("should display the show more replies button", () => {
       const element = document.createElement("hidden-replies-section");
       document.body.appendChild(element);
       const button = element.querySelector(".hidden-replies-button");
-      assert(button.textContent.includes("Show more replies"));
+      assert(button !== null);
     });
 
     it("should preserve children in toggle-content", () => {
