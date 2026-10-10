@@ -135,6 +135,7 @@ export class MockServer {
     this.notificationServiceUnreachable = false;
     // Which notification service this device has chosen; null means none.
     this.notificationServiceDid = null;
+    this.notificationServiceLookupHeld = null;
     this.registerPushCalls = [];
     this.unregisterPushCalls = [];
     this.registerPushStatus = 200;
@@ -200,6 +201,16 @@ export class MockServer {
   // that points at nothing conforming.
   failNotificationServiceLookup() {
     this.notificationServiceUnreachable = true;
+  }
+
+  // Stall the dummy notification service's DID lookup until the returned
+  // function is called, to observe the UI mid-request. Call before setup().
+  holdNotificationServiceLookup() {
+    let release;
+    this.notificationServiceLookupHeld = new Promise((resolve) => {
+      release = resolve;
+    });
+    return release;
   }
 
   // Start with a notification service already chosen on this device, as if a
@@ -1040,7 +1051,8 @@ export class MockServer {
     // document, so both are served here.
     await page.route(
       `${notificationService.endpoint}/.well-known/did.json`,
-      (route) => {
+      async (route) => {
+        await this.notificationServiceLookupHeld;
         if (this.notificationServiceUnreachable) {
           route.fulfill({ status: 500, body: "Server Error" });
           return;

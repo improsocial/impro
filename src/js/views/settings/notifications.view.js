@@ -32,6 +32,7 @@ export default async function settingsNotificationsView({
     desktopNotificationService?.isEnabled ?? false,
   );
   state.$pushBusy = new Signal.State(false);
+  state.$pushCompleting = new Signal.State(false);
 
   async function handleToggle(checked) {
     if (!desktopNotificationService) return;
@@ -77,15 +78,14 @@ export default async function settingsNotificationsView({
   }
 
   async function startPushEnableFlow() {
-    let permission = null;
-    const choice = await choiceModal(
+    await choiceModal(
       "You'll be sent to the notification service to authorize push notifications. Message previews require additional read-only access to chat messages.",
       {
         title: "Enable push notifications?",
         choices: [
           {
             value: "with-previews",
-            label: "Enable",
+            label: "Enable with message previews",
             style: "primary",
           },
           {
@@ -97,12 +97,16 @@ export default async function settingsNotificationsView({
         ],
         onChoose: (value) => {
           if (value === "cancel") return null;
-          permission = Notification.requestPermission();
-          return permission;
+          const permission = Notification.requestPermission();
+          return handOffToPushService(permission, {
+            chatPreviews: value === "with-previews",
+          });
         },
       },
     );
-    if (choice === null || choice === "cancel") return;
+  }
+
+  async function handOffToPushService(permission, { chatPreviews }) {
     if ((await permission) !== "granted") {
       showToast(
         "Notifications are blocked for this site. Re-enable them in your browser's site settings.",
@@ -111,14 +115,13 @@ export default async function settingsNotificationsView({
       return;
     }
     try {
-      await pushNotificationService.startEnableFlow({
-        chatPreviews: choice === "with-previews",
-      });
+      await pushNotificationService.startEnableFlow({ chatPreviews });
     } catch (error) {
       console.error(error);
       showToast("Couldn't reach the notification service.", {
         style: "error",
       });
+      throw error;
     }
   }
 
@@ -133,6 +136,7 @@ export default async function settingsNotificationsView({
       return;
     }
     state.$pushBusy.set(true);
+    state.$pushCompleting.set(true);
     try {
       await pushNotificationService.completeEnableFlow();
       showToast("Push notifications enabled.", { style: "success" });
@@ -145,6 +149,7 @@ export default async function settingsNotificationsView({
       showToast(message, { style: "error" });
     } finally {
       state.$pushBusy.set(false);
+      state.$pushCompleting.set(false);
     }
   })();
 
@@ -167,6 +172,7 @@ export default async function settingsNotificationsView({
     }
 
     const pushEnabled = pushNotificationService?.isEnabled ?? false;
+    const pushChecked = pushEnabled || state.$pushCompleting.get();
     const pushBusy = state.$pushBusy.get();
     const pushSupported = pushNotificationService?.isSupported ?? false;
     const pushRequiresInstall =
@@ -236,7 +242,7 @@ export default async function settingsNotificationsView({
               <toggle-switch
                 data-testid="push-notifications-toggle"
                 label="Enable push notifications"
-                ?checked=${pushEnabled}
+                ?checked=${pushChecked}
                 ?disabled=${pushRowDisabled}
                 @change=${(event) => handlePushToggle(event.detail.checked)}
               ></toggle-switch>

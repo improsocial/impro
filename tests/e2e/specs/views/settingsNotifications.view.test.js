@@ -326,6 +326,36 @@ test.describe("Settings > Notifications view", () => {
       expect(new URL(page.url()).searchParams.get("chat_previews")).toBe("1");
     });
 
+    test("the chosen option shows a spinner until the handoff", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "default" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      const releaseLookup = mockServer.holdNotificationServiceLookup();
+      await toggle.click();
+      const choice = page.locator(
+        '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
+      );
+      await choice.click();
+
+      await expect(choice).toHaveAttribute("data-teststate", "pending");
+      releaseLookup();
+      await expect(page).toHaveURL(
+        new RegExp(
+          notificationService.authUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        ),
+      );
+    });
+
     test("cancelling the prompt asks for no permission", async ({ page }) => {
       const mockServer = new MockServer();
       mockServer.setNotificationServiceDid(notificationService.did);
@@ -374,6 +404,70 @@ test.describe("Settings > Notifications view", () => {
 
       await expect(page.locator('[data-testid="toast"]')).toBeVisible();
       // Never sent through the handoff, so the page never left settings.
+      await expect(page).toHaveURL(/\/settings\/notifications$/);
+    });
+
+    test("returning from the service shows the toggle on while setup finishes", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      const releaseLookup = mockServer.holdNotificationServiceLookup();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.goto("/settings/notifications?chat_previews=0");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
+      await expect(toggle).toHaveAttribute("disabled", "");
+      releaseLookup();
+    });
+
+    test("returning from the service unchecks the toggle if setup fails", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      mockServer.failNotificationServiceLookup();
+      const releaseLookup = mockServer.holdNotificationServiceLookup();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.goto("/settings/notifications?chat_previews=0");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
+      releaseLookup();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      await expect(toggle).not.toHaveAttribute("checked", "");
+      await expect(toggle).not.toHaveAttribute("disabled", "");
+    });
+
+    test("an unreachable service keeps the prompt open to retry", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setNotificationServiceDid(notificationService.did);
+      mockServer.failNotificationServiceLookup();
+      await mockServer.setup(page);
+      await stubNotificationPermission(page, { initial: "granted" });
+      await login(page);
+      await page.goto("/settings/notifications");
+
+      const toggle = page.locator('[data-testid="push-notifications-toggle"]');
+      await expect(toggle).not.toHaveAttribute("disabled", "", {
+        timeout: 10000,
+      });
+      await toggle.click();
+      const choice = page.locator(
+        '[data-testid="choice-modal"] [data-testid="modal-choice-without-previews"]',
+      );
+      await choice.click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      await expect(choice).toHaveAttribute("data-teststate", "idle");
+      await expect(choice).toBeEnabled();
       await expect(page).toHaveURL(/\/settings\/notifications$/);
     });
 
