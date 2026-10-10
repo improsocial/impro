@@ -14,16 +14,19 @@ describe("post-interaction-settings-dialog", () => {
 
   const userDid = "did:plc:me";
   const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const listCreator = { did: userDid, handle: "me.test" };
 
   const curateList = {
     uri: `at://${userDid}/app.bsky.graph.list/l1`,
     name: "Cool people",
     purpose: "app.bsky.graph.defs#curatelist",
+    creator: listCreator,
   };
   const modList = {
     uri: `at://${userDid}/app.bsky.graph.list/l2`,
     name: "Mods",
     purpose: "app.bsky.graph.defs#modlist",
+    creator: listCreator,
   };
 
   function makeDataLayer({ lists = [curateList, modList] } = {}) {

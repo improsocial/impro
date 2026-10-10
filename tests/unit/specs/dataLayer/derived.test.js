@@ -651,7 +651,15 @@ describe("$actorFeeds", () => {
   it("should return the stored actor feeds", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    const actorFeeds = { feeds: [{ uri: "feed-1" }], cursor: "c" };
+    const actorFeeds = {
+      feeds: [
+        {
+          uri: "feed-1",
+          creator: { did: "did:plc:creator", handle: "creator.test" },
+        },
+      ],
+      cursor: "c",
+    };
     dataStore.$actorFeeds.set(did, actorFeeds);
     assert.deepEqual(derived.$actorFeeds.get(did), actorFeeds);
   });
@@ -766,8 +774,9 @@ describe("$hydratedPinnedItems", () => {
   it("should hydrate pinned feed generators from the store", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    const fg1 = { uri: "feed-1", displayName: "Feed One" };
-    const fg2 = { uri: "feed-2", displayName: "Feed Two" };
+    const creator = { did: "did:plc:creator", handle: "creator.test" };
+    const fg1 = { uri: "feed-1", displayName: "Feed One", creator };
+    const fg2 = { uri: "feed-2", displayName: "Feed Two", creator };
     dataStore.$feedGenerators.set("feed-1", fg1);
     dataStore.$feedGenerators.set("feed-2", fg2);
     dataStore.$pinnedItems.set([
@@ -786,7 +795,11 @@ describe("$hydratedPinnedItems", () => {
   it("should hydrate list and timeline entries", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    const list = { uri: "list-1", name: "My List" };
+    const list = {
+      uri: "list-1",
+      name: "My List",
+      creator: { did: "did:plc:creator", handle: "creator.test" },
+    };
     dataStore.$pinnedItems.set([
       { type: "timeline", data: { uri: "following" } },
       { type: "list", data: list },
@@ -2233,7 +2246,13 @@ describe("$feedSearchResults", () => {
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$feedSearchResults.get(), null);
     assert.deepEqual(derived.$feedSearchCursor.get(), null);
-    const feeds = [{ uri: "feed-1", displayName: "Feed One" }];
+    const feeds = [
+      {
+        uri: "feed-1",
+        displayName: "Feed One",
+        creator: { did: "did:plc:creator", handle: "creator.test" },
+      },
+    ];
     dataStore.$feedSearchResults.set({ feeds, cursor: "fc" });
     assert.deepEqual(derived.$feedSearchResults.get(), feeds);
     assert.deepEqual(derived.$feedSearchCursor.get(), "fc");
@@ -2346,10 +2365,12 @@ describe("$lists / $starterPacks reference list opt-out", () => {
     const { derived } = makeDerived(dataStore);
     dataStore.$lists.set(listUri, {
       uri: listUri,
+      creator: { did: "did:plc:creator", handle: "creator.test" },
       viewer: { muted: false, referenceListOptOut: serverUri },
     });
     dataStore.$starterPacks.set(starterPackUri, {
       uri: starterPackUri,
+      creator: { did: "did:plc:creator", handle: "creator.test" },
       list: { uri: listUri, viewer: { referenceListOptOut: serverUri } },
     });
     return { dataStore, derived };
@@ -2390,7 +2411,10 @@ describe("$lists / $starterPacks reference list opt-out", () => {
   it("leaves starter packs without a list untouched", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore);
-    const starterPack = { uri: starterPackUri };
+    const starterPack = {
+      uri: starterPackUri,
+      creator: { did: "did:plc:creator", handle: "creator.test" },
+    };
     dataStore.$starterPacks.set(starterPackUri, starterPack);
     assert.deepEqual(derived.$starterPacks.get(starterPackUri), starterPack);
   });
@@ -3085,5 +3109,155 @@ describe("$threadView", () => {
       new Preferences([], []).setThreadView("tree"),
     );
     assert.equal(derived.$threadView.get(), "tree");
+  });
+});
+
+describe("creator hydration", () => {
+  const embeddedCreator = {
+    did: "did:plc:creator",
+    handle: "creator.test",
+    displayName: "Embedded",
+  };
+  const storedCreator = { ...embeddedCreator, displayName: "Stored" };
+
+  function setup() {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    dataStore.setProfiles([storedCreator]);
+    return { dataStore, derived };
+  }
+
+  it("should swap in the stored creator on feed generators, lists, and starter packs", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$feedGenerators.set("feed-1", {
+      uri: "feed-1",
+      creator: embeddedCreator,
+    });
+    dataStore.$lists.set("list-1", { uri: "list-1", creator: embeddedCreator });
+    dataStore.$starterPacks.set("pack-1", {
+      uri: "pack-1",
+      creator: embeddedCreator,
+    });
+
+    assert.deepEqual(
+      derived.$feedGenerators.get("feed-1").creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$lists.get("list-1").creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$starterPacks.get("pack-1").creator.displayName,
+      "Stored",
+    );
+  });
+
+  it("should swap in the stored creator on actor collections", () => {
+    const { dataStore, derived } = setup();
+    const did = embeddedCreator.did;
+    dataStore.$actorFeeds.set(did, {
+      feeds: [{ uri: "feed-1", creator: embeddedCreator }],
+      cursor: "c",
+    });
+    dataStore.$actorLists.set(did, {
+      lists: [{ uri: "list-1", creator: embeddedCreator }],
+      cursor: "c",
+    });
+    dataStore.$actorStarterPacks.set(did, {
+      starterPacks: [{ uri: "pack-1", creator: embeddedCreator }],
+      cursor: "c",
+    });
+
+    assert.deepEqual(
+      derived.$actorFeeds.get(did).feeds[0].creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(derived.$actorFeeds.get(did).cursor, "c");
+    assert.deepEqual(
+      derived.$actorLists.get(did).lists[0].creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$actorStarterPacks.get(did).starterPacks[0].creator.displayName,
+      "Stored",
+    );
+  });
+
+  it("should swap in the stored creator on search results, popular feeds, and pinned lists", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$feedSearchResults.set({
+      feeds: [{ uri: "feed-1", creator: embeddedCreator }],
+      cursor: null,
+    });
+    dataStore.$starterPackSearchResults.set({
+      starterPacks: [{ uri: "pack-1", creator: embeddedCreator }],
+      cursor: null,
+    });
+    dataStore.$popularFeeds.set([{ uri: "feed-2", creator: embeddedCreator }]);
+    dataStore.$pinnedItems.set([
+      { type: "list", data: { uri: "list-1", creator: embeddedCreator } },
+    ]);
+
+    assert.deepEqual(
+      derived.$feedSearchResults.get()[0].creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$starterPackSearchResults.get()[0].creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$popularFeeds.get()[0].creator.displayName,
+      "Stored",
+    );
+    assert.deepEqual(
+      derived.$hydratedPinnedItems.get()[0].data.creator.displayName,
+      "Stored",
+    );
+  });
+
+  it("should keep the embedded creator when no profile is stored", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    const list = { uri: "list-1", creator: embeddedCreator };
+    dataStore.$lists.set("list-1", list);
+
+    assert.deepEqual(derived.$lists.get("list-1"), list);
+  });
+});
+
+describe("reposter hydration", () => {
+  const embeddedReposter = {
+    did: "did:plc:reposter",
+    handle: "reposter.test",
+    displayName: "Embedded",
+  };
+
+  it("should swap in the stored reposter on feed items", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    const post = createPost({
+      uri: "at://did:plc:author/app.bsky.feed.post/1",
+    });
+    dataStore.setPosts([post]);
+    dataStore.setProfiles([{ ...embeddedReposter, displayName: "Stored" }]);
+    const feedURI = "at://did:plc:gen/app.bsky.feed.generator/test";
+    dataStore.$feeds.set(feedURI, {
+      feed: [
+        {
+          post,
+          reason: {
+            $type: "app.bsky.feed.defs#reasonRepost",
+            by: embeddedReposter,
+          },
+        },
+      ],
+      cursor: null,
+    });
+
+    const [feedItem] = derived.$hydratedFeeds.get(feedURI).feed;
+    assert.deepEqual(feedItem.reason.by.displayName, "Stored");
+    assert.deepEqual(feedItem.reason.$type, "app.bsky.feed.defs#reasonRepost");
   });
 });
