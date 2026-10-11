@@ -5,6 +5,7 @@ import {
   isUnavailablePost,
   getDisplayName,
   doHideAuthorOnUnauthenticated,
+  isThreadRootAuthor,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
@@ -37,6 +38,7 @@ function contentWarningTemplate({
       className: "post-content-warning",
       labelDefinition: contentLabel.labelDefinition,
       labeler: contentLabel.labeler,
+      noOverride: contentLabel.noOverride,
       isAuthorLabel,
       children,
     });
@@ -48,6 +50,7 @@ function contentWarningTemplate({
       return html`<moderation-warning
         class="post-muted-warning"
         label="Hidden by muted word"
+        data-teststate="muted-word"
         icon-style="closed-eye"
         @click=${stopClick}
         >${children}</moderation-warning
@@ -57,6 +60,7 @@ function contentWarningTemplate({
       return html`<moderation-warning
         class="post-muted-warning"
         label="Post hidden by you"
+        data-teststate="hidden"
         icon-style="closed-eye"
         @click=${stopClick}
         >${children}</moderation-warning
@@ -118,6 +122,10 @@ export function smallPostTemplate({
     !isAuthenticated &&
     post.author &&
     doHideAuthorOnUnauthenticated(post.author);
+  const isHiddenByYou =
+    !!post.isHiddenByThreadgate &&
+    !!currentUser &&
+    isThreadRootAuthor(post, currentUser.did);
   const postText = post.record.text || "";
   const content = html`
     <container-link
@@ -165,6 +173,14 @@ export function smallPostTemplate({
             did: post.author?.did,
             pluginService,
           })}
+          ${isHiddenByYou
+            ? html`<div
+                class="hidden-reply-label"
+                data-testid="hidden-reply-label"
+              >
+                <app-icon icon="eye-off-line"></app-icon> Reply hidden by you
+              </div>`
+            : ""}
           ${showReplyToLabel
             ? replyToLabelTemplate({
                 currentUser,
@@ -256,6 +272,17 @@ export function smallPostTemplate({
               postInteractionHandler.handlePinPost(post, doPin),
             onClickEditInteractionSettings: (post) =>
               postInteractionHandler.handleEditInteractionSettings(post),
+            onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
+              postInteractionHandler.handleToggleQuoteDetachment(
+                post,
+                quotedPostUri,
+                doDetach,
+              ),
+            onClickToggleReplyHiddenForEveryone: (post, doHide) =>
+              postInteractionHandler.handleToggleReplyHiddenForEveryone(
+                post,
+                doHide,
+              ),
             onClickReport: (post) => postInteractionHandler.handleReport(post),
             enableFeedFeedback,
             pluginService,

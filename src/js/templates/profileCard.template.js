@@ -129,6 +129,7 @@ function profileContextMenuTemplate({
   pluginItems,
   onClickFollow,
   onClickMute,
+  onClickMuteReposts,
   onClickBlock,
   onClickAddToLists,
   onClickReport,
@@ -137,6 +138,11 @@ function profileContextMenuTemplate({
   liveStatus,
 }) {
   const isFollowing = profile.viewer?.following;
+  const mutedOnlyReposts = !!profile.viewer?.mutedOnlyReposts;
+  const canMuteReposts =
+    !profile.viewer?.blocking &&
+    !profile.viewer?.mutedByList &&
+    !profile.viewer?.muted;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
     <context-menu-item-group>
@@ -201,6 +207,20 @@ function profileContextMenuTemplate({
               `
             : null}
           <context-menu-item-group>
+            ${canMuteReposts
+              ? html`<context-menu-item
+                  data-testid="menu-action-profile-mute-reposts"
+                  data-teststate=${mutedOnlyReposts ? "muted" : "unmuted"}
+                  icon=${mutedOnlyReposts ? "repost" : "repost-off"}
+                  @click=${() => {
+                    onClickMuteReposts(profile, !mutedOnlyReposts);
+                  }}
+                >
+                  ${mutedOnlyReposts
+                    ? "Show reposts in feeds"
+                    : "Hide reposts in feeds"}
+                </context-menu-item>`
+              : null}
             <context-menu-item
               data-testid="menu-action-profile-mute"
               data-teststate=${profile.viewer?.muted ? "muted" : "unmuted"}
@@ -307,6 +327,7 @@ export function profileCardTemplate({
   onClickChat = noop,
   onClickFollow = noop,
   onClickMute = noop,
+  onClickMuteReposts = noop,
   onClickBlock = noop,
   onClickSubscribe = noop,
   onClickPostNotifications = noop,
@@ -465,6 +486,7 @@ export function profileCardTemplate({
               pluginService,
               onClickFollow,
               onClickMute,
+              onClickMuteReposts,
               onClickBlock,
               onClickAddToLists,
               onClickReport,
@@ -490,6 +512,15 @@ export function profileCardTemplate({
                 data-testid="follows-you-badge"
               >
                 Follows you
+              </div>`
+            : ""}
+          ${profile.viewer?.mutedOnlyReposts
+            ? html`<div
+                class="profile-follows-you profile-reposts-hidden"
+                data-testid="reposts-hidden-badge"
+              >
+                <app-icon icon="repost-off"></app-icon>
+                Reposts hidden
               </div>`
             : ""}
           <div class="profile-handle">@${profile.handle}</div>

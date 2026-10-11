@@ -130,6 +130,7 @@ export default async function chatRequestsView({
           ${canAccept
             ? html`<button
                 class="chat-request-button accept"
+                data-testid="chat-request-accept-button"
                 @click=${(e) => {
                   e.stopPropagation();
                   handleAccept(convo);
@@ -140,6 +141,7 @@ export default async function chatRequestsView({
             : ""}
           <button
             class="chat-request-button reject"
+            data-testid="chat-request-reject-button"
             @click=${(e) => {
               e.stopPropagation();
               handleReject(convo);
@@ -193,7 +195,7 @@ export default async function chatRequestsView({
 
   function requestsErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="chat-requests-error">
       <div>There was an error loading chat requests.</div>
       ${tryAgainButtonTemplate()}
     </div>`;

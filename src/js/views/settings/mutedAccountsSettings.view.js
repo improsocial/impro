@@ -5,7 +5,7 @@ import { profileListTemplate } from "/js/templates/profileList.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
-export default async function settingsBlockedAccountsView({
+export default async function settingsMutedAccountsView({
   root,
   router,
   layout,
@@ -13,56 +13,56 @@ export default async function settingsBlockedAccountsView({
 }) {
   await auth.requireAuth();
 
-  async function loadBlockedAccounts({ reload = false } = {}) {
+  async function loadMutedAccounts({ reload = false } = {}) {
     const cursor = reload
       ? undefined
-      : dataLayer.derived.$blockedProfiles.get()?.cursor;
-    await dataLayer.requests.loadBlockedProfiles({ cursor });
+      : dataLayer.derived.$mutedProfiles.get()?.cursor;
+    await dataLayer.requests.loadMutedProfiles({ cursor });
   }
 
   function loadPageData() {
-    loadBlockedAccounts({ reload: true });
+    loadMutedAccounts({ reload: true });
   }
 
   function errorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
-      <div>Error loading blocked accounts</div>
+    return html`<div class="error-state" data-testid="muted-accounts-error">
+      <div>Error loading muted accounts</div>
       ${tryAgainButtonTemplate()}
     </div>`;
   }
 
-  bindPageTitle(root, () => "Blocked accounts");
+  bindPageTitle(root, () => "Muted accounts");
 
   pageEffect(root, () => {
-    const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
-    const status = dataLayer.requests.statusStore.$statuses.get(
-      "loadBlockedProfiles",
-    );
-    const hasMore = blockedProfiles?.cursor ? true : false;
+    const mutedProfiles = dataLayer.derived.$mutedProfiles.get();
+    const status =
+      dataLayer.requests.statusStore.$statuses.get("loadMutedProfiles");
+    const hasMore = mutedProfiles?.cursor ? true : false;
 
     render(
-      html`<div id="settings-blocked-accounts-view">
+      html`<div id="settings-muted-accounts-view">
         ${headerTemplate({
-          title: "Blocked accounts",
+          title: "Muted accounts",
           backButtonFallbackRoute: "/settings",
         })}
         <main>
-          <p class="blocked-account-description" data-testid="page-description">
-            Blocked accounts cannot reply to your posts, mention you, or
-            interact with you. You won't see their content.
+          <p class="muted-account-description" data-testid="page-description">
+            Muted accounts have their posts removed from your feed and from your
+            notifications. Mutes are completely private.
           </p>
           ${(() => {
             if (status.error) {
               return errorTemplate({ error: status.error });
             }
             return profileListTemplate({
-              profiles: blockedProfiles?.blocks ?? null,
+              profiles: mutedProfiles?.mutes ?? null,
               hasMore,
-              onLoadMore: loadBlockedAccounts,
-              emptyMessage: "You haven't blocked any accounts.",
+              onLoadMore: loadMutedAccounts,
+              emptyMessage: "You have not muted any accounts yet.",
               isAuthenticated,
               pluginService,
+              rightItemTemplate: null,
             });
           })()}
         </main>

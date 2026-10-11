@@ -77,7 +77,7 @@ function listRowTemplate({ list, checked, disabled, onToggle }) {
 // Rules that must survive a save but can't be shown as a normal row: unknown
 // rule types and list rules for lists the user doesn't have access to. They
 // stay checked-but-opaque and can only be explicitly removed.
-function preservedRowTemplate({ setting, hydratedLists, onRemove }) {
+function preservedRowTemplate({ setting, hydratedLists, disabled, onRemove }) {
   let label;
   if (setting.type === "unknown") {
     label = "An unknown rule (added by another app)";
@@ -100,6 +100,7 @@ function preservedRowTemplate({ setting, hydratedLists, onRemove }) {
         type="button"
         class="text-pill-button"
         data-testid="interaction-settings-remove-rule"
+        .disabled=${disabled}
         @click=${onRemove}
       >
         Remove
@@ -115,6 +116,7 @@ function listsSectionTemplate({
   listsError,
   atRuleCap,
   isSaving,
+  disabled,
   listsOpen,
   onToggleListsOpen,
   onToggleList,
@@ -160,7 +162,7 @@ function listsSectionTemplate({
                 return listRowTemplate({
                   list,
                   checked,
-                  disabled: isSaving || (!checked && atRuleCap),
+                  disabled: disabled || isSaving || (!checked && atRuleCap),
                   onToggle: () => onToggleList(list),
                 });
               })}
@@ -185,6 +187,27 @@ function quotePostsRowTemplate({ quotesEnabled, isSaving, onToggleQuotes }) {
   `;
 }
 
+function replySettingsNoticeTemplate({ replySettingsStatus }) {
+  let content;
+  if (replySettingsStatus === "loading") {
+    content = html`<div class="loading-spinner"></div>
+      Loading the thread's reply settings...`;
+  } else if (replySettingsStatus === "unavailable") {
+    content = html`<app-icon icon="alert-circle-line"></app-icon> Couldn't load
+      the thread's reply settings.`;
+  } else {
+    content = html`<app-icon icon="info-circle-line"></app-icon> Reply settings
+      are chosen by the author of the thread.`;
+  }
+  return html`<div
+    class="interaction-settings-notice"
+    data-testid="interaction-settings-reply-disabled-notice"
+    data-teststate=${replySettingsStatus}
+  >
+    ${content}
+  </div>`;
+}
+
 function interactionSettingsFormTemplate({
   settings,
   curateLists,
@@ -193,6 +216,7 @@ function interactionSettingsFormTemplate({
   hydratedLists,
   quotesEnabled,
   isSaving,
+  replySettingsStatus,
   saveError,
   defaultsRowState,
   saveAsDefault,
@@ -207,9 +231,11 @@ function interactionSettingsFormTemplate({
   onRemoveSetting,
   onSave,
 }) {
+  const replySettingsDisabled = replySettingsStatus !== "editable";
   const isEverybody = settings.some((setting) => setting.type === "everybody");
   const isNobody = settings.some((setting) => setting.type === "nobody");
   const atRuleCap = countRules(settings) >= MAX_ALLOW_RULES;
+  const replyInputsDisabled = isSaving || replySettingsDisabled;
   const curateListUris = new Set(curateLists.map((list) => list.uri));
   const preservedSettings = settings.filter(
     (setting) =>
@@ -219,7 +245,16 @@ function interactionSettingsFormTemplate({
         !curateListUris.has(setting.list)),
   );
   return html`
-    <div class="interaction-settings-section">
+    ${replySettingsDisabled
+      ? replySettingsNoticeTemplate({ replySettingsStatus })
+      : null}
+    <div
+      class="interaction-settings-section ${replySettingsDisabled
+        ? "interaction-settings-section-disabled"
+        : ""}"
+      data-testid="interaction-settings-reply-section"
+      ?inert=${replySettingsDisabled}
+    >
       <h3 class="interaction-settings-section-title">Who can reply</h3>
       <div class="pill-radio-group">
         <label>
@@ -228,7 +263,7 @@ function interactionSettingsFormTemplate({
             name="interaction-settings-reply"
             data-testid="interaction-settings-reply-anyone"
             .checked=${isEverybody}
-            .disabled=${isSaving}
+            .disabled=${replyInputsDisabled}
             @click=${onSelectEverybody}
           />
           Anyone
@@ -239,7 +274,7 @@ function interactionSettingsFormTemplate({
             name="interaction-settings-reply"
             data-testid="interaction-settings-reply-nobody"
             .checked=${isNobody}
-            .disabled=${isSaving}
+            .disabled=${replyInputsDisabled}
             @click=${onSelectNobody}
           />
           Nobody
@@ -251,7 +286,7 @@ function interactionSettingsFormTemplate({
             label: row.label,
             checked: settings.some((setting) => setting.type === row.type),
             disabled:
-              isSaving ||
+              replyInputsDisabled ||
               (atRuleCap &&
                 !settings.some((setting) => setting.type === row.type)),
             testid: `interaction-settings-${row.type}`,
@@ -265,6 +300,7 @@ function interactionSettingsFormTemplate({
           listsError,
           atRuleCap,
           isSaving,
+          disabled: replySettingsDisabled,
           listsOpen,
           onToggleListsOpen,
           onToggleList,
@@ -273,6 +309,7 @@ function interactionSettingsFormTemplate({
           preservedRowTemplate({
             setting,
             hydratedLists,
+            disabled: replyInputsDisabled,
             onRemove: () => onRemoveSetting(setting),
           }),
         )}
@@ -323,24 +360,24 @@ function interactionSettingsFormTemplate({
 }
 
 class PostInteractionSettingsDialog extends Component {
+  threadRootUri = null;
+
   connectedCallback() {
     if (this.initialized) {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = null;
-    const initialSettings = normalizeThreadgateAllowSettings(
-      this.threadgateAllow,
-    );
-    this._initialAllowJson = JSON.stringify(
-      buildThreadgateAllowFromNormalized(initialSettings),
-    );
+    const initialSettings = this._seedInitialSettings(this.threadgateAllow);
     const initialQuotesEnabled = !hasDisableEmbeddingRule(
       this.postgateEmbeddingRules,
     );
     this._initialQuotesEnabled = initialQuotesEnabled;
     this.state = new ReactiveStore("post-interaction-settings-dialog");
     this.state.$settings = new Signal.State(initialSettings);
+    this.state.$replySettingsStatus = new Signal.State(
+      this.threadRootUri === null ? "editable" : "loading",
+    );
     this.state.$quotesEnabled = new Signal.State(initialQuotesEnabled);
     this.state.$listsError = new Signal.State(null);
     this.state.$isSaving = new Signal.State(false);
@@ -360,6 +397,9 @@ class PostInteractionSettingsDialog extends Component {
       this.render();
     });
     this._loadLists();
+    if (this.threadRootUri !== null) {
+      this._loadThreadRoot();
+    }
     this.initialized = true;
   }
 
@@ -368,6 +408,42 @@ class PostInteractionSettingsDialog extends Component {
     this._disposeEffect = null;
     this.scrollLock?.release();
     this.scrollLock = null;
+  }
+
+  _seedInitialSettings(threadgateAllow) {
+    const settings = normalizeThreadgateAllowSettings(threadgateAllow);
+    this._initialAllowJson = JSON.stringify(
+      buildThreadgateAllowFromNormalized(settings),
+    );
+    return settings;
+  }
+
+  async _loadThreadRoot() {
+    const currentUser = untrack(() =>
+      this.dataLayer.derived.$currentUser.get(),
+    );
+    let rootPost;
+    try {
+      rootPost = await untrack(() =>
+        this.dataLayer.declarative.ensurePost(this.threadRootUri),
+      );
+    } catch (error) {
+      console.warn(
+        "Could not load thread root for interaction settings",
+        error,
+      );
+      this.state.$replySettingsStatus.set("unavailable");
+      return;
+    }
+    if (!this.isConnected) {
+      return;
+    }
+    this.hydratedLists = rootPost.threadgate?.lists ?? [];
+    this.state.$settings.set(
+      this._seedInitialSettings(rootPost.threadgate?.record?.allow ?? null),
+    );
+    const ownsThread = parseUri(this.threadRootUri).repo === currentUser.did;
+    this.state.$replySettingsStatus.set(ownsThread ? "editable" : "readonly");
   }
 
   async _loadLists() {
@@ -449,6 +525,7 @@ class PostInteractionSettingsDialog extends Component {
     const quotesEnabled = untrack(() => this.state.$quotesEnabled.get());
     const postgateEmbeddingRules = buildPostgateEmbeddingRules(quotesEnabled);
     const threadgateDirty =
+      untrack(() => this.state.$replySettingsStatus.get()) === "editable" &&
       JSON.stringify(threadgateAllow) !== this._initialAllowJson;
     const postgateDirty = quotesEnabled !== this._initialQuotesEnabled;
     const saveAsDefault =
@@ -485,6 +562,9 @@ class PostInteractionSettingsDialog extends Component {
 
   render() {
     const settings = this.state.$settings.get();
+    const replySettingsStatus = this.state.$replySettingsStatus.get();
+    const replySettingsKnown =
+      replySettingsStatus === "editable" || replySettingsStatus === "readonly";
     const quotesEnabled = this.state.$quotesEnabled.get();
     const listsError = this.state.$listsError.get();
     const isSaving = this.state.$isSaving.get();
@@ -544,13 +624,14 @@ class PostInteractionSettingsDialog extends Component {
                 </p>
               </div>
               ${interactionSettingsFormTemplate({
-                settings,
+                settings: replySettingsKnown ? settings : [],
                 curateLists: curateLists ?? [],
                 listsLoaded: curateLists !== null,
                 listsError,
                 hydratedLists: this.hydratedLists ?? [],
                 quotesEnabled,
                 isSaving,
+                replySettingsStatus,
                 saveError,
                 defaultsRowState,
                 saveAsDefault,

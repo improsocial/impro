@@ -277,6 +277,24 @@ export function createNestedThreadViewPost(posts) {
   return current;
 }
 
+export function insertReplyIntoThread(node, parentUri, reply) {
+  if (!node.post || !node.replies) {
+    return node;
+  }
+  if (node.post.uri === parentUri) {
+    return { ...node, replies: [reply, ...node.replies] };
+  }
+  let didChange = false;
+  const replies = node.replies.map((child) => {
+    const updatedChild = insertReplyIntoThread(child, parentUri, reply);
+    if (updatedChild !== child) {
+      didChange = true;
+    }
+    return updatedChild;
+  });
+  return didChange ? { ...node, replies } : node;
+}
+
 export function flattenParents(postThread) {
   const parents = [];
   let current = postThread.parent;
@@ -987,6 +1005,7 @@ export const GLOBAL_LABELS = [
     defaultSetting: "warn",
     blurs: "media",
     severity: "none",
+    adultOnly: true,
     locales: [
       {
         lang: "en",
@@ -1002,6 +1021,7 @@ export const GLOBAL_LABELS = [
     defaultSetting: "warn",
     blurs: "media",
     severity: "none",
+    adultOnly: true,
     locales: [
       {
         lang: "en",
@@ -1092,6 +1112,54 @@ export function hasDisableEmbeddingRule(embeddingRules) {
 
 export function buildPostgateEmbeddingRules(quotesEnabled) {
   return quotesEnabled ? null : [{ $type: DISABLE_EMBEDDING_RULE_TYPE }];
+}
+
+export const MAX_DETACHED_EMBEDDING_URIS = 50;
+
+export const MAX_HIDDEN_REPLIES = 300;
+
+export function isThreadRootAuthor(post, did) {
+  const rootUri = post.record?.reply?.root?.uri;
+  return !!rootUri && parseUri(rootUri).repo === did;
+}
+
+export function createDetachedQuote(uri) {
+  return { $type: "app.bsky.embed.record#viewDetached", uri, detached: true };
+}
+
+// Returns the quote embed of `post` if it embeds a post authored by `did`,
+// as `{ uri, isDetached }`, or null otherwise.
+export function getOwnQuoteEmbed(post, did) {
+  const quotedPost = getQuotedPost(post);
+  if (!quotedPost) {
+    return null;
+  }
+  if (quotedPost.$type === "app.bsky.embed.record#viewDetached") {
+    return parseUri(quotedPost.uri).repo === did
+      ? { uri: quotedPost.uri, isDetached: true }
+      : null;
+  }
+  if (
+    quotedPost.$type === "app.bsky.embed.record#viewRecord" &&
+    quotedPost.author?.did === did
+  ) {
+    return { uri: quotedPost.uri, isDetached: false };
+  }
+  return null;
+}
+
+export function replaceQuotedPost(post, quotedPost) {
+  const embed = post.embed;
+  if (embed?.$type === "app.bsky.embed.record#view") {
+    return { ...post, embed: { ...embed, record: quotedPost } };
+  }
+  if (embed?.$type === "app.bsky.embed.recordWithMedia#view") {
+    return {
+      ...post,
+      embed: { ...embed, record: { ...embed.record, record: quotedPost } },
+    };
+  }
+  return post;
 }
 
 // Adds a feed item to the beginning of a feed, preserving pinned post position.
@@ -1351,6 +1419,12 @@ export function getPostsFromFeed(feed) {
     }
   }
   return unique(posts, { by: "uri" });
+}
+
+export function getRepostersFromFeed(feed) {
+  return feed.feed
+    .map((feedItem) => feedItem.reason?.by)
+    .filter((profile) => !isNil(profile));
 }
 
 export function getImagesFromDraftPost(draftPost) {

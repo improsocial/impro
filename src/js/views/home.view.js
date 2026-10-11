@@ -173,7 +173,7 @@ export default async function homeView({
   }
 
   function feedErrorTemplate({ feedGenerator }) {
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="feed-error">
       An issue occurred when contacting the feed server.<br />
       Please let the feed owner know about this issue.<br />
       ${feedGenerator.creator
@@ -385,7 +385,13 @@ export default async function homeView({
   // so revisiting the cached page doesn't reopen it.
   if (window.location.pathname === "/intent/compose" && isAuthenticated) {
     dataLayer.declarative.ensureCurrentUser().then((currentUser) => {
-      postComposerService.composePost({ currentUser });
+      const initialText = new URLSearchParams(window.location.search).get(
+        "text",
+      );
+      postComposerService.composePost({
+        currentUser,
+        initialText,
+      });
       window.history.replaceState(null, "", "/");
     });
   }

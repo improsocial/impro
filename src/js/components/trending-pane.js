@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
+import { whenElementVisible } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
@@ -104,8 +105,8 @@ class TrendingPane extends Component {
           this,
         );
       }),
+      whenElementVisible(this, () => this.load()),
     ];
-    this.load();
   }
 
   disconnectedCallback() {

@@ -24,6 +24,7 @@ import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
 import { postNumberBadgeTemplate } from "/js/templates/postNumberBadge.template.js";
+import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import { WhoCanReplyModal } from "/js/modals/whoCanReply.modal.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
@@ -38,17 +39,33 @@ function mutedWarningTemplate({ post, children }) {
   if (post.viewer?.hasMutedWord) {
     return html`<moderation-warning
       label="Post hidden by muted word"
+      data-teststate="muted-word"
       icon-style="closed-eye"
       >${children}</moderation-warning
     > `;
   } else if (post.viewer?.isHidden) {
     return html`<moderation-warning
       label="Post hidden by you"
+      data-teststate="hidden"
       icon-style="closed-eye"
       >${children}</moderation-warning
     > `;
   }
   return children;
+}
+
+function lockedContentWarningTemplate({ post, lockedContentLabel, children }) {
+  if (!lockedContentLabel) {
+    return children;
+  }
+  return moderationWarningTemplate({
+    className: "post-content-warning",
+    labelDefinition: lockedContentLabel.labelDefinition,
+    labeler: lockedContentLabel.labeler,
+    noOverride: true,
+    isAuthorLabel: lockedContentLabel.label.uri === post.author?.did,
+    children,
+  });
 }
 
 function followButtonTemplate({ profile, isFollowPending, onClick }) {
@@ -171,8 +188,12 @@ export function largePostTemplate({
   const canEditInteractionSettings = isUserPost && isRootPost;
   const badgeLabels = post.badgeLabels ?? [];
   const contentLabel = post.contentLabel;
+  const isContentLabelVisible =
+    contentLabel && contentLabel.visibility !== "ignore";
+  const lockedContentLabel =
+    isContentLabelVisible && contentLabel.noOverride ? contentLabel : null;
   // Instead of hiding, add the content label to the badge labels
-  if (contentLabel && contentLabel.visibility !== "ignore") {
+  if (isContentLabelVisible && !lockedContentLabel) {
     badgeLabels.push(contentLabel);
   }
   return html`<div class="post large-post" data-testid="large-post">
@@ -207,44 +228,48 @@ export function largePostTemplate({
       <div class="post-content-bottom">
         ${mutedWarningTemplate({
           post,
-          children: html`<div class="post-body">
-            ${postText.length > 0
-              ? html`<div class="post-text">
-                  <plugin-rich-text
-                    .pluginService=${pluginService}
-                    .text=${postText}
-                    .facets=${post.record.facets}
-                    .transformContext=${{
-                      surface: "largePost",
-                      uri: post.uri,
-                      did: post.author?.did ?? null,
-                    }}
-                    .suffix=${postNumbering
-                      ? postNumberBadgeTemplate({
-                          numbering: postNumbering,
-                          inline: true,
-                        })
-                      : null}
-                    truncate-urls
-                  ></plugin-rich-text>
-                </div>`
-              : postNumbering
-                ? postNumberBadgeTemplate({
-                    numbering: postNumbering,
-                    inline: false,
-                  })
-                : ""}
-            ${embed
-              ? html`<div class="post-embed">
-                  ${postEmbedTemplate({
-                    embed,
-                    mediaLabel: post.mediaLabel,
-                    isAuthenticated,
-                    pluginService,
-                  })}
-                </div>`
-              : null}
-          </div>`,
+          children: lockedContentWarningTemplate({
+            post,
+            lockedContentLabel,
+            children: html`<div class="post-body">
+              ${postText.length > 0
+                ? html`<div class="post-text">
+                    <plugin-rich-text
+                      .pluginService=${pluginService}
+                      .text=${postText}
+                      .facets=${post.record.facets}
+                      .transformContext=${{
+                        surface: "largePost",
+                        uri: post.uri,
+                        did: post.author?.did ?? null,
+                      }}
+                      .suffix=${postNumbering
+                        ? postNumberBadgeTemplate({
+                            numbering: postNumbering,
+                            inline: true,
+                          })
+                        : null}
+                      truncate-urls
+                    ></plugin-rich-text>
+                  </div>`
+                : postNumbering
+                  ? postNumberBadgeTemplate({
+                      numbering: postNumbering,
+                      inline: false,
+                    })
+                  : ""}
+              ${embed
+                ? html`<div class="post-embed">
+                    ${postEmbedTemplate({
+                      embed,
+                      mediaLabel: post.mediaLabel,
+                      isAuthenticated,
+                      pluginService,
+                    })}
+                  </div>`
+                : null}
+            </div>`,
+          }),
         })}
         <div class="post-full-timestamp">
           ${formatFullTimestamp(post.indexedAt)}
@@ -315,6 +340,17 @@ export function largePostTemplate({
                   postInteractionHandler.handlePinPost(post, doPin),
                 onClickEditInteractionSettings: (post) =>
                   postInteractionHandler.handleEditInteractionSettings(post),
+                onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
+                  postInteractionHandler.handleToggleQuoteDetachment(
+                    post,
+                    quotedPostUri,
+                    doDetach,
+                  ),
+                onClickToggleReplyHiddenForEveryone: (post, doHide) =>
+                  postInteractionHandler.handleToggleReplyHiddenForEveryone(
+                    post,
+                    doHide,
+                  ),
                 onClickReport: (post) =>
                   postInteractionHandler.handleReport(post),
                 pluginService,

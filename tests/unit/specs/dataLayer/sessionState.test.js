@@ -88,6 +88,22 @@ describe("createSessionState", () => {
     });
   });
 
+  describe("postLanguageHistory", () => {
+    it("persists history for the account once it changes", async () => {
+      const sessionState = createSessionState(session);
+      sessionState.$postLanguageHistory.set([["ja", "en"], ["en"]]);
+      await flushEffects();
+      assert.deepEqual(stored(), {
+        postLanguageHistory: [["ja", "en"], ["en"]],
+      });
+      const restored = createSessionState(session);
+      assert.deepEqual(restored.$postLanguageHistory.get(), [
+        ["ja", "en"],
+        ["en"],
+      ]);
+    });
+  });
+
   describe("trendingHidden", () => {
     it("defaults to shown", () => {
       const sessionState = createSessionState(session);

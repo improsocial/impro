@@ -80,7 +80,9 @@ test.describe("Community plugin listing view", () => {
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
-    await expect(button).toHaveText("Install", { timeout: 10000 });
+    await expect(button).toHaveAttribute("data-teststate", "not-installed", {
+      timeout: 10000,
+    });
 
     const putPrefs = page.waitForResponse((res) =>
       res.url().includes("app.bsky.actor.putPreferences"),
@@ -94,7 +96,9 @@ test.describe("Community plugin listing view", () => {
     await page.locator('[data-testid="modal-confirm-button"]').click();
     await putPrefs;
 
-    await expect(button).toHaveText("Uninstall", { timeout: 10000 });
+    await expect(button).toHaveAttribute("data-teststate", "installed", {
+      timeout: 10000,
+    });
     await expect(
       mockServer.installedPlugins.map((plugin) => plugin.id),
     ).toEqual([REMOTE_ID]);
@@ -114,7 +118,9 @@ test.describe("Community plugin listing view", () => {
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
-    await expect(button).toHaveText("Uninstall", { timeout: 10000 });
+    await expect(button).toHaveAttribute("data-teststate", "installed", {
+      timeout: 10000,
+    });
 
     await button.click();
     const confirmButton = page.locator("button.confirm-button");
@@ -125,7 +131,9 @@ test.describe("Community plugin listing view", () => {
     await confirmButton.click();
     await putPrefs;
 
-    await expect(button).toHaveText("Install", { timeout: 10000 });
+    await expect(button).toHaveAttribute("data-teststate", "not-installed", {
+      timeout: 10000,
+    });
     await expect(mockServer.installedPlugins).toEqual([]);
   });
 
@@ -145,14 +153,16 @@ test.describe("Community plugin listing view", () => {
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
-    await expect(button).toHaveText("Uninstall", { timeout: 10000 });
+    await expect(button).toHaveAttribute("data-teststate", "installed", {
+      timeout: 10000,
+    });
 
     await button.click();
     const cancelButton = page.locator("button.cancel-button");
     await expect(cancelButton).toBeVisible({ timeout: 5000 });
     await cancelButton.click();
 
-    await expect(button).toHaveText("Uninstall");
+    await expect(button).toHaveAttribute("data-teststate", "installed");
     await expect(
       mockServer.installedPlugins.map((plugin) => plugin.id),
     ).toEqual([REMOTE_ID]);

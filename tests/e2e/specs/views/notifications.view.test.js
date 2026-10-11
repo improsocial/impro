@@ -62,7 +62,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
-    await expect(item).toContainText("followed you");
+    await expect(item).toHaveAttribute("data-teststate", "follow");
   });
 
   test("should show a header loading spinner while notifications reload", async ({
@@ -96,6 +96,82 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".notification-item")).toHaveCount(1);
   });
 
+  test.describe("Push notification click", () => {
+    function dispatchNotificationClick(page, url) {
+      return page.evaluate((url) => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "notification-click", url },
+          }),
+        );
+      }, url);
+    }
+
+    test("should reload notifications when already on the notifications page", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: bob,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await dispatchNotificationClick(page, "/notifications");
+
+      await expect(
+        view.locator(".notification-item .notification-avatar"),
+      ).toHaveCount(2, { timeout: 10000 });
+    });
+
+    test("should navigate in-app to the notification url from another page", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+      await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
+      await page.evaluate(() => {
+        window.__sameDocument = true;
+      });
+
+      await dispatchNotificationClick(page, "/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
+    });
+  });
+
   test("should display a like notification with post preview", async ({
     page,
   }) => {
@@ -125,7 +201,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
-    await expect(item).toContainText("liked your post");
+    await expect(item).toHaveAttribute("data-teststate", "like");
     await expect(view.locator(".notification-preview-text")).toContainText(
       "My awesome post",
     );
@@ -160,7 +236,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Bob");
-    await expect(item).toContainText("reposted your post");
+    await expect(item).toHaveAttribute("data-teststate", "repost");
     await expect(view.locator(".notification-preview-text")).toContainText(
       "Reposted content",
     );
@@ -207,9 +283,86 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
     await expect(item).toContainText("2 others");
-    await expect(item).toContainText("liked your post");
+    await expect(item).toHaveAttribute("data-teststate", "like");
     // Should show 3 avatars
     await expect(item.locator(".notification-avatar")).toHaveCount(3);
+  });
+
+  test("should expand and collapse the author list of a grouped notification", async ({
+    page,
+  }) => {
+    const likedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/popular1",
+      text: "Popular post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([likedPost]);
+    mockServer.addNotifications(
+      [alice, bob, charlie].map((author) =>
+        createNotification({
+          reason: "like",
+          author,
+          reasonSubject: likedPost.uri,
+          indexedAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    const toggle = item.locator('[data-testid="notification-authors-toggle"]');
+    const expandedAuthors = item.locator(
+      '[data-testid="notification-expanded-authors"]',
+    );
+    await expect(expandedAuthors).toHaveCount(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("data-teststate", "expanded");
+    await expect(page).toHaveURL(/\/notifications$/);
+    await expect(
+      expandedAuthors.locator('[data-testid="profile-list-item-handle"]'),
+    ).toHaveText([
+      "@alice.bsky.social",
+      "@bob.bsky.social",
+      "@charlie.bsky.social",
+    ]);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("data-teststate", "collapsed");
+    await expect(expandedAuthors).toHaveCount(0);
+    await expect(item.locator(".notification-avatar")).toHaveCount(3);
+  });
+
+  test("should not show an author list toggle for a single author", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const item = page.locator("#notifications-view .notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item.locator(".notification-avatar")).toHaveCount(1);
+    await expect(
+      item.locator('[data-testid="notification-authors-toggle"]'),
+    ).toHaveCount(0);
   });
 
   test("should group multiple follows together", async ({ page }) => {
@@ -236,7 +389,7 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
     await expect(item).toContainText("1 other");
-    await expect(item).toContainText("followed you");
+    await expect(item).toHaveAttribute("data-teststate", "follow");
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
   });
 
@@ -398,9 +551,7 @@ test.describe("Notifications view", () => {
     ).toHaveCount(0);
   });
 
-  test("should display 'followed you back' for a follow-back notification", async ({
-    page,
-  }) => {
+  test("should display a follow-back notification", async ({ page }) => {
     const yourFollowRkey = createTid("2025-01-10T00:00:00.000Z");
     const followBackAuthor = createProfile({
       ...alice,
@@ -432,7 +583,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
-    await expect(item).toContainText("followed you back");
+    await expect(item).toHaveAttribute("data-teststate", "follow-back");
   });
 
   test("should not group follow-back notifications with regular follows", async ({
@@ -473,9 +624,8 @@ test.describe("Notifications view", () => {
     const view = page.locator("#notifications-view");
     const items = view.locator(".notification-item");
     await expect(items).toHaveCount(2, { timeout: 10000 });
-    await expect(items.nth(0)).toContainText("followed you back");
-    await expect(items.nth(1)).toContainText("followed you");
-    await expect(items.nth(1)).not.toContainText("followed you back");
+    await expect(items.nth(0)).toHaveAttribute("data-teststate", "follow-back");
+    await expect(items.nth(1)).toHaveAttribute("data-teststate", "follow");
   });
 
   test("should display a reply notification as a post", async ({ page }) => {
@@ -683,7 +833,7 @@ test.describe("Notifications view", () => {
         "Alice",
       );
       await expect(
-        item.locator('[data-testid="notification-others-button"]'),
+        item.locator('[data-testid="notification-authors-toggle"]'),
       ).toBeVisible();
       const href = await item.getAttribute("href");
       const url = new URL(href, "http://localhost");
@@ -808,9 +958,9 @@ test.describe("Notifications view", () => {
     const view = page.locator("#notifications-view");
     const items = view.locator(".notification-item");
     await expect(items).toHaveCount(3, { timeout: 10000 });
-    await expect(items.nth(0)).toContainText("liked your post");
-    await expect(items.nth(1)).toContainText("reposted your post");
-    await expect(items.nth(2)).toContainText("followed you");
+    await expect(items.nth(0)).toHaveAttribute("data-teststate", "like");
+    await expect(items.nth(1)).toHaveAttribute("data-teststate", "repost");
+    await expect(items.nth(2)).toHaveAttribute("data-teststate", "follow");
   });
 
   test("should hide notifications for deleted posts", async ({ page }) => {
@@ -970,10 +1120,9 @@ test.describe("Notifications view", () => {
     await page.goto("/notifications");
 
     const view = page.locator("#notifications-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Notifications",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should navigate to post thread when clicking like notification", async ({
@@ -1432,10 +1581,9 @@ test.describe("Notifications view", () => {
     await page.goto("/notifications");
 
     const view = page.locator("#notifications-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "There was an error loading notifications.",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="notifications-error"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   function createPagedLikeNotifications(count) {
@@ -1579,12 +1727,14 @@ test.describe("Notifications view", () => {
 
       const view = page.locator("#notifications-view");
       const tabBar = view.locator("tab-bar");
-      await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
-        "All",
+      await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveAttribute(
+        "data-testid",
+        "tab-all",
         { timeout: 10000 },
       );
-      await expect(tabBar.locator(".tab-bar-button").nth(1)).toContainText(
-        "Mentions",
+      await expect(tabBar.locator(".tab-bar-button").nth(1)).toHaveAttribute(
+        "data-testid",
+        "tab-mentions",
       );
     });
 
@@ -1681,7 +1831,11 @@ test.describe("Notifications view", () => {
       });
       await expect(activePanel).toContainText("Hey @testuser check this out");
       await expect(activePanel).toContainText("Great point indeed");
-      await expect(activePanel).not.toContainText("followed you");
+      await expect(
+        activePanel.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toHaveCount(0);
     });
 
     test("should show empty state in Mentions tab when there are no mentions", async ({
@@ -1773,7 +1927,11 @@ test.describe("Notifications view", () => {
       await view.locator(".tab-bar-button").nth(0).click();
 
       // Both follow and mention should be visible again
-      await expect(view).toContainText("followed you", { timeout: 10000 });
+      await expect(
+        view.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
       await expect(view).toContainText("A mention post");
     });
 
@@ -1992,7 +2150,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
-    await expect(item).toContainText("liked your custom feed");
+    await expect(item).toHaveAttribute("data-teststate", "feedgen-like");
   });
 
   test("should group multiple feedgen-like notifications", async ({ page }) => {
@@ -2022,7 +2180,7 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
     await expect(item).toContainText("1 other");
-    await expect(item).toContainText("liked your custom feed");
+    await expect(item).toHaveAttribute("data-teststate", "feedgen-like");
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
   });
 
@@ -2074,7 +2232,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Bob");
-    await expect(item).toContainText("signed up with your starter pack");
+    await expect(item).toHaveAttribute("data-teststate", "starterpack-joined");
   });
 
   test("should group multiple starterpack-joined notifications", async ({
@@ -2113,7 +2271,7 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
     await expect(item).toContainText("2 others");
-    await expect(item).toContainText("signed up with your starter pack");
+    await expect(item).toHaveAttribute("data-teststate", "starterpack-joined");
     await expect(item.locator(".notification-avatar")).toHaveCount(3);
   });
 
@@ -2163,7 +2321,7 @@ test.describe("Notifications view", () => {
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
-    await expect(item).toContainText("verified you");
+    await expect(item).toHaveAttribute("data-teststate", "verified");
   });
 
   test("should group multiple verified notifications", async ({ page }) => {
@@ -2190,7 +2348,7 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveCount(1, { timeout: 10000 });
     await expect(item).toContainText("Alice");
     await expect(item).toContainText("1 other");
-    await expect(item).toContainText("verified you");
+    await expect(item).toHaveAttribute("data-teststate", "verified");
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
   });
 
@@ -2264,9 +2422,8 @@ test.describe("Notifications view", () => {
     const view = page.locator("#notifications-view");
     const item = view.locator(".notification-item");
     await expect(item).toHaveCount(1, { timeout: 10000 });
-    await expect(item).toContainText("Your contact");
+    await expect(item).toHaveAttribute("data-teststate", "contact-match");
     await expect(item).toContainText("Charlie");
-    await expect(item).toContainText("is on Bluesky");
   });
 
   test("should navigate to profile when clicking contact-match notification", async ({
@@ -2340,13 +2497,20 @@ test.describe("Notifications view", () => {
     const view = page.locator("#notifications-view");
     const items = view.locator(".notification-item");
     await expect(items).toHaveCount(5, { timeout: 10000 });
-    await expect(items.nth(0)).toContainText("liked your custom feed");
-    await expect(items.nth(1)).toContainText(
-      "signed up with your starter pack",
+    await expect(items.nth(0)).toHaveAttribute(
+      "data-teststate",
+      "feedgen-like",
     );
-    await expect(items.nth(2)).toContainText("verified you");
-    await expect(items.nth(3)).toContainText("removed their verification");
-    await expect(items.nth(4)).toContainText("is on Bluesky");
+    await expect(items.nth(1)).toHaveAttribute(
+      "data-teststate",
+      "starterpack-joined",
+    );
+    await expect(items.nth(2)).toHaveAttribute("data-teststate", "verified");
+    await expect(items.nth(3)).toHaveAttribute("data-teststate", "unverified");
+    await expect(items.nth(4)).toHaveAttribute(
+      "data-teststate",
+      "contact-match",
+    );
   });
 
   test("shows live ring and pill on a stacked notification avatar for a live actor", async ({

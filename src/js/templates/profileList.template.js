@@ -65,6 +65,7 @@ function followButtonRightItem({
   isAuthenticated,
   currentUserDid,
   profileInteractionHandler,
+  compact,
 }) {
   const isCurrentUser = currentUserDid && actor.did === currentUserDid;
   const isBlocking = !!actor.viewer?.blocking;
@@ -86,6 +87,7 @@ function followButtonRightItem({
       "rounded-button profile-following-button profile-list-item-follow",
       {
         "rounded-button-primary": !isFollowing,
+        "is-compact": compact,
       },
     )}
     data-testid="follow-button"
@@ -96,7 +98,9 @@ function followButtonRightItem({
         : "follow"}
   >
     ${isFollowing
-      ? "Following"
+      ? compact
+        ? html`<app-icon icon="check"></app-icon> Following`
+        : "Following"
       : isFollowedBy
         ? html`<app-icon icon="plus-line"></app-icon> Follow back`
         : html`<app-icon icon="plus-line"></app-icon> Follow`}
@@ -129,6 +133,7 @@ export function profileListItemTemplate({
           isAuthenticated,
           currentUserDid,
           profileInteractionHandler,
+          compact,
         }) ?? "")
       : rightItemTemplate === null
         ? ""

@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { makeTestDataLayer } from "../../testHelpers.js";
 import "/js/components/post-interaction-settings-dialog.js";
@@ -14,16 +14,19 @@ describe("post-interaction-settings-dialog", () => {
 
   const userDid = "did:plc:me";
   const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const listCreator = { did: userDid, handle: "me.test" };
 
   const curateList = {
     uri: `at://${userDid}/app.bsky.graph.list/l1`,
     name: "Cool people",
     purpose: "app.bsky.graph.defs#curatelist",
+    creator: listCreator,
   };
   const modList = {
     uri: `at://${userDid}/app.bsky.graph.list/l2`,
     name: "Mods",
     purpose: "app.bsky.graph.defs#modlist",
+    creator: listCreator,
   };
 
   function makeDataLayer({ lists = [curateList, modList] } = {}) {
@@ -374,6 +377,174 @@ describe("post-interaction-settings-dialog", () => {
     assert.deepEqual(detail.threadgateAllow, [
       { $type: "app.bsky.feed.threadgate#listRule", list: curateList.uri },
     ]);
+  });
+
+  describe("thread root reply settings", () => {
+    const ownRootUri = `at://${userDid}/app.bsky.feed.post/root`;
+    const otherRootUri = "at://did:plc:other/app.bsky.feed.post/root";
+    const mentionAllow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+
+    function makeRootPost(uri, allow) {
+      return {
+        uri,
+        threadgate: {
+          uri: uri.replace("app.bsky.feed.post", "app.bsky.feed.threadgate"),
+          lists: [],
+          record: { $type: "app.bsky.feed.threadgate", post: uri, allow },
+        },
+      };
+    }
+
+    async function createReplyDialog({ threadRootUri, ensurePost }) {
+      const element = document.createElement(
+        "post-interaction-settings-dialog",
+      );
+      element.dataLayer = makeDataLayer();
+      element.dataLayer.declarative.ensurePost = ensurePost;
+      element.threadRootUri = threadRootUri;
+      element.threadgateAllow = null;
+      element.postgateEmbeddingRules = null;
+      document.body.appendChild(element);
+      // One flush for the initial render, one for the re-render once the
+      // root has resolved.
+      await flushRender();
+      await flushRender();
+      return element;
+    }
+
+    function notice(element) {
+      return input(element, "interaction-settings-reply-disabled-notice");
+    }
+
+    function replySection(element) {
+      return input(element, "interaction-settings-reply-section");
+    }
+
+    function captureSave(element) {
+      const captured = { detail: null };
+      element.addEventListener("save-interaction-settings", (event) => {
+        captured.detail = event.detail;
+      });
+      return captured;
+    }
+
+    it("shows a disabled section with nothing selected while the root loads", async () => {
+      const element = await createReplyDialog({
+        threadRootUri: ownRootUri,
+        ensurePost: mock.fn(() => new Promise(() => {})),
+      });
+      assert.equal(notice(element).dataset.teststate, "loading");
+      assert(replySection(element).hasAttribute("inert"));
+      assert(!input(element, "interaction-settings-reply-anyone").checked);
+      assert(input(element, "interaction-settings-reply-anyone").disabled);
+      assert(!quoteToggle(element).hasAttribute("disabled"));
+    });
+
+    it("makes the root's gate editable for the thread author", async () => {
+      const ensurePost = mock.fn(async () =>
+        makeRootPost(ownRootUri, mentionAllow),
+      );
+      const element = await createReplyDialog({
+        threadRootUri: ownRootUri,
+        ensurePost,
+      });
+      assert.deepEqual(ensurePost.mock.calls[0].arguments, [ownRootUri]);
+      assert(!notice(element));
+      assert(!replySection(element).hasAttribute("inert"));
+      assert(input(element, "interaction-settings-mention").checked);
+
+      const captured = captureSave(element);
+      input(element, "interaction-settings-following").click();
+      await flushRender();
+      input(element, "interaction-settings-save").click();
+      assert.deepEqual(captured.detail.threadgateDirty, true);
+      assert.deepEqual(captured.detail.threadgateAllow, [
+        ...mentionAllow,
+        { $type: "app.bsky.feed.threadgate#followingRule" },
+      ]);
+    });
+
+    it("does not treat the loaded root gate as a change", async () => {
+      const element = await createReplyDialog({
+        threadRootUri: ownRootUri,
+        ensurePost: mock.fn(async () => makeRootPost(ownRootUri, mentionAllow)),
+      });
+      const captured = captureSave(element);
+      clickQuoteToggle(element);
+      await flushRender();
+      input(element, "interaction-settings-save").click();
+      assert.deepEqual(captured.detail.threadgateDirty, false);
+    });
+
+    it("shows another author's root gate read-only", async () => {
+      const element = await createReplyDialog({
+        threadRootUri: otherRootUri,
+        ensurePost: mock.fn(async () =>
+          makeRootPost(otherRootUri, mentionAllow),
+        ),
+      });
+      assert.equal(notice(element).dataset.teststate, "readonly");
+      assert(replySection(element).hasAttribute("inert"));
+      assert(input(element, "interaction-settings-mention").checked);
+      for (const testid of [
+        "interaction-settings-reply-anyone",
+        "interaction-settings-reply-nobody",
+        "interaction-settings-mention",
+        "interaction-settings-following",
+        "interaction-settings-followers",
+      ]) {
+        assert(input(element, testid).disabled, testid);
+      }
+      assert(!quoteToggle(element).hasAttribute("disabled"));
+
+      const captured = captureSave(element);
+      clickQuoteToggle(element);
+      await flushRender();
+      input(element, "interaction-settings-save").click();
+      assert.deepEqual(captured.detail.threadgateDirty, false);
+      assert.deepEqual(captured.detail.postgateDirty, true);
+    });
+
+    it("disables list rows and preserved-rule remove buttons when read-only", async () => {
+      const element = await createReplyDialog({
+        threadRootUri: otherRootUri,
+        ensurePost: mock.fn(async () =>
+          makeRootPost(otherRootUri, [{ $type: "com.example.unknownRule" }]),
+        ),
+      });
+      expandLists(element);
+      await flushRender();
+      const listRow = element.querySelector(
+        '[data-testid="interaction-settings-list-row"] input',
+      );
+      assert(listRow.disabled);
+      assert(input(element, "interaction-settings-remove-rule").disabled);
+    });
+
+    it("stays locked with nothing selected when the root can't be loaded", async (t) => {
+      t.mock.method(console, "warn", () => {});
+      const element = await createReplyDialog({
+        threadRootUri: ownRootUri,
+        ensurePost: mock.fn(async () => {
+          throw new Error("Post not found");
+        }),
+      });
+      assert.equal(notice(element).dataset.teststate, "unavailable");
+      assert(replySection(element).hasAttribute("inert"));
+      assert(!input(element, "interaction-settings-reply-anyone").checked);
+
+      const captured = captureSave(element);
+      clickQuoteToggle(element);
+      await flushRender();
+      input(element, "interaction-settings-save").click();
+      assert.deepEqual(captured.detail.threadgateDirty, false);
+    });
+
+    it("omits the notice when no thread root is given", async () => {
+      const element = await createDialog({});
+      assert(!notice(element));
+      assert(!replySection(element).hasAttribute("inert"));
+    });
   });
 
   describe("composer mode default settings row", () => {

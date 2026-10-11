@@ -1543,6 +1543,23 @@ describe("muteActor", () => {
   });
 });
 
+describe("muteActorReposts", () => {
+  it("should mute only the actor's reposts", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await api.muteActorReposts("did:plc:target");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.muteActor"));
+    assert.deepEqual(options.method, "POST");
+    assert.deepEqual(JSON.parse(options.body), {
+      actor: "did:plc:target",
+      onlyReposts: true,
+    });
+  });
+});
+
 describe("unmuteActor", () => {
   it("should unmute actor", async () => {
     const session = createMockSession({});

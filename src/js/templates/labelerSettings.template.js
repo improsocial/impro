@@ -5,6 +5,7 @@ import {
   getDefaultLabelSetting,
 } from "/js/dataHelpers.js";
 import { classnames, noop } from "/js/utils.js";
+import "/js/components/app-icon.js";
 
 function doShowWarnButton(labelDefinition) {
   return !(
@@ -23,6 +24,7 @@ function labelPreferenceRowTemplate({
   labelDefinition,
   value,
   isSubscribed,
+  isAdultDisabled,
   onClick,
 }) {
   const { name, description } = getLabelNameAndDescription(labelDefinition);
@@ -35,6 +37,15 @@ function labelPreferenceRowTemplate({
       ${description
         ? html`<div class="label-preference-description">${description}</div>`
         : null}
+      ${isAdultDisabled
+        ? html`<div
+            class="label-preference-disabled-note"
+            data-testid="label-preference-adult-disabled"
+          >
+            <app-icon icon="info-circle-line"></app-icon>
+            Adult content is disabled.
+          </div>`
+        : null}
       ${isSubscribed
         ? html`
             <div
@@ -46,6 +57,7 @@ function labelPreferenceRowTemplate({
                   active: value === "ignore",
                 })}
                 data-testid="label-pref-button"
+                ?disabled=${isAdultDisabled}
                 data-teststate="off"
                 @click=${() => onClick("ignore")}
               >
@@ -58,6 +70,7 @@ function labelPreferenceRowTemplate({
                         active: value === "warn",
                       })}
                       data-testid="label-pref-button"
+                      ?disabled=${isAdultDisabled}
                       data-teststate="warn"
                       @click=${() => onClick("warn")}
                     >
@@ -70,6 +83,7 @@ function labelPreferenceRowTemplate({
                   active: value === "hide",
                 })}
                 data-testid="label-pref-button"
+                ?disabled=${isAdultDisabled}
                 data-teststate="hide"
                 @click=${() => onClick("hide")}
               >
@@ -86,6 +100,7 @@ export function labelerSettingsTemplate({
   labelerInfo,
   isSubscribed,
   labelerSettings,
+  isAdultContentEnabled,
   onClick = noop,
 }) {
   const labelValueDefinitions =
@@ -100,7 +115,9 @@ export function labelerSettingsTemplate({
           class="labeler-settings-header"
           data-testid="labeler-settings-header"
         >
-          <p>This labeler has no configurable labels.</p>
+          <p data-testid="empty-state">
+            This labeler has no configurable labels.
+          </p>
         </div>
       </div>
     `;
@@ -121,13 +138,19 @@ export function labelerSettingsTemplate({
           const currentSetting = labelerSettings.find(
             (pref) => pref.label === labelDefinition.identifier,
           );
-          const value = currentSetting
+          const isAdultDisabled =
+            !!labelDefinition.adultOnly && !isAdultContentEnabled;
+          let value = currentSetting
             ? currentSetting.visibility
             : getDefaultLabelSetting(labelDefinition);
+          if (isAdultDisabled) {
+            value = "hide";
+          }
           return labelPreferenceRowTemplate({
             labelDefinition,
             value,
             isSubscribed,
+            isAdultDisabled,
             onClick: (newValue) => {
               if (newValue !== value) {
                 onClick(labelDefinition.identifier, newValue);

@@ -46,10 +46,9 @@ test.describe("Profile known followers view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
-      "Followers you know",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-subtitle"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator(".profile-list-item")).toHaveCount(3, {
       timeout: 10000,
@@ -169,10 +168,9 @@ test.describe("Profile known followers view", () => {
     await page.goto(`/profile/${profileUser.did}/known-followers`);
 
     const view = page.locator("#profile-known-followers-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading followers you know",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="known-followers-error"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should render bio, follows-you, and follow-state per known follower", async ({

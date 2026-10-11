@@ -99,7 +99,7 @@ test.describe("Quote post flow", () => {
     const quotesView = page.locator("#post-quotes-view");
     await expect(
       quotesView.locator('[data-testid="header-title"]'),
-    ).toContainText("Quotes", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await expect(quotesView.locator('[data-testid="small-post"]')).toHaveCount(
       1,

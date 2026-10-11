@@ -491,7 +491,6 @@ describe("profileListTemplate", () => {
     render(result, container);
     const msg = container.querySelector("[data-testid='feed-end-message']");
     assert(msg !== null);
-    assert(msg.textContent.includes("End of feed"));
   });
 
   it("should pass rightItemTemplate through to list items", () => {

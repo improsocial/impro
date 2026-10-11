@@ -39,10 +39,9 @@ test.describe("Chat request accept flow", () => {
     // appear in the main list
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
     // Navigate to chat requests via the header inbox button
@@ -101,10 +100,9 @@ test.describe("Chat request accept flow", () => {
 
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
     await chatView.locator('[data-testid="inbox-button"]').click();
@@ -171,10 +169,9 @@ test.describe("Chat request accept flow", () => {
     // The invite surfaces in the requests inbox, not the main list
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".feed-end-message")).toContainText(
-      "No conversations yet!",
-      { timeout: 10000 },
-    );
+    await expect(chatView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
     await chatView.locator('[data-testid="inbox-button"]').click();

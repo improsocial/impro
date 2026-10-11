@@ -74,9 +74,9 @@ test.describe("Blocked posts in post thread", () => {
       await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
         timeout: 10000,
       });
-      await expect(view.locator(".missing-post-indicator")).toContainText(
-        "Blocked",
-      );
+      await expect(
+        view.locator('[data-testid="post-tombstone-blocked"]'),
+      ).toBeVisible();
     });
 
     test.describe("when the current user is blocked by a parent author", () => {
@@ -150,9 +150,9 @@ test.describe("Blocked posts in post thread", () => {
         await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
           timeout: 10000,
         });
-        await expect(view.locator(".missing-post-indicator")).toContainText(
-          "Blocked",
-        );
+        await expect(
+          view.locator('[data-testid="post-tombstone-blocked"]'),
+        ).toBeVisible();
         // The chain is severed at the blocked post so grandparent is not reachable
         await expect(view).not.toContainText("Grandparent post");
       });
@@ -253,9 +253,9 @@ test.describe("Blocked posts in post thread", () => {
           timeout: 10000,
         });
         // Blocked post shown as unavailable
-        await expect(view.locator(".missing-post-indicator")).toContainText(
-          "Blocked",
-        );
+        await expect(
+          view.locator('[data-testid="post-tombstone-blocked"]'),
+        ).toBeVisible();
         // Root is not reachable past the blocked post
         await expect(view).not.toContainText("Root of the conversation");
       });

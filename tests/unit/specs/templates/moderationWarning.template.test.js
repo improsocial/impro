@@ -138,3 +138,31 @@ describe("moderationWarningTemplate - custom className", () => {
     assert(warning.classList.contains("custom-warning"));
   });
 });
+
+describe("moderationWarningTemplate - noOverride", () => {
+  it("should set the no-override attribute when noOverride is true", () => {
+    const result = moderationWarningTemplate({
+      labelDefinition: mockLabelDefinition,
+      labeler: mockLabeler,
+      noOverride: true,
+      children: html`<div>Hidden content</div>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning.hasAttribute("no-override"));
+  });
+
+  it("should not set the no-override attribute when noOverride is false", () => {
+    const result = moderationWarningTemplate({
+      labelDefinition: mockLabelDefinition,
+      labeler: mockLabeler,
+      noOverride: false,
+      children: html`<div>Hidden content</div>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector("moderation-warning");
+    assert(!warning.hasAttribute("no-override"));
+  });
+});

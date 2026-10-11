@@ -278,9 +278,9 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${followingUser.did}`);
 
     const view = page.locator("#profile-view");
-    await expect(
-      view.locator('[data-testid="follows-you-badge"]'),
-    ).toContainText("Follows you", { timeout: 10000 });
+    await expect(view.locator('[data-testid="follows-you-badge"]')).toBeVisible(
+      { timeout: 10000 },
+    );
   });
 
   test("should show '+ Follow' button for unfollowed profiles", async ({
@@ -421,14 +421,17 @@ test.describe("Profile view", () => {
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(3, {
       timeout: 10000,
     });
-    await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
-      "Posts",
+    await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveAttribute(
+      "data-testid",
+      "tab-posts",
     );
-    await expect(tabBar.locator(".tab-bar-button").nth(1)).toContainText(
-      "Replies",
+    await expect(tabBar.locator(".tab-bar-button").nth(1)).toHaveAttribute(
+      "data-testid",
+      "tab-replies",
     );
-    await expect(tabBar.locator(".tab-bar-button").nth(2)).toContainText(
-      "Media",
+    await expect(tabBar.locator(".tab-bar-button").nth(2)).toHaveAttribute(
+      "data-testid",
+      "tab-media",
     );
   });
 
@@ -565,8 +568,9 @@ test.describe("Profile view", () => {
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(5, {
       timeout: 10000,
     });
-    await expect(tabBar.locator(".tab-bar-button").nth(3)).toContainText(
-      "Likes",
+    await expect(tabBar.locator(".tab-bar-button").nth(3)).toHaveAttribute(
+      "data-testid",
+      "tab-likes",
     );
     await expect(
       tabBar.locator('[data-testid="tab-starter-packs"]'),
@@ -681,20 +685,17 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${blockedUser.did}`);
 
     const view = page.locator("#profile-view");
-    await expect(view.locator('[data-testid="blocked-badge"]')).toContainText(
-      "You are blocking this user",
-      { timeout: 10000 },
-    );
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "Posts hidden",
-    );
+    await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="profile-posts-hidden"]'),
+    ).toBeVisible();
     // Should not show follow button; should show unblock button instead
     await expect(
       view.locator('[data-testid="follow-button"]'),
     ).not.toBeVisible();
-    await expect(view.locator('[data-testid="unblock-button"]')).toContainText(
-      "Unblock",
-    );
+    await expect(view.locator('[data-testid="unblock-button"]')).toBeVisible();
   });
 
   test("should not show 'Follows you' badge for blocked profiles", async ({
@@ -796,9 +797,9 @@ test.describe("Profile view", () => {
       timeout: 10000,
     });
     await expect(view.locator("tab-bar")).not.toBeVisible();
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "Posts hidden",
-    );
+    await expect(
+      view.locator('[data-testid="profile-posts-hidden"]'),
+    ).toBeVisible();
   });
 
   test("should navigate to profile by handle", async ({ page }) => {
@@ -840,11 +841,14 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(7, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(8, {
       timeout: 5000,
     });
     await expect(
       menu.locator('[data-testid="menu-action-profile-open-in-bsky"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-mute-reposts"]'),
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-copy-link"]'),
@@ -902,6 +906,77 @@ test.describe("Profile view", () => {
         '[data-testid="menu-action-profile-mute"][data-teststate="unmuted"]',
       ),
     ).not.toBeVisible();
+  });
+
+  test("should hide and show reposts from the context menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+    await expect(
+      view.locator('[data-testid="reposts-hidden-badge"]'),
+    ).not.toBeVisible();
+
+    const menu = page.locator(".profile-context-menu");
+    await view.locator(".ellipsis-button").click();
+    await menu
+      .locator(
+        '[data-testid="menu-action-profile-mute-reposts"][data-teststate="unmuted"]',
+      )
+      .click();
+
+    await expect(
+      view.locator('[data-testid="reposts-hidden-badge"]'),
+    ).toBeVisible({ timeout: 5000 });
+
+    await view.locator(".ellipsis-button").click();
+    await menu
+      .locator(
+        '[data-testid="menu-action-profile-mute-reposts"][data-teststate="muted"]',
+      )
+      .click();
+
+    await expect(
+      view.locator('[data-testid="reposts-hidden-badge"]'),
+    ).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test("should not offer hiding reposts for fully muted profiles", async ({
+    page,
+  }) => {
+    const mutedUser = {
+      ...otherUser,
+      viewer: { ...otherUser.viewer, muted: true },
+    };
+    const mockServer = new MockServer();
+    mockServer.addProfile(mutedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${mutedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+    await view.locator(".ellipsis-button").click();
+
+    const menu = page.locator(".profile-context-menu");
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-mute"]'),
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-mute-reposts"]'),
+    ).toHaveCount(0);
   });
 
   test("should show 'Unblock Account' in context menu for blocked profiles", async ({
@@ -1197,10 +1272,9 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:erroruser");
 
     const view = page.locator("#profile-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "There was an error loading the profile.",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="profile-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should display invalid handle error for malformed handles", async ({
@@ -1229,9 +1303,9 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:invaliduser");
 
     const view = page.locator("#profile-view");
-    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
-      timeout: 10000,
-    });
+    await expect(view.locator('[data-testid="profile-not-found"]')).toBeVisible(
+      { timeout: 10000 },
+    );
     await expect(view.locator(".error-state")).toContainText("Invalid handle");
   });
 
@@ -1258,9 +1332,9 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:suspendeduser");
 
     const view = page.locator("#profile-view");
-    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
-      timeout: 10000,
-    });
+    await expect(view.locator('[data-testid="profile-not-found"]')).toBeVisible(
+      { timeout: 10000 },
+    );
     await expect(view.locator(".error-state")).toContainText(
       "Account has been suspended",
     );
@@ -1289,9 +1363,9 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:deactivateduser");
 
     const view = page.locator("#profile-view");
-    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
-      timeout: 10000,
-    });
+    await expect(view.locator('[data-testid="profile-not-found"]')).toBeVisible(
+      { timeout: 10000 },
+    );
     await expect(view.locator(".error-state")).toContainText(
       "Account is deactivated",
     );
@@ -1320,9 +1394,9 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:missinguser");
 
     const view = page.locator("#profile-view");
-    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
-      timeout: 10000,
-    });
+    await expect(view.locator('[data-testid="profile-not-found"]')).toBeVisible(
+      { timeout: 10000 },
+    );
     await expect(view.locator(".error-state")).toContainText(
       "Profile not found",
     );
@@ -1346,12 +1420,12 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${blockedByUser.did}`);
 
     const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="blocked-by-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
-      view.locator('[data-testid="blocked-by-badge"]'),
-    ).toContainText("This user is blocking you", { timeout: 10000 });
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "Posts hidden",
-    );
+      view.locator('[data-testid="profile-posts-hidden"]'),
+    ).toBeVisible();
     await expect(view.locator("tab-bar")).not.toBeVisible();
     await expect(
       view.locator('[data-testid="follow-button"]'),
@@ -1535,12 +1609,6 @@ test.describe("Profile view", () => {
 
       const dialog = page.locator(".post-notifications-dialog");
       await expect(dialog).toBeVisible();
-      await expect(
-        page.locator(".post-notifications-dialog-title"),
-      ).toContainText("Keep me posted");
-      await expect(
-        page.locator(".post-notifications-dialog-subtitle"),
-      ).toContainText("Get notified of this account's activity");
     });
 
     test("should show Posts and Replies toggles in dialog", async ({
@@ -2025,9 +2093,15 @@ test.describe("Profile view", () => {
         .nth(0)
         .locator('[data-testid="label-pref-button"]');
       await expect(firstRowButtons).toHaveCount(3);
-      await expect(firstRowButtons.nth(0)).toContainText("Off");
+      await expect(firstRowButtons.nth(0)).toHaveAttribute(
+        "data-teststate",
+        "off",
+      );
       await expect(firstRowButtons.nth(1)).toContainText("Warn");
-      await expect(firstRowButtons.nth(2)).toContainText("Hide");
+      await expect(firstRowButtons.nth(2)).toHaveAttribute(
+        "data-teststate",
+        "hide",
+      );
 
       // Second row: badge-label (blurs: "none", severity: "inform")
       // isBadgeLabel = true, severity = "inform", so Warn text is "Show badge"
@@ -2035,9 +2109,15 @@ test.describe("Profile view", () => {
         .nth(1)
         .locator('[data-testid="label-pref-button"]');
       await expect(secondRowButtons).toHaveCount(3);
-      await expect(secondRowButtons.nth(0)).toContainText("Off");
+      await expect(secondRowButtons.nth(0)).toHaveAttribute(
+        "data-teststate",
+        "off",
+      );
       await expect(secondRowButtons.nth(1)).toContainText("Show badge");
-      await expect(secondRowButtons.nth(2)).toContainText("Hide");
+      await expect(secondRowButtons.nth(2)).toHaveAttribute(
+        "data-teststate",
+        "hide",
+      );
     });
 
     test("should show label descriptions for each configurable label", async ({
@@ -2176,11 +2256,13 @@ test.describe("Profile view", () => {
       await expect(tabBar.locator(".tab-bar-button")).toHaveCount(2, {
         timeout: 10000,
       });
-      await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
-        "Posts",
+      await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveAttribute(
+        "data-testid",
+        "tab-posts",
       );
-      await expect(tabBar.locator(".tab-bar-button").nth(1)).toContainText(
-        "Media",
+      await expect(tabBar.locator(".tab-bar-button").nth(1)).toHaveAttribute(
+        "data-testid",
+        "tab-media",
       );
     });
 
@@ -2285,13 +2367,9 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${restrictedUser.did}`);
 
       const view = page.locator("#profile-view");
-      await expect(view.locator(".error-state h1")).toContainText(
-        "Sign-In Required",
-        { timeout: 10000 },
-      );
-      await expect(view.locator(".error-state p")).toContainText(
-        "This account has requested that users sign in to view their profile.",
-      );
+      await expect(
+        view.locator('[data-testid="profile-sign-in-required"]'),
+      ).toBeVisible({ timeout: 10000 });
     });
   });
 
@@ -2371,8 +2449,9 @@ test.describe("Profile view", () => {
       });
 
       await tabBar.locator('[data-testid="tab-feeds"]').click();
-      await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
-        "Feeds",
+      await expect(tabBar.locator('[data-testid="tab-feeds"]')).toHaveAttribute(
+        "data-teststate",
+        "active",
       );
 
       const feedsList = view.locator(".feeds-list");

@@ -251,7 +251,9 @@ export default async function feedsView({
           },
         })}
         <main>
-          <div class="feeds-list-header">Pinned Feeds</div>
+          <div class="feeds-list-header" data-testid="feeds-list-header">
+            Pinned Feeds
+          </div>
           ${paginatedListTemplate({
             items: orderedItems,
             renderItem: (item) => {

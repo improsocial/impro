@@ -1,4 +1,5 @@
 import { Signal, ReactiveStore, PersistedReactiveStore } from "/js/signals.js";
+import { getDefaultPostLanguageHistory } from "/js/utils.js";
 
 const LEGACY_SELECTED_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
 const LEGACY_DISPLAY_PREFERENCES_STORAGE_KEY = "display-preferences";
@@ -73,5 +74,8 @@ export function createSessionState(session) {
   // The home view's selected feed, shared with the pinned feeds pane
   sessionState.$selectedFeedUri = new Signal.State(null);
   sessionState.$trendingHidden = new Signal.State(false);
+  sessionState.$postLanguageHistory = new Signal.State(
+    getDefaultPostLanguageHistory(),
+  );
   return sessionState;
 }

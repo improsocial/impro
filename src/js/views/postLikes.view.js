@@ -28,7 +28,7 @@ export default async function postLikesView({
 
   function likesErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="likes-error">
       <div>Error loading likes</div>
       ${tryAgainButtonTemplate()}
     </div>`;

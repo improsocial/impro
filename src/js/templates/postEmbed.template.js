@@ -39,6 +39,7 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
     ? moderationWarningTemplate({
         labelDefinition: mediaLabel.labelDefinition,
         labeler: mediaLabel.labeler,
+        noOverride: mediaLabel.noOverride,
         isAuthorLabel: false,
         children,
       })
@@ -72,7 +73,13 @@ function notFoundQuoteTemplate() {
   </div>`;
 }
 
-function mutedWrapperTemplate({ isMuted, label, iconStyle, children }) {
+function mutedWrapperTemplate({
+  isMuted,
+  label,
+  iconStyle,
+  noOverride,
+  children,
+}) {
   if (isMuted) {
     return html`<moderation-warning
       @click=${(e) => {
@@ -85,6 +92,7 @@ function mutedWrapperTemplate({ isMuted, label, iconStyle, children }) {
       class="quoted-account-muted-warning"
       label=${label}
       icon-style=${iconStyle}
+      ?no-override=${noOverride}
       >${children}</moderation-warning
     >`;
   }
@@ -169,6 +177,7 @@ export function quotedPostTemplate({
   let isMuted = false;
   let mutedLabel = null;
   let mutedIconStyle = "info";
+  let mutedNoOverride = false;
   if (quotedPost.hasMutedWord) {
     isMuted = true;
     mutedLabel = "Hidden by muted word";
@@ -194,6 +203,7 @@ export function quotedPostTemplate({
     );
     mutedLabel = labelName;
     mutedIconStyle = "info";
+    mutedNoOverride = contentLabel.noOverride;
     const isAuthorLabel = contentLabel.label.uri === quotedPost?.author?.did;
     if (isAuthorLabel) {
       mutedLabel += " (Account)";
@@ -213,6 +223,7 @@ export function quotedPostTemplate({
         isMuted,
         label: mutedLabel,
         iconStyle: mutedIconStyle,
+        noOverride: mutedNoOverride,
         children: html`
           <div class="quoted-post-header">
             ${avatarTemplate({
@@ -301,7 +312,9 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
         : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
-    ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
+    ${image.alt
+      ? html`<div class="alt-indicator" data-testid="image-alt-badge">ALT</div>`
+      : ""}
   </div>`;
 }
 

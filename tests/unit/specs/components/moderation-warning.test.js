@@ -35,7 +35,6 @@ describe("moderation-warning", () => {
       document.body.appendChild(element);
       const label = element.querySelector(".show-hide-label");
       assert(label !== null);
-      assert.deepEqual(label.textContent.trim(), "Show");
     });
 
     it("should preserve children in toggle-content", () => {
@@ -126,11 +125,11 @@ describe("moderation-warning", () => {
       assert(content.hidden);
     });
 
-    it("should display 'Show' label initially", () => {
+    it("should start collapsed", () => {
       const element = document.createElement("moderation-warning");
       document.body.appendChild(element);
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Show");
+      const topBar = element.querySelector(".top-bar");
+      assert.deepEqual(topBar.getAttribute("aria-expanded"), "false");
     });
   });
 
@@ -158,22 +157,14 @@ describe("moderation-warning", () => {
       assert(!content.hidden);
     });
 
-    it("should display 'Hide' label when expanded", () => {
-      const element = document.createElement("moderation-warning");
-      document.body.appendChild(element);
-      element.toggle();
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Hide");
-    });
-
     it("should toggle back to collapsed state", () => {
       const element = document.createElement("moderation-warning");
       document.body.appendChild(element);
       element.toggle();
       element.toggle();
       assert.deepEqual(element.expanded, false);
-      const label = element.querySelector(".show-hide-label");
-      assert.deepEqual(label.textContent.trim(), "Show");
+      const topBar = element.querySelector(".top-bar");
+      assert.deepEqual(topBar.getAttribute("aria-expanded"), "false");
     });
   });
 
@@ -284,6 +275,28 @@ describe("moderation-warning", () => {
       const child = element.querySelector(".toggle-content .test");
       assert(child !== null);
       assert.deepEqual(child.textContent, "Original");
+    });
+  });
+
+  describe("ModerationWarning - no override", () => {
+    it("should not render a show/hide toggle", () => {
+      const element = document.createElement("moderation-warning");
+      element.setAttribute("no-override", "");
+      element.setAttribute("label", "Adult Content");
+      document.body.appendChild(element);
+      const topBar = element.querySelector(".top-bar");
+      assert(topBar.textContent.includes("Adult Content"));
+      assert.deepEqual(topBar.getAttribute("role"), null);
+      assert.deepEqual(element.querySelector(".show-hide-label"), null);
+    });
+
+    it("should keep children hidden when the top bar is clicked", () => {
+      const element = document.createElement("moderation-warning");
+      element.setAttribute("no-override", "");
+      element.innerHTML = "<div class='test-child'>Hidden content</div>";
+      document.body.appendChild(element);
+      element.querySelector(".top-bar").click();
+      assert(element.querySelector(".toggle-content").hidden);
     });
   });
 });

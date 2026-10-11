@@ -24,19 +24,21 @@ test.describe("Feeds view", () => {
     await page.goto("/feeds");
 
     const feedsView = page.locator("#feeds-view");
-    await expect(
-      feedsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Feeds", { timeout: 10000 });
-
-    await expect(feedsView.locator(".feeds-list-header")).toContainText(
-      "Pinned Feeds",
+    await expect(feedsView.locator('[data-testid="header-title"]')).toBeVisible(
+      { timeout: 10000 },
     );
+
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-header"]'),
+    ).toBeVisible();
 
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
       timeout: 10000,
     });
 
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
     await expect(feedsView).toContainText("Trending");
     await expect(feedsView).toContainText("by @creator1.bsky.social");
     await expect(feedsView).toContainText("Science");
@@ -120,15 +122,17 @@ test.describe("Feeds view", () => {
     await page.goto("/feeds");
 
     const feedsView = page.locator("#feeds-view");
-    await expect(
-      feedsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Feeds", { timeout: 10000 });
+    await expect(feedsView.locator('[data-testid="header-title"]')).toBeVisible(
+      { timeout: 10000 },
+    );
 
     await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
     });
 
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
   });
 
   test("should display pinned lists alongside pinned feeds", async ({
@@ -159,7 +163,9 @@ test.describe("Feeds view", () => {
       timeout: 10000,
     });
 
-    await expect(feedsView).toContainText("Following");
+    await expect(
+      feedsView.locator('[data-testid="feeds-list-item-following"]'),
+    ).toBeVisible();
     await expect(feedsView).toContainText("Trending");
     await expect(feedsView).toContainText("My Curated List");
     await expect(feedsView).toContainText("by @creator2.bsky.social");
@@ -283,10 +289,14 @@ test.describe("Feeds view", () => {
       await expect(
         feedsView.locator(".feeds-list-item").first(),
       ).toHaveAttribute("data-pinned-value", feedA.uri);
-      const titlesAfterDrag = await feedsView
-        .locator(".feeds-list-item-title")
-        .allTextContents();
-      expect(titlesAfterDrag).toEqual(["Feed A", "Feed B", "Following"]);
+      const pinnedValuesAfterDrag = await feedsView
+        .locator(".feeds-list-item")
+        .evaluateAll((items) => items.map((item) => item.dataset.pinnedValue));
+      expect(pinnedValuesAfterDrag).toEqual([
+        feedA.uri,
+        feedB.uri,
+        "following",
+      ]);
 
       const putRequest = page.waitForRequest(
         (req) =>
@@ -406,10 +416,14 @@ test.describe("Feeds view", () => {
         feedsView.locator('[data-testid="feeds-cancel-button"]'),
       ).toHaveCount(0);
 
-      const titlesAfterCancel = await feedsView
-        .locator(".feeds-list-item-title")
-        .allTextContents();
-      expect(titlesAfterCancel).toEqual(["Following", "Feed A", "Feed B"]);
+      const pinnedValuesAfterCancel = await feedsView
+        .locator(".feeds-list-item")
+        .evaluateAll((items) => items.map((item) => item.dataset.pinnedValue));
+      expect(pinnedValuesAfterCancel).toEqual([
+        "following",
+        feedA.uri,
+        feedB.uri,
+      ]);
       expect(sawPut).toBe(false);
     });
 
@@ -488,10 +502,10 @@ test.describe("Feeds view", () => {
 
       await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2);
 
-      const titlesAfterUnpin = await feedsView
-        .locator(".feeds-list-item-title")
-        .allTextContents();
-      expect(titlesAfterUnpin).toEqual(["Following", "Feed B"]);
+      const pinnedValuesAfterUnpin = await feedsView
+        .locator(".feeds-list-item")
+        .evaluateAll((items) => items.map((item) => item.dataset.pinnedValue));
+      expect(pinnedValuesAfterUnpin).toEqual(["following", feedB.uri]);
       expect(sawPut).toBe(false);
     });
 
@@ -633,10 +647,14 @@ test.describe("Feeds view", () => {
       await expect(
         feedsView.locator('[data-testid="feeds-edit-button"]'),
       ).toBeVisible();
-      const titlesAfterCancel = await feedsView
-        .locator(".feeds-list-item-title")
-        .allTextContents();
-      expect(titlesAfterCancel).toEqual(["Following", "Feed A", "Feed B"]);
+      const pinnedValuesAfterCancel = await feedsView
+        .locator(".feeds-list-item")
+        .evaluateAll((items) => items.map((item) => item.dataset.pinnedValue));
+      expect(pinnedValuesAfterCancel).toEqual([
+        "following",
+        feedA.uri,
+        feedB.uri,
+      ]);
       expect(sawPut).toBe(false);
     });
 
@@ -742,10 +760,14 @@ test.describe("Feeds view", () => {
       await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
         timeout: 10000,
       });
-      const titlesAfterReturn = await feedsView
-        .locator(".feeds-list-item-title")
-        .allTextContents();
-      expect(titlesAfterReturn).toEqual(["Following", "Feed A", "Feed B"]);
+      const pinnedValuesAfterReturn = await feedsView
+        .locator(".feeds-list-item")
+        .evaluateAll((items) => items.map((item) => item.dataset.pinnedValue));
+      expect(pinnedValuesAfterReturn).toEqual([
+        "following",
+        feedA.uri,
+        feedB.uri,
+      ]);
       await expect(
         feedsView.locator('[data-testid="feeds-edit-button"]'),
       ).toBeVisible();

@@ -573,6 +573,26 @@ describe("atproto handle resolution", () => {
       assert.deepEqual(resolver.handleToDidMap.has("did:plc:aaaa"), false);
     });
 
+    it("keeps the cached endpoint when the same DID is supplied for the handle", async () => {
+      stubMiniDoc(endpoint);
+      const resolver = new IdentityResolver();
+      await resolver.resolveEndpoint("alice.example");
+      const callsAfterFirst = globalThis.fetch.calls.length;
+      resolver.setDidForHandle("alice.example", "did:plc:aaaa");
+      await resolver.resolveEndpoint("alice.example");
+      assert.deepEqual(globalThis.fetch.calls.length, callsAfterFirst);
+    });
+
+    it("drops the cached endpoint when a different DID is supplied for the handle", async () => {
+      stubMiniDoc(endpoint);
+      const resolver = new IdentityResolver();
+      await resolver.resolveEndpoint("alice.example");
+      const callsAfterFirst = globalThis.fetch.calls.length;
+      resolver.setDidForHandle("alice.example", "did:plc:bbbb");
+      await resolver.resolveEndpoint("alice.example");
+      assert(globalThis.fetch.calls.length > callsAfterFirst);
+    });
+
     it("caches a not-found for the duration of the not-found TTL", async () => {
       stubMiniDoc({ error: "InvalidRequest" }, 400);
       stubDid(null);

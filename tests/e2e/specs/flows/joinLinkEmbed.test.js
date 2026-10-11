@@ -165,8 +165,9 @@ test.describe("Join link embed flows", () => {
       ).toHaveAttribute("data-teststate", "copy", { timeout: 10000 });
       await page.locator('[data-testid="join-link-embed-action"]').click();
 
-      await expect(page.locator('[data-testid="toast"]')).toContainText(
-        "Copied to clipboard",
+      await expect(page.locator('[data-testid="toast"]')).toHaveAttribute(
+        "data-teststate",
+        "success",
       );
 
       if (browserName === "chromium") {
@@ -255,9 +256,7 @@ test.describe("Join link embed flows", () => {
       });
       await action.click();
 
-      await expect(page.locator('[data-testid="modal-title"]')).toContainText(
-        "Request pending",
-      );
+      await expect(page.locator('[data-testid="alert-modal"]')).toBeVisible();
     });
   });
 
@@ -335,8 +334,9 @@ test.describe("Join link embed flows", () => {
 
       await page.locator('[data-testid="modal-confirm-button"]').click();
 
-      await expect(page.locator('[data-testid="toast"]')).toContainText(
-        "Could not send join request",
+      await expect(page.locator('[data-testid="toast"]')).toHaveAttribute(
+        "data-teststate",
+        "error",
       );
       await expect(
         page.locator('[data-testid="modal-confirm-button"]'),

@@ -1,5 +1,9 @@
 import { deepClone, SimpleUUID } from "/js/utils.js";
-import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
+import {
+  pinPostInFeed,
+  unpinPostInFeed,
+  replaceQuotedPost,
+} from "/js/dataHelpers.js";
 import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 
 // The store saves patch data for optimistic updates.
@@ -127,6 +131,8 @@ export class PatchStore extends ReactiveStore {
             embeddingDisabled: patchBody.embeddingDisabled,
           },
         };
+      case "setQuotedPost":
+        return replaceQuotedPost(post, patchBody.quotedPost);
       case "setThreadgateAllow": {
         const record = {
           $type: "app.bsky.feed.threadgate",
@@ -138,6 +144,27 @@ export class PatchStore extends ReactiveStore {
         } else {
           record.allow = patchBody.allow;
         }
+        return {
+          ...post,
+          threadgate: {
+            lists: [],
+            ...post.threadgate,
+            record,
+          },
+        };
+      }
+      case "setThreadgateHiddenReply": {
+        const record = {
+          $type: "app.bsky.feed.threadgate",
+          post: post.uri,
+          ...post.threadgate?.record,
+        };
+        const otherUris = (record.hiddenReplies ?? []).filter(
+          (uri) => uri !== patchBody.replyUri,
+        );
+        record.hiddenReplies = patchBody.hidden
+          ? [...otherUris, patchBody.replyUri]
+          : otherUris;
         return {
           ...post,
           threadgate: {
@@ -216,6 +243,7 @@ export class PatchStore extends ReactiveStore {
           viewer: {
             ...profile.viewer,
             muted: true,
+            mutedOnlyReposts: false,
           },
         };
       case "unmuteProfile":
@@ -224,6 +252,23 @@ export class PatchStore extends ReactiveStore {
           viewer: {
             ...profile.viewer,
             muted: false,
+            mutedOnlyReposts: false,
+          },
+        };
+      case "muteProfileReposts":
+        return {
+          ...profile,
+          viewer: {
+            ...profile.viewer,
+            mutedOnlyReposts: true,
+          },
+        };
+      case "unmuteProfileReposts":
+        return {
+          ...profile,
+          viewer: {
+            ...profile.viewer,
+            mutedOnlyReposts: false,
           },
         };
       case "blockProfile":
@@ -451,6 +496,8 @@ export class PatchStore extends ReactiveStore {
         return preferences.removeRecentSearch(patchBody.q);
       case "removeRecentSearchProfile":
         return preferences.removeRecentSearchProfile(patchBody.did);
+      case "setThreadView":
+        return preferences.setThreadView(patchBody.view);
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

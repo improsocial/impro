@@ -67,6 +67,24 @@ test.describe("Trending pane", () => {
     await expect(page.locator('[data-testid="trending-pane"]')).toHaveCount(0);
   });
 
+  test("defers fetching trends until the pane is shown", async ({ page }) => {
+    const trendRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("app.bsky.unspecced.getTrends")) {
+        trendRequests.push(request);
+      }
+    });
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/");
+    await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
+    await page.waitForLoadState("networkidle");
+    expect(trendRequests).toHaveLength(0);
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.locator('[data-testid="trending-row"]')).toHaveCount(2);
+    expect(trendRequests).toHaveLength(1);
+  });
+
   test("stays hidden after being dismissed", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator('[data-testid="trending-pane"]')).toBeVisible({

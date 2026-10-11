@@ -139,7 +139,11 @@ test.describe("Delete post flow", () => {
       1,
       { timeout: 10000 },
     );
-    await expect(notificationsView).toContainText("liked your post");
+    await expect(
+      notificationsView.locator(
+        '[data-testid="notification-item"][data-teststate="like"]',
+      ),
+    ).toBeVisible();
 
     // Delete the post from the profile view
     await page.goto(`/profile/${userProfile.did}`);
@@ -155,10 +159,9 @@ test.describe("Delete post flow", () => {
 
     // Notification should now be hidden because the post is a notFoundPost
     await page.goto("/notifications");
-    await expect(notificationsView.locator(".feed-end-message")).toContainText(
-      "No notifications yet!",
-      { timeout: 10000 },
-    );
+    await expect(
+      notificationsView.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({ timeout: 10000 });
     await expect(notificationsView.locator(".notification-item")).toHaveCount(
       0,
     );

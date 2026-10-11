@@ -17,6 +17,10 @@ export class VideoValidationError extends Error {
   }
 }
 
+export function isGifFile(file) {
+  return file.type === "image/gif";
+}
+
 export function validateVideoFile(file) {
   if (!VIDEO_MIME_TYPES.includes(file.type)) {
     throw new VideoValidationError(
@@ -32,7 +36,31 @@ export function validateVideoFile(file) {
   }
 }
 
+function readGifMetadata(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      URL.revokeObjectURL(url);
+      const aspectRatio = width > 0 && height > 0 ? { width, height } : null;
+      resolve({ duration: null, width, height, aspectRatio });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(
+        new VideoValidationError("Could not read GIF file.", "UNREADABLE"),
+      );
+    };
+    image.src = url;
+  });
+}
+
 export function readVideoMetadata(file) {
+  if (isGifFile(file)) {
+    return readGifMetadata(file);
+  }
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     video.preload = "metadata";

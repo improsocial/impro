@@ -60,6 +60,26 @@ export class ProfileInteractionHandler {
     }
   }
 
+  async handleMuteReposts(profile, doMute) {
+    if (doMute) {
+      try {
+        await this.dataLayer.mutations.muteProfileReposts(profile);
+        showToast("Reposts will be hidden in feeds");
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to hide reposts", { style: "error" });
+      }
+    } else {
+      try {
+        await this.dataLayer.mutations.unmuteProfileReposts(profile);
+        showToast("Reposts will be shown in feeds");
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to show reposts", { style: "error" });
+      }
+    }
+  }
+
   async handleBlock(profile, doBlock) {
     if (doBlock) {
       const confirmed = await confirmModal(

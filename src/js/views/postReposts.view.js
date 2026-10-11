@@ -28,7 +28,7 @@ export default async function postRepostsView({
 
   function repostsErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="reposts-error">
       <div>Error loading reposts</div>
       ${tryAgainButtonTemplate()}
     </div>`;

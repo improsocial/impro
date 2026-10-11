@@ -38,10 +38,9 @@ test.describe("Post quotes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
 
     const view = page.locator("#post-quotes-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Quotes",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
       "2 quotes",
@@ -95,15 +94,13 @@ test.describe("Post quotes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
 
     const view = page.locator("#post-quotes-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Quotes",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await expect(view.locator(".feed-end-message")).toContainText(
-      "No quotes yet.",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should display error state when quotes fail to load", async ({
@@ -126,10 +123,9 @@ test.describe("Post quotes view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
 
     const view = page.locator("#post-quotes-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading quotes",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="quotes-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test.describe("Logged-out behavior", () => {
@@ -142,10 +138,9 @@ test.describe("Post quotes view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
 
       const view = page.locator("#post-quotes-view");
-      await expect(view.locator('[data-testid="header-title"]')).toContainText(
-        "Quotes",
-        { timeout: 10000 },
-      );
+      await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+        timeout: 10000,
+      });
 
       await expect(view.locator('[data-testid="small-post"]')).toHaveCount(2, {
         timeout: 10000,

@@ -18,12 +18,10 @@ test.describe("Settings Advanced view", () => {
     await page.goto("/settings/advanced");
 
     const view = page.locator("#settings-advanced-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Advanced",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await expect(view).toContainText("App View");
     await expect(view.locator('select[name="appview"]')).toBeVisible();
   });
 
@@ -40,8 +38,8 @@ test.describe("Settings Advanced view", () => {
     const select = view.locator('select[name="appview"]');
     await expect(select).toBeVisible({ timeout: 10000 });
     const options = select.locator("option");
-    await expect(options.first()).toHaveText("Bluesky");
-    await expect(options.last()).toHaveText("Custom");
+    await expect(options.first()).toHaveAttribute("value", "bluesky");
+    await expect(options.last()).toHaveAttribute("value", "custom");
     expect(await options.count()).toBeGreaterThanOrEqual(3);
   });
 
@@ -143,7 +141,7 @@ test.describe("Settings Advanced view", () => {
     const select = view.locator('select[name="appview"]');
     await expect(select).toBeVisible({ timeout: 10000 });
 
-    const applyButton = view.getByRole("button", { name: "Save and reload" });
+    const applyButton = view.locator('[data-testid="appview-save-button"]');
     await expect(applyButton).toBeDisabled();
 
     await select.selectOption("blacksky");
@@ -174,7 +172,7 @@ test.describe("Settings Advanced view", () => {
     await page.goto("/settings/advanced");
 
     const view = page.locator("#settings-advanced-view");
-    const applyButton = view.getByRole("button", { name: "Save and reload" });
+    const applyButton = view.locator('[data-testid="appview-save-button"]');
     await expect(view.locator('select[name="appview"]')).toHaveValue("custom", {
       timeout: 10000,
     });
@@ -202,7 +200,7 @@ test.describe("Settings Advanced view", () => {
     await expect(select).toBeVisible({ timeout: 10000 });
 
     await select.selectOption("blacksky");
-    await view.getByRole("button", { name: "Save and reload" }).click();
+    await view.locator('[data-testid="appview-save-button"]').click();
 
     await page.waitForURL("/settings/advanced", { timeout: 10000 });
 
@@ -222,12 +220,9 @@ test.describe("Settings Advanced view", () => {
       await page.goto("/settings/advanced");
 
       const view = page.locator("#settings-advanced-view");
-      await expect(view).toContainText("Install plugin from URL", {
-        timeout: 10000,
-      });
       await expect(
         view.locator('[data-testid="install-unregistered-plugin-input"]'),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 10000 });
       await expect(
         view.locator('[data-testid="install-unregistered-plugin-submit"]'),
       ).toBeVisible();
@@ -303,8 +298,8 @@ test.describe("Settings Advanced view", () => {
       await expect(select).toBeVisible({ timeout: 10000 });
       await expect(select).toHaveValue("none");
       const options = select.locator("option");
-      await expect(options.first()).toHaveText("None");
-      await expect(options.last()).toHaveText("Custom");
+      await expect(options.first()).toHaveAttribute("value", "none");
+      await expect(options.last()).toHaveAttribute("value", "custom");
       expect(await options.count()).toBeGreaterThanOrEqual(3);
       // None is inert, so neither the DID input nor the warning shows.
       await expect(

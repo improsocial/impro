@@ -1,10 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import {
-  createPost,
-  createThreadViewPost,
-} from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
+import { createPost, createThreadViewPost } from "../../../shared/factories.js";
 
 const postUri = "at://did:plc:author1/app.bsky.feed.post/abc123";
 
@@ -77,10 +75,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Post",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
       timeout: 10000,
@@ -684,10 +681,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".post-thread-reply-prompt")).toContainText(
-      "Write your reply",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="post-thread-reply-prompt"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should display post action counts on the main post", async ({
@@ -874,10 +870,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".post-thread-reply-prompt")).toContainText(
-      "Write your reply",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="post-thread-reply-prompt"]'),
+    ).toBeVisible({ timeout: 10000 });
 
     // Click the reply prompt to open the composer
     await view.locator(".post-thread-reply-prompt").click();
@@ -979,7 +974,9 @@ test.describe("Post thread view", () => {
       });
       await expect(view).toContainText("This is the main post");
       await expect(
-        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+        view.locator(
+          '[data-testid="large-post"] [data-testid="repost-button"]',
+        ),
       ).toBeVisible();
       await expect(
         view.locator('[data-testid="thread-load-error"]'),
@@ -1031,7 +1028,9 @@ test.describe("Post thread view", () => {
       });
       await expect(view).toContainText("This is the main post");
       await expect(
-        view.locator('[data-testid="large-post"] [data-testid="repost-button"]'),
+        view.locator(
+          '[data-testid="large-post"] [data-testid="repost-button"]',
+        ),
       ).not.toBeAttached();
       await expect(
         view.locator('[data-testid="thread-load-error"]'),
@@ -1157,10 +1156,9 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/restricted.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      await expect(view).toContainText(
-        "This author has chosen to make their posts visible only to people who are signed in.",
-        { timeout: 10000 },
-      );
+      await expect(
+        view.locator('[data-testid="no-unauthenticated-message"]'),
+      ).toBeVisible({ timeout: 10000 });
       await expect(view).not.toContainText("This post is restricted");
     });
 
@@ -1206,10 +1204,9 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      await expect(view).toContainText(
-        "This author has chosen to make their posts visible only to people who are signed in.",
-        { timeout: 10000 },
-      );
+      await expect(
+        view.locator('[data-testid="no-unauthenticated-message"]'),
+      ).toBeVisible({ timeout: 10000 });
       await expect(view).not.toContainText("Restricted parent");
       await expect(view).toContainText("This is a reply to restricted parent");
     });
@@ -1276,6 +1273,339 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test.describe("Threaded view", () => {
+    // Builds a linear reply chain under the main post: reply depth 1 → depth n
+    function setupReplyChain(mockServer, depth) {
+      const replies = Array.from({ length: depth }).map((_, index) =>
+        createPost({
+          uri: `at://did:plc:nested${index}/app.bsky.feed.post/nested${index}`,
+          text: `Nested reply ${index + 1}`,
+          authorHandle: `nested${index}.bsky.social`,
+          replyCount: index < depth - 1 ? 1 : 0,
+        }),
+      );
+      let node = null;
+      for (const reply of replies.toReversed()) {
+        node = createThreadViewPost({
+          post: reply,
+          replies: node ? [node] : [],
+        });
+      }
+      const anchorPost = createPost({
+        uri: postUri,
+        text: "Threaded main post",
+        authorHandle: "author1.bsky.social",
+        replyCount: 2,
+      });
+      const siblingReply = createPost({
+        uri: "at://did:plc:sibling/app.bsky.feed.post/sibling",
+        text: "Sibling reply",
+        authorHandle: "sibling.bsky.social",
+        likeCount: 0,
+      });
+      mockServer.addPosts([anchorPost, siblingReply, ...replies]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: anchorPost,
+          replies: [
+            node,
+            createThreadViewPost({ post: siblingReply, replies: [] }),
+          ],
+        }),
+      );
+      return replies;
+    }
+
+    test("should render replies as a linear reply chain by default", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view.locator(".post-thread-reply-chains")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="post-thread-tree"]'),
+      ).not.toBeAttached();
+    });
+
+    test("should render nested replies as a tree when enabled", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      await expect(tree).toBeVisible({ timeout: 10000 });
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4);
+      await expect(
+        rows.evaluateAll((elements) =>
+          elements.map((element) => element.dataset.depth),
+        ),
+      ).resolves.toEqual(["1", "2", "3", "1"]);
+      await expect(
+        tree.locator('[data-testid="thread-read-more"]'),
+      ).not.toBeAttached();
+    });
+
+    test("should cap a reply's children and add read more rows deepest first", async ({
+      page,
+    }) => {
+      const anchorPost = createPost({
+        uri: postUri,
+        text: "Threaded main post",
+        authorHandle: "author1.bsky.social",
+        replyCount: 1,
+      });
+      const children = Array.from({ length: 12 }).map((_, index) =>
+        createPost({
+          uri: `at://did:plc:child${index}/app.bsky.feed.post/child${index}`,
+          text: `Child reply ${index}`,
+          authorHandle: `child${index}.bsky.social`,
+          likeCount: 12 - index,
+          // The last child that fits under the cap has replies the server didn't return
+          replyCount: index === 9 ? 2 : 0,
+        }),
+      );
+      const topReply = createPost({
+        uri: "at://did:plc:top/app.bsky.feed.post/top",
+        text: "Top reply",
+        authorHandle: "top.bsky.social",
+        replyCount: 12,
+      });
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      mockServer.addPosts([anchorPost, topReply, ...children]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: anchorPost,
+          replies: [
+            createThreadViewPost({
+              post: topReply,
+              replies: children.map((child) =>
+                createThreadViewPost({ post: child, replies: [] }),
+              ),
+            }),
+          ],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const tree = page.locator(
+        '#post-detail-view [data-testid="post-thread-tree"]',
+      );
+      await expect(tree).toBeVisible({ timeout: 10000 });
+      await expect(
+        tree.locator('[data-testid="thread-tree-reply"][data-depth="2"]'),
+      ).toHaveCount(10);
+      await expect(tree).not.toContainText("Child reply 10");
+      const readMoreLinks = tree.locator('[data-testid="thread-read-more"]');
+      await expect(
+        readMoreLinks.evaluateAll((links) =>
+          links.map((link) => link.getAttribute("href")),
+        ),
+      ).resolves.toEqual([
+        "/profile/did:plc:child9/post/child9",
+        "/profile/did:plc:top/post/top",
+      ]);
+    });
+
+    test("should show hidden replies with their visible replies in the hidden section", async ({
+      page,
+    }) => {
+      const anchorPost = createPost({
+        uri: postUri,
+        text: "Threaded main post",
+        authorHandle: "author1.bsky.social",
+        replyCount: 2,
+      });
+      const normalReply = createPost({
+        uri: "at://did:plc:normal/app.bsky.feed.post/normal",
+        text: "Normal reply",
+        authorHandle: "normal.bsky.social",
+      });
+      const mutedReply = createPost({
+        uri: "at://did:plc:muted/app.bsky.feed.post/muted",
+        text: "Reply from muted user",
+        authorHandle: "muted.bsky.social",
+        authorViewer: { muted: true },
+        replyCount: 1,
+      });
+      const replyToMuted = createPost({
+        uri: "at://did:plc:child/app.bsky.feed.post/child",
+        text: "Reply to the muted user",
+        authorHandle: "child.bsky.social",
+      });
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      mockServer.addPosts([anchorPost, normalReply, mutedReply, replyToMuted]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: anchorPost,
+          replies: [
+            createThreadViewPost({ post: normalReply, replies: [] }),
+            createThreadViewPost({
+              post: mutedReply,
+              replies: [
+                createThreadViewPost({ post: replyToMuted, replies: [] }),
+              ],
+            }),
+          ],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      await expect(tree).toContainText("Normal reply", { timeout: 10000 });
+      await expect(tree).not.toContainText("Reply from muted user");
+      await expect(tree).not.toContainText("Reply to the muted user");
+
+      const hiddenSection = view.locator("hidden-replies-section");
+      await hiddenSection.locator(".hidden-replies-button").click();
+      const hiddenRows = hiddenSection.locator(
+        '[data-testid="thread-tree-reply"]',
+      );
+      await expect(hiddenRows).toHaveCount(2);
+      await expect(hiddenRows.nth(0)).toContainText("Reply from muted user");
+      await expect(hiddenRows.nth(1)).toHaveAttribute("data-depth", "2");
+      await expect(hiddenRows.nth(1)).toContainText("Reply to the muted user");
+    });
+
+    test("should keep the read more link after deleting a loaded reply", async ({
+      page,
+    }) => {
+      const anchorPost = createPost({
+        uri: postUri,
+        text: "Threaded main post",
+        authorHandle: "author1.bsky.social",
+        replyCount: 1,
+      });
+      const topReply = createPost({
+        uri: "at://did:plc:top/app.bsky.feed.post/top",
+        text: "Top reply",
+        authorHandle: "top.bsky.social",
+        replyCount: 3,
+      });
+      const replyRef = {
+        parent: { uri: topReply.uri, cid: topReply.cid },
+        root: { uri: anchorPost.uri, cid: anchorPost.cid },
+      };
+      const ownReply = createPost({
+        uri: `at://${userProfile.did}/app.bsky.feed.post/own`,
+        text: "My reply to delete",
+        authorHandle: userProfile.handle,
+        likeCount: 10,
+        reply: replyRef,
+      });
+      const otherReply = createPost({
+        uri: "at://did:plc:other/app.bsky.feed.post/other",
+        text: "Other reply",
+        authorHandle: "other.bsky.social",
+        reply: replyRef,
+      });
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      mockServer.addPosts([anchorPost, topReply, ownReply, otherReply]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: anchorPost,
+          replies: [
+            createThreadViewPost({
+              post: topReply,
+              replies: [
+                createThreadViewPost({ post: ownReply, replies: [] }),
+                createThreadViewPost({ post: otherReply, replies: [] }),
+              ],
+            }),
+          ],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const tree = page.locator(
+        '#post-detail-view [data-testid="post-thread-tree"]',
+      );
+      const nestedRows = tree.locator(
+        '[data-testid="thread-tree-reply"][data-depth="2"]',
+      );
+      await expect(nestedRows).toHaveCount(2, { timeout: 10000 });
+      const readMore = tree.locator('[data-testid="thread-read-more"]');
+      await expect(readMore).toHaveAttribute(
+        "href",
+        "/profile/did:plc:top/post/top",
+      );
+
+      await nestedRows.nth(0).locator(".text-button").click();
+      await page.locator('[data-testid="menu-action-post-delete"]').click();
+      await page.locator("button.confirm-button").click();
+
+      await expect(nestedRows).toHaveCount(1);
+      await expect(readMore).toHaveAttribute(
+        "href",
+        "/profile/did:plc:top/post/top",
+      );
+    });
+
+    test.describe("on mobile", () => {
+      test.use({ viewport: { width: 375, height: 667 } });
+
+      test("should cut deep replies off with a read more link", async ({
+        page,
+      }) => {
+        const mockServer = new MockServer();
+        mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+        setupReplyChain(mockServer, 5);
+        await mockServer.setup(page);
+
+        await login(page);
+        await page.goto("/profile/author1.bsky.social/post/abc123");
+
+        const tree = page.locator(
+          '#post-detail-view [data-testid="post-thread-tree"]',
+        );
+        await expect(tree).toBeVisible({ timeout: 10000 });
+        await expect(
+          tree.locator('[data-testid="thread-tree-reply"][data-depth="4"]'),
+        ).toHaveCount(1);
+        await expect(
+          tree.locator('[data-testid="thread-tree-reply"][data-depth="5"]'),
+        ).toHaveCount(0);
+        const readMore = tree.locator('[data-testid="thread-read-more"]');
+        await expect(readMore).toHaveAttribute(
+          "href",
+          "/profile/did:plc:nested3/post/nested3",
+        );
+      });
+    });
+  });
+
   test.describe("Hidden replies section", () => {
     test("should place muted account replies in the hidden section", async ({
       page,
@@ -1338,8 +1668,8 @@ test.describe("Post thread view", () => {
       const hiddenSection = view.locator("hidden-replies-section");
       await expect(hiddenSection).toBeVisible();
       await expect(
-        hiddenSection.locator(".hidden-replies-button"),
-      ).toContainText("Show more replies");
+        hiddenSection.locator('[data-testid="hidden-replies-button"]'),
+      ).toBeVisible();
     });
 
     test("should place content-labeled replies in the hidden section", async ({
@@ -1543,6 +1873,10 @@ test.describe("Post thread view", () => {
         text: "Normal reply",
         authorHandle: "replier1.bsky.social",
         authorDisplayName: "Replier One",
+        reply: {
+          root: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+          parent: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+        },
       });
 
       const hiddenReply = createPost({
@@ -1550,6 +1884,10 @@ test.describe("Post thread view", () => {
         text: "Sentiment-hidden reply content",
         authorHandle: "replier2.bsky.social",
         authorDisplayName: "Replier Two",
+        reply: {
+          root: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+          parent: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+        },
       });
 
       const mockServer = new MockServer();
@@ -1590,8 +1928,8 @@ test.describe("Post thread view", () => {
       const hiddenSection = view.locator("hidden-replies-section");
       await expect(hiddenSection).toBeVisible();
       await expect(
-        hiddenSection.locator(".hidden-replies-button"),
-      ).toContainText("Show more replies");
+        hiddenSection.locator('[data-testid="hidden-replies-button"]'),
+      ).toBeVisible();
     });
 
     test("should not affect replies when getPostThreadOtherV2 returns empty", async ({
@@ -1670,6 +2008,10 @@ test.describe("Post thread view", () => {
         text: "Normal reply",
         authorHandle: "replier1.bsky.social",
         authorDisplayName: "Replier One",
+        reply: {
+          root: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+          parent: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+        },
       });
 
       const hiddenReply = createPost({
@@ -1677,6 +2019,10 @@ test.describe("Post thread view", () => {
         text: "Sentiment-hidden reply revealed",
         authorHandle: "replier2.bsky.social",
         authorDisplayName: "Replier Two",
+        reply: {
+          root: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+          parent: { uri: postWithReplies.uri, cid: postWithReplies.cid },
+        },
       });
 
       const mockServer = new MockServer();
@@ -1905,7 +2251,7 @@ test.describe("Post thread view", () => {
       const view = page.locator("#post-detail-view");
       const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Hidden by muted word");
+      await expect(toggle).toHaveAttribute("data-teststate", "muted-word");
     });
 
     test("should show 'Post hidden by you' label for parent with viewer.isHidden", async ({
@@ -1951,7 +2297,7 @@ test.describe("Post thread view", () => {
       const view = page.locator("#post-detail-view");
       const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Post hidden by you");
+      await expect(toggle).toHaveAttribute("data-teststate", "hidden");
     });
   });
 
@@ -2211,7 +2557,7 @@ test.describe("Post thread view", () => {
         timeout: 10000,
       });
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Everybody can reply");
+      await expect(badge).toHaveAttribute("data-teststate", "everybody");
       await expect(
         badge.locator('app-icon[icon="globe-grid-line"]'),
       ).toBeVisible();
@@ -2241,11 +2587,15 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Replies disabled", { timeout: 10000 });
+      await expect(badge).toHaveAttribute("data-teststate", "nobody", {
+        timeout: 10000,
+      });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("Replies to this post are disabled.");
+      await expect(
+        modal.locator('[data-testid="who-can-reply-rule"]'),
+      ).toHaveAttribute("data-teststate", "nobody");
 
       await modal.locator(".primary-button").click();
       await expect(modal).not.toBeAttached();
@@ -2289,13 +2639,17 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Some people can reply", {
+      await expect(badge).toHaveAttribute("data-teststate", "limited", {
         timeout: 10000,
       });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("mentioned users");
+      await expect(
+        modal.locator(
+          '[data-testid="who-can-reply-rule-item"][data-teststate="mention"]',
+        ),
+      ).toBeVisible();
       await expect(modal).toContainText(
         "users followed by @author1.bsky.social",
       );
@@ -2321,14 +2675,18 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const badge = page.locator('[data-testid="who-can-reply-badge"]');
-      await expect(badge).toHaveText("Everybody can reply", { timeout: 10000 });
+      await expect(badge).toHaveAttribute("data-teststate", "everybody", {
+        timeout: 10000,
+      });
 
       await badge.click();
       const modal = page.locator('[data-testid="who-can-reply-modal"]');
-      await expect(modal).toContainText("Everybody can reply to this post.");
-      await expect(modal).toContainText(
-        "No one but the author can quote this post.",
-      );
+      await expect(
+        modal.locator('[data-testid="who-can-reply-rule"]'),
+      ).toHaveAttribute("data-teststate", "everybody");
+      await expect(
+        modal.locator('[data-testid="who-can-reply-quote-disabled"]'),
+      ).toBeVisible();
     });
   });
 
@@ -2420,7 +2778,11 @@ test.describe("Post thread view", () => {
         root,
         replyCount: 2,
       });
-      const third = opPost("third1", { text: "Third post", parent: second, root });
+      const third = opPost("third1", {
+        text: "Third post",
+        parent: second,
+        root,
+      });
       const other = createPost({
         uri: "at://did:plc:other/app.bsky.feed.post/other1",
         text: "Someone else's reply",

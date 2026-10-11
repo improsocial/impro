@@ -9,6 +9,7 @@ import {
   classnames,
   isAndroid,
   isFirefox,
+  isNil,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
@@ -16,6 +17,8 @@ import {
   getRKey,
   canReplyToPost,
   getFeedGeneratorProxyUrl,
+  getOwnQuoteEmbed,
+  isThreadRootAuthor,
 } from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
 import { SignInModal } from "/js/modals/signIn.modal.js";
@@ -54,6 +57,8 @@ function postContextMenuTemplate({
   isAuthenticated,
   isUserPost,
   isPinnedToProfile,
+  ownQuoteEmbed,
+  canHideReplyForEveryone,
   enableFeedFeedback,
   feedContext,
   pluginItems,
@@ -67,9 +72,11 @@ function postContextMenuTemplate({
   onClickDelete,
   onClickPin,
   onClickEditInteractionSettings,
+  onClickToggleQuoteDetachment,
+  onClickToggleReplyHiddenForEveryone,
 }) {
   const canPin = isUserPost && !post.record?.reply;
-  const canEditInteractionSettings = isUserPost && !post.record?.reply;
+  const canHidePostForMe = !post.viewer?.isHidden;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
     ${isAuthenticated && canPin
@@ -154,16 +161,66 @@ function postContextMenuTemplate({
           </context-menu-item-group>
           ${!isUserPost
             ? html`
-                ${!post.viewer?.isHidden
+                ${canHidePostForMe || ownQuoteEmbed || canHideReplyForEveryone
                   ? html`
                       <context-menu-item-group>
-                        <context-menu-item
-                          data-testid="menu-action-post-hide"
-                          icon="eye-off-line"
-                          @click=${() => onClickHidePost(post)}
-                        >
-                          Hide ${post.record?.reply ? "reply" : "post"} for me
-                        </context-menu-item>
+                        ${canHidePostForMe
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-hide"
+                                icon="eye-off-line"
+                                @click=${() => onClickHidePost(post)}
+                              >
+                                Hide ${post.record?.reply ? "reply" : "post"}
+                                for me
+                              </context-menu-item>
+                            `
+                          : null}
+                        ${canHideReplyForEveryone
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-toggle-reply-hidden"
+                                data-teststate=${post.isHiddenByThreadgate
+                                  ? "hidden"
+                                  : "shown"}
+                                icon=${post.isHiddenByThreadgate
+                                  ? "eye-line"
+                                  : "eye-off-line"}
+                                @click=${() =>
+                                  onClickToggleReplyHiddenForEveryone(
+                                    post,
+                                    !post.isHiddenByThreadgate,
+                                  )}
+                              >
+                                ${post.isHiddenByThreadgate
+                                  ? "Show reply for everyone"
+                                  : "Hide reply for everyone"}
+                              </context-menu-item>
+                            `
+                          : null}
+                        ${ownQuoteEmbed
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-toggle-quote-detachment"
+                                data-teststate=${ownQuoteEmbed.isDetached
+                                  ? "detached"
+                                  : "attached"}
+                                icon=${ownQuoteEmbed.isDetached
+                                  ? "eye-line"
+                                  : "eye-off-line"}
+                                @click=${() =>
+                                  onClickToggleQuoteDetachment(
+                                    post,
+                                    ownQuoteEmbed.uri,
+                                    !ownQuoteEmbed.isDetached,
+                                  )}
+                              >
+                                ${ownQuoteEmbed.isDetached
+                                  ? "Re-attach quote"
+                                  : "Detach quote"}
+                              </context-menu-item>
+                            `
+                          : null}
                       </context-menu-item-group>
                     `
                   : null}
@@ -214,17 +271,13 @@ function postContextMenuTemplate({
           ${isUserPost
             ? html`
                 <context-menu-item-group>
-                  ${canEditInteractionSettings
-                    ? html`
-                        <context-menu-item
-                          data-testid="menu-action-interaction-settings"
-                          icon="settings-cog-line"
-                          @click=${() => onClickEditInteractionSettings(post)}
-                        >
-                          Edit interaction settings
-                        </context-menu-item>
-                      `
-                    : null}
+                  <context-menu-item
+                    data-testid="menu-action-interaction-settings"
+                    icon="settings-cog-line"
+                    @click=${() => onClickEditInteractionSettings(post)}
+                  >
+                    Edit interaction settings
+                  </context-menu-item>
                   <context-menu-item
                     data-testid="menu-action-post-delete"
                     icon="delete-bin-line"
@@ -333,6 +386,7 @@ function repostMenuTemplate({
     </context-menu-item>
     <context-menu-item
       data-testid="menu-action-quote-post"
+      data-teststate=${canQuotePost ? "quotable" : "quotes-disabled"}
       ?disabled=${!canQuotePost || !currentUser}
       icon="quote-line"
       @click=${() => {
@@ -402,6 +456,8 @@ export function postActionBarTemplate({
   onClickReport = noop,
   onClickPin = noop,
   onClickEditInteractionSettings = noop,
+  onClickToggleQuoteDetachment = noop,
+  onClickToggleReplyHiddenForEveryone = noop,
   enableFeedFeedback = false,
   pluginService,
 }) {
@@ -415,6 +471,14 @@ export function postActionBarTemplate({
   const isBookmarked = !!post.viewer?.bookmarked;
   const canQuotePost = !post.viewer?.embeddingDisabled;
   const canReply = canReplyToPost(post);
+  const ownQuoteEmbed = currentUser
+    ? getOwnQuoteEmbed(post, currentUser.did)
+    : null;
+  const canHideReplyForEveryone =
+    !isUserPost &&
+    !!currentUser &&
+    !isNil(post.isHiddenByThreadgate) &&
+    isThreadRootAuthor(post, currentUser.did);
   return html`
     <div class="post-actions">
       <div class="post-actions-primary">
@@ -554,6 +618,8 @@ export function postActionBarTemplate({
                 isAuthenticated,
                 isUserPost,
                 isPinnedToProfile,
+                ownQuoteEmbed,
+                canHideReplyForEveryone,
                 enableFeedFeedback,
                 feedContext,
                 feedGenerator,
@@ -568,6 +634,8 @@ export function postActionBarTemplate({
                 onClickDelete,
                 onClickPin,
                 onClickEditInteractionSettings,
+                onClickToggleQuoteDetachment,
+                onClickToggleReplyHiddenForEveryone,
               });
             }}
           >

@@ -36,7 +36,10 @@ test.describe("Pinned feeds pane", () => {
     await expect(pane).toBeVisible();
     const items = pane.locator('[data-testid="pinned-feeds-item"]');
     await expect(items).toHaveCount(2, { timeout: 10000 });
-    await expect(items.nth(0)).toContainText("Following");
+    await expect(items.nth(0)).toHaveAttribute(
+      "data-pinned-value",
+      "following",
+    );
     await expect(items.nth(1)).toContainText("Trending");
     await expect(
       pane.locator('[data-testid="pinned-feeds-more"]'),
@@ -48,8 +51,9 @@ test.describe("Pinned feeds pane", () => {
   }) => {
     await page.goto("/");
     const view = page.locator("#home-view");
-    await expect(view.locator(".tab-bar-button.active")).toContainText(
-      "Following",
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveAttribute(
+      "data-teststate",
+      "active",
       { timeout: 10000 },
     );
 
@@ -94,5 +98,30 @@ test.describe("Pinned feeds pane", () => {
 
     await expect(page).toHaveURL("/feeds");
     await expect(page.locator("#feeds-view")).toBeVisible({ timeout: 10000 });
+  });
+
+  test("defers loading pinned feeds until the pane is shown", async ({
+    page,
+  }) => {
+    const feedGeneratorRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("app.bsky.feed.getFeedGenerators")) {
+        feedGeneratorRequests.push(request);
+      }
+    });
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/notifications");
+    await expect(page.locator("#notifications-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await page.waitForLoadState("networkidle");
+    expect(feedGeneratorRequests).toHaveLength(0);
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.locator('[data-testid="pinned-feeds-item"]')).toHaveCount(
+      2,
+      { timeout: 10000 },
+    );
+    expect(feedGeneratorRequests).toHaveLength(1);
   });
 });

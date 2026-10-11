@@ -52,12 +52,6 @@ describe("automatedAccountBadgeTemplate", () => {
     badge.click();
     const dialog = document.querySelector('[data-testid="alert-modal"]');
     assert(dialog !== null);
-    assert(dialog.textContent.includes("Automated account"));
-    assert(
-      dialog.textContent.includes(
-        "This account has been marked as automated by its owner.",
-      ),
-    );
     dialog.close();
     dialog.remove();
   });

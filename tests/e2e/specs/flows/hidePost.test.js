@@ -114,7 +114,7 @@ test.describe("Hide post flow", () => {
     // The reply should show a "Post hidden by you" moderation warning
     const warning = view.locator("moderation-warning");
     await expect(warning).toBeVisible({ timeout: 10000 });
-    await expect(warning).toContainText("Post hidden by you");
+    await expect(warning).toHaveAttribute("data-teststate", "hidden");
 
     // Expanding the warning should reveal the content
     await warning.locator(".top-bar").click();

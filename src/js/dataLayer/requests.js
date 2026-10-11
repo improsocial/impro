@@ -15,6 +15,7 @@ import {
   getJoinLinkCodesFromMessages,
   getPostsFromPostThread,
   getPostsFromFeed,
+  getRepostersFromFeed,
   buildProfileFromRecord,
 } from "/js/dataHelpers.js";
 import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
@@ -547,6 +548,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
+    this.dataStore.setProfiles(getRepostersFromFeed(feed));
     this.dataStore.setPostNumberingForFeed(feed);
     await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
     writePageToCollection(this.dataStore.$feeds, "feed", feed, {
@@ -786,9 +788,7 @@ export class Requests {
       return;
     }
     const feeds = searchData.feeds || [];
-    for (const feed of feeds) {
-      this.dataStore.$feedGenerators.set(feed.uri, feed);
-    }
+    this.dataStore.setFeedGenerators(feeds);
     const existingResults = this.dataStore.$feedSearchResults.get();
     if (existingResults && cursor) {
       this.dataStore.$feedSearchResults.set({
@@ -834,8 +834,8 @@ export class Requests {
       if (existingUris.has(starterPack.uri)) continue;
       existingUris.add(starterPack.uri);
       starterPacks.push(starterPack);
-      this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
     }
+    this.dataStore.setStarterPacks(starterPacks);
     if (existingResults && cursor) {
       this.dataStore.$starterPackSearchResults.set({
         starterPacks: [...existingResults.starterPacks, ...starterPacks],
@@ -925,6 +925,7 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
+    this.dataStore.setProfiles(getRepostersFromFeed(feed));
     this.dataStore.setPostNumberingForFeed(feed);
     // Save feed
     writePageToCollection(this.dataStore.$authorFeeds, "feed", feed, {
@@ -1262,11 +1263,13 @@ export class Requests {
   async loadFeedGenerator(feedUri) {
     const feedGeneratorData = await this.api.getFeedGenerator(feedUri);
     this.dataStore.$feedGenerators.set(feedUri, feedGeneratorData);
+    this.dataStore.setProfiles([feedGeneratorData.creator]);
   }
 
   async loadList(listUri) {
     const data = await this.api.getList(listUri, { limit: 1 });
     this.dataStore.$lists.set(listUri, data.list);
+    this.dataStore.setProfiles([data.list.creator]);
   }
 
   async loadStarterPackUriForList(list) {
@@ -1293,6 +1296,7 @@ export class Requests {
   async loadStarterPack(starterPackUri) {
     const starterPack = await this.api.getStarterPack(starterPackUri);
     this.dataStore.$starterPacks.set(starterPackUri, starterPack);
+    this.dataStore.setProfiles([starterPack.creator]);
   }
 
   async loadListMembers(listUri, { reload = false, limit = 50 } = {}) {
@@ -1349,12 +1353,8 @@ export class Requests {
       .filter((result) => result.status === "fulfilled")
       .map((result) => result.value.list);
 
-    for (const feedGenerator of feedGenerators) {
-      this.dataStore.$feedGenerators.set(feedGenerator.uri, feedGenerator);
-    }
-    for (const listView of listViews) {
-      this.dataStore.$lists.set(listView.uri, listView);
-    }
+    this.dataStore.setFeedGenerators(feedGenerators);
+    this.dataStore.setLists(listViews);
     const feedGeneratorMap = new Map(feedGenerators.map((fg) => [fg.uri, fg]));
     const listViewMap = new Map(listViews.map((lv) => [lv.uri, lv]));
 
@@ -1386,9 +1386,7 @@ export class Requests {
       ? ""
       : readCollectionCursor(this.dataStore.$actorFeeds, { key: did });
     const data = await this.api.getActorFeeds(did, { limit, cursor });
-    for (const feed of data.feeds) {
-      this.dataStore.$feedGenerators.set(feed.uri, feed);
-    }
+    this.dataStore.setFeedGenerators(data.feeds);
     writePageToCollection(this.dataStore.$actorFeeds, "feeds", data, {
       key: did,
       requestCursor: cursor,
@@ -1405,9 +1403,7 @@ export class Requests {
       ? ""
       : readCollectionCursor(this.dataStore.$actorLists, { key: did });
     const data = await this.api.getActorLists(did, { limit, cursor });
-    for (const list of data.lists) {
-      this.dataStore.$lists.set(list.uri, list);
-    }
+    this.dataStore.setLists(data.lists);
     writePageToCollection(this.dataStore.$actorLists, "lists", data, {
       key: did,
       requestCursor: cursor,
@@ -1424,12 +1420,12 @@ export class Requests {
       ? ""
       : readCollectionCursor(this.dataStore.$actorStarterPacks, { key: did });
     const data = await this.api.getActorStarterPacks(did, { limit, cursor });
-    for (const starterPack of data.starterPacks) {
-      const existingPack = this.dataStore.$starterPacks.get(starterPack.uri);
-      if (!existingPack?.list) {
-        this.dataStore.$starterPacks.set(starterPack.uri, starterPack);
-      }
-    }
+    this.dataStore.setStarterPacks(
+      data.starterPacks.filter(
+        (starterPack) =>
+          !this.dataStore.$starterPacks.get(starterPack.uri)?.list,
+      ),
+    );
     writePageToCollection(
       this.dataStore.$actorStarterPacks,
       "starterPacks",
@@ -1445,9 +1441,7 @@ export class Requests {
   async loadPopularFeeds({ limit = 30 } = {}) {
     const data = await this.api.getPopularFeedGenerators({ limit });
     const feeds = data.feeds ?? [];
-    for (const feed of feeds) {
-      this.dataStore.$feedGenerators.set(feed.uri, feed);
-    }
+    this.dataStore.setFeedGenerators(feeds);
     this.dataStore.$popularFeeds.set(feeds);
   }
 

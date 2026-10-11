@@ -33,7 +33,11 @@ test.describe("Remote plugin install flow", () => {
     const installButton = listing.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
-    await expect(installButton).toHaveText("Install", { timeout: 10000 });
+    await expect(installButton).toHaveAttribute(
+      "data-teststate",
+      "not-installed",
+      { timeout: 10000 },
+    );
     const putPrefs = page.waitForResponse((res) =>
       res.url().includes("app.bsky.actor.putPreferences"),
     );

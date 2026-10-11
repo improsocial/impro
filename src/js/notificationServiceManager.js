@@ -9,6 +9,7 @@ import { html } from "/js/lib/lit-html.js";
 
 export class NotificationServiceManager {
   constructor({ session, api, auth, router }) {
+    this.router = router;
     this.notificationService = session ? new NotificationService(api) : null;
     this.chatNotificationService = session
       ? new ChatNotificationService(api)
@@ -81,10 +82,20 @@ export class NotificationServiceManager {
         this.chatNotificationService
           ?.fetchNumNotifications()
           .catch(console.error);
+      } else if (event.data?.type === "notification-click") {
+        this._openNotificationUrl(event.data.url);
       }
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
     return () =>
       navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }
+
+  _openNotificationUrl(url) {
+    if (url === this.router.currentPath) {
+      window.dispatchEvent(new CustomEvent("notification-open"));
+    } else {
+      this.router.go(url);
+    }
   }
 }

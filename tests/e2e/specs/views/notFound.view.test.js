@@ -15,10 +15,10 @@ test.describe("Not Found view", () => {
       '[data-testid="view-column-center"] #not-found-view',
     );
     await expect(
-      notFoundView.getByRole("heading", { name: "Page not found" }),
+      notFoundView.locator('[data-testid="page-not-found"]'),
     ).toBeVisible();
     await expect(
-      notFoundView.getByRole("link", { name: "Go home" }),
+      notFoundView.locator('[data-testid="go-home-link"]'),
     ).toBeVisible();
   });
 
@@ -48,7 +48,7 @@ test.describe("Not Found view", () => {
 
     await page
       .locator("#not-found-view")
-      .getByRole("link", { name: "Go home" })
+      .locator('[data-testid="go-home-link"]')
       .click();
 
     await expect(page).toHaveURL("/");

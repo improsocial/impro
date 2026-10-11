@@ -26,6 +26,7 @@ class HiddenRepliesSection extends Component {
         >
           <div
             class="hidden-replies-button"
+            data-testid="hidden-replies-button"
             tabindex="0"
             role="button"
             ?hidden=${this.expanded}

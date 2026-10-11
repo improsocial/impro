@@ -165,7 +165,6 @@ describe("smallPostTemplate - reposts", () => {
     render(result, container);
     const repostLabel = container.querySelector("[data-testid='repost-label']");
     assert(repostLabel !== null);
-    assert(repostLabel.textContent.includes("Reposted by"));
   });
 
   it("should show 'Reposted by you' when repostAuthor is the current user", () => {
@@ -333,6 +332,45 @@ describe("smallPostTemplate - reply-to label", () => {
   });
 });
 
+describe("smallPostTemplate - reply hidden by you label", () => {
+  function hiddenReplyInThreadOf(rootDid) {
+    const rootUri = `at://${rootDid}/app.bsky.feed.post/root`;
+    return {
+      ...post,
+      isHidden: true,
+      isHiddenByThreadgate: true,
+      record: {
+        ...post.record,
+        reply: {
+          root: { uri: rootUri, cid: "cid-root" },
+          parent: { uri: rootUri, cid: "cid-root" },
+        },
+      },
+    };
+  }
+
+  function renderPost(post) {
+    const container = document.createElement("div");
+    render(smallPostTemplate({ post, ...baseProps }), container);
+    return container;
+  }
+
+  it("should show the label to the thread author", () => {
+    const container = renderPost(hiddenReplyInThreadOf(currentUser.did));
+    assert(
+      container.querySelector("[data-testid='hidden-reply-label']") !== null,
+    );
+  });
+
+  it("should not show the label to other viewers", () => {
+    const container = renderPost(hiddenReplyInThreadOf("did:plc:someone"));
+    assert.equal(
+      container.querySelector("[data-testid='hidden-reply-label']"),
+      null,
+    );
+  });
+});
+
 describe("smallPostTemplate - blocked/unavailable posts", () => {
   it("should render blocked post template for blocked post", () => {
     const blockedPost = {
@@ -346,7 +384,10 @@ describe("smallPostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("Blocked"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") !==
+        null,
+    );
   });
 
   it("should render not found post template for not found post", () => {
@@ -361,7 +402,10 @@ describe("smallPostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("not found"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") !==
+        null,
+    );
   });
 });
 

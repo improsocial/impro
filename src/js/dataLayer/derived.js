@@ -167,6 +167,8 @@ export class Derived extends ReactiveStore {
       this.patchStore.hasPendingProfilePatch(did, [
         "muteProfile",
         "unmuteProfile",
+        "muteProfileReposts",
+        "unmuteProfileReposts",
       ]),
     );
     this.$patchedPosts = new ComputedMap((uri) => {
@@ -333,7 +335,25 @@ export class Derived extends ReactiveStore {
       if (isEmptyPost(postThread)) {
         return postThread;
       }
-      const hiddenReplyUris = new Set(postThreadOther.map((item) => item.uri));
+      const rootPost = this.$hydratedPosts.get(
+        getReplyRootFromPost(postThread.post).uri,
+      );
+      const isOtherHiddenByThreadgate = (item) =>
+        !!item.value?.hiddenByThreadgate;
+      const hiddenReplyUris = {
+        server: new Set(
+          postThreadOther
+            .filter((item) => !isOtherHiddenByThreadgate(item))
+            .map((item) => item.uri),
+        ),
+        threadgate: new Set(
+          rootPost
+            ? (rootPost.threadgate?.record?.hiddenReplies ?? [])
+            : postThreadOther
+                .filter(isOtherHiddenByThreadgate)
+                .map((item) => item.uri),
+        ),
+      };
       const hydrated = this.hydratePostThreadNode(postThread, hiddenReplyUris);
       if (!hydrated) {
         return null;
@@ -365,13 +385,17 @@ export class Derived extends ReactiveStore {
       };
     });
     this.$feedGenerators = new ComputedMap((feedUri) =>
-      this.dataStore.$feedGenerators.get(feedUri),
+      this.hydrateCreator(this.dataStore.$feedGenerators.get(feedUri)),
     );
     this.$lists = new ComputedMap((listUri) =>
-      this.applyReferenceListOptOut(this.dataStore.$lists.get(listUri)),
+      this.hydrateCreator(
+        this.applyReferenceListOptOut(this.dataStore.$lists.get(listUri)),
+      ),
     );
     this.$starterPacks = new ComputedMap((starterPackUri) => {
-      const starterPack = this.dataStore.$starterPacks.get(starterPackUri);
+      const starterPack = this.hydrateCreator(
+        this.dataStore.$starterPacks.get(starterPackUri),
+      );
       if (!starterPack?.list) return starterPack;
       return {
         ...starterPack,
@@ -436,15 +460,20 @@ export class Derived extends ReactiveStore {
     this.$feedSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$feedSearchResults.get();
       if (!data) return null;
-      return data.feeds;
+      return data.feeds.map((feedGenerator) =>
+        this.hydrateCreator(feedGenerator),
+      );
     });
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
     );
-    this.$starterPackSearchResults = new Signal.Computed(
-      () =>
-        this.dataStore.$starterPackSearchResults.get()?.starterPacks ?? null,
-    );
+    this.$starterPackSearchResults = new Signal.Computed(() => {
+      const data = this.dataStore.$starterPackSearchResults.get();
+      if (!data) return null;
+      return data.starterPacks.map((starterPack) =>
+        this.hydrateCreator(starterPack),
+      );
+    });
     this.$starterPackSearchCursor = new Signal.Computed(
       () => this.dataStore.$starterPackSearchResults.get()?.cursor ?? null,
     );
@@ -459,6 +488,11 @@ export class Derived extends ReactiveStore {
       if (!preferences) return [];
       return preferences.getRecentGifs();
     });
+    this.$threadView = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      if (!preferences) return null;
+      return preferences.getThreadView();
+    });
     this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
     this.$chatActorStatus = new Signal.Computed(() =>
       this.dataStore.$chatActorStatus.get(),
@@ -468,6 +502,9 @@ export class Derived extends ReactiveStore {
     );
     this.$trendingHidden = new Signal.Computed(() =>
       this.sessionState.$trendingHidden.get(),
+    );
+    this.$postLanguageHistory = new Signal.Computed(() =>
+      this.sessionState.$postLanguageHistory.get(),
     );
     this.$postSearchResultsTop = new Signal.Computed(() =>
       this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
@@ -512,7 +549,7 @@ export class Derived extends ReactiveStore {
         if (item.type === "list") {
           return {
             type: "list",
-            data: item.data,
+            data: this.hydrateCreator(item.data),
             uri: item.data.uri,
             displayName: item.data.name,
           };
@@ -566,20 +603,38 @@ export class Derived extends ReactiveStore {
       }
       return filterAuthorFeed(hydratedFeed, this.isAuthenticated);
     });
-    this.$actorFeeds = new ComputedMap((did) =>
-      this.dataStore.$actorFeeds.get(did),
-    );
-    this.$actorLists = new ComputedMap((did) =>
-      this.dataStore.$actorLists.get(did),
-    );
-    this.$actorStarterPacks = new ComputedMap((did) =>
-      this.dataStore.$actorStarterPacks.get(did),
-    );
+    this.$actorFeeds = new ComputedMap((did) => {
+      const data = this.dataStore.$actorFeeds.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        feeds: data.feeds.map((feed) => this.hydrateCreator(feed)),
+      };
+    });
+    this.$actorLists = new ComputedMap((did) => {
+      const data = this.dataStore.$actorLists.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        lists: data.lists.map((list) => this.hydrateCreator(list)),
+      };
+    });
+    this.$actorStarterPacks = new ComputedMap((did) => {
+      const data = this.dataStore.$actorStarterPacks.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        starterPacks: data.starterPacks.map((starterPack) =>
+          this.hydrateCreator(starterPack),
+        ),
+      };
+    });
     this.$popularFeeds = new Signal.Computed(() => {
       const feeds = this.dataStore.$popularFeeds.get();
       if (!feeds) return null;
       return feeds.map(
-        (feed) => this.dataStore.$feedGenerators.get(feed.uri) ?? feed,
+        (feed) =>
+          this.$feedGenerators.get(feed.uri) ?? this.hydrateCreator(feed),
       );
     });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
@@ -891,6 +946,13 @@ export class Derived extends ReactiveStore {
     return result;
   }
 
+  hydrateCreator(item) {
+    if (!item) return item;
+    const storedCreator = this.$hydratedProfiles.get(item.creator.did);
+    if (!storedCreator) return item;
+    return { ...item, creator: storedCreator };
+  }
+
   hydratePost(post, preferences) {
     if (!post || !preferences) {
       return null;
@@ -1032,6 +1094,13 @@ export class Derived extends ReactiveStore {
       // NOTE: LEXICON DEVIATION
       postNumbering,
     };
+    const reposter = feedItem.reason?.by;
+    const storedReposter = reposter
+      ? this.$hydratedProfiles.get(reposter.did)
+      : null;
+    if (storedReposter) {
+      hydratedFeedItem.reason = { ...feedItem.reason, by: storedReposter };
+    }
     const reply = feedItem.reply;
     if (reply) {
       let root = reply.root;
@@ -1073,9 +1142,17 @@ export class Derived extends ReactiveStore {
       post,
       postNumbering: this.dataStore.$postNumbering.get(node.post.uri) ?? null,
     };
-    if (hiddenReplyUris.has(node.post.uri)) {
+    if (post.record?.reply) {
+      const isHiddenByThreadgate = hiddenReplyUris.threadgate.has(
+        node.post.uri,
+      );
       // NOTE: LEXICON DEVIATION
-      hydrated.post = { ...post, isHidden: true };
+      hydrated.post = {
+        ...post,
+        isHidden:
+          isHiddenByThreadgate || hiddenReplyUris.server.has(node.post.uri),
+        isHiddenByThreadgate,
+      };
     }
     if (node.replies) {
       hydrated.replies = node.replies.map((reply) => {

@@ -29,7 +29,7 @@ test.describe("Bookmarks view", () => {
     const bookmarksView = page.locator("#bookmarks-view");
     await expect(
       bookmarksView.locator('[data-testid="header-title"]'),
-    ).toContainText("Saved Posts", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await expect(
       bookmarksView.locator('[data-testid="feed-item"]'),
@@ -65,7 +65,7 @@ test.describe("Bookmarks view", () => {
 
     await expect(
       bookmarksView.locator('[data-testid="empty-state"]'),
-    ).toContainText("No saved posts yet!", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should display empty state when there are no bookmarks", async ({
@@ -80,11 +80,11 @@ test.describe("Bookmarks view", () => {
     const bookmarksView = page.locator("#bookmarks-view");
     await expect(
       bookmarksView.locator('[data-testid="header-title"]'),
-    ).toContainText("Saved Posts", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
 
     await expect(
       bookmarksView.locator('[data-testid="empty-state"]'),
-    ).toContainText("No saved posts yet!", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test.describe("Logged-out behavior", () => {

@@ -1,6 +1,10 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Mutations } from "/js/dataLayer/mutations.js";
+import {
+  Mutations,
+  DetachedQuoteLimitError,
+  HiddenReplyLimitError,
+} from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { DraftMediaStore } from "/js/drafts.js";
@@ -12,6 +16,7 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
 import { trackDisposable } from "../../testHelpers.js";
+import { isBlockedPost, MAX_HIDDEN_REPLIES } from "/js/dataHelpers.js";
 import { createPost } from "../../../shared/factories.js";
 
 function escapeRegExp(value) {
@@ -1883,6 +1888,85 @@ describe("unmuteProfile", () => {
   });
 });
 
+describe("muteProfileReposts / unmuteProfileReposts", () => {
+  const did = "did:plc:target";
+
+  function setup(mockApi = {}) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      {
+        muteActorReposts: async () => ({}),
+        unmuteActor: async () => ({}),
+        ...mockApi,
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("muteProfileReposts calls muteActorReposts and sets viewer.mutedOnlyReposts", async () => {
+    const muteActorReposts = mock.fn(async () => ({}));
+    const { mutations, dataStore } = setup({ muteActorReposts });
+
+    await mutations.muteProfileReposts({ did, viewer: {} });
+
+    assert.deepEqual(muteActorReposts.mock.calls[0].arguments, [did]);
+    assert.deepEqual(
+      dataStore.$profiles.get(did).viewer.mutedOnlyReposts,
+      true,
+    );
+  });
+
+  it("unmuteProfileReposts calls unmuteActor and clears viewer.mutedOnlyReposts", async () => {
+    const unmuteActor = mock.fn(async () => ({}));
+    const { mutations, dataStore } = setup({ unmuteActor });
+
+    await mutations.unmuteProfileReposts({
+      did,
+      viewer: { mutedOnlyReposts: true },
+    });
+
+    assert.deepEqual(unmuteActor.mock.calls[0].arguments, [did]);
+    assert.deepEqual(
+      dataStore.$profiles.get(did).viewer.mutedOnlyReposts,
+      false,
+    );
+  });
+
+  it("muteProfile replaces a reposts-only mute", async () => {
+    const { mutations, dataStore } = setup({ muteActor: async () => ({}) });
+
+    await mutations.muteProfile({ did, viewer: { mutedOnlyReposts: true } });
+
+    const viewer = dataStore.$profiles.get(did).viewer;
+    assert.deepEqual(viewer.muted, true);
+    assert.deepEqual(viewer.mutedOnlyReposts, false);
+  });
+
+  it("rethrows and clears the pending patch on failure", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const { mutations, patchStore } = setup({
+      muteActorReposts: async () => {
+        throw new Error("boom");
+      },
+    });
+    await assert.rejects(
+      mutations.muteProfileReposts({ did, viewer: {} }),
+      /boom/,
+    );
+    assert.deepEqual(
+      patchStore.hasPendingProfilePatch(did, ["muteProfileReposts"]),
+      false,
+    );
+  });
+});
+
 describe("blockProfile", () => {
   const profile = {
     did: "did:plc:target",
@@ -1897,13 +1981,14 @@ describe("blockProfile", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
     const mutations = makeMutations(
       { blockActor: async () => ({ uri: blockUri }), ...mockApi },
       dataStore,
       patchStore,
       mockPreferencesProvider,
     );
-    return { mutations, dataStore };
+    return { mutations, dataStore, derived };
   }
 
   it("should set viewer.blocking on the profile", async () => {
@@ -1950,29 +2035,22 @@ describe("blockProfile", () => {
     assert.deepEqual(dataStore.$blockedProfiles.get(), null);
   });
 
-  it("should update author viewer.blocking on cached posts by that author", async () => {
-    const { mutations, dataStore } = setup();
-    const post = {
+  it("should render cached posts by that author as blocked", async () => {
+    const { mutations, dataStore, derived } = setup();
+    const post = createPost({
       uri: "at://did:plc:target/app.bsky.feed.post/1",
-      author: { did: profile.did, viewer: {} },
-    };
-    const otherPost = {
+      authorHandle: profile.handle,
+    });
+    const otherPost = createPost({
       uri: "at://did:plc:someone/app.bsky.feed.post/1",
-      author: { did: "did:plc:someone", viewer: {} },
-    };
-    dataStore.$posts.set(post.uri, post);
-    dataStore.$posts.set(otherPost.uri, otherPost);
+      authorHandle: "someone.test",
+    });
+    dataStore.setPosts([post, otherPost]);
 
     await mutations.blockProfile(profile);
 
-    assert.deepEqual(
-      dataStore.$posts.get(post.uri).author.viewer.blocking,
-      blockUri,
-    );
-    assert.deepEqual(
-      dataStore.$posts.get(otherPost.uri).author.viewer.blocking,
-      undefined,
-    );
+    assert(isBlockedPost(derived.$hydratedPosts.get(post.uri)));
+    assert(!isBlockedPost(derived.$hydratedPosts.get(otherPost.uri)));
   });
 });
 
@@ -1989,13 +2067,14 @@ describe("unblockProfile", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
+    const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
     const mutations = makeMutations(
       { unblockActor: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
       mockPreferencesProvider,
     );
-    return { mutations, dataStore };
+    return { mutations, dataStore, derived };
   }
 
   it("should clear viewer.blocking on the profile", async () => {
@@ -2039,20 +2118,19 @@ describe("unblockProfile", () => {
     assert.deepEqual(dataStore.$blockedProfiles.get().blocks.length, 1);
   });
 
-  it("should clear author viewer.blocking on cached posts by that author", async () => {
-    const { mutations, dataStore } = setup();
-    const post = {
+  it("should stop rendering cached posts by that author as blocked", async () => {
+    const { mutations, dataStore, derived } = setup();
+    const post = createPost({
       uri: "at://did:plc:target/app.bsky.feed.post/1",
-      author: { did: profile.did, viewer: { blocking: "at://old" } },
-    };
-    dataStore.$posts.set(post.uri, post);
+      authorHandle: profile.handle,
+      authorViewer: profile.viewer,
+    });
+    dataStore.setPosts([post]);
+    assert(isBlockedPost(derived.$hydratedPosts.get(post.uri)));
 
     await mutations.unblockProfile(profile);
 
-    assert.deepEqual(
-      dataStore.$posts.get(post.uri).author.viewer.blocking,
-      null,
-    );
+    assert(!isBlockedPost(derived.$hydratedPosts.get(post.uri)));
   });
 });
 
@@ -2338,7 +2416,7 @@ describe("deleteRepost", () => {
     assert.deepEqual(stored.repostCount, 4);
   });
 
-  it("should remove the matching repost feed item from the author feed", async () => {
+  it("should keep the repost feed item in the author feed until the next reload", async () => {
     const matchingItem = {
       post: testPost,
       reason: {
@@ -2359,8 +2437,7 @@ describe("deleteRepost", () => {
     await mutations.deleteRepost(testPost);
 
     const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assert.deepEqual(feed.feed.length, 1);
-    assert.deepEqual(feed.feed[0].post.uri, otherItem.post.uri);
+    assert.deepEqual(feed.feed, [matchingItem, otherItem]);
     assert.deepEqual(feed.cursor, "c1");
   });
 });
@@ -2458,6 +2535,66 @@ describe("pinFeed", () => {
 
     updateResolve();
     await promise;
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+});
+
+describe("setThreadView", () => {
+  function setup({ updatePreferences }) {
+    const preferences = new Preferences([], []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences,
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, patchStore };
+  }
+
+  it("should save the thread view and apply an optimistic patch until it resolves", async () => {
+    let updateResolve;
+    let updatedPreferences = null;
+    const { mutations, patchStore } = setup({
+      updatePreferences: (prefs) => {
+        updatedPreferences = prefs;
+        return new Promise((resolve) => {
+          updateResolve = resolve;
+        });
+      },
+    });
+
+    const promise = mutations.setThreadView("tree");
+    const patches = patchStore.$preferencePatches.get();
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body, { type: "setThreadView", view: "tree" });
+    assert.deepEqual(
+      patchStore
+        .applyPreferencePatches(new Preferences([], []), patches)
+        .getThreadView(),
+      "tree",
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    updateResolve();
+    await promise;
+    assert.deepEqual(updatedPreferences.getThreadView(), "tree");
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+
+  it("should remove the patch and rethrow when saving fails", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const { mutations, patchStore } = setup({
+      updatePreferences: async () => {
+        throw new Error("network");
+      },
+    });
+    await assert.rejects(mutations.setThreadView("tree"), /network/);
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
@@ -3026,6 +3163,300 @@ describe("updatePostgateEmbeddingRules", () => {
   });
 });
 
+describe("toggleQuoteDetachment", () => {
+  const userDid = "did:plc:me";
+  const quotedPostUri = `at://${userDid}/app.bsky.feed.post/abc`;
+  const quotingPostUri = "at://did:plc:other/app.bsky.feed.post/quote1";
+  const quotedViewRecord = {
+    $type: "app.bsky.embed.record#viewRecord",
+    uri: quotedPostUri,
+    cid: "cid-abc",
+    author: { did: userDid, handle: "me.test" },
+    value: { text: "original" },
+  };
+  const detachedQuote = {
+    $type: "app.bsky.embed.record#viewDetached",
+    uri: quotedPostUri,
+    detached: true,
+  };
+  const quotedPost = {
+    uri: quotedPostUri,
+    cid: "cid-abc",
+    author: { did: userDid, handle: "me.test" },
+    record: { text: "original" },
+  };
+  const disableRule = { $type: "app.bsky.feed.postgate#disableRule" };
+
+  function quotingPostWith(record) {
+    return {
+      uri: quotingPostUri,
+      cid: "cid-quote",
+      author: { did: "did:plc:other", handle: "other.test", viewer: {} },
+      record: { text: "look" },
+      embed: { $type: "app.bsky.embed.record#view", record },
+      viewer: {},
+    };
+  }
+
+  function recordNotFoundError() {
+    return new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+  }
+
+  function setup(mockApi, quotingPost) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(quotingPost.uri, quotingPost);
+    return {
+      mutations: makeMutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+    };
+  }
+
+  it("creates a record and detaches the embed when there is no prior record", async () => {
+    let putArgs = null;
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi, quotingPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, true);
+
+    assert.deepEqual(putArgs.rkey, "abc");
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual(putArgs.record.post, quotedPostUri);
+    assert.deepEqual(putArgs.record.detachedEmbeddingUris, [quotingPostUri]);
+    assert.deepEqual(
+      dataStore.$posts.get(quotingPostUri).embed.record,
+      detachedQuote,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(quotingPostUri), []);
+  });
+
+  it("applies the detached embed optimistically before the write lands", async () => {
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    let patchesDuringWrite = null;
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        patchesDuringWrite = patchStore.$postPatches.get(quotingPostUri);
+        return { cid: "cid-gate" };
+      },
+    };
+    const { mutations, patchStore } = setup(mockApi, quotingPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, true);
+
+    assert.deepEqual(patchesDuringWrite.length, 1);
+    const patched = patchStore.applyPostPatches(
+      quotingPost,
+      patchesDuringWrite,
+    );
+    assert.deepEqual(patched.embed.record, detachedQuote);
+  });
+
+  it("merges into the prior record, preserving embeddingRules", async () => {
+    let putArgs = null;
+    const otherUri = "at://did:plc:third/app.bsky.feed.post/quote2";
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: quotedPostUri,
+          embeddingRules: [disableRule],
+          detachedEmbeddingUris: [otherUri],
+        },
+      }),
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations } = setup(mockApi, quotingPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, true);
+
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(putArgs.record.embeddingRules, [disableRule]);
+    assert.deepEqual(putArgs.record.detachedEmbeddingUris, [
+      otherUri,
+      quotingPostUri,
+    ]);
+  });
+
+  it("rejects detaching past the cap without writing", async () => {
+    let putCalled = false;
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    const fullUris = Array.from(
+      { length: 50 },
+      (_, i) => `at://did:plc:third/app.bsky.feed.post/q${i}`,
+    );
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: quotedPostUri,
+          detachedEmbeddingUris: fullUris,
+        },
+      }),
+      putPostgateRecord: async () => {
+        putCalled = true;
+        return { cid: "x" };
+      },
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi, quotingPost);
+
+    await assert.rejects(
+      () => mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, true),
+      DetachedQuoteLimitError,
+    );
+    assert.deepEqual(putCalled, false);
+    assert.deepEqual(patchStore.$postPatches.get(quotingPostUri), []);
+    assert.deepEqual(
+      dataStore.$posts.get(quotingPostUri).embed.record,
+      quotedViewRecord,
+    );
+  });
+
+  it("re-attaches by removing the uri and restoring the cached quote", async () => {
+    let putArgs = null;
+    const quotingPost = quotingPostWith(detachedQuote);
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: quotedPostUri,
+          embeddingRules: [disableRule],
+          detachedEmbeddingUris: [quotingPostUri],
+        },
+      }),
+      putPostgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi, quotingPost);
+    dataStore.$embeddedPosts.set(quotedPostUri, quotedPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, false);
+
+    assert.deepEqual(putArgs.record.detachedEmbeddingUris, []);
+    assert.deepEqual(putArgs.record.embeddingRules, [disableRule]);
+    const restored = dataStore.$posts.get(quotingPostUri).embed.record;
+    assert.deepEqual(restored.$type, "app.bsky.embed.record#viewRecord");
+    assert.deepEqual(restored.uri, quotedPostUri);
+    assert.deepEqual(restored.value, { text: "original" });
+  });
+
+  it("fetches the quoted post after re-attaching when it isn't cached", async () => {
+    const quotingPost = quotingPostWith(detachedQuote);
+    const mockApi = {
+      getPostgateRecord: async () => ({
+        cid: "cid-prior",
+        value: {
+          $type: "app.bsky.feed.postgate",
+          post: quotedPostUri,
+          detachedEmbeddingUris: [quotingPostUri],
+        },
+      }),
+      putPostgateRecord: async () => ({ cid: "cid-next" }),
+      getPost: async () => quotedPost,
+    };
+    const { mutations, dataStore } = setup(mockApi, quotingPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, false);
+
+    const restored = dataStore.$posts.get(quotingPostUri).embed.record;
+    assert.deepEqual(restored.$type, "app.bsky.embed.record#viewRecord");
+    assert.deepEqual(restored.uri, quotedPostUri);
+  });
+
+  it("skips the write when re-attaching with no prior record", async () => {
+    let putCalled = false;
+    const quotingPost = quotingPostWith(detachedQuote);
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        putCalled = true;
+        return { cid: "x" };
+      },
+      getPost: async () => quotedPost,
+    };
+    const { mutations } = setup(mockApi, quotingPost);
+
+    await mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, false);
+
+    assert.deepEqual(putCalled, false);
+  });
+
+  it("removes the patch and rethrows on failure", async () => {
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    const mockApi = {
+      getPostgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putPostgateRecord: async () => {
+        throw new Error("network down");
+      },
+    };
+    const { mutations, dataStore, patchStore } = setup(mockApi, quotingPost);
+
+    await assert.rejects(
+      () => mutations.toggleQuoteDetachment(quotingPost, quotedPostUri, true),
+      /network down/,
+    );
+    assert.deepEqual(patchStore.$postPatches.get(quotingPostUri), []);
+    assert.deepEqual(
+      dataStore.$posts.get(quotingPostUri).embed.record,
+      quotedViewRecord,
+    );
+  });
+
+  it("refuses to write for a quoted post the user doesn't own", async () => {
+    const quotingPost = quotingPostWith(quotedViewRecord);
+    const { mutations } = setup({}, quotingPost);
+    await assert.rejects(
+      () =>
+        mutations.toggleQuoteDetachment(
+          quotingPost,
+          "at://did:plc:other/app.bsky.feed.post/abc",
+          true,
+        ),
+      /quoted post's author/,
+    );
+  });
+});
+
 describe("updateThreadgateAllow", () => {
   const userDid = "did:plc:me";
   const postUri = `at://${userDid}/app.bsky.feed.post/abc`;
@@ -3328,6 +3759,61 @@ describe("createThread", () => {
     assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
   });
 
+  it("should insert the reply under a nested post in cached threads", async () => {
+    const rootUri = "at://did:plc:other/app.bsky.feed.post/root";
+    const nestedUri = "at://did:plc:other/app.bsky.feed.post/nested";
+    const siblingUri = "at://did:plc:other/app.bsky.feed.post/sibling";
+    const replyTo = { uri: nestedUri, cid: "cid-nested" };
+    const rootThread = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: rootUri },
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: siblingUri },
+          replies: [],
+        },
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: replyTo,
+          replies: [],
+        },
+      ],
+    };
+    const { mutations, dataStore } = setup({ replyPostThread: rootThread });
+    const siblingNode = rootThread.replies[0];
+
+    await mutations.createThread({
+      posts: [{ postText: "hi" }],
+      replyTo,
+      replyRoot: { uri: rootUri, cid: "cid-root" },
+    });
+
+    const updatedThread = dataStore.$postThreads.get(rootUri);
+    assert.notEqual(updatedThread, rootThread);
+    assert.equal(updatedThread.replies[0], siblingNode);
+    const nestedNode = updatedThread.replies[1];
+    assert.deepEqual(nestedNode.replies.length, 1);
+    assert.deepEqual(nestedNode.replies[0].post.uri, newPostUri);
+  });
+
+  it("should increment the reply count of the replied-to post", async () => {
+    const replyTo = createPost({
+      uri: "at://did:plc:other/app.bsky.feed.post/parent",
+      replyCount: 3,
+    });
+    const { mutations, dataStore } = setup();
+    dataStore.$posts.set(replyTo.uri, replyTo);
+
+    await mutations.createThread({
+      posts: [{ postText: "hi" }],
+      replyTo,
+      replyRoot: replyTo,
+    });
+
+    assert.deepEqual(dataStore.$posts.get(replyTo.uri).replyCount, 4);
+  });
+
   it("should extend the OP run numbering when the OP replies to their own thread", async () => {
     const replyTo = {
       uri: `at://${currentUserDid}/app.bsky.feed.post/root`,
@@ -3455,6 +3941,7 @@ describe("deletePost", () => {
     const post = {
       uri: "at://did:plc:me/app.bsky.feed.post/abc",
       cid: "cid-abc",
+      record: { text: "hi" },
     };
     let apiCalledWith = null;
     const dataStore = new DataStore(createSessionState(null));
@@ -3462,7 +3949,7 @@ describe("deletePost", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    dataStore.$posts.set(post.uri, { ...post, record: { text: "hi" } });
+    dataStore.$posts.set(post.uri, post);
     const mutations = makeMutations(
       {
         deletePost: async (passed) => {
@@ -3480,6 +3967,33 @@ describe("deletePost", () => {
     const stored = dataStore.$posts.get(post.uri);
     assert.deepEqual(stored.uri, post.uri);
     assert.deepEqual(stored.$type, "app.bsky.feed.defs#notFoundPost");
+  });
+
+  it("should decrement the parent's reply count when deleting a reply", async () => {
+    const parent = createPost({
+      uri: "at://did:plc:other/app.bsky.feed.post/parent",
+      replyCount: 2,
+    });
+    const reply = createPost({
+      uri: "at://did:plc:me/app.bsky.feed.post/reply",
+      reply: {
+        parent: { uri: parent.uri, cid: parent.cid },
+        root: { uri: parent.uri, cid: parent.cid },
+      },
+    });
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$posts.set(parent.uri, parent);
+    dataStore.$posts.set(reply.uri, reply);
+    const mutations = makeMutations(
+      { deletePost: async () => {} },
+      dataStore,
+      new PatchStore(),
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+    );
+
+    await mutations.deletePost(reply);
+
+    assert.deepEqual(dataStore.$posts.get(parent.uri).replyCount, 1);
   });
 });
 
@@ -5981,6 +6495,27 @@ describe("setSelectedFeedUri", () => {
   });
 });
 
+describe("updatePostLanguageHistory", () => {
+  it("moves the published language combination to the front", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), {});
+    dataStore.sessionState.$postLanguageHistory.set([["en"], ["ja"], ["pt"]]);
+    mutations.updatePostLanguageHistory(["ja"]);
+    assert.deepEqual(dataStore.sessionState.$postLanguageHistory.get(), [
+      ["ja"],
+      ["en"],
+      ["pt"],
+    ]);
+    mutations.updatePostLanguageHistory(["en", "ja"]);
+    assert.deepEqual(dataStore.sessionState.$postLanguageHistory.get(), [
+      ["en", "ja"],
+      ["ja"],
+      ["en"],
+      ["pt"],
+    ]);
+  });
+});
+
 describe("updatePostInteractionSettings", () => {
   function makePreferenceMutations(initialPrefs) {
     let updatedPreferences = null;
@@ -6121,5 +6656,235 @@ describe("setThreadMuted", () => {
     await assert.rejects(mutations.setThreadMuted(reply, true), error);
     assert.equal(storedThreadMuted(dataStore, reply.uri), undefined);
     assert.deepEqual(patchStore.$threadMutePatches.get(rootUri), []);
+  });
+});
+
+describe("updateThreadgateHiddenReply", () => {
+  const userDid = "did:plc:me";
+  const rootUri = `at://${userDid}/app.bsky.feed.post/root`;
+  const replyUri = "at://did:plc:other/app.bsky.feed.post/reply";
+  const rootPost = {
+    uri: rootUri,
+    cid: "cid-root",
+    author: { did: userDid, viewer: {} },
+    record: { text: "root" },
+  };
+  const reply = {
+    uri: replyUri,
+    cid: "cid-reply",
+    author: { did: "did:plc:other", viewer: {} },
+    record: {
+      text: "reply",
+      reply: {
+        root: { uri: rootUri, cid: "cid-root" },
+        parent: { uri: rootUri, cid: "cid-root" },
+      },
+    },
+  };
+  const allow = [{ $type: "app.bsky.feed.threadgate#mentionRule" }];
+
+  function recordNotFoundError() {
+    return new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "RecordNotFound" },
+      headers: {},
+      url: "",
+    });
+  }
+
+  function priorRecord(value) {
+    return {
+      cid: "cid-prior",
+      value: {
+        $type: "app.bsky.feed.threadgate",
+        post: rootUri,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        ...value,
+      },
+    };
+  }
+
+  function setup(mockApi) {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$currentUser.set({ did: userDid, handle: "me.test" });
+    dataStore.$posts.set(rootUri, rootPost);
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(mockApi, dataStore, patchStore, {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("appends the reply to hiddenReplies, preserving allow and swapping on the prior cid", async () => {
+    let putArgs = null;
+    const otherHidden = "at://did:plc:x/app.bsky.feed.post/old";
+    const { mutations, dataStore } = setup({
+      getThreadgateRecord: async () =>
+        priorRecord({ allow, hiddenReplies: [otherHidden] }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    });
+
+    await mutations.updateThreadgateHiddenReply(reply, true);
+
+    assert.deepEqual(putArgs.rkey, "root");
+    assert.deepEqual(putArgs.swapRecord, "cid-prior");
+    assert.deepEqual(putArgs.record.allow, allow);
+    assert.deepEqual(putArgs.record.hiddenReplies, [otherHidden, replyUri]);
+    const updatedRoot = dataStore.$posts.get(rootUri);
+    assert.deepEqual(updatedRoot.threadgate.cid, "cid-next");
+    assert.deepEqual(updatedRoot.threadgate.record.hiddenReplies, [
+      otherHidden,
+      replyUri,
+    ]);
+  });
+
+  it("creates a threadgate without allow when none exists", async () => {
+    let putArgs = null;
+    const { mutations } = setup({
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-new" };
+      },
+    });
+
+    await mutations.updateThreadgateHiddenReply(reply, true);
+
+    assert.deepEqual(putArgs.swapRecord, null);
+    assert.deepEqual("allow" in putArgs.record, false);
+    assert.deepEqual(putArgs.record.post, rootUri);
+    assert.deepEqual(putArgs.record.hiddenReplies, [replyUri]);
+  });
+
+  it("removes the reply from hiddenReplies when showing", async () => {
+    let putArgs = null;
+    const { mutations } = setup({
+      getThreadgateRecord: async () =>
+        priorRecord({ allow, hiddenReplies: [replyUri] }),
+      putThreadgateRecord: async (rkey, record, swapRecord) => {
+        putArgs = { rkey, record, swapRecord };
+        return { cid: "cid-next" };
+      },
+    });
+
+    await mutations.updateThreadgateHiddenReply(reply, false);
+
+    assert.deepEqual(putArgs.record.hiddenReplies, []);
+    assert.deepEqual(putArgs.record.allow, allow);
+  });
+
+  it("doesn't write when showing and no threadgate exists", async () => {
+    const putThreadgateRecord = mock.fn();
+    const { mutations } = setup({
+      getThreadgateRecord: async () => {
+        throw recordNotFoundError();
+      },
+      putThreadgateRecord,
+    });
+
+    await mutations.updateThreadgateHiddenReply(reply, false);
+
+    assert.deepEqual(putThreadgateRecord.mock.callCount(), 0);
+  });
+
+  it("throws HiddenReplyLimitError at the cap", async () => {
+    const putThreadgateRecord = mock.fn();
+    const hiddenReplies = Array.from(
+      { length: MAX_HIDDEN_REPLIES },
+      (_, i) => `at://did:plc:x/app.bsky.feed.post/${i}`,
+    );
+    const { mutations } = setup({
+      getThreadgateRecord: async () => priorRecord({ hiddenReplies }),
+      putThreadgateRecord,
+    });
+
+    await assert.rejects(
+      () => mutations.updateThreadgateHiddenReply(reply, true),
+      HiddenReplyLimitError,
+    );
+    assert.deepEqual(putThreadgateRecord.mock.callCount(), 0);
+  });
+
+  function deferredGet() {
+    let resolveGet;
+    const getThreadgateRecord = () =>
+      new Promise((resolve) => {
+        resolveGet = resolve;
+      });
+    return { getThreadgateRecord, resolve: (value) => resolveGet(value) };
+  }
+
+  it("patches the root's hiddenReplies while in flight and removes the patch after", async () => {
+    const get = deferredGet();
+    const { mutations, dataStore, patchStore } = setup({
+      getThreadgateRecord: get.getThreadgateRecord,
+      putThreadgateRecord: async () => ({ cid: "cid-next" }),
+    });
+
+    const promise = mutations.updateThreadgateHiddenReply(reply, true);
+    assert.deepEqual(
+      applyPostPatches(patchStore, rootPost).threadgate.record.hiddenReplies,
+      [replyUri],
+    );
+    get.resolve(priorRecord({ allow }));
+    await promise;
+    assert.deepEqual(patchStore.$postPatches.get(rootUri) ?? [], []);
+    assert.deepEqual(
+      dataStore.$posts.get(rootUri).threadgate.record.hiddenReplies,
+      [replyUri],
+    );
+  });
+
+  it("patches the reply shown optimistically and removes the patch on failure", async () => {
+    const get = deferredGet();
+    const { mutations, dataStore, patchStore } = setup({
+      getThreadgateRecord: get.getThreadgateRecord,
+      putThreadgateRecord: async () => {
+        throw new Error("conflict");
+      },
+    });
+    const hiddenRootPost = {
+      ...rootPost,
+      threadgate: { record: { hiddenReplies: [replyUri] } },
+    };
+    dataStore.$posts.set(rootUri, hiddenRootPost);
+
+    const promise = mutations.updateThreadgateHiddenReply(reply, false);
+    assert.deepEqual(
+      applyPostPatches(patchStore, hiddenRootPost).threadgate.record
+        .hiddenReplies,
+      [],
+    );
+    get.resolve(priorRecord({ hiddenReplies: [replyUri] }));
+    await assert.rejects(promise, /conflict/);
+    assert.deepEqual(patchStore.$postPatches.get(rootUri) ?? [], []);
+    assert.deepEqual(
+      dataStore.$posts.get(rootUri).threadgate.record.hiddenReplies,
+      [replyUri],
+    );
+  });
+
+  it("rejects when the viewer doesn't own the thread root", async () => {
+    const { mutations } = setup({});
+    const foreignReply = {
+      ...reply,
+      record: {
+        ...reply.record,
+        reply: {
+          root: { uri: "at://did:plc:else/app.bsky.feed.post/r", cid: "c" },
+          parent: { uri: "at://did:plc:else/app.bsky.feed.post/r", cid: "c" },
+        },
+      },
+    };
+    await assert.rejects(
+      () => mutations.updateThreadgateHiddenReply(foreignReply, true),
+      /thread author/,
+    );
   });
 });

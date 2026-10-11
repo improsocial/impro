@@ -228,14 +228,14 @@ export default async function profileView({
   function profileErrorTemplate({ error }) {
     if (isNotFoundError(error)) {
       const message = getNotFoundMessage(error);
-      return html`<div class="error-state">
+      return html`<div class="error-state" data-testid="profile-not-found">
         <h3>Not Found</h3>
         <div>${message}</div>
         ${tryAgainButtonTemplate()}
       </div>`;
     }
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="profile-error">
       <div>There was an error loading the profile.</div>
       ${tryAgainButtonTemplate()}
     </div>`;
@@ -243,7 +243,7 @@ export default async function profileView({
 
   function profileUnavailableTemplate() {
     return html`
-      <div class="error-state">
+      <div class="error-state" data-testid="profile-sign-in-required">
         <h1>Sign-In Required</h1>
         <p>
           This account has requested that users sign in to view their profile.
@@ -301,12 +301,14 @@ export default async function profileView({
       let isDefaultLabeler = profile.did === BSKY_LABELER_DID;
       let isSubscribed = false;
       let labelerSettings = null;
+      let isAdultContentEnabled = false;
       if (isLabeler) {
         const preferences = dataLayer.derived.$preferences.get();
         isSubscribed = isDefaultLabeler
           ? true
           : preferences?.isSubscribedToLabeler(profile.did);
         labelerSettings = dataLayer.derived.$labelerSettings.get(profile.did);
+        isAdultContentEnabled = preferences?.isAdultContentEnabled() ?? false;
       }
       return html`
         <div class="profile-container">
@@ -343,6 +345,8 @@ export default async function profileView({
               profileInteractionHandler.handleFollow(profile, doFollow),
             onClickMute: (profile, doMute) =>
               profileInteractionHandler.handleMute(profile, doMute),
+            onClickMuteReposts: (profile, doMute) =>
+              profileInteractionHandler.handleMuteReposts(profile, doMute),
             onClickBlock: async (profile, doBlock) => {
               await profileInteractionHandler.handleBlock(profile, doBlock);
               if (!doBlock) {
@@ -374,7 +378,12 @@ export default async function profileView({
           })}
           ${isBlocking || isBlockedBy
             ? html`<div class="feed">
-                <div class="feed-end-message">Posts hidden</div>
+                <div
+                  class="feed-end-message"
+                  data-testid="profile-posts-hidden"
+                >
+                  Posts hidden
+                </div>
               </div>`
             : html`
                 <div class="profile-tab-bar" data-scroll-lock-sticky>
@@ -402,6 +411,7 @@ export default async function profileView({
                         profile,
                         isSubscribed,
                         labelerSettings,
+                        isAdultContentEnabled,
                         onClick: (label, visibility) =>
                           handleLabelerSettingsClick(
                             profile.did,

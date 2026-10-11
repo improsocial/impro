@@ -365,7 +365,11 @@ function chatStepTemplate({
       onInput: onSearchInput,
       onClear: onClearSearch,
     })}
-    <div class="search-dialog-results">
+    <div
+      class="search-dialog-results"
+      data-testid="new-chat-results"
+      data-teststate=${query ? "search" : "suggestions"}
+    >
       ${chatStepResultsTemplate({
         query,
         currentUserDid,

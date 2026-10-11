@@ -57,6 +57,7 @@ class TabBar extends Component {
               active: activeTab === tab.value,
             })}
             data-testid="tab-${tab.value}"
+            data-teststate=${activeTab === tab.value ? "active" : "inactive"}
             @click=${() => this.#handleTabClick(tab.value)}
           >
             <span class="tab-bar-button-label">${tab.label}</span>

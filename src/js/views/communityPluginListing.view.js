@@ -113,9 +113,14 @@ export default async function communityPluginListingView({
     const installButtonClass = listing.installed
       ? "plugin-install-button rounded-button"
       : "plugin-install-button rounded-button rounded-button-primary";
+    let testState = listing.installed ? "installed" : "not-installed";
+    if (pendingAction) {
+      testState = pendingAction === "uninstall" ? "uninstalling" : "installing";
+    }
     return html`<button
       class=${installButtonClass}
       data-testid="plugin-listing-install-button"
+      data-teststate=${testState}
       ?disabled=${pendingAction !== null}
       @click=${() => toggleInstall(listing)}
     >
@@ -174,7 +179,10 @@ export default async function communityPluginListingView({
         <main>
           ${(() => {
             if (loadError) {
-              return html`<div class="error-state">
+              return html`<div
+                class="error-state"
+                data-testid="plugin-listing-error"
+              >
                 <div>Failed to load plugin</div>
                 ${tryAgainButtonTemplate()}
               </div>`;

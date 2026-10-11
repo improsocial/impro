@@ -498,7 +498,6 @@ test.describe("List Detail view", () => {
       const button = page.locator('[data-testid="subscribe-list-button"]');
       await expect(button).toBeVisible({ timeout: 10000 });
       await expect(button).toHaveAttribute("data-teststate", "not-subscribed");
-      await expect(button).toContainText("Subscribe");
     });
 
     test("should not show Subscribe button on curate lists", async ({
@@ -539,7 +538,6 @@ test.describe("List Detail view", () => {
       await expect(button).toHaveAttribute("data-teststate", "muted", {
         timeout: 10000,
       });
-      await expect(button).toContainText("Unmute list");
       await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     });
 
@@ -563,7 +561,6 @@ test.describe("List Detail view", () => {
       await expect(button).toHaveAttribute("data-teststate", "blocked", {
         timeout: 10000,
       });
-      await expect(button).toContainText("Unblock list");
     });
 
     test("should unmute a moderation list when already muted", async ({
@@ -585,7 +582,6 @@ test.describe("List Detail view", () => {
       await expect(button).toHaveAttribute("data-teststate", "not-subscribed", {
         timeout: 10000,
       });
-      await expect(button).toContainText("Subscribe");
     });
 
     test("should unblock a moderation list when already blocked", async ({

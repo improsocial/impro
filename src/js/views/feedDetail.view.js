@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { classnames } from "/js/utils.js";
+import { cdnImageUrl } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -11,6 +12,34 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
+
+function feedAvatarTemplate({ feedGenerator }) {
+  return html`<img
+    src=${cdnImageUrl(feedGenerator.avatar) || "/img/feed-avatar-fallback.svg"}
+    alt=""
+    class="feed-avatar"
+    data-testid="feed-detail-avatar"
+  />`;
+}
+
+function feedAvatarSkeletonTemplate() {
+  return html`<span
+    class="feed-avatar feed-detail-avatar-skeleton skeleton-animate"
+    data-testid="feed-detail-avatar-skeleton"
+  ></span>`;
+}
+
+function feedHeaderTitleSkeletonTemplate() {
+  return html`&#8203;<span
+      class="skeleton-line-short skeleton-animate feed-detail-header-skeleton-line"
+    ></span>`;
+}
+
+function feedHeaderSubtitleSkeletonTemplate() {
+  return html`&#8203;<span
+      class="skeleton-line-shorter skeleton-animate feed-detail-header-skeleton-line"
+    ></span>`;
+}
 
 export default async function feedDetailView({
   root,
@@ -55,8 +84,17 @@ export default async function feedDetailView({
     render(
       html`<div id="feed-detail-view">
         ${headerTemplate({
-          title: feedName,
-          subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
+          ...(feedGenerator
+            ? {
+                title: feedName,
+                subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
+                avatarTemplate: () => feedAvatarTemplate({ feedGenerator }),
+              }
+            : {
+                title: feedHeaderTitleSkeletonTemplate(),
+                subtitle: feedHeaderSubtitleSkeletonTemplate(),
+                avatarTemplate: () => feedAvatarSkeletonTemplate(),
+              }),
           rightItemTemplate: () => {
             const feedLink = `https://bsky.app/profile/${feedAuthorHandle || handleOrDid}/feed/${rkey}`;
             return html`<button

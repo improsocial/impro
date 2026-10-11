@@ -48,7 +48,11 @@ export default async function settingsView({
       <button
         class="vertical-nav-item"
         data-testid="settings-switch-account-toggle"
-        data-teststate=${expanded ? "expanded" : "collapsed"}
+        data-teststate=${hasOthers
+          ? expanded
+            ? "expanded"
+            : "collapsed"
+          : "add"}
         aria-expanded=${hasOthers ? (expanded ? "true" : "false") : null}
         @click=${hasOthers ? onToggle : onAdd}
       >
@@ -347,7 +351,7 @@ export default async function settingsView({
                   await pushNotificationService.disable();
                 }
                 await auth.logout();
-                window.location.reload();
+                window.location.href = "/login";
               }}
             >
               Sign out

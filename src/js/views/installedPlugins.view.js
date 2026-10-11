@@ -192,6 +192,14 @@ export default async function installedPluginsView({
                     <div class="installed-plugins-header-actions">
                       <button
                         class="plugin-check-updates-button rounded-button rounded-button-primary"
+                        data-testid="plugin-check-updates-button"
+                        data-teststate=${checkingForUpdates || updatingAll
+                          ? hasAvailableUpdates
+                            ? "updating"
+                            : "checking"
+                          : hasAvailableUpdates
+                            ? "update-all"
+                            : "check"}
                         ?disabled=${checkingForUpdates || updatingAll}
                         @click=${() =>
                           hasAvailableUpdates

@@ -6,6 +6,7 @@ import {
   INSTALLED_PLUGINS_PREF_TYPE,
   SEARCH_HISTORY_PREF_TYPE,
   GIF_HISTORY_PREF_TYPE,
+  THREAD_VIEW_PREF_TYPE,
 } from "/js/preferences.js";
 import { createGif } from "../../shared/factories.js";
 import { createMinimalGifObject } from "/js/embedHelpers.js";
@@ -2646,9 +2647,14 @@ describe("Preferences.getContentLabel - global labels", () => {
   });
 });
 
+const adultContentEnabledPref = {
+  $type: "app.bsky.actor.defs#adultContentPref",
+  enabled: true,
+};
+
 describe("Preferences.getMediaLabel - global self-labels", () => {
   it("should handle porn self-label with default hide visibility", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     // Self-labels have src = author's DID, not a labeler's DID
     const post = {
       author: { did: "did:plc:author123" },
@@ -2662,7 +2668,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
   });
 
   it("should handle sexual self-label with default warn visibility", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [{ src: "did:plc:author123", val: "sexual" }],
@@ -2674,7 +2680,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
   });
 
   it("should handle nudity self-label with default ignore visibility", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [{ src: "did:plc:author123", val: "nudity" }],
@@ -2686,7 +2692,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
   });
 
   it("should handle graphic-media self-label", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [{ src: "did:plc:author123", val: "graphic-media" }],
@@ -2698,7 +2704,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
   });
 
   it("should handle legacy gore label", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [{ src: "did:plc:author123", val: "gore" }],
@@ -2720,7 +2726,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
       },
     ];
 
-    const preferences = new Preferences(obj, []);
+    const preferences = new Preferences([adultContentEnabledPref, ...obj], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [{ src: "did:plc:author123", val: "porn" }],
@@ -2731,7 +2737,7 @@ describe("Preferences.getMediaLabel - global self-labels", () => {
   });
 
   it("should prefer most restrictive self-label", () => {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([adultContentEnabledPref], []);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [
@@ -2887,7 +2893,7 @@ describe("Preferences.getMediaLabel - mixed global and custom labels", () => {
       },
     ];
 
-    const preferences = new Preferences([], labelerDefs);
+    const preferences = new Preferences([adultContentEnabledPref], labelerDefs);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [
@@ -2919,7 +2925,7 @@ describe("Preferences.getMediaLabel - mixed global and custom labels", () => {
       },
     ];
 
-    const preferences = new Preferences([], labelerDefs);
+    const preferences = new Preferences([adultContentEnabledPref], labelerDefs);
     const post = {
       author: { did: "did:plc:author123" },
       labels: [
@@ -2966,7 +2972,10 @@ describe("Preferences.getMediaLabel - mixed global and custom labels", () => {
       },
     ];
 
-    const preferences = new Preferences(obj, labelerDefs);
+    const preferences = new Preferences(
+      [adultContentEnabledPref, ...obj],
+      labelerDefs,
+    );
     const post = {
       author: { did: "did:plc:author123" },
       labels: [
@@ -3521,5 +3530,236 @@ describe("Preferences.setPostInteractionSettings", () => {
       postgateEmbeddingRules: [DISABLE_RULE],
     });
     assert.deepEqual(original.obj, []);
+  });
+});
+
+describe("Preferences.getThreadView", () => {
+  it("should default to linear when there is no thread view preference", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(preferences.getThreadView(), "linear");
+  });
+
+  it("should return tree when lab_treeViewEnabled is true", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: THREAD_VIEW_PREF_TYPE,
+          sort: "top",
+          lab_treeViewEnabled: true,
+        },
+      ],
+      [],
+    );
+    assert.deepEqual(preferences.getThreadView(), "tree");
+  });
+
+  it("should return linear when lab_treeViewEnabled is false", () => {
+    const preferences = new Preferences(
+      [{ $type: THREAD_VIEW_PREF_TYPE, lab_treeViewEnabled: false }],
+      [],
+    );
+    assert.deepEqual(preferences.getThreadView(), "linear");
+  });
+});
+
+describe("Preferences.setThreadView", () => {
+  it("should create the thread view preference when missing", () => {
+    const preferences = new Preferences([], []);
+    const newPreferences = preferences.setThreadView("tree");
+    assert.deepEqual(preferences.obj, []);
+    assert.deepEqual(newPreferences.obj, [
+      { $type: THREAD_VIEW_PREF_TYPE, lab_treeViewEnabled: true },
+    ]);
+  });
+
+  it("should preserve sort and unknown keys on the existing preference", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: THREAD_VIEW_PREF_TYPE,
+          sort: "hotness",
+          someFutureKey: 1,
+          lab_treeViewEnabled: true,
+        },
+      ],
+      [],
+    );
+    const newPreferences = preferences.setThreadView("linear");
+    assert.deepEqual(newPreferences.obj, [
+      {
+        $type: THREAD_VIEW_PREF_TYPE,
+        sort: "hotness",
+        someFutureKey: 1,
+        lab_treeViewEnabled: false,
+      },
+    ]);
+    assert.deepEqual(newPreferences.getThreadView(), "linear");
+  });
+});
+
+describe("Preferences - adult-only labels", () => {
+  const adultContentPref = (enabled) => ({
+    $type: "app.bsky.actor.defs#adultContentPref",
+    enabled,
+  });
+  const labelerDefs = [
+    {
+      creator: { did: "did:labeler1", handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          {
+            identifier: "adult-custom",
+            blurs: "content",
+            defaultSetting: "warn",
+            adultOnly: true,
+            locales: [{ lang: "en", name: "Adult Custom" }],
+          },
+        ],
+      },
+    },
+  ];
+  const ignorePref = {
+    $type: "app.bsky.actor.defs#contentLabelPref",
+    label: "adult-custom",
+    labelerDid: "did:labeler1",
+    visibility: "ignore",
+  };
+  const labeledPost = {
+    author: { did: "did:plc:author123" },
+    labels: [{ src: "did:labeler1", val: "adult-custom" }],
+  };
+
+  it("should treat adult content as disabled when no preference exists", () => {
+    assert.deepEqual(new Preferences([], []).isAdultContentEnabled(), false);
+  });
+
+  it("should read the adult content preference", () => {
+    const preferences = new Preferences([adultContentPref(true)], []);
+    assert.deepEqual(preferences.isAdultContentEnabled(), true);
+  });
+
+  it("should force adult-only labels to hide when adult content is disabled", () => {
+    const preferences = new Preferences(
+      [adultContentPref(false), ignorePref],
+      labelerDefs,
+    );
+    const result = preferences.getContentLabel(labeledPost);
+
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.noOverride, true);
+  });
+
+  it("should respect the label preference when adult content is enabled", () => {
+    const preferences = new Preferences(
+      [adultContentPref(true), ignorePref],
+      labelerDefs,
+    );
+
+    assert.deepEqual(preferences.getContentLabel(labeledPost), null);
+  });
+
+  it("should allow overriding adult-only labels when adult content is enabled", () => {
+    const preferences = new Preferences([adultContentPref(true)], labelerDefs);
+    const result = preferences.getContentLabel(labeledPost);
+
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.noOverride, false);
+  });
+
+  it("should force adult-only global self-labels to hide when adult content is disabled", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "graphic-media" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.noOverride, true);
+  });
+
+  it("should not affect labels that are not adult-only", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "!warn" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.noOverride, false);
+  });
+
+  it("should prefer a non-overridable label over an earlier user-set hide", () => {
+    const hideNudityPref = {
+      $type: "app.bsky.actor.defs#contentLabelPref",
+      label: "nudity",
+      visibility: "hide",
+    };
+    const preferences = new Preferences([hideNudityPref], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:author123", val: "nudity" },
+        { src: "did:plc:author123", val: "porn" },
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assert.deepEqual(result.label.val, "porn");
+    assert.deepEqual(result.noOverride, true);
+  });
+
+  it("should prefer a non-overridable profile blur label over an earlier user-set hide", () => {
+    const hideNudityPref = {
+      $type: "app.bsky.actor.defs#contentLabelPref",
+      label: "nudity",
+      visibility: "hide",
+    };
+    const preferences = new Preferences([hideNudityPref], []);
+    const result = preferences.getProfileBlurLabel({
+      did: "did:plc:author123",
+      labels: [
+        { src: "did:plc:author123", val: "nudity" },
+        { src: "did:plc:author123", val: "porn" },
+      ],
+    });
+
+    assert.deepEqual(result.label.val, "porn");
+    assert.deepEqual(result.noOverride, true);
+  });
+
+  it("should prefer a hide over an earlier warn", () => {
+    const hideNudityPref = {
+      $type: "app.bsky.actor.defs#contentLabelPref",
+      label: "nudity",
+      visibility: "hide",
+    };
+    const preferences = new Preferences(
+      [adultContentPref(true), hideNudityPref],
+      [],
+    );
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:author123", val: "sexual" },
+        { src: "did:plc:author123", val: "nudity" },
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assert.deepEqual(result.label.val, "nudity");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.noOverride, false);
+  });
+
+  it("should mark adult-only profile blur labels as non-overridable", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const result = preferences.getProfileBlurLabel({
+      labels: [{ src: "did:labeler1", val: "adult-custom" }],
+    });
+
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.noOverride, true);
   });
 });

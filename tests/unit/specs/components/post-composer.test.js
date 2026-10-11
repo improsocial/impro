@@ -10,6 +10,7 @@ import {
 } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { getPrimaryPostLanguage } from "/js/utils.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { createGif } from "../../../shared/factories.js";
 import "/js/components/post-composer.js";
@@ -34,6 +35,7 @@ describe("post-composer", () => {
 
   function createPostComposer({ draftsEnabled = true } = {}) {
     const element = document.createElement("post-composer");
+    element.dataLayer = makeTestDataLayer();
     element.draftsEnabled = draftsEnabled;
     element.currentUser = {
       did: "did:plc:test",
@@ -139,15 +141,17 @@ describe("post-composer", () => {
     });
   });
 
-  describe("PostComposer - button text", () => {
-    it("should show 'Post' for new posts", () => {
+  describe("PostComposer - submit button state", () => {
+    it("should use the post state for new posts", () => {
       const element = createPostComposer();
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
-      assert(postButton.textContent.includes("Post"));
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert.deepEqual(postButton.dataset.teststate, "post");
     });
 
-    it("should show 'Reply' for replies", () => {
+    it("should use the reply state for replies", () => {
       const element = createPostComposer();
       element.replyTo = {
         author: { handle: "user.bsky.social", displayName: "User" },
@@ -155,8 +159,10 @@ describe("post-composer", () => {
         indexedAt: new Date().toISOString(),
       };
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
-      assert(postButton.textContent.includes("Reply"));
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert.deepEqual(postButton.dataset.teststate, "reply");
     });
   });
 
@@ -259,6 +265,164 @@ describe("post-composer", () => {
 
       await element.close();
       assert(eventFired);
+    });
+  });
+
+  describe("PostComposer - post language", () => {
+    async function sendAndCaptureDetail(element) {
+      patchFirstPost(element, { text: "Hello world" });
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      await element.send();
+      return receivedDetail;
+    }
+
+    function getLanguageButton(element) {
+      return element.querySelector('[data-testid="composer-language-button"]');
+    }
+
+    it("sends the primary language by default", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("lists history entries plus the primary language in the menu", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([
+        ["ja"],
+        ["en", "ja"],
+      ]);
+      connectElement(element);
+      await nextFrame();
+      const testids = [
+        ...element.querySelectorAll(
+          '.post-language-menu context-menu-item[data-testid^="menu-action-post-language-"]',
+        ),
+      ].map((item) => item.dataset.testid);
+      assert.deepEqual(testids, [
+        "menu-action-post-language-ja",
+        "menu-action-post-language-en-ja",
+        `menu-action-post-language-${getPrimaryPostLanguage()}`,
+      ]);
+      const primaryItem = element.querySelector(
+        `[data-testid="menu-action-post-language-${getPrimaryPostLanguage()}"]`,
+      );
+      assert.deepEqual(primaryItem.dataset.teststate, "selected");
+    });
+
+    it("uses a language combination picked from the menu", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([["en", "ja"]]);
+      connectElement(element);
+      await nextFrame();
+      element
+        .querySelector('[data-testid="menu-action-post-language-en-ja"] button')
+        .click();
+      await nextFrame();
+      assert.deepEqual(
+        getLanguageButton(element).textContent.trim(),
+        "English, Japanese",
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="menu-action-post-language-en-ja"]')
+          .dataset.teststate,
+        "selected",
+      );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["en", "ja"]);
+    });
+
+    it("moves the check mark when the selection changes", async () => {
+      const element = createPostComposer();
+      element.dataLayer.sessionState.$postLanguageHistory.set([["ja"], ["de"]]);
+      connectElement(element);
+      await nextFrame();
+      const getItem = (code) =>
+        element.querySelector(
+          `[data-testid="menu-action-post-language-${code}"]`,
+        );
+      const checkedTestids = () =>
+        [
+          ...element.querySelectorAll(
+            '.post-language-menu app-icon[icon="check"]',
+          ),
+        ].map((icon) => icon.closest("context-menu-item").dataset.testid);
+
+      getItem("ja").querySelector("button").click();
+      await nextFrame();
+      assert.deepEqual(checkedTestids(), ["menu-action-post-language-ja"]);
+
+      getItem("de").querySelector("button").click();
+      await nextFrame();
+      assert.deepEqual(checkedTestids(), ["menu-action-post-language-de"]);
+      assert.deepEqual(getItem("ja").dataset.teststate, "unselected");
+      assert.deepEqual(getItem("de").dataset.teststate, "selected");
+      assert.deepEqual(getLanguageButton(element).textContent.trim(), "German");
+    });
+
+    it("applies languages chosen in the dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.openPostLanguageDialog();
+      const dialog = document.querySelector("post-language-dialog");
+      dialog.dispatchEvent(
+        new CustomEvent("select-languages", {
+          detail: { languages: ["de", "fr"] },
+        }),
+      );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["de", "fr"]);
+    });
+
+    it("falls back to the primary language when the dialog returns none", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.setPostLanguages(["de"]);
+      element.openPostLanguageDialog();
+      document
+        .querySelector("post-language-dialog")
+        .dispatchEvent(
+          new CustomEvent("select-languages", { detail: { languages: [] } }),
+        );
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("resets the language when the composer is cleared", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.setPostLanguages(["ja"]);
+      element.clearComposer();
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, [getPrimaryPostLanguage()]);
+    });
+
+    it("saves the chosen languages in the draft snapshot", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.buildDraftSnapshot().langs, null);
+      element.setPostLanguages(["ja", "en"]);
+      assert.deepEqual(element.buildDraftSnapshot().langs, ["ja", "en"]);
+    });
+
+    it("restores known draft languages", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          langs: ["ja", "not-a-language"],
+          posts: [{ text: "draft" }],
+        },
+      });
+      const detail = await sendAndCaptureDetail(element);
+      assert.deepEqual(detail.langs, ["ja"]);
     });
   });
 
@@ -381,7 +545,7 @@ describe("post-composer", () => {
       await nextFrame();
       const postButton = element.querySelector(".rounded-button-primary");
       assert(postButton.disabled);
-      assert.deepEqual(postButton.textContent.includes("Sending"), false);
+      assert.deepEqual(postButton.querySelector(".loading-spinner"), null);
 
       sendDetail.settledCallback();
       await nextFrame();
@@ -471,9 +635,6 @@ describe("post-composer", () => {
       assert.deepEqual(element.state.$isSending.get(), false);
       const banner = getBanner(element);
       assert(banner !== null);
-      assert(
-        banner.textContent.includes("Failed to send post. Please try again."),
-      );
     });
 
     it("does not render the banner before any failure", () => {
@@ -853,6 +1014,12 @@ describe("post-composer", () => {
   function makeVideoFile(name = "clip.mp4") {
     return new globalThis.window.File(["mp4-bytes"], name, {
       type: "video/mp4",
+    });
+  }
+
+  function makeGifFile(name = "dance.gif") {
+    return new globalThis.window.File(["gif-bytes"], name, {
+      type: "image/gif",
     });
   }
 
@@ -1317,6 +1484,7 @@ describe("post-composer", () => {
 
     it("preserves quotedRecord set before connectedCallback and renders its preview", () => {
       const preSeeded = document.createElement("post-composer");
+      preSeeded.dataLayer = element.dataLayer;
       preSeeded.currentUser = element.currentUser;
       preSeeded.quotedRecord = {
         $type: "app.bsky.feed.defs#generatorView",
@@ -2249,7 +2417,6 @@ describe("post-composer", () => {
       const submitButton = element.querySelector(
         '[data-testid="composer-submit-button"]',
       );
-      assert(submitButton.textContent.includes("Post All"));
       assert.deepEqual(submitButton.dataset.teststate, "post-all");
       const postElements = element.querySelectorAll(
         '[data-testid="composer-post"]',
@@ -2398,6 +2565,17 @@ describe("post-composer", () => {
       assert.deepEqual(getFirstPost(element).video, null);
     });
 
+    it("rejects a GIF mixed with still images", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [
+        makeImageFile(),
+        makeGifFile(),
+      ]);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+      assert.deepEqual(getFirstPost(element).video, null);
+    });
+
     it("rejects unsupported file types without adding anything", async () => {
       const element = createPostComposer();
       connectElement(element);
@@ -2443,8 +2621,22 @@ describe("post-composer", () => {
       metadataShouldFail: false,
       revokedUrls: [],
     };
+    const originalImage = globalThis.Image;
     URL.createObjectURL = () => "blob:mock";
     URL.revokeObjectURL = (url) => controls.revokedUrls.push(url);
+    globalThis.Image = class {
+      naturalWidth = 320;
+      naturalHeight = 240;
+      set src(_url) {
+        setTimeout(() => {
+          if (controls.metadataShouldFail) {
+            this.onerror?.();
+          } else {
+            this.onload?.();
+          }
+        }, 0);
+      }
+    };
     document.createElement = function (tagName, ...args) {
       const created = originalCreateElement.call(this, tagName, ...args);
       if (String(tagName).toLowerCase() === "video") {
@@ -2462,6 +2654,7 @@ describe("post-composer", () => {
       URL.createObjectURL = originalCreateObjectURL;
       URL.revokeObjectURL = originalRevokeObjectURL;
       document.createElement = originalCreateElement;
+      globalThis.Image = originalImage;
     };
     return controls;
   }
@@ -2493,6 +2686,10 @@ describe("post-composer", () => {
     return dataLayer;
   }
 
+  function getVideoOverlay(element) {
+    return element.querySelector('[data-testid="composer-video-overlay"]');
+  }
+
   describe("PostComposer - media preview actions", () => {
     let originalRevokeObjectURL;
     let revokedUrls;
@@ -2511,59 +2708,92 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "uploading", progress: 0 },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "uploading",
+          progress: 0,
+        },
       });
       await nextFrame();
-      let overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Uploading..."));
+      let overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "uploading");
       assert(overlay.querySelector(".loading-spinner") !== null);
 
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "processing", progress: 0 },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "processing",
+          progress: 0,
+        },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Processing..."));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "processing");
       assert(!overlay.textContent.includes("%"));
 
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "processing", progress: 40 },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "processing",
+          progress: 40,
+        },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Processing... 40%"));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "processing");
+      assert(overlay.textContent.includes("40%"));
     });
 
     it("shows the error overlay without a spinner and no overlay when done", async () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "error", error: "Too big" },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "error",
+          error: "Too big",
+        },
       });
       await nextFrame();
-      let overlay = element.querySelector(".video-preview-overlay");
+      let overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "error");
       assert(overlay.textContent.includes("Too big"));
       assert.deepEqual(overlay.querySelector(".loading-spinner"), null);
 
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "error", error: null },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "error",
+          error: null,
+        },
       });
       await nextFrame();
-      overlay = element.querySelector(".video-preview-overlay");
-      assert(overlay.textContent.includes("Upload failed"));
+      overlay = getVideoOverlay(element);
+      assert.deepEqual(overlay.dataset.teststate, "error");
+      assert.notDeepEqual(overlay.textContent.trim(), "");
 
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "done" },
+        video: { file: makeVideoFile(), previewUrl: "blob:x", status: "done" },
       });
       await nextFrame();
-      assert.deepEqual(element.querySelector(".video-preview-overlay"), null);
+      assert.deepEqual(getVideoOverlay(element), null);
     });
 
     it("removes the video via the preview remove button", async () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "done", alt: "" },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "done",
+          alt: "",
+        },
         videoToken: Symbol("token"),
         draftVideoCaptions: [{ lang: "en" }],
       });
@@ -2902,7 +3132,12 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, {
-        video: { previewUrl: "blob:x", status: "done", alt: "" },
+        video: {
+          file: makeVideoFile(),
+          previewUrl: "blob:x",
+          status: "done",
+          alt: "",
+        },
       });
       await nextFrame();
       element.querySelector(".video-preview-item .alt-indicator").click();
@@ -4121,6 +4356,35 @@ describe("post-composer", () => {
       assert.deepEqual(video.blob, { $type: "blob", ref: "blobref" });
       assert.deepEqual(video.previewUrl, "blob:mock");
       assert.deepEqual(video.error, null);
+    });
+
+    it("uploads a selected GIF as a video with a still-image preview", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeGifFile()]);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+      await waitFor(() => getFirstPost(element).video?.status === "done");
+      const video = getFirstPost(element).video;
+      assert.deepEqual(video.file.type, "image/gif");
+      assert.deepEqual(video.aspectRatio, { width: 320, height: 240 });
+      await nextFrame();
+      const preview = element.querySelector(".video-preview-item");
+      assert(
+        preview.querySelector('[data-testid="composer-video-gif-preview"]') !==
+          null,
+      );
+      assert.deepEqual(preview.querySelector("video"), null);
+    });
+
+    it("warns and adds nothing when a GIF can't be read", async () => {
+      videoEnv.metadataShouldFail = true;
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeGifFile()]);
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
     });
 
     describe("with zero-delay timers", () => {

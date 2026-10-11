@@ -1,6 +1,7 @@
-import { getPostLangs, isNil, wait } from "/js/utils.js";
+import { isNil, wait } from "/js/utils.js";
 import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
+import { isGifFile } from "/js/videoUtils.js";
 import {
   fetchAndCompressLinkCardImage,
   LEGACY_IMAGES_EMBED_MAX,
@@ -33,6 +34,7 @@ export class PostCreator {
     posts,
     replyTo,
     replyRoot,
+    langs,
     threadgateAllow = null,
     postgateEmbeddingRules = null,
     signal = null,
@@ -52,7 +54,7 @@ export class PostCreator {
     }
 
     const did = this.api.session.did;
-    const langs = getPostLangs();
+    const postLangs = langs.slice(0, 3);
     const writes = [];
     const uris = [];
     // Sort order for posts sharing a createdAt is undefined, so each post
@@ -72,7 +74,7 @@ export class PostCreator {
         text,
         facets,
         createdAt,
-        langs,
+        langs: postLangs,
       };
       if (embed) {
         record.embed = embed;
@@ -264,6 +266,9 @@ export class PostCreator {
         size: video.blob.size,
       },
     };
+    if (isGifFile(video.file)) {
+      embed.presentation = "gif";
+    }
     if (video.alt) {
       embed.alt = video.alt;
     }

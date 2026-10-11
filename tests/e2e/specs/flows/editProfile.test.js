@@ -508,9 +508,8 @@ test.describe("Edit profile flow", () => {
     await dialog.locator('[data-testid="edit-profile-save-button"]').click();
 
     // Error message should appear in the dialog
-    await expect(dialog.locator(".form-dialog-error")).toContainText(
-      "Failed to save profile",
-      { timeout: 5000 },
-    );
+    await expect(
+      dialog.locator('[data-testid="form-dialog-error"]'),
+    ).toBeVisible({ timeout: 5000 });
   });
 });

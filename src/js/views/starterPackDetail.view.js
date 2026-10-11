@@ -163,6 +163,7 @@ function starterPackHeaderTemplate({
         <div
           class="starter-pack-detail-creator"
           data-testid="starter-pack-creator"
+          data-teststate=${isOwner ? "self" : "other"}
         >
           Starter pack by
           ${isOwner

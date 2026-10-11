@@ -24,6 +24,7 @@ export const INSTALLED_PLUGINS_PREF_TYPE =
 export const SEARCH_HISTORY_PREF_TYPE =
   "app.bsky.actor.defs#improSearchHistoryPref";
 export const GIF_HISTORY_PREF_TYPE = "app.bsky.actor.defs#improGifHistoryPref";
+export const THREAD_VIEW_PREF_TYPE = "app.bsky.actor.defs#threadViewPref";
 
 function getContentTextFromEmbed(embed) {
   const texts = [];
@@ -57,6 +58,12 @@ function getContentTextFromEmbed(embed) {
   }
 
   return texts;
+}
+
+// Locked (no-override) labels outrank user-revealable hides, which outrank warns
+function getBlurEntryRank(entry) {
+  if (entry.noOverride) return 2;
+  return entry.visibility === "hide" ? 1 : 0;
 }
 
 const MAX_RECENT_SEARCHES = 5;
@@ -381,11 +388,35 @@ export class Preferences {
     if (labelDefinition.configurable === false) {
       return getDefaultLabelSetting(labelDefinition);
     }
+    if (this.isAdultLabelDisabled(labelDefinition)) {
+      return "hide";
+    }
     const pref = this.getContentLabelPref({
       label: label.val,
       labelerDid: isGlobalLabel(label.val) ? null : label.src,
     });
     return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
+  }
+
+  isAdultContentEnabled() {
+    const adultContentPreference = Preferences.getAdultContentPreference(
+      this.obj,
+    );
+    return adultContentPreference?.enabled ?? false;
+  }
+
+  isAdultLabelDisabled(labelDefinition) {
+    return !!labelDefinition.adultOnly && !this.isAdultContentEnabled();
+  }
+
+  _createBlurLabelEntry(visibility, label, labelDefinition, labeler) {
+    return {
+      visibility,
+      label,
+      labelDefinition,
+      labeler,
+      noOverride: this.isAdultLabelDisabled(labelDefinition),
+    };
   }
 
   getLabelDefinitionAndLabeler(label) {
@@ -472,16 +503,21 @@ export class Preferences {
       const { labelDefinition, labeler } = result;
       if (labelDefinition.blurs !== blurType) continue;
       const labelVisibility = this.getLabelVisibility(label, labelDefinition);
-      if (labelVisibility === "hide") {
-        return { visibility: "hide", label, labelDefinition, labeler };
+      if (labelVisibility !== "hide" && labelVisibility !== "warn") continue;
+      const entry = this._createBlurLabelEntry(
+        labelVisibility,
+        label,
+        labelDefinition,
+        labeler,
+      );
+      if (entry.noOverride) {
+        return entry;
       }
-      if (labelVisibility === "warn" && !currentLabel) {
-        currentLabel = {
-          visibility: labelVisibility,
-          label,
-          labelDefinition,
-          labeler,
-        };
+      if (
+        !currentLabel ||
+        getBlurEntryRank(entry) > getBlurEntryRank(currentLabel)
+      ) {
+        currentLabel = entry;
       }
     }
     return currentLabel;
@@ -509,12 +545,20 @@ export class Preferences {
         continue;
       }
       const visibility = this.getLabelVisibility(label, labelDefinition);
-      if (visibility === "ignore") continue;
-      const entry = { visibility, label, labelDefinition, labeler };
-      if (visibility === "hide") {
+      if (visibility !== "hide" && visibility !== "warn") continue;
+      const entry = this._createBlurLabelEntry(
+        visibility,
+        label,
+        labelDefinition,
+        labeler,
+      );
+      if (entry.noOverride) {
         return entry;
       }
-      if (visibility === "warn" && !currentLabel) {
+      if (
+        !currentLabel ||
+        getBlurEntryRank(entry) > getBlurEntryRank(currentLabel)
+      ) {
         currentLabel = entry;
       }
     }
@@ -608,6 +652,23 @@ export class Preferences {
     } else {
       pref.postgateEmbeddingRules = postgateEmbeddingRules;
     }
+    return clone;
+  }
+
+  getThreadView() {
+    const pref = Preferences.getThreadViewPreference(this.obj);
+    return pref?.lab_treeViewEnabled === true ? "tree" : "linear";
+  }
+
+  setThreadView(view) {
+    const clone = this.clone();
+    let pref = Preferences.getThreadViewPreference(clone.obj);
+    if (!pref) {
+      pref = { $type: THREAD_VIEW_PREF_TYPE };
+      clone.obj.push(pref);
+    }
+    // NOTE: LEXICON DEVIATION - lab_treeViewEnabled isn't in the lexicon, but it's what social-app stores
+    pref.lab_treeViewEnabled = view === "tree";
     return clone;
   }
 
@@ -806,6 +867,10 @@ export class Preferences {
     );
   }
 
+  static getThreadViewPreference(obj) {
+    return Preferences.getPreferenceByType(obj, THREAD_VIEW_PREF_TYPE);
+  }
+
   static getSavedFeedsPreference(obj) {
     return Preferences.getPreferenceByType(
       obj,
@@ -817,6 +882,13 @@ export class Preferences {
     return Preferences.getPreferenceByType(
       obj,
       "app.bsky.actor.defs#labelersPref",
+    );
+  }
+
+  static getAdultContentPreference(obj) {
+    return Preferences.getPreferenceByType(
+      obj,
+      "app.bsky.actor.defs#adultContentPref",
     );
   }
 

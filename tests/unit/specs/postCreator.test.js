@@ -45,10 +45,12 @@ function createSinglePost(pc, options = {}) {
     replyRoot,
     threadgateAllow = null,
     postgateEmbeddingRules = null,
+    langs = ["en"],
     ...postFields
   } = options;
   return pc.createThread({
     posts: [postFields],
+    langs,
     replyTo,
     replyRoot,
     threadgateAllow,
@@ -77,6 +79,7 @@ function videoFixture() {
       mimeType: "video/mp4",
       size: 12345,
     },
+    file: { type: "video/mp4" },
     alt: "a clip",
     aspectRatio: { width: 16, height: 9 },
   };
@@ -109,6 +112,23 @@ describe("video embed preparation", () => {
     assert.deepEqual(embed.video.size, 12345);
     assert.deepEqual(embed.aspectRatio.width, 16);
     assert.deepEqual(embed.aspectRatio.height, 9);
+  });
+
+  it("marks GIF uploads with the gif presentation", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    await createSinglePost(pc, {
+      postText: "hi",
+      video: { ...videoFixture(), file: { type: "image/gif" } },
+    });
+    assert.deepEqual(api.lastEmbed.presentation, "gif");
+  });
+
+  it("omits presentation for regular videos", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    await createSinglePost(pc, { postText: "hi", video: videoFixture() });
+    assert(!("presentation" in api.lastEmbed));
   });
 
   it("omits aspectRatio when missing", async () => {
@@ -158,12 +178,21 @@ describe("video embed preparation", () => {
     assert(!("alt" in api.lastEmbed));
   });
 
-  it("forwards langs to api.createPost", async () => {
+  it("writes the given langs on the record", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await createSinglePost(pc, { postText: "hi" });
-    assert(Array.isArray(api.lastLangs));
-    assert(api.lastLangs.length > 0);
+    await createSinglePost(pc, { postText: "hi", langs: ["ja", "en"] });
+    assert.deepEqual(api.lastLangs, ["ja", "en"]);
+  });
+
+  it("caps langs at 3", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    await createSinglePost(pc, {
+      postText: "hi",
+      langs: ["en", "ja", "de", "fr"],
+    });
+    assert.deepEqual(api.lastLangs, ["en", "ja", "de"]);
   });
 });
 
@@ -757,7 +786,10 @@ describe("createThread", () => {
   it("publishes a single post as one applyWrites create", async () => {
     const api = makeThreadApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    const res = await pc.createThread({ posts: [{ postText: "solo post" }] });
+    const res = await pc.createThread({
+      posts: [{ postText: "solo post" }],
+      langs: ["en"],
+    });
     assert.deepEqual(api.applyWritesCalls.length, 1);
     const writes = api.applyWritesCalls[0];
     assert.deepEqual(writes.length, 1);
@@ -777,10 +809,14 @@ describe("createThread", () => {
     const api = makeThreadApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     const res = await pc.createThread({
+      langs: ["ja", "en"],
       posts: [{ postText: "one" }, { postText: "two" }, { postText: "three" }],
     });
     const writes = api.applyWritesCalls[0];
     assert.deepEqual(writes.length, 3);
+    for (const write of writes) {
+      assert.deepEqual(write.value.langs, ["ja", "en"]);
+    }
     const uris = writes.map(
       (write) => `at://did:plc:user/app.bsky.feed.post/${write.rkey}`,
     );
@@ -822,6 +858,7 @@ describe("createThread", () => {
       cid: "leafcid",
     };
     await pc.createThread({
+      langs: ["en"],
       posts: [{ postText: "one" }, { postText: "two" }],
       replyTo,
       replyRoot,
@@ -843,6 +880,7 @@ describe("createThread", () => {
     const allow = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
     const embeddingRules = [{ $type: "app.bsky.feed.postgate#disableRule" }];
     await pc.createThread({
+      langs: ["en"],
       posts: [{ postText: "one" }, { postText: "two" }],
       threadgateAllow: allow,
       postgateEmbeddingRules: embeddingRules,
@@ -885,6 +923,7 @@ describe("createThread", () => {
       };
       const pc = new PostCreator(api, mockIdentityResolver);
       const res = await pc.createThread({
+        langs: ["en"],
         posts: [{ postText: "one" }, { postText: "two" }],
       });
       assert.deepEqual(res.posts, null);
@@ -913,6 +952,7 @@ describe("send cancellation", () => {
     await assert.rejects(
       () =>
         pc.createThread({
+          langs: ["en"],
           posts: [{ postText: "hi" }],
           signal: controller.signal,
         }),
@@ -938,6 +978,7 @@ describe("send cancellation", () => {
     await assert.rejects(
       () =>
         pc.createThread({
+          langs: ["en"],
           posts: [
             {
               postText: "hi",
@@ -968,6 +1009,7 @@ describe("send cancellation", () => {
       await assert.rejects(
         () =>
           pc.createThread({
+            langs: ["en"],
             posts: [
               {
                 postText: "hi",
@@ -999,6 +1041,7 @@ describe("send cancellation", () => {
     };
     const pc = new PostCreator(api, mockIdentityResolver);
     const res = await pc.createThread({
+      langs: ["en"],
       posts: [{ postText: "hi" }],
       signal: controller.signal,
     });

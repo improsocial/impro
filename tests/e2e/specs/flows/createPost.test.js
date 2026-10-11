@@ -142,7 +142,9 @@ test.describe("Create post flow", () => {
     // Verify the image embed rendered with alt text
     const postImages = profileView.locator('[data-testid="post-images"]');
     await expect(postImages).toBeVisible();
-    await expect(postImages.locator(".alt-indicator")).toContainText("ALT");
+    await expect(
+      postImages.locator('[data-testid="image-alt-badge"]'),
+    ).toBeVisible();
     await expect(postImages.locator("img.post-image")).toHaveAttribute(
       "alt",
       "A beautiful sunset over the mountains",

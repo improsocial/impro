@@ -1,8 +1,12 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/trending-pane.js";
 import { ApiError } from "/js/api.js";
-import { makeTestDataLayer, respondToConfirm } from "../../testHelpers.js";
+import {
+  installFakeIntersectionObserver,
+  makeTestDataLayer,
+  respondToConfirm,
+} from "../../testHelpers.js";
 import { createTrend } from "../../../shared/factories.js";
 
 describe("trending-pane", () => {
@@ -31,12 +35,18 @@ describe("trending-pane", () => {
     );
   }
 
+  let fakeIntersectionObserver;
+
   beforeEach(() => {
     document.body.innerHTML = "";
+    fakeIntersectionObserver = installFakeIntersectionObserver({
+      isIntersecting: true,
+    });
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
+    fakeIntersectionObserver.restore();
   });
 
   it("renders skeleton rows before trends resolve", () => {
@@ -138,6 +148,21 @@ describe("trending-pane", () => {
       element.querySelector("[data-testid='trending-pane']"),
       null,
     );
+  });
+
+  it("does not fetch trends until the pane is visible", async () => {
+    fakeIntersectionObserver.setIntersecting(false);
+    const getTrends = mock.fn(async () => ({
+      trends: [createTrend({ topic: "gardening" })],
+    }));
+    const element = mount(makeDataLayer(getTrends));
+    await flushMicrotasks();
+    assert.deepEqual(getTrends.mock.callCount(), 0);
+
+    fakeIntersectionObserver.setIntersecting(true);
+    await flushMicrotasks();
+    assert.deepEqual(getTrends.mock.callCount(), 1);
+    assert.deepEqual(rowLabels(element), ["gardening"]);
   });
 
   it("renders nothing when the request fails", async () => {

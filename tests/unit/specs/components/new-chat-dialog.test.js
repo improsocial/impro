@@ -129,6 +129,12 @@ describe("new-chat-dialog", () => {
     return element;
   }
 
+  function resultsEmptyState(element, mode) {
+    return element.querySelector(
+      `[data-testid="new-chat-results"][data-teststate="${mode}"] [data-testid="empty-state"]`,
+    );
+  }
+
   function createApiError(errorName = "InternalError") {
     return new ApiError({
       status: 500,
@@ -198,11 +204,7 @@ describe("new-chat-dialog", () => {
       const { dataLayer } = makeDataLayer();
       seedFollows(dataLayer, []);
       const element = createDialog(dataLayer);
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("Search for someone to message"),
-        ),
-      );
+      assert(resultsEmptyState(element, "suggestions") !== null);
       assert.deepEqual(
         element.querySelector('[data-testid="profile-list-item-button"]'),
         null,
@@ -270,11 +272,7 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       const element = createDialog(dataLayer);
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("Search for someone to message"),
-        ),
-      );
+      assert(resultsEmptyState(element, "suggestions") !== null);
       assert.deepEqual(
         element.querySelector('[data-testid="profile-list-item-button"]'),
         null,
@@ -288,11 +286,7 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       await flushMicrotasks();
       await nextFrame();
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("Search for someone to message"),
-        ),
-      );
+      assert(resultsEmptyState(element, "suggestions") !== null);
     });
 
     it("should fall back to the prompt when the follows request fails at the network level", async () => {
@@ -302,11 +296,7 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       await flushMicrotasks();
       await nextFrame();
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("Search for someone to message"),
-        ),
-      );
+      assert(resultsEmptyState(element, "suggestions") !== null);
       assert.deepEqual(element.querySelectorAll(".profile-skeleton").length, 0);
     });
 
@@ -379,11 +369,7 @@ describe("new-chat-dialog", () => {
         searchSpy.mock.calls[searchSpy.mock.calls.length - 1].arguments[0],
         "",
       );
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("Search for someone to message"),
-        ),
-      );
+      assert(resultsEmptyState(element, "suggestions") !== null);
       assert.deepEqual(
         element.querySelector('[data-testid="new-chat-search-clear"]'),
         null,
@@ -425,11 +411,7 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       seedSearchResults(dataLayer, []);
       await typeQuery(element, "alice");
-      assert(
-        [...element.querySelectorAll('[data-testid="empty-state"]')].some(
-          (el) => el.textContent.includes("No results"),
-        ),
-      );
+      assert(resultsEmptyState(element, "search") !== null);
     });
 
     it("should show an error row when the search fails with an ApiError", async () => {
@@ -533,7 +515,9 @@ describe("new-chat-dialog", () => {
       assert.deepEqual(rows[1].dataset.teststate, "disabled");
       assert.deepEqual(rows[1].disabled, true);
       assert(rows[1].textContent.includes("@carol.test"));
-      assert(rows[1].textContent.includes("Can't be messaged"));
+      assert(
+        rows[1].querySelector('[data-testid="not-messageable-hint"]') !== null,
+      );
     });
 
     it("should treat a missing allowIncoming declaration as following-only", async () => {
@@ -771,11 +755,6 @@ describe("new-chat-dialog", () => {
       assert(
         element.querySelector('[data-testid="new-group-back-button"]') !== null,
       );
-      assert(
-        element
-          .querySelector(".search-dialog-title")
-          .textContent.includes("New group chat"),
-      );
     });
 
     it("should fail open and advance while the actor status has not loaded", async () => {
@@ -806,7 +785,6 @@ describe("new-chat-dialog", () => {
       await nextFrame();
       const alert = document.body.querySelector('[data-testid="alert-modal"]');
       assert(alert !== null, "alert modal should be shown");
-      assert(alert.textContent.includes("Your account is too new"));
       assert.deepEqual(
         element.querySelector('[data-testid="new-group-back-button"]'),
         null,

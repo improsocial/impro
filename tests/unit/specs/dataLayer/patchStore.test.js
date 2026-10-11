@@ -1094,6 +1094,33 @@ describe("Profile Patches - Mute/Block/NotificationSubscription", () => {
     assert.deepEqual(result.viewer.muted, false);
   });
 
+  it("should apply muteProfileReposts / unmuteProfileReposts patches", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(did, { type: "muteProfileReposts" });
+    let result = applyProfilePatchesForDid(patchStore, baseProfile);
+    assert.deepEqual(result.viewer.mutedOnlyReposts, true);
+    assert.deepEqual(result.viewer.muted, false);
+
+    const patchStore2 = new PatchStore();
+    patchStore2.addProfilePatch(did, { type: "unmuteProfileReposts" });
+    result = applyProfilePatchesForDid(patchStore2, {
+      ...baseProfile,
+      viewer: { ...baseProfile.viewer, mutedOnlyReposts: true },
+    });
+    assert.deepEqual(result.viewer.mutedOnlyReposts, false);
+  });
+
+  it("should clear mutedOnlyReposts when applying a full muteProfile patch", () => {
+    const patchStore = new PatchStore();
+    patchStore.addProfilePatch(did, { type: "muteProfile" });
+    const result = applyProfilePatchesForDid(patchStore, {
+      ...baseProfile,
+      viewer: { ...baseProfile.viewer, mutedOnlyReposts: true },
+    });
+    assert.deepEqual(result.viewer.muted, true);
+    assert.deepEqual(result.viewer.mutedOnlyReposts, false);
+  });
+
   it("should apply blockProfile / unblockProfile patches", () => {
     const patchStore = new PatchStore();
     patchStore.addProfilePatch(did, { type: "blockProfile" });

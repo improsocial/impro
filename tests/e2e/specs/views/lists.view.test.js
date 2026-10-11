@@ -27,9 +27,9 @@ test.describe("Lists view", () => {
     await page.goto("/lists");
 
     const listsView = page.locator("#lists-view");
-    await expect(
-      listsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Lists", { timeout: 10000 });
+    await expect(listsView.locator('[data-testid="header-title"]')).toBeVisible(
+      { timeout: 10000 },
+    );
 
     await expect(
       listsView.locator('[data-testid="feeds-list-item-list"]'),
@@ -49,10 +49,12 @@ test.describe("Lists view", () => {
     await page.goto("/lists");
 
     const listsView = page.locator("#lists-view");
-    await expect(
-      listsView.locator('[data-testid="header-title"]'),
-    ).toContainText("Lists", { timeout: 10000 });
-    await expect(listsView).toContainText("No lists.", { timeout: 10000 });
+    await expect(listsView.locator('[data-testid="header-title"]')).toBeVisible(
+      { timeout: 10000 },
+    );
+    await expect(listsView.locator('[data-testid="empty-state"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should navigate to list detail when clicking a list", async ({

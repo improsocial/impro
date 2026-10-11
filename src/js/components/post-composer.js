@@ -4,11 +4,15 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
+  arePostLanguagesEqual,
   classnames,
+  getPrimaryPostLanguage,
+  getNameForLanguageCode,
   graphemeCount,
   readFileAsDataUrl,
   sanitizeUri,
 } from "/js/utils.js";
+import { POST_LANGUAGE_CODES } from "/js/languages.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { scrollLocks } from "/js/scrollLocks.js";
@@ -21,6 +25,7 @@ import {
   readVideoMetadata,
   VideoUploader,
   VideoValidationError,
+  isGifFile,
 } from "/js/videoUtils.js";
 import {
   recordEmbedTemplate,
@@ -59,6 +64,10 @@ import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
 import "/js/components/gif-picker-dialog.js";
 import "/js/components/drafts-dialog.js";
+import "/js/components/post-language-dialog.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 
 const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
 // Threshold for detecting pasted text, since InputEvent.inputType is unreliable
@@ -128,6 +137,57 @@ function errorMessageBannerTemplate({ message, onDismiss }) {
       <app-icon icon="close-line"></app-icon>
     </button>
   </div>`;
+}
+
+function postLanguageLabel(languages, separator) {
+  return languages.map(getNameForLanguageCode).join(separator);
+}
+
+function postLanguageButtonTemplate({ currentLanguages, onClick }) {
+  const label = postLanguageLabel(currentLanguages, ", ");
+  return html`<button
+    type="button"
+    class="post-composer-language-button"
+    data-testid="composer-language-button"
+    aria-haspopup="menu"
+    aria-label="Post language: ${label}"
+    title=${label}
+    @click=${onClick}
+  >
+    <span class="post-composer-language-button-label">${label}</span>
+  </button>`;
+}
+
+function postLanguageMenuTemplate({
+  menuEntries,
+  currentLanguages,
+  onSelect,
+  onMoreLanguages,
+}) {
+  return html`<context-menu class="post-language-menu">
+    <context-menu-item-group>
+      ${menuEntries.map((entry) => {
+        const isSelected = arePostLanguagesEqual(entry, currentLanguages);
+        return html`<context-menu-item
+          data-testid="menu-action-post-language-${entry.join("-")}"
+          data-teststate=${isSelected ? "selected" : "unselected"}
+          icon=${isSelected ? "check" : ""}
+          @click=${() => onSelect(entry)}
+        >
+          ${postLanguageLabel(entry, " + ")}
+        </context-menu-item>`;
+      })}
+    </context-menu-item-group>
+    <context-menu-item-group>
+      <context-menu-item
+        data-testid="menu-action-more-languages"
+        icon="chevron-right-line"
+        @click=${onMoreLanguages}
+      >
+        More languages…
+      </context-menu-item>
+    </context-menu-item-group>
+  </context-menu>`;
 }
 
 function isVideoUploadPending(video) {
@@ -302,19 +362,33 @@ function altIndicatorContentTemplate(hasAlt) {
 function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
   const isReady = video.status === "done";
   const isError = video.status === "error";
+  const isGif = isGifFile(video.file);
   let progressLabel = "";
   if (video.status === "uploading") {
-    progressLabel = "Uploading...";
+    progressLabel = isGif ? "Uploading GIF..." : "Uploading...";
   } else if (video.status === "processing") {
+    const processingLabel = isGif ? "Processing GIF..." : "Processing...";
     progressLabel =
-      video.progress > 0 ? `Processing... ${video.progress}%` : "Processing...";
+      video.progress > 0
+        ? `${processingLabel} ${video.progress}%`
+        : processingLabel;
   } else if (isError) {
     progressLabel = video.error || "Upload failed";
   }
   return html`
     <div class="post-composer-video-preview">
       <div class="video-preview-item">
-        <video src="${video.previewUrl}" controls playsinline></video>
+        ${isGif
+          ? html`<img
+              src="${video.previewUrl}"
+              alt=""
+              data-testid="composer-video-gif-preview"
+            />`
+          : html`<video
+              src="${video.previewUrl}"
+              controls
+              playsinline
+            ></video>`}
         <button
           class="image-preview-remove-button"
           @click=${(e) => {
@@ -326,7 +400,11 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
           <app-icon icon="close-line"></app-icon>
         </button>
         ${!isReady
-          ? html`<div class="video-preview-overlay">
+          ? html`<div
+              class="video-preview-overlay"
+              data-testid="composer-video-overlay"
+              data-teststate=${video.status}
+            >
               ${!isError ? html`<div class="loading-spinner"></div>` : ""}
               <span>${progressLabel}</span>
             </div>`
@@ -572,6 +650,8 @@ class PostComposer extends Component {
     this.state.$isDraggingFiles = new Signal.State(false);
     this.state.$threadgateAllow = new Signal.State(null);
     this.state.$postgateEmbeddingRules = new Signal.State(null);
+    // null uses the primary language
+    this.state.$selectedPostLanguages = new Signal.State(null);
     this._dragAndDropObserver = null;
     this._disposers = [
       effect(() => {
@@ -720,6 +800,15 @@ class PostComposer extends Component {
     const postgateEmbeddingRules = this.state.$postgateEmbeddingRules.get();
     const isInteractionLimited =
       threadgateAllow !== null || postgateEmbeddingRules?.length > 0;
+    const currentPostLanguages = this._getCurrentPostLanguages();
+    const postLanguageHistory =
+      this.dataLayer.derived.$postLanguageHistory.get();
+    const primaryPostLanguages = [getPrimaryPostLanguage()];
+    const postLanguageMenuEntries = postLanguageHistory.some((entry) =>
+      arePostLanguagesEqual(entry, primaryPostLanguages),
+    )
+      ? postLanguageHistory
+      : [...postLanguageHistory, primaryPostLanguages];
 
     const currentCharCount = graphemeCount(activePost.text);
     const charCountPercentage = Math.min(
@@ -959,6 +1048,20 @@ class PostComposer extends Component {
                     </div>
                   </div>
                   <div class="post-composer-bottom-bar-right">
+                    ${postLanguageButtonTemplate({
+                      currentLanguages: currentPostLanguages,
+                      onClick: () => this.openPostLanguageMenu(),
+                    })}
+                    ${postLanguageMenuTemplate({
+                      menuEntries: postLanguageMenuEntries,
+                      currentLanguages: currentPostLanguages,
+                      onSelect: (entry) => this.setPostLanguages(entry),
+                      onMoreLanguages: () => {
+                        requestAnimationFrame(() =>
+                          this.openPostLanguageDialog(),
+                        );
+                      },
+                    })}
                     ${canAddPost
                       ? html`<button
                           class="icon-button post-composer-add-post-button"
@@ -1244,8 +1347,12 @@ class PostComposer extends Component {
   async addMediaFiles(postId, files) {
     if (files.length === 0) return;
 
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    const videoFiles = files.filter((file) => file.type.startsWith("video/"));
+    const videoFiles = files.filter(
+      (file) => file.type.startsWith("video/") || isGifFile(file),
+    );
+    const imageFiles = files.filter(
+      (file) => file.type.startsWith("image/") && !isGifFile(file),
+    );
 
     if (imageFiles.length + videoFiles.length < files.length) {
       showToast("Unsupported file type", { style: "warning" });
@@ -1809,6 +1916,7 @@ class PostComposer extends Component {
           }),
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,
+          langs: untrack(() => this._getCurrentPostLanguages()),
           threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
           postgateEmbeddingRules: untrack(() =>
             this.state.$postgateEmbeddingRules.get(),
@@ -1849,6 +1957,7 @@ class PostComposer extends Component {
   buildDraftSnapshot() {
     const posts = this._getPosts();
     return {
+      langs: untrack(() => this.state.$selectedPostLanguages.get()),
       posts: posts.map((postState) => ({
         postText: postState.text,
         images: postState.images,
@@ -1957,6 +2066,7 @@ class PostComposer extends Component {
     this.state.$activePostIndex.set(0);
     this.state.$threadgateAllow.set(null);
     this.state.$postgateEmbeddingRules.set(null);
+    this.state.$selectedPostLanguages.set(null);
     this._draftId = null;
     this._originalLocalRefs = null;
     this.render();
@@ -2070,6 +2180,42 @@ class PostComposer extends Component {
     dialog.open();
   }
 
+  _getCurrentPostLanguages() {
+    return (
+      this.state.$selectedPostLanguages.get() ?? [getPrimaryPostLanguage()]
+    );
+  }
+
+  setPostLanguages(languages) {
+    this.state.$selectedPostLanguages.set(languages);
+  }
+
+  openPostLanguageMenu() {
+    const menu = this.querySelector(".post-language-menu");
+    const button = this.querySelector(".post-composer-language-button");
+    const rect = button.getBoundingClientRect();
+    menu.open(rect.left, rect.bottom);
+  }
+
+  openPostLanguageDialog() {
+    const dialog = document.createElement("post-language-dialog");
+    dialog.currentLanguages = untrack(() => this._getCurrentPostLanguages());
+    dialog.postLanguageHistory = untrack(() =>
+      this.dataLayer.derived.$postLanguageHistory.get(),
+    );
+    dialog.addEventListener("select-languages", (e) => {
+      const { languages } = e.detail;
+      this.setPostLanguages(
+        languages.length > 0 ? languages : [getPrimaryPostLanguage()],
+      );
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
   openDraftsDialog() {
     const dialog = document.createElement("drafts-dialog");
     dialog.dataLayer = this.dataLayer;
@@ -2105,6 +2251,12 @@ class PostComposer extends Component {
     this.state.$threadgateAllow.set(draft.threadgateAllow ?? null);
     this.state.$postgateEmbeddingRules.set(
       draft.postgateEmbeddingRules ?? null,
+    );
+    const draftLanguages = (draft.langs ?? []).filter((code) =>
+      POST_LANGUAGE_CODES.has(code),
+    );
+    this.state.$selectedPostLanguages.set(
+      draftLanguages.length > 0 ? draftLanguages : null,
     );
     this._draftId = draftView.id;
     this._originalLocalRefs = new Set(getLocalRefsFromDraft(draft));

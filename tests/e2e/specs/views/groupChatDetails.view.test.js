@@ -109,7 +109,7 @@ test.describe("Group chat details view", () => {
     await expect(bobRow).toContainText("Bob");
     await expect(
       bobRow.locator('[data-testid="member-added-by"]'),
-    ).toContainText("Added by invite link");
+    ).toHaveAttribute("data-teststate", "invite-link");
     await expect(view.locator('[data-testid="admin-badge"]')).toHaveCount(1);
   });
 
@@ -262,7 +262,7 @@ test.describe("Group chat details view", () => {
     await expect(toggle).toHaveAttribute("data-teststate", "unmuted");
     await expect(
       view.locator('[data-testid="group-settings-leave-button"]'),
-    ).toContainText("Leave");
+    ).toBeVisible();
   });
 
   test("should reflect muted state on the group mute toggle", async ({

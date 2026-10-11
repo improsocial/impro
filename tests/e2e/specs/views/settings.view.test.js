@@ -13,10 +13,9 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Settings",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     const nav = view.locator(".vertical-nav");
     // 7 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
@@ -93,6 +92,26 @@ test.describe("Settings view", () => {
     );
   });
 
+  test("Signing out goes to the login page without a returnTo", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+    ]);
+    await page.goto("/settings");
+
+    const view = page.locator("#settings-view");
+    await view.locator('[data-testid="settings-sign-out"]').click({
+      timeout: 10000,
+    });
+    await page.locator('[data-testid="modal-confirm-button"]').click();
+
+    await expect(page).toHaveURL(/\/login$/, { timeout: 10000 });
+  });
+
   test("should display version info", async ({ page }) => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
@@ -140,7 +159,7 @@ test.describe("Settings view", () => {
         '[data-testid="settings-switch-account-toggle"]',
       );
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Add another account");
+      await expect(toggle).toHaveAttribute("data-teststate", "add");
       // No dropdown, no avatar stack.
       await expect(
         view.locator('[data-testid="settings-account-avatar-stack"]'),
@@ -223,7 +242,7 @@ test.describe("Settings view", () => {
         '[data-testid="settings-switch-account-toggle"]',
       );
       await expect(toggle).toBeVisible({ timeout: 10000 });
-      await expect(toggle).toContainText("Switch account");
+      await expect(toggle).toHaveAttribute("data-teststate", "collapsed");
       await toggle.click();
 
       const row = view.locator('[data-testid="settings-account-row"]');

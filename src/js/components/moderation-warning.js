@@ -11,6 +11,7 @@ class ModerationWarning extends Component {
     this.labelerLink = this.getAttribute("labelerLink");
     this.labelerName = this.getAttribute("labelerName");
     this.iconStyle = this.getAttribute("icon-style") ?? "info";
+    this.noOverride = this.hasAttribute("no-override");
     this.expanded = false;
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
@@ -23,34 +24,38 @@ class ModerationWarning extends Component {
       this.iconStyle === "closed-eye"
         ? html`<app-icon icon="eye-off-line"></app-icon>`
         : html`<app-icon icon="info-circle-line"></app-icon>`;
+    const labelTemplate = html`<span class="moderation-warning-label">
+      ${iconHtml}
+      <span>${this.label}</span>
+    </span>`;
     render(
       html`
-        <div
-          class="top-bar"
-          aria-expanded=${this.expanded}
-          tabindex="0"
-          role="button"
-          @click=${() => this.toggle()}
-          @keydown=${(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              this.toggle();
-            }
-          }}
-        >
-          <span class="moderation-warning-label">
-            ${iconHtml}
-            <span>${this.label}</span>
-          </span>
-          <label class="show-hide-label">
-            ${this.expanded ? "Hide" : "Show"}
-          </label>
-        </div>
+        ${this.noOverride
+          ? html`<div class="top-bar">${labelTemplate}</div>`
+          : html`<div
+              class="top-bar"
+              aria-expanded=${this.expanded}
+              tabindex="0"
+              role="button"
+              @click=${() => this.toggle()}
+              @keydown=${(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  this.toggle();
+                }
+              }}
+            >
+              ${labelTemplate}
+              <label class="show-hide-label">
+                ${this.expanded ? "Hide" : "Show"}
+              </label>
+            </div>`}
         <div class="toggle-content" ?hidden=${!this.expanded}></div>
         ${this.labelerName
           ? html`<div
               class="post-moderation-warning-description"
+              data-testid="moderation-warning-description"
               ?hidden=${this.expanded}
             >
               Labeled by

@@ -16,9 +16,17 @@ import {
   valueForPinnedItem,
   buildCdnUrl,
   getReplyRootFromPost,
+  insertReplyIntoThread,
+  MAX_DETACHED_EMBEDDING_URIS,
+  createDetachedQuote,
+  createEmbedFromPost,
+  replaceQuotedPost,
+  MAX_HIDDEN_REPLIES,
 } from "/js/dataHelpers.js";
 import {
+  addPostLanguagesToHistory,
   batch,
+  isNil,
   getCurrentTimestamp,
   truncateGraphemes,
   wait,
@@ -28,6 +36,22 @@ import { getFacetsFromText } from "/js/facetHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 import { generateTid } from "/js/atproto.js";
+
+export class DetachedQuoteLimitError extends Error {
+  constructor() {
+    super(
+      `Posts can have at most ${MAX_DETACHED_EMBEDDING_URIS} detached quotes`,
+    );
+    this.name = "DetachedQuoteLimitError";
+  }
+}
+
+export class HiddenReplyLimitError extends Error {
+  constructor() {
+    super(`Threads can have at most ${MAX_HIDDEN_REPLIES} hidden replies`);
+    this.name = "HiddenReplyLimitError";
+  }
+}
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -186,26 +210,6 @@ export class Mutations {
           viewer: { ...latestPost.viewer, repost: null },
           repostCount: latestPost.repostCount - 1,
         });
-      }
-      // If the current user's author feed is loaded, remove the repost from it.
-      const currentUser = this.dataStore.$currentUser.get();
-      if (currentUser) {
-        const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-        if (authorFeed) {
-          this.dataStore.$authorFeeds.set(authorFeedURI, {
-            feed: authorFeed.feed.filter((feedItem) => {
-              if (
-                feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
-                feedItem.reason?.uri === post.viewer.repost
-              ) {
-                return false;
-              }
-              return true;
-            }),
-            cursor: authorFeed.cursor,
-          });
-        }
       }
     } catch (error) {
       console.error(error);
@@ -588,6 +592,13 @@ export class Mutations {
     this.sessionState.$trendingHidden.set(hidden);
   }
 
+  updatePostLanguageHistory(languages) {
+    const history = untrack(() => this.sessionState.$postLanguageHistory.get());
+    this.sessionState.$postLanguageHistory.set(
+      addPostLanguagesToHistory(history, languages),
+    );
+  }
+
   async hidePost(post) {
     const patchId = this.patchStore.addPostPatch(post.uri, {
       type: "hidePost",
@@ -618,6 +629,23 @@ export class Mutations {
     });
     const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.removeRecentSearch(q);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async setThreadView(view) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "setThreadView",
+      view,
+    });
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setThreadView(view);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {
@@ -768,17 +796,8 @@ export class Mutations {
       await this.api.muteActor(profile.did);
       this._updateStoredProfile(profile, (stored) => ({
         ...stored,
-        viewer: { ...stored.viewer, muted: true },
+        viewer: { ...stored.viewer, muted: true, mutedOnlyReposts: false },
       }));
-      this._updatePostsByAuthor(profile.did, (post) => {
-        return {
-          ...post,
-          author: {
-            ...post.author,
-            viewer: { ...post.author.viewer, muted: true },
-          },
-        };
-      });
       const mutedProfiles = this.dataStore.$mutedProfiles.get();
       if (mutedProfiles) {
         const alreadyListed = mutedProfiles.mutes.some(
@@ -807,17 +826,8 @@ export class Mutations {
       await this.api.unmuteActor(profile.did);
       this._updateStoredProfile(profile, (stored) => ({
         ...stored,
-        viewer: { ...stored.viewer, muted: false },
+        viewer: { ...stored.viewer, muted: false, mutedOnlyReposts: false },
       }));
-      this._updatePostsByAuthor(profile.did, (post) => {
-        return {
-          ...post,
-          author: {
-            ...post.author,
-            viewer: { ...post.author.viewer, muted: false },
-          },
-        };
-      });
       const mutedProfiles = this.dataStore.$mutedProfiles.get();
       if (mutedProfiles) {
         this.dataStore.$mutedProfiles.set({
@@ -827,6 +837,42 @@ export class Mutations {
           ),
         });
       }
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removeProfilePatch(profile.did, patchId);
+    }
+  }
+
+  async muteProfileReposts(profile) {
+    const patchId = this.patchStore.addProfilePatch(profile.did, {
+      type: "muteProfileReposts",
+    });
+    try {
+      await this.api.muteActorReposts(profile.did);
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, mutedOnlyReposts: true },
+      }));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removeProfilePatch(profile.did, patchId);
+    }
+  }
+
+  async unmuteProfileReposts(profile) {
+    const patchId = this.patchStore.addProfilePatch(profile.did, {
+      type: "unmuteProfileReposts",
+    });
+    try {
+      await this.api.unmuteActor(profile.did);
+      this._updateStoredProfile(profile, (stored) => ({
+        ...stored,
+        viewer: { ...stored.viewer, mutedOnlyReposts: false },
+      }));
     } catch (error) {
       console.error(error);
       throw error;
@@ -845,15 +891,6 @@ export class Mutations {
         ...stored,
         viewer: { ...stored.viewer, blocking: block.uri },
       }));
-      this._updatePostsByAuthor(profile.did, (post) => {
-        return {
-          ...post,
-          author: {
-            ...post.author,
-            viewer: { ...post.author.viewer, blocking: block.uri },
-          },
-        };
-      });
       const blockedProfiles = this.dataStore.$blockedProfiles.get();
       if (blockedProfiles) {
         const alreadyListed = blockedProfiles.blocks.some(
@@ -903,15 +940,6 @@ export class Mutations {
         ...stored,
         viewer: { ...stored.viewer, blocking: null },
       }));
-      this._updatePostsByAuthor(profile.did, (post) => {
-        return {
-          ...post,
-          author: {
-            ...post.author,
-            viewer: { ...post.author.viewer, blocking: null },
-          },
-        };
-      });
       const blockedProfiles = this.dataStore.$blockedProfiles.get();
       if (blockedProfiles) {
         this.dataStore.$blockedProfiles.set({
@@ -1922,6 +1950,160 @@ export class Mutations {
     }
   }
 
+  async toggleQuoteDetachment(quotingPost, quotedPostUri, detach) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
+    const { repo, rkey } = parseUri(quotedPostUri);
+    if (currentUser.did !== repo) {
+      throw new Error("Only the quoted post's author can detach quotes");
+    }
+
+    let quotedPost = detach
+      ? createDetachedQuote(quotedPostUri)
+      : this._getCachedQuoteEmbed(quotedPostUri);
+    const patchId = quotedPost
+      ? this.patchStore.addPostPatch(quotingPost.uri, {
+          type: "setQuotedPost",
+          quotedPost,
+        })
+      : null;
+    try {
+      let priorPostgateRecord = null;
+      try {
+        priorPostgateRecord = await this.api.getPostgateRecord(rkey);
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      const priorUris = priorPostgateRecord?.value?.detachedEmbeddingUris ?? [];
+      if (priorPostgateRecord || detach) {
+        let detachedEmbeddingUris;
+        if (detach) {
+          if (
+            !priorUris.includes(quotingPost.uri) &&
+            priorUris.length >= MAX_DETACHED_EMBEDDING_URIS
+          ) {
+            throw new DetachedQuoteLimitError();
+          }
+          detachedEmbeddingUris = [
+            ...priorUris.filter((uri) => uri !== quotingPost.uri),
+            quotingPost.uri,
+          ];
+        } else {
+          detachedEmbeddingUris = priorUris.filter(
+            (uri) => uri !== quotingPost.uri,
+          );
+        }
+        await this.api.putPostgateRecord(
+          rkey,
+          {
+            ...priorPostgateRecord?.value,
+            $type: "app.bsky.feed.postgate",
+            post: quotedPostUri,
+            createdAt: getCurrentTimestamp(),
+            detachedEmbeddingUris,
+          },
+          priorPostgateRecord?.cid ?? null,
+        );
+      }
+
+      if (!quotedPost) {
+        try {
+          quotedPost = createEmbedFromPost(
+            await this.api.getPost(quotedPostUri),
+          );
+        } catch (error) {
+          console.warn("Failed to load re-attached quote", error);
+        }
+      }
+      const latestPost = this.dataStore.$posts.get(quotingPost.uri);
+      if (latestPost && quotedPost) {
+        this.dataStore.$posts.set(
+          quotingPost.uri,
+          replaceQuotedPost(latestPost, quotedPost),
+        );
+      }
+    } finally {
+      if (patchId !== null) {
+        this.patchStore.removePostPatch(quotingPost.uri, patchId);
+      }
+    }
+  }
+
+  _getCachedQuoteEmbed(postUri) {
+    const post = untrack(
+      () =>
+        this.dataStore.$posts.get(postUri) ??
+        this.dataStore.$embeddedPosts.get(postUri),
+    );
+    return post ? createEmbedFromPost(post) : null;
+  }
+
+  async updateThreadgateHiddenReply(reply, hide) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) throw new Error("No current user");
+    const rootUri = reply.record?.reply?.root?.uri;
+    if (!rootUri) throw new Error("Post is not a reply");
+    const { repo, rkey } = parseUri(rootUri);
+    if (currentUser.did !== repo) {
+      throw new Error("Only the thread author can hide replies");
+    }
+    if (reply.author?.did === currentUser.did) {
+      throw new Error("Can't hide your own reply");
+    }
+
+    const patchId = this.patchStore.addPostPatch(rootUri, {
+      type: "setThreadgateHiddenReply",
+      replyUri: reply.uri,
+      hidden: hide,
+    });
+    try {
+      let priorThreadgateRecord = null;
+      try {
+        priorThreadgateRecord = await this.api.getThreadgateRecord(rkey);
+      } catch (error) {
+        if (!isRecordNotFoundError(error)) throw error;
+      }
+      if (!priorThreadgateRecord && !hide) return;
+      const priorUris = priorThreadgateRecord?.value?.hiddenReplies ?? [];
+      const otherUris = priorUris.filter((uri) => uri !== reply.uri);
+      if (hide && otherUris.length >= MAX_HIDDEN_REPLIES) {
+        throw new HiddenReplyLimitError();
+      }
+      const record = {
+        ...priorThreadgateRecord?.value,
+        $type: "app.bsky.feed.threadgate",
+        post: rootUri,
+        createdAt: getCurrentTimestamp(),
+        hiddenReplies: hide ? [...otherUris, reply.uri] : otherUris,
+      };
+      const result = await this.api.putThreadgateRecord(
+        rkey,
+        record,
+        priorThreadgateRecord?.cid ?? null,
+      );
+
+      const latestRootPost = this.dataStore.$posts.get(rootUri);
+      if (latestRootPost) {
+        this.dataStore.$posts.set(rootUri, {
+          ...latestRootPost,
+          threadgate: {
+            uri: buildUri({
+              repo,
+              collection: "app.bsky.feed.threadgate",
+              rkey,
+            }),
+            lists: [],
+            ...latestRootPost.threadgate,
+            cid: result.cid,
+            record,
+          },
+        });
+      }
+    } finally {
+      this.patchStore.removePostPatch(rootUri, patchId);
+    }
+  }
+
   async updateThreadgateAllow(post, threadgateAllow) {
     const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) throw new Error("No current user");
@@ -1985,6 +2167,7 @@ export class Mutations {
     posts,
     replyTo,
     replyRoot,
+    langs,
     threadgateAllow,
     postgateEmbeddingRules,
     signal = null,
@@ -1993,6 +2176,7 @@ export class Mutations {
       posts,
       replyTo,
       replyRoot,
+      langs,
       threadgateAllow,
       postgateEmbeddingRules,
       signal,
@@ -2003,18 +2187,30 @@ export class Mutations {
         post.viewer.priorityReply = true;
       }
       this.dataStore.setPosts(hydratedPosts);
+      const replyToPost = replyTo
+        ? this.dataStore.$posts.get(replyTo.uri)
+        : null;
+      if (!isNil(replyToPost?.replyCount)) {
+        this.dataStore.$posts.set(replyTo.uri, {
+          ...replyToPost,
+          replyCount: replyToPost.replyCount + 1,
+        });
+      }
       const rootPost = hydratedPosts[0];
-      // If it's a reply, update the reply post thread in the store
+      // If it's a reply, add it under the replied-to post in every cached thread that contains it
       if (replyTo) {
-        const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
-        if (replyPostThread) {
-          this.dataStore.setPostThread(replyTo.uri, {
-            ...replyPostThread,
-            replies: [
-              createNestedThreadViewPost(hydratedPosts),
-              ...replyPostThread.replies,
-            ],
-          });
+        const newReply = createNestedThreadViewPost(hydratedPosts);
+        for (const [uri, postThread] of [
+          ...this.dataStore.$postThreads.entries(),
+        ]) {
+          const updatedPostThread = insertReplyIntoThread(
+            postThread,
+            replyTo.uri,
+            newReply,
+          );
+          if (updatedPostThread !== postThread) {
+            this.dataStore.setPostThread(uri, updatedPostThread);
+          }
         }
       }
       const { repo: did } = parseUri(rootPost.uri);
@@ -2044,6 +2240,14 @@ export class Mutations {
   async deletePost(post) {
     // no optimistic update
     await this.api.deletePost(post);
+    const parentUri = post.record.reply?.parent.uri;
+    const parentPost = parentUri ? this.dataStore.$posts.get(parentUri) : null;
+    if (!isNil(parentPost?.replyCount)) {
+      this.dataStore.$posts.set(parentUri, {
+        ...parentPost,
+        replyCount: Math.max(0, parentPost.replyCount - 1),
+      });
+    }
     // Replace the post with a not found post.
     // This *should* remove the post from all relevant places in the UI.
     this.dataStore.$posts.set(post.uri, createNotFoundPost(post.uri));
@@ -2326,14 +2530,6 @@ export class Mutations {
         ...data,
         drafts: data.drafts.filter((draftView) => draftView.id !== draftId),
       });
-    }
-  }
-
-  _updatePostsByAuthor(profileDid, updateFunc) {
-    for (const post of this.dataStore.$posts.values()) {
-      if (post?.author?.did === profileDid) {
-        this.dataStore.$posts.set(post.uri, updateFunc(post));
-      }
     }
   }
 

@@ -10,29 +10,29 @@ function renderBadge(post) {
 }
 
 describe("whoCanReplyBadgeTemplate", () => {
-  it("shows 'Everybody can reply' when post has no threadgate", () => {
+  it("marks the everybody reply setting when post has no threadgate", () => {
     const badge = renderBadge({});
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
+    assert.deepEqual(badge.dataset.teststate, "everybody");
     assert(badge.querySelector("app-icon[icon='globe-grid-line']") !== null);
   });
 
-  it("shows 'Everybody can reply' when allow is undefined", () => {
+  it("marks the everybody reply setting when allow is undefined", () => {
     const post = { threadgate: { record: {} } };
     const badge = renderBadge(post);
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
+    assert.deepEqual(badge.dataset.teststate, "everybody");
     assert(badge.querySelector("app-icon[icon='globe-grid-line']") !== null);
   });
 
-  it("shows 'Replies disabled' when allow is empty", () => {
+  it("marks the nobody reply setting when allow is empty", () => {
     const post = { threadgate: { record: { allow: [] } } };
     const badge = renderBadge(post);
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Replies disabled");
+    assert.deepEqual(badge.dataset.teststate, "nobody");
   });
 
-  it("shows 'Some people can reply' for a mention rule", () => {
+  it("marks the limited reply setting for a mention rule", () => {
     const post = {
       threadgate: {
         record: {
@@ -42,10 +42,10 @@ describe("whoCanReplyBadgeTemplate", () => {
     };
     const badge = renderBadge(post);
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Some people can reply");
+    assert.deepEqual(badge.dataset.teststate, "limited");
   });
 
-  it("shows 'Some people can reply' for multiple rules including a list", () => {
+  it("marks the limited reply setting for multiple rules including a list", () => {
     const post = {
       threadgate: {
         lists: [
@@ -67,20 +67,20 @@ describe("whoCanReplyBadgeTemplate", () => {
     };
     const badge = renderBadge(post);
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Some people can reply");
+    assert.deepEqual(badge.dataset.teststate, "limited");
   });
 
-  it("shows 'Everybody can reply' when only embedding is disabled", () => {
+  it("marks the everybody reply setting when only embedding is disabled", () => {
     const post = { viewer: { embeddingDisabled: true } };
     const badge = renderBadge(post);
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
+    assert.deepEqual(badge.dataset.teststate, "everybody");
   });
 
-  it("shows 'Everybody can reply' for everybody + embedding allowed", () => {
+  it("marks the everybody reply setting for everybody + embedding allowed", () => {
     const badge = renderBadge({ viewer: { embeddingDisabled: false } });
     assert(badge !== null);
-    assert.deepEqual(badge.textContent.trim(), "Everybody can reply");
+    assert.deepEqual(badge.dataset.teststate, "everybody");
   });
 
   it("exposes a data-testid for e2e tests", () => {
@@ -91,7 +91,7 @@ describe("whoCanReplyBadgeTemplate", () => {
 
   it("renders plain by default and as a link with linkStyle", () => {
     const badge = renderBadge({ author: { handle: "alice.test" } });
-    assert.deepEqual(badge.getAttribute("data-teststate"), "plain");
+    assert(!badge.classList.contains("who-can-reply-badge-link"));
 
     const container = document.createElement("div");
     render(
@@ -103,7 +103,7 @@ describe("whoCanReplyBadgeTemplate", () => {
       container,
     );
     const linkBadge = container.querySelector(".who-can-reply-badge");
-    assert.deepEqual(linkBadge.getAttribute("data-teststate"), "link");
+    assert(linkBadge.classList.contains("who-can-reply-badge-link"));
   });
 
   it("invokes onClick with the post when clicked", () => {

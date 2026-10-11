@@ -44,10 +44,9 @@ test.describe("Post reposts view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/reposts");
 
     const view = page.locator("#post-reposts-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Reposted by",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
       "3 reposts",
@@ -102,10 +101,9 @@ test.describe("Post reposts view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/reposts");
 
     const view = page.locator("#post-reposts-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Reposted by",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
       timeout: 10000,
@@ -132,10 +130,9 @@ test.describe("Post reposts view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123/reposts");
 
     const view = page.locator("#post-reposts-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading reposts",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="reposts-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should render bio, follows-you, and follow-state per reposter", async ({
@@ -257,10 +254,9 @@ test.describe("Post reposts view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123/reposts");
 
       const view = page.locator("#post-reposts-view");
-      await expect(view.locator('[data-testid="header-title"]')).toContainText(
-        "Reposted by",
-        { timeout: 10000 },
-      );
+      await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+        timeout: 10000,
+      });
 
       await expect(view.locator(".profile-list-item")).toHaveCount(3, {
         timeout: 10000,

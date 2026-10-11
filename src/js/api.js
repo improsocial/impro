@@ -1118,6 +1118,18 @@ export class Api {
     return res;
   }
 
+  async muteActorReposts(did) {
+    const res = await this.appViewRequest("app.bsky.graph.muteActor", {
+      method: "POST",
+      body: {
+        actor: did,
+        onlyReposts: true,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
   async unmuteActor(did) {
     const res = await this.appViewRequest("app.bsky.graph.unmuteActor", {
       method: "POST",

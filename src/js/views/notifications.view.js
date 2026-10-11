@@ -12,7 +12,7 @@ import {
   TabScrollMemory,
   StickyFixer,
 } from "/js/utils.js";
-import { Signal, ReactiveStore } from "/js/signals.js";
+import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import {
   bindToPage,
   pageEffect,
@@ -39,7 +39,7 @@ import { getGifFromPost } from "/js/embedHelpers.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { getTimestampFromRkey } from "/js/atproto.js";
-import { profileListModal } from "/js/modals/profileList.modal.js";
+import { profileListItemTemplate } from "/js/templates/profileList.template.js";
 import "/js/components/tab-bar.js";
 import {
   NOTIFICATIONS_PAGE_SIZE,
@@ -50,17 +50,25 @@ import "/js/components/container-link.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import { showToast } from "/js/toasts.js";
 
-function notificationItemTemplate({ href, isUnread, children }) {
+function notificationItemTemplate({ type, href, isUnread, children }) {
   const unreadClass = isUnread ? "unread" : "";
   if (href) {
     return html`<container-link
       class="notification-item notification-item-clickable ${unreadClass}"
+      data-testid="notification-item"
+      data-teststate=${type}
       href=${href}
     >
       ${children}
     </container-link>`;
   }
-  return html`<div class="notification-item ${unreadClass}">${children}</div>`;
+  return html`<div
+    class="notification-item ${unreadClass}"
+    data-testid="notification-item"
+    data-teststate=${type}
+  >
+    ${children}
+  </div>`;
 }
 
 export default async function notificationsView({
@@ -163,6 +171,7 @@ export default async function notificationsView({
   state.$isReloadingMentionNotifications = new Signal.State(false);
   state.$loadMoreError = new Signal.State(null);
   state.$mentionLoadMoreError = new Signal.State(null);
+  state.$expandedGroups = new SignalSet();
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -280,20 +289,75 @@ export default async function notificationsView({
       );
   }
 
-  function notificationAvatarsTemplate({ notifications, maxAvatars = 5 }) {
+  function toggleAuthorsExpanded(groupKey) {
+    if (state.$expandedGroups.has(groupKey)) {
+      state.$expandedGroups.delete(groupKey);
+    } else {
+      state.$expandedGroups.add(groupKey);
+    }
+  }
+
+  function notificationAvatarsTemplate({ notificationGroup, maxAvatars = 5 }) {
     const authors = unique(
-      notifications.map((notification) => notification.author),
+      notificationGroup.notifications.map(
+        (notification) => notification.author,
+      ),
       { by: "did" },
     );
-    const displayCount = Math.min(authors.length, maxAvatars);
+    if (authors.length === 1) {
+      return html`
+        <div class="notification-avatars">
+          <div class="notification-avatar">
+            ${avatarTemplate({ author: authors[0] })}
+          </div>
+        </div>
+      `;
+    }
+    const groupKey = notificationGroup.notifications[0].uri;
+    if (state.$expandedGroups.has(groupKey)) {
+      return html`
+        <button
+          type="button"
+          class="notification-authors-toggle notification-authors-hide"
+          data-testid="notification-authors-toggle"
+          data-teststate="expanded"
+          @click=${() => toggleAuthorsExpanded(groupKey)}
+        >
+          <app-icon icon="chevron-up-line"></app-icon>
+          Hide
+        </button>
+        <div
+          class="notification-expanded-authors"
+          data-testid="notification-expanded-authors"
+        >
+          ${authors.map((author) =>
+            profileListItemTemplate({
+              actor: author,
+              isAuthenticated,
+              currentUserDid: dataLayer.derived.$currentUser.get()?.did,
+              profileInteractionHandler:
+                interactionHandlers.profileInteractionHandler,
+              compact: true,
+            }),
+          )}
+        </div>
+      `;
+    }
     return html`
-      <div class="notification-avatars">
+      <button
+        type="button"
+        class="notification-avatars notification-authors-toggle"
+        data-testid="notification-authors-toggle"
+        data-teststate="collapsed"
+        aria-label="Show all users"
+        @click=${() => toggleAuthorsExpanded(groupKey)}
+      >
         ${authors
-          .slice(0, displayCount)
+          .slice(0, maxAvatars)
           .map(
             (author) => html`
               <div class="notification-avatar">
-                ${avatarTemplate({ author })}
+                ${avatarTemplate({ author, clickAction: "none" })}
               </div>
             `,
           )}
@@ -302,11 +366,12 @@ export default async function notificationsView({
               +${authors.length - maxAvatars}
             </div>`
           : ""}
-      </div>
+        <app-icon icon="chevron-down-line"></app-icon>
+      </button>
     `;
   }
 
-  function notificationProfileNamesTemplate({ notificationGroup, title }) {
+  function notificationProfileNamesTemplate({ notificationGroup }) {
     const authors = unique(
       notificationGroup.notifications.map(
         (notification) => notification.author,
@@ -326,24 +391,9 @@ export default async function notificationsView({
       })}${otherCount > 0
         ? html`<span>
             and
-            <button
-              type="button"
-              class="notification-others-button"
-              data-testid="notification-others-button"
-              @click=${(event) => {
-                event.stopPropagation();
-                profileListModal(authors, {
-                  title,
-                  isAuthenticated,
-                  currentUserDid: dataLayer.derived.$currentUser.get()?.did,
-                  profileInteractionHandler:
-                    interactionHandlers.profileInteractionHandler,
-                  pluginService,
-                });
-              }}
-            >
-              ${otherCount} ${otherCount === 1 ? "other" : "others"}
-            </button></span
+            <strong
+              >${otherCount} ${otherCount === 1 ? "other" : "others"}</strong
+            ></span
           >`
         : ""}
     </span>`;
@@ -355,17 +405,18 @@ export default async function notificationsView({
     const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon">
           <app-icon icon="user-plus"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "Followed you",
-            })}
+            ${notificationProfileNamesTemplate({ notificationGroup })}
             ${notificationGroup.type === "follow-back"
               ? "followed you back"
               : "followed you"}
@@ -407,6 +458,7 @@ export default async function notificationsView({
     const timeAgo = formatRelativeTime(firstNotif.indexedAt);
     const isUnread = !firstNotif.isRead;
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: linkToNotificationActivity(
         notifications.map((notification) => notification.post.uri),
       ),
@@ -416,13 +468,10 @@ export default async function notificationsView({
           <app-icon icon="bell"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
             ${notifications.length === 1 ? "New post from" : "New posts from"}
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "New posts",
-            })}
+            ${notificationProfileNamesTemplate({ notificationGroup })}
             <span class="notification-time">· ${timeAgo}</span>
           </div>
           ${postPreviewTemplate({ post: post })}
@@ -441,6 +490,7 @@ export default async function notificationsView({
     const likedPost = firstNotif.subject;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: isUnavailablePost(likedPost) ? null : linkToPost(likedPost),
       isUnread,
       children: html`
@@ -448,13 +498,10 @@ export default async function notificationsView({
           <app-icon icon="like"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: isRepost ? "Liked your repost" : "Liked your post",
-            })}
-            liked ${isRepost ? "your repost" : "your post"}
+            ${notificationProfileNamesTemplate({ notificationGroup })} liked
+            ${isRepost ? "your repost" : "your post"}
             <span class="notification-time">· ${timeAgo}</span>
           </div>
           ${postPreviewTemplate({ post: likedPost })}
@@ -472,17 +519,15 @@ export default async function notificationsView({
     // Get the reposted post for preview
     const repostedPost = firstNotif.subject;
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: isUnavailablePost(repostedPost) ? null : linkToPost(repostedPost),
       isUnread,
       children: html`
         <div class="notification-icon"><app-icon icon="repost"></app-icon></div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: isRepost ? "Reposted your repost" : "Reposted your post",
-            })}
+            ${notificationProfileNamesTemplate({ notificationGroup })}
             ${isRepost ? "reposted your repost" : "reposted your post"}
             <span class="notification-time">· ${timeAgo}</span>
           </div>
@@ -526,6 +571,7 @@ export default async function notificationsView({
     const subjectLink = repo && rkey ? `/profile/${repo}/feed/${rkey}` : null;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: subjectLink,
       isUnread,
       children: html`
@@ -533,13 +579,10 @@ export default async function notificationsView({
           <app-icon icon="like"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "Liked your custom feed",
-            })}
-            liked your custom feed
+            ${notificationProfileNamesTemplate({ notificationGroup })} liked
+            your custom feed
             <span class="notification-time">· ${timeAgo}</span>
           </div>
         </div>
@@ -558,6 +601,7 @@ export default async function notificationsView({
       repo && rkey ? `/profile/${repo}/starter-pack/${rkey}` : null;
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: subjectLink,
       isUnread,
       children: html`
@@ -565,13 +609,10 @@ export default async function notificationsView({
           <app-icon icon="user"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "Joined via your starter pack",
-            })}
-            signed up with your starter pack
+            ${notificationProfileNamesTemplate({ notificationGroup })} signed up
+            with your starter pack
             <span class="notification-time">· ${timeAgo}</span>
           </div>
         </div>
@@ -586,18 +627,19 @@ export default async function notificationsView({
     const isUnread = !firstNotif.isRead;
 
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon verified-icon">
           <app-icon icon="verified-check"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "Verified you",
-            })}
-            verified you
+            ${notificationProfileNamesTemplate({ notificationGroup })} verified
+            you
             <span class="notification-time">· ${timeAgo}</span>
           </div>
         </div>
@@ -613,19 +655,20 @@ export default async function notificationsView({
     const otherCount = notifications.length - 1;
 
     return html`
-      <div class="notification-item ${isUnread ? "unread" : ""}">
+      <div
+        class="notification-item ${isUnread ? "unread" : ""}"
+        data-testid="notification-item"
+        data-teststate=${notificationGroup.type}
+      >
         <div class="notification-icon unverified-icon">
           <app-icon icon="verified-check"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
-            ${notificationProfileNamesTemplate({
-              notificationGroup,
-              title: "Removed verification",
-            })}
-            removed their ${otherCount > 0 ? "verifications" : "verification"}
-            from your account
+            ${notificationProfileNamesTemplate({ notificationGroup })} removed
+            their ${otherCount > 0 ? "verifications" : "verification"} from your
+            account
             <span class="notification-time">· ${timeAgo}</span>
           </div>
         </div>
@@ -642,6 +685,7 @@ export default async function notificationsView({
     const profileLink = linkToProfile(firstNotif.author);
 
     return notificationItemTemplate({
+      type: notificationGroup.type,
       href: profileLink,
       isUnread,
       children: html`
@@ -649,7 +693,7 @@ export default async function notificationsView({
           <app-icon icon="user-box"></app-icon>
         </div>
         <div class="notification-content">
-          ${notificationAvatarsTemplate({ notifications })}
+          ${notificationAvatarsTemplate({ notificationGroup })}
           <div class="notification-text">
             Your contact
             <a class="notification-profile-link" href="${profileLink}"
@@ -718,7 +762,7 @@ export default async function notificationsView({
 
   function notificationsErrorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="notifications-error">
       <div>There was an error loading notifications.</div>
       ${tryAgainButtonTemplate()}
     </div>`;
@@ -801,6 +845,10 @@ export default async function notificationsView({
 
   bindToPage(root, layout, "active-nav-click", (event) => {
     event.preventDefault();
+    scrollAndReloadNotifications();
+  });
+
+  bindToPage(root, window, "notification-open", () => {
     scrollAndReloadNotifications();
   });
 

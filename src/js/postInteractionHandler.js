@@ -2,7 +2,15 @@ import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { html } from "/js/lib/lit-html.js";
-import { buildPostgateEmbeddingRules } from "/js/dataHelpers.js";
+import {
+  buildPostgateEmbeddingRules,
+  MAX_DETACHED_EMBEDDING_URIS,
+  MAX_HIDDEN_REPLIES,
+} from "/js/dataHelpers.js";
+import {
+  DetachedQuoteLimitError,
+  HiddenReplyLimitError,
+} from "/js/dataLayer/mutations.js";
 import "/js/components/post-interaction-settings-dialog.js";
 import "/js/components/app-icon.js";
 
@@ -20,7 +28,11 @@ export class PostInteractionHandler {
     }
     const dialog = document.createElement("post-interaction-settings-dialog");
     this._interactionSettingsDialog = dialog;
+    const rootUri = post.record?.reply?.root?.uri ?? post.uri;
     dialog.dataLayer = this.dataLayer;
+    if (rootUri !== post.uri) {
+      dialog.threadRootUri = rootUri;
+    }
     dialog.threadgateAllow = post.threadgate?.record?.allow ?? null;
     dialog.postgateEmbeddingRules = buildPostgateEmbeddingRules(
       !post.viewer?.embeddingDisabled,
@@ -40,7 +52,7 @@ export class PostInteractionHandler {
         if (threadgateDirty) {
           writes.push(
             this.dataLayer.mutations.updateThreadgateAllow(
-              post,
+              { uri: rootUri },
               threadgateAllow,
             ),
           );
@@ -173,6 +185,80 @@ export class PostInteractionHandler {
         console.error(error);
         showToast("Failed to unpin post", { style: "error" });
       }
+    }
+  }
+
+  async handleToggleQuoteDetachment(post, quotedPostUri, doDetach) {
+    if (
+      doDetach &&
+      !(await confirmModal(
+        "This will remove your post from this quote post for all users, and replace it with a placeholder.",
+        {
+          title: "Detach quote post?",
+          confirmButtonText: "Detach",
+        },
+      ))
+    ) {
+      return;
+    }
+    try {
+      await this.dataLayer.mutations.toggleQuoteDetachment(
+        post,
+        quotedPostUri,
+        doDetach,
+      );
+      showToast(doDetach ? "Quote detached" : "Quote re-attached", {
+        style: "success",
+      });
+    } catch (error) {
+      if (error instanceof DetachedQuoteLimitError) {
+        console.warn(error);
+        showToast(
+          `You can detach at most ${MAX_DETACHED_EMBEDDING_URIS} quotes from a post`,
+          { style: "error" },
+        );
+        return;
+      }
+      console.error(error);
+      showToast(
+        doDetach ? "Failed to detach quote" : "Failed to re-attach quote",
+        { style: "error" },
+      );
+    }
+  }
+
+  async handleToggleReplyHiddenForEveryone(post, doHide) {
+    if (
+      doHide &&
+      !(await confirmModal(
+        "This reply will be hidden for everyone in your thread, and you won't be notified of any further replies to it.",
+        {
+          title: "Hide reply for everyone?",
+          confirmButtonText: "Hide",
+        },
+      ))
+    ) {
+      return;
+    }
+    try {
+      await this.dataLayer.mutations.updateThreadgateHiddenReply(post, doHide);
+      showToast(
+        doHide ? "Reply hidden for everyone" : "Reply shown for everyone",
+        { style: "success" },
+      );
+    } catch (error) {
+      if (error instanceof HiddenReplyLimitError) {
+        console.warn(error);
+        showToast(
+          `You can hide at most ${MAX_HIDDEN_REPLIES} replies in a thread`,
+          { style: "error" },
+        );
+        return;
+      }
+      console.error(error);
+      showToast(doHide ? "Failed to hide reply" : "Failed to show reply", {
+        style: "error",
+      });
     }
   }
 

@@ -48,6 +48,90 @@ test.describe("Feed Detail view", () => {
     await expect(view).toContainText("Second trending post");
   });
 
+  test("should display the feed avatar in the header", async ({ page }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+      avatar:
+        "https://cdn.bsky.app/img/avatar/plain/did:plc:creator1/feed@jpeg",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    const avatar = view.locator(
+      '[data-testid="header"] [data-testid="feed-detail-avatar"]',
+    );
+    await expect(avatar).toBeVisible({ timeout: 10000 });
+    await expect(avatar).toHaveAttribute("src", /did:plc:creator1\/feed@jpeg/);
+  });
+
+  test("should display a fallback avatar when the feed has none", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const avatar = page.locator(
+      '#feed-detail-view [data-testid="feed-detail-avatar"]',
+    );
+    await expect(avatar).toBeVisible({ timeout: 10000 });
+    await expect(avatar).toHaveAttribute(
+      "src",
+      "/img/feed-avatar-fallback.svg",
+    );
+  });
+
+  test("should show a header skeleton with the loaded height while the feed loads", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setGetFeedGeneratorDelay(1000);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    const header = view.locator('[data-testid="header"]');
+    const skeleton = header.locator(
+      '[data-testid="feed-detail-avatar-skeleton"]',
+    );
+    await expect(skeleton).toBeVisible({ timeout: 10000 });
+    const skeletonHeight = (await header.boundingBox()).height;
+
+    await expect(view.locator('[data-testid="header-title"]')).toContainText(
+      "Trending",
+      { timeout: 10000 },
+    );
+    await expect(skeleton).toHaveCount(0);
+    await expect(
+      header.locator('[data-testid="feed-detail-avatar"]'),
+    ).toBeVisible();
+    const loadedHeight = (await header.boundingBox()).height;
+    expect(loadedHeight).toBe(skeletonHeight);
+  });
+
   test("should show pin button as unpinned when feed is not pinned", async ({
     page,
   }) => {

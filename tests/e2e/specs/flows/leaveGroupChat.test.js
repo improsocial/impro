@@ -35,9 +35,7 @@ test.describe("Leave group chat from settings", () => {
     await confirmModal.locator('[data-testid="modal-confirm-button"]').click();
 
     await expect(page).toHaveURL(/\/messages$/, { timeout: 10000 });
-    await expect(page.locator('[data-testid="toast"]')).toContainText(
-      "Left group chat",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
 
     const chatView = page.locator("#chat-view");
     await expect(chatView.locator(".convo-item")).toHaveCount(0, {

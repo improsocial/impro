@@ -126,10 +126,9 @@ test.describe("Profile following view", () => {
     await page.goto(`/profile/${profileUser.did}/following`);
 
     const view = page.locator("#profile-following-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading following",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="following-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should render bio, follows-you, and follow-state per following", async ({

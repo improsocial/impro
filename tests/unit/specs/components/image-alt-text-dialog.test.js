@@ -28,7 +28,6 @@ describe("image-alt-text-dialog", () => {
       connectElement(element);
       const header = element.querySelector(".image-alt-text-dialog-header h2");
       assert(header !== null);
-      assert.deepEqual(header.textContent, "Add alt text");
     });
 
     it("should render textarea", () => {

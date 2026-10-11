@@ -192,6 +192,7 @@ function detailsStepTemplate({
       <button
         class="rounded-button rounded-button-primary starter-pack-wizard-next"
         data-testid="starter-pack-wizard-next"
+        data-teststate="next"
         ?disabled=${nameTooLong || descriptionTooLong}
         @click=${onNext}
       >
@@ -257,6 +258,7 @@ function wizardFooterTemplate({
   summary,
   hint,
   buttonLabel,
+  buttonTestState,
   buttonDisabled,
   saving,
   onNext,
@@ -299,6 +301,7 @@ function wizardFooterTemplate({
         { saving },
       )}
       data-testid="starter-pack-wizard-next"
+      data-teststate=${buttonTestState}
       ?disabled=${buttonDisabled}
       @click=${onNext}
     >
@@ -412,6 +415,7 @@ function profilesStepTemplate({
           ? `Add ${missing} more ${missing === 1 ? "person" : "people"} to continue`
           : null,
       buttonLabel: "Next",
+      buttonTestState: "next",
       buttonDisabled: missing > 0 || saving,
       saving: false,
       onNext,
@@ -556,6 +560,7 @@ function feedsStepTemplate({
       summary,
       hint: null,
       buttonLabel: feeds.length === 0 ? "Skip" : "Finish",
+      buttonTestState: feeds.length === 0 ? "skip" : "finish",
       buttonDisabled: saving,
       saving,
       onNext,

@@ -7,6 +7,7 @@ import {
   cdnImageUrl,
   getPostNumberingForPostThread,
   createNestedThreadViewPost,
+  insertReplyIntoThread,
   getRKey,
   getIsLiked,
   isListFeed,
@@ -2861,5 +2862,48 @@ describe("isReferenceList", () => {
       false,
     );
     assert.deepEqual(isReferenceList(null), false);
+  });
+});
+
+describe("insertReplyIntoThread", () => {
+  const newReply = createThreadViewPost({
+    post: createPost({ uri: "at://did:plc:me/app.bsky.feed.post/new" }),
+    replies: [],
+  });
+
+  function threadNode(id, replies = []) {
+    return createThreadViewPost({
+      post: createPost({ uri: `at://did:plc:x/app.bsky.feed.post/${id}` }),
+      replies,
+    });
+  }
+
+  it("prepends the reply under a nested match and copies only the changed path", () => {
+    const untouched = threadNode("untouched");
+    const target = threadNode("target", [threadNode("existing")]);
+    const thread = threadNode("root", [untouched, threadNode("mid", [target])]);
+    const updated = insertReplyIntoThread(
+      thread,
+      "at://did:plc:x/app.bsky.feed.post/target",
+      newReply,
+    );
+    assert.notEqual(updated, thread);
+    assert.equal(updated.replies[0], untouched);
+    const updatedTarget = updated.replies[1].replies[0];
+    assert.deepEqual(updatedTarget.replies.length, 2);
+    assert.equal(updatedTarget.replies[0], newReply);
+    assert.deepEqual(target.replies.length, 1);
+  });
+
+  it("returns the same thread when no post matches", () => {
+    const thread = threadNode("root", [threadNode("a")]);
+    assert.equal(
+      insertReplyIntoThread(
+        thread,
+        "at://did:plc:x/app.bsky.feed.post/nope",
+        newReply,
+      ),
+      thread,
+    );
   });
 });

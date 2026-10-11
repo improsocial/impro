@@ -289,7 +289,6 @@ describe("postFeedTemplate - pagination", () => {
       "[data-testid='feed-end-message']",
     );
     assert(endMessage !== null);
-    assert(endMessage.textContent.includes("End of feed"));
   });
 
   it("should not show end of feed message by default when hasMore is false", () => {

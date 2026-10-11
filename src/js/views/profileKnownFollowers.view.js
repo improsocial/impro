@@ -30,7 +30,7 @@ export default async function profileKnownFollowersView({
 
   function errorTemplate({ error }) {
     console.error(error);
-    return html`<div class="error-state">
+    return html`<div class="error-state" data-testid="known-followers-error">
       <div>Error loading followers you know</div>
       ${tryAgainButtonTemplate()}
     </div>`;

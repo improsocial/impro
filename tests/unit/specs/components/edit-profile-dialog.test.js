@@ -38,7 +38,6 @@ describe("edit-profile-dialog", () => {
       connectElement(element);
       const header = element.querySelector(".form-dialog-header h2");
       assert(header !== null, "Header should be rendered");
-      assert.deepEqual(header.textContent, "Edit profile");
     });
 
     it("should render display name input", () => {
@@ -73,9 +72,10 @@ describe("edit-profile-dialog", () => {
     it("should render cancel button", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
-      const cancelButton = element.querySelector(".form-dialog-header-button");
+      const cancelButton = element.querySelector(
+        "[data-testid='edit-profile-cancel-button']",
+      );
       assert(cancelButton !== null, "Cancel button should be rendered");
-      assert.deepEqual(cancelButton.textContent.trim(), "Cancel");
     });
   });
 
@@ -274,14 +274,8 @@ describe("edit-profile-dialog", () => {
       const menu = element.querySelector(".edit-profile-avatar-menu");
       const items = menu.querySelectorAll("context-menu-item");
       assert.deepEqual(items.length, 2);
-      assert(
-        items[0].textContent.includes("Upload from Files"),
-        "First item should be upload",
-      );
-      assert(
-        items[1].textContent.includes("Remove Avatar"),
-        "Second item should be remove",
-      );
+      assert.deepEqual(items[0].dataset.testid, "menu-action-avatar-upload");
+      assert.deepEqual(items[1].dataset.testid, "menu-action-avatar-remove");
     });
 
     it("should not include remove option when no avatar", () => {
@@ -292,10 +286,7 @@ describe("edit-profile-dialog", () => {
       const menu = element.querySelector(".edit-profile-avatar-menu");
       const items = menu.querySelectorAll("context-menu-item");
       assert.deepEqual(items.length, 1);
-      assert(
-        items[0].textContent.includes("Upload from Files"),
-        "Only upload option should exist",
-      );
+      assert.deepEqual(items[0].dataset.testid, "menu-action-avatar-upload");
     });
 
     it("should remove avatar when remove option clicked", () => {

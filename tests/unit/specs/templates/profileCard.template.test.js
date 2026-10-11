@@ -210,6 +210,28 @@ describe("profileCardTemplate", () => {
     );
   });
 
+  it("should render reposts hidden badge only for reposts-only mutes", () => {
+    const container = document.createElement("div");
+    render(
+      profileCardTemplate({
+        profile: { ...mockProfile, viewer: { mutedOnlyReposts: true } },
+      }),
+      container,
+    );
+    assert(
+      container.querySelector("[data-testid='reposts-hidden-badge']") !== null,
+    );
+
+    render(
+      profileCardTemplate({ profile: { ...mockProfile, viewer: {} } }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='reposts-hidden-badge']"),
+      null,
+    );
+  });
+
   it("should call onClickFollow when follow button clicked", () => {
     let followCallArgs = null;
     const profile = {

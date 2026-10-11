@@ -272,7 +272,10 @@ describe("largePostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("Blocked"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") !==
+        null,
+    );
   });
 
   it("should render not found post template for not found post", () => {
@@ -287,7 +290,10 @@ describe("largePostTemplate - blocked/unavailable posts", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("not found"));
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") !==
+        null,
+    );
   });
 });
 
@@ -322,6 +328,56 @@ describe("largePostTemplate - moderation", () => {
     const warning = container.querySelector("moderation-warning");
     assert(warning !== null);
     assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
+  });
+
+  it("should show an adult-only content label as a warning instead of a badge", () => {
+    const labeledPost = {
+      ...post,
+      contentLabel: {
+        visibility: "warn",
+        label: { src: "did:plc:labeler", val: "adult-custom", uri: post.uri },
+        labelDefinition: {
+          identifier: "adult-custom",
+          blurs: "content",
+          adultOnly: true,
+          locales: [{ lang: "en", name: "Adult Custom" }],
+        },
+        labeler: null,
+        noOverride: true,
+      },
+    };
+    const result = largePostTemplate({ post: labeledPost, ...baseProps });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assert(warning.hasAttribute("no-override"));
+    assert(warning.querySelector(".post-body") !== null);
+  });
+
+  it("should show an overridable adult-only content label as a badge", () => {
+    const labeledPost = {
+      ...post,
+      contentLabel: {
+        visibility: "warn",
+        label: { src: "did:plc:labeler", val: "adult-custom", uri: post.uri },
+        labelDefinition: {
+          identifier: "adult-custom",
+          blurs: "content",
+          adultOnly: true,
+          locales: [{ lang: "en", name: "Adult Custom" }],
+        },
+        labeler: {
+          creator: { did: "did:plc:labeler", handle: "labeler.test" },
+        },
+        noOverride: false,
+      },
+    };
+    const result = largePostTemplate({ post: labeledPost, ...baseProps });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(container.querySelector("moderation-warning"), null);
+    assert(container.querySelector("[data-testid='label-badge']") !== null);
   });
 
   it("should not show moderation warning for normal post", () => {
@@ -362,7 +418,7 @@ describe("largePostTemplate - who can reply badge", () => {
 
   it("opens the read-only modal for non-owners", () => {
     const badge = renderBadgeFor({ isUserPost: false });
-    assert.deepEqual(badge.getAttribute("data-teststate"), "plain");
+    assert(!badge.classList.contains("who-can-reply-badge-link"));
     badge.click();
     assert(
       document.querySelector("[data-testid='who-can-reply-modal']") !== null,
@@ -379,7 +435,7 @@ describe("largePostTemplate - who can reply badge", () => {
         },
       },
     });
-    assert.deepEqual(badge.getAttribute("data-teststate"), "link");
+    assert(badge.classList.contains("who-can-reply-badge-link"));
     badge.click();
     assert.deepEqual(editedPost, post);
     assert.deepEqual(

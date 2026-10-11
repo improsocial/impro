@@ -355,7 +355,7 @@ test.describe("Starter Pack Detail view", () => {
 
       await expect(
         view.locator('[data-testid="starter-pack-creator"]'),
-      ).toContainText("by you");
+      ).toHaveAttribute("data-teststate", "self");
       await expect(
         view.locator('[data-testid="starter-pack-follow-all"]'),
       ).toHaveCount(0);
