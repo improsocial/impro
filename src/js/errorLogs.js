@@ -129,3 +129,50 @@ export function enableErrorLogs() {
     showMessage(args.map(formatArg).join(" "));
   };
 }
+
+const AUTH_DEBUG_FLAG_KEY = "debug-auth";
+const AUTH_DEBUG_LOG_KEY = "debug-auth-log";
+const AUTH_DEBUG_LOG_MAX_ENTRIES = 200;
+
+function isAuthDebugEnabled() {
+  try {
+    return localStorage.getItem(AUTH_DEBUG_FLAG_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function readAuthDebugLog() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_DEBUG_LOG_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Persisted to localStorage because most logout paths redirect, wiping the console.
+export function logAuthEvent(event, details) {
+  if (!isAuthDebugEnabled()) return;
+  const entry = {
+    time: new Date().toISOString(),
+    event,
+    path: window.location.pathname,
+    ...details,
+  };
+  console.info("[auth-debug]", entry);
+  try {
+    const entries = [...readAuthDebugLog(), entry].slice(
+      -AUTH_DEBUG_LOG_MAX_ENTRIES,
+    );
+    localStorage.setItem(AUTH_DEBUG_LOG_KEY, JSON.stringify(entries));
+  } catch (error) {
+    console.warn("Failed to persist auth debug log", error);
+  }
+}
+
+export function getStoredAuthKeys() {
+  return Object.keys(localStorage).filter(
+    (key) =>
+      key.startsWith("oauth_") || key === "accessJwt" || key === "refreshJwt",
+  );
+}

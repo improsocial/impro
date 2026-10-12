@@ -449,6 +449,23 @@ describe("token refresh failure", () => {
     );
     assert.deepEqual(capturedHrefs.at(-1), "/login");
   });
+
+  it("rethrows without redirecting when no handler is provided", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const refreshError = new TokenRefreshError("refresh failed");
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      handle: "alice.bsky.social",
+      fetch: async () => {
+        throw refreshError;
+      },
+    };
+    const api = new Api(session);
+
+    await assert.rejects(() => api.request("com.example.method"), refreshError);
+    assert.deepEqual(capturedHrefs, []);
+  });
 });
 
 describe("service DID in requests", () => {

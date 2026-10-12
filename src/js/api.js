@@ -7,6 +7,7 @@ import {
   getCurrentTimestamp,
   unique,
 } from "/js/utils.js";
+import { logAuthEvent } from "/js/errorLogs.js";
 import { linkToLogin } from "/js/navigation.js";
 import {
   PUBLIC_SERVICE_ENDPOINT_URL,
@@ -156,12 +157,18 @@ export class Api {
     } catch (error) {
       // Handle token refresh error
       if (
-        error instanceof RefreshTokenError ||
-        error instanceof OauthRefreshTokenError
+        this.onTokenRefreshError &&
+        (error instanceof RefreshTokenError ||
+          error instanceof OauthRefreshTokenError)
       ) {
         console.error("Token refresh error", error);
         const did = this.isAuthenticated ? (this.session.did ?? null) : null;
-        await this.onTokenRefreshError?.(did);
+        logAuthEvent("token-refresh-error", {
+          did,
+          request: path,
+          message: error.message,
+        });
+        await this.onTokenRefreshError(did);
         window.location.href = linkToLogin();
         await new Promise(() => {});
       }

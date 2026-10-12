@@ -13,6 +13,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
+import { logAuthEvent } from "/js/errorLogs.js";
 import { Signal } from "/js/signals.js";
 import {
   avatarPlaceholderTemplate,
@@ -347,6 +348,7 @@ export default async function settingsView({
                 ) {
                   return;
                 }
+                logAuthEvent("user-sign-out", {});
                 if (pushNotificationService?.isEnabled) {
                   await pushNotificationService.disable();
                 }

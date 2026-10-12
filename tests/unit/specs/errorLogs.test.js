@@ -1,6 +1,10 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { enableErrorLogs } from "/js/errorLogs.js";
+import {
+  enableErrorLogs,
+  logAuthEvent,
+  readAuthDebugLog,
+} from "/js/errorLogs.js";
 
 describe("errorLogs overlay", () => {
   const originalWarn = console.warn;
@@ -53,5 +57,47 @@ describe("errorLogs overlay", () => {
     console.error("[plugins:perf] errors are never suppressed");
     assert.deepEqual(entries().length, 1);
     assert.deepEqual(entries()[0].dataset.logLevel, "error");
+  });
+});
+
+describe("auth debug log", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mock.method(console, "info", () => {});
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    mock.restoreAll();
+  });
+
+  it("does nothing when the flag is not set", () => {
+    logAuthEvent("logout", { did: "did:plc:alice" });
+    assert.deepEqual(readAuthDebugLog(), []);
+  });
+
+  it("persists entries when the flag is set", () => {
+    localStorage.setItem("debug-auth", "true");
+    logAuthEvent("logout", { did: "did:plc:alice" });
+    logAuthEvent("boot", { did: null });
+    const entries = readAuthDebugLog();
+    assert.deepEqual(
+      entries.map((entry) => [entry.event, entry.did]),
+      [
+        ["logout", "did:plc:alice"],
+        ["boot", null],
+      ],
+    );
+    assert(entries[0].time);
+  });
+
+  it("caps the number of stored entries", () => {
+    localStorage.setItem("debug-auth", "true");
+    for (let i = 0; i < 205; i++) {
+      logAuthEvent("event", { index: i });
+    }
+    const entries = readAuthDebugLog();
+    assert.equal(entries.length, 200);
+    assert.equal(entries[0].index, 5);
   });
 });

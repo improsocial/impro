@@ -5,6 +5,7 @@ import {
   InvalidAuthUrlError,
 } from "/js/oauth.js";
 import { isDev, isNative, TimeoutError, withTimeout } from "/js/utils.js";
+import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
 import { linkToLogin, validateReturnToParam } from "/js/navigation.js";
 
 export class RefreshTokenError extends Error {
@@ -115,6 +116,7 @@ export class BasicAuthSession {
           this.save();
           return await this.fetch(url, options);
         } else {
+          logAuthEvent("basic-refresh-failed", { status: refreshRes.status });
           throw new RefreshTokenError(refreshRes);
         }
       }
@@ -311,6 +313,7 @@ export class Auth {
   }
 
   logout(did = null) {
+    logAuthEvent("logout", { did, stack: new Error().stack });
     return this.provider.logout(did);
   }
 
@@ -361,6 +364,7 @@ export class Auth {
     const accounts = await this.listAccounts();
     const current = await this.provider.getSession();
     const isCurrent = current?.did === did;
+    logAuthEvent("remove-account", { did, isCurrent });
     if (isCurrent) {
       const other = accounts.find((account) => account.did !== did);
       if (other) {
@@ -379,6 +383,9 @@ export class Auth {
   async requireAuth() {
     const session = await this.provider.getSession();
     if (!session) {
+      logAuthEvent("require-auth-no-session", {
+        storedAuthKeys: getStoredAuthKeys(),
+      });
       window.location.href = linkToLogin();
       return new Promise(() => {});
     }
@@ -422,6 +429,7 @@ export class Auth {
     );
     if (missing.length === 0) return;
     console.warn("OAuth scopes are out of date, forcing re-auth:", missing);
+    logAuthEvent("scopes-out-of-date", { did: session.did, missing });
     try {
       await this.logout();
     } catch (error) {
@@ -436,6 +444,7 @@ export class Auth {
     if (!params.has(FORCE_LOGOUT_QUERY_PARAM)) {
       return;
     }
+    logAuthEvent("force-logout-param", {});
     try {
       await this.logout();
     } catch (error) {

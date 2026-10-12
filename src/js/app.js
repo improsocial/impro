@@ -59,6 +59,7 @@ import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative } from "/js/utils.js";
+import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
 import { effect, untrack } from "/js/signals.js";
 import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
@@ -104,6 +105,10 @@ export async function main() {
   await auth.ensureCurrentScopes();
 
   const session = await auth.getSession();
+  logAuthEvent("boot", {
+    did: session?.did ?? null,
+    storedAuthKeys: getStoredAuthKeys(),
+  });
   const appViewConfig = getAppViewConfig();
 
   function createApi(opts = {}) {

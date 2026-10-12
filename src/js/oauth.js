@@ -1,5 +1,6 @@
 import { HandleNotFoundError } from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
+import { logAuthEvent } from "/js/errorLogs.js";
 
 export { HandleNotFoundError } from "/js/atproto.js";
 
@@ -400,6 +401,11 @@ export class Session {
         signal: AbortSignal.timeout(Session.refreshTimeoutMs),
       });
     } catch (error) {
+      logAuthEvent("oauth-refresh-network-error", {
+        did: this.sessionData.did,
+        retryCount,
+        message: error.message,
+      });
       if (retryCount < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return await this.refreshToken({ retryCount: retryCount + 1 });
@@ -409,6 +415,14 @@ export class Session {
     }
 
     if (!response.ok) {
+      logAuthEvent("oauth-refresh-failed", {
+        did: this.sessionData.did,
+        retryCount,
+        status: response.status,
+        error: response.data?.error ?? null,
+        errorDescription: response.data?.error_description ?? null,
+        expiresAt: new Date(this.sessionData.expiresAt).toISOString(),
+      });
       if (response.status >= 500) {
         if (retryCount < maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
@@ -421,12 +435,18 @@ export class Session {
       }
       // invalid_grant can mean another tab rotated the refresh token, so re-check storage and adopt if so
       if (response.status === 400 && response.data?.error === "invalid_grant") {
-        if (this.adoptRotatedSession(usedRefreshToken)) return;
+        if (this.adoptRotatedSession(usedRefreshToken)) {
+          logAuthEvent("oauth-refresh-adopted-rotated", { attempt: 1 });
+          return;
+        }
         // attempt twice with delay
         await new Promise((resolve) =>
           setTimeout(resolve, Session.concurrentRefreshRecoveryMs),
         );
-        if (this.adoptRotatedSession(usedRefreshToken)) return;
+        if (this.adoptRotatedSession(usedRefreshToken)) {
+          logAuthEvent("oauth-refresh-adopted-rotated", { attempt: 2 });
+          return;
+        }
       }
       const body = response.data
         ? JSON.stringify(response.data)
@@ -788,6 +808,7 @@ export class OauthClient {
 
   async revoke(did = null) {
     const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
+    logAuthEvent("oauth-revoke", { did: targetDid });
     if (!targetDid) return;
     await this._sendRevokeRequest(targetDid);
     localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);

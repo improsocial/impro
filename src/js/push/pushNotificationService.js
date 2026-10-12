@@ -258,9 +258,7 @@ export class PushNotificationService {
 
   async _apiForAccount(did) {
     const session = await this.auth.getSession(did);
-    return session
-      ? new Api(session, { onLogout: (did) => this.auth.logout(did) })
-      : null;
+    return session ? new Api(session) : null;
   }
 
   async unregisterAccount(did) {
