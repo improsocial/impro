@@ -72,12 +72,20 @@ export class NotificationServiceManager {
     };
   }
 
-  // The service worker skips the notification when a focused window exists
-  // and sends a message instead, so refresh the counts immediately.
+  // The service worker skips the system notification when a focused window
+  // answers its liveness check, so confirm the message arrived and refresh
+  // the counts immediately.
   _listenForPushMessages() {
     if (!("serviceWorker" in navigator)) return null;
     const handleMessage = (event) => {
       if (event.data?.type === "push-received") {
+        const port = event.ports?.[0];
+        if (port && event.data.requestId) {
+          port.postMessage({
+            type: "push-received-ack",
+            requestId: event.data.requestId,
+          });
+        }
         this.notificationService?.fetchNumNotifications().catch(console.error);
         this.chatNotificationService
           ?.fetchNumNotifications()
