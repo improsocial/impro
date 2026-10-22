@@ -12,7 +12,7 @@ export default {
       client_uri: `https://${data.hostName}`,
       logo_uri: `https://${data.hostName}/img/impro-logo.jpg`,
       redirect_uris: [`https://${data.hostName}/callback.html`],
-      scope: data.oauthScopes,
+      scope: data.oauthDeclaredScopes,
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       application_type: "web",

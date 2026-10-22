@@ -294,10 +294,14 @@ export function getMissingScopes(
 ) {
   const granted = new Set(grantedScope.split(/\s+/).filter(Boolean));
   const optional = new Set(optionalScope.split(/\s+/).filter(Boolean));
+  const hasTransitionChat = granted.has("transition:chat.bsky");
   return requiredScope
     .split(/\s+/)
     .filter(Boolean)
-    .filter((scope) => !granted.has(scope) && !optional.has(scope));
+    .filter((scope) => !granted.has(scope) && !optional.has(scope))
+    .filter(
+      (scope) => !(hasTransitionChat && scope.startsWith("rpc:chat.bsky.")),
+    );
 }
 
 export class Auth {

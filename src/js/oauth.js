@@ -4,6 +4,33 @@ import { logAuthEvent } from "/js/errorLogs.js";
 
 export { HandleNotFoundError } from "/js/atproto.js";
 
+const TRANSITION_CHAT_SCOPE = "transition:chat.bsky";
+
+export function isTransitionScopeModel(authServerMetadata) {
+  const supported = authServerMetadata?.scopes_supported;
+  if (!Array.isArray(supported) || supported.length === 0) {
+    return false;
+  }
+  const hasTransition = supported.some(
+    (s) => s === "transition:chat.bsky" || s === "transition:generic",
+  );
+  const hasGranular = supported.some(
+    (s) => s.startsWith("rpc:") || s.startsWith("include:"),
+  );
+  return hasTransition && !hasGranular;
+}
+
+export function oauthScopesFor(authServerMetadata, requested) {
+  if (!isTransitionScopeModel(authServerMetadata)) {
+    return requested;
+  }
+  const scopes = requested
+    .split(" ")
+    .filter((s) => !s.startsWith("rpc:chat.bsky."));
+  scopes.push(TRANSITION_CHAT_SCOPE);
+  return scopes.join(" ");
+}
+
 // Inspiration from:
 // https://www.npmjs.com/package/@atproto/oauth-client-browser
 // https://www.npmjs.com/package/@atcute/oauth-browser-client
@@ -629,6 +656,7 @@ export class OauthClient {
     }
     const authServerUrl = resourceMetadata.authorization_servers[0];
     const authServerMetadata = await fetchAuthServerMetadata(authServerUrl);
+    const effectiveScope = oauthScopesFor(authServerMetadata, scope);
 
     const codeVerifier = generateRandomString(64);
     const codeChallenge = await sha256(codeVerifier);
@@ -658,7 +686,7 @@ export class OauthClient {
       state: encodeURIComponent(JSON.stringify({ requestId, ...state })),
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
-      scope,
+      scope: effectiveScope,
       login_hint: handle,
     });
     let authUrl = null;

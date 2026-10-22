@@ -195,3 +195,7 @@ export const OPTIONAL_OAUTH_SCOPES = expandScopes([
   ...OPTIONAL_OAUTH_RPC_SCOPES,
   ...OPTIONAL_OAUTH_REPO_SCOPES,
 ]).join(" ");
+
+export const TRANSITION_CHAT_SCOPE = "transition:chat.bsky";
+
+export const DECLARED_OAUTH_SCOPES = `${OAUTH_SCOPES} ${TRANSITION_CHAT_SCOPE}`;
