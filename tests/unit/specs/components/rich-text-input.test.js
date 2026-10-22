@@ -1,6 +1,7 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/rich-text-input.js";
+import { createProfile } from "../../../shared/factories.js";
 
 describe("rich-text-input", () => {
   beforeEach(() => {
@@ -764,24 +765,108 @@ describe("rich-text-input", () => {
     });
   });
 
-  describe("RichTextInput - typeahead empty state", () => {
-    let originalFetch;
+  describe("RichTextInput - mention suggestion badges", () => {
+    const actors = [
+      createProfile({
+        did: "did:plc:plain",
+        handle: "plain.test",
+        displayName: "Plain",
+      }),
+      createProfile({
+        did: "did:plc:bot",
+        handle: "bot.test",
+        displayName: "Bot",
+        labels: [{ val: "bot" }],
+        verification: {
+          verifiedStatus: "valid",
+          trustedVerifierStatus: "none",
+        },
+      }),
+    ];
 
-    beforeEach(() => {
-      originalFetch = globalThis.fetch;
-      globalThis.fetch = async () => ({
-        ok: true,
-        json: async () => ({ actors: [] }),
-      });
+    it("shows verification and automated account badges on suggestions", async () => {
+      const element = document.createElement("rich-text-input");
+      element.searchMentions = async () => actors;
+      document.body.appendChild(element);
+      element.setText("Hi @b");
+      element.detectPendingMention = () => ({ query: "b", start: 3, end: 5 });
+
+      await element.updateMentionSuggestions();
+
+      const suggestions = document.querySelectorAll(".mention-suggestion");
+      assert.deepEqual(suggestions.length, 2);
+      for (const testid of ["verification-badge", "automated-account-badge"]) {
+        assert.deepEqual(
+          suggestions[0].querySelector(`[data-testid='${testid}']`),
+          null,
+        );
+        assert(
+          suggestions[1].querySelector(`[data-testid='${testid}']`) !== null,
+        );
+      }
+      element.closeTypeahead();
+    });
+  });
+
+  describe("RichTextInput - mention search", () => {
+    it("passes the pending mention query to searchMentions", async () => {
+      const element = document.createElement("rich-text-input");
+      const searchMentions = mock.fn(async () => []);
+      element.searchMentions = searchMentions;
+      document.body.appendChild(element);
+      element.setText("Hi @al");
+      element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
+
+      await element.updateMentionSuggestions();
+
+      assert.deepEqual(
+        searchMentions.mock.calls.map((call) => call.arguments),
+        [["al"]],
+      );
+      element.closeTypeahead();
     });
 
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-    });
-
-    it("shows an empty state when the query has no matches", async () => {
+    it("warns and skips suggestions when searchMentions is not provided", async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
+      element.setText("Hi @al");
+      element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
+
+      await element.updateMentionSuggestions();
+
+      assert.deepEqual(warn.mock.callCount(), 1);
+      assert.deepEqual(element.mentionSuggestions, []);
+      assert.deepEqual(document.querySelector(".mention-typeahead-host"), null);
+    });
+
+    it("shows no suggestions when searchMentions fails", async (t) => {
+      t.mock.method(console, "error", () => {});
+      const element = document.createElement("rich-text-input");
+      element.searchMentions = async () => {
+        throw new Error("network down");
+      };
+      document.body.appendChild(element);
+      element.setText("Hi @al");
+      element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
+
+      await element.updateMentionSuggestions();
+
+      assert.deepEqual(element.mentionSuggestions, []);
+      element.closeTypeahead();
+    });
+  });
+
+  describe("RichTextInput - typeahead empty state", () => {
+    function createEmptyResultsInput() {
+      const element = document.createElement("rich-text-input");
+      element.searchMentions = async () => [];
+      document.body.appendChild(element);
+      return element;
+    }
+
+    it("shows an empty state when the query has no matches", async () => {
+      const element = createEmptyResultsInput();
       element.setText("Hi @zz");
       element.detectPendingMention = () => ({ query: "zz", start: 3, end: 6 });
 
@@ -799,8 +884,7 @@ describe("rich-text-input", () => {
     });
 
     it("closes the empty-state typeahead with Escape", async () => {
-      const element = document.createElement("rich-text-input");
-      document.body.appendChild(element);
+      const element = createEmptyResultsInput();
       element.setText("Hi @zz");
       element.detectPendingMention = () => ({ query: "zz", start: 3, end: 6 });
       await element.updateMentionSuggestions();
@@ -819,26 +903,12 @@ describe("rich-text-input", () => {
   });
 
   describe("RichTextInput - stale suggestion responses", () => {
-    let originalFetch;
-
-    beforeEach(() => {
-      originalFetch = globalThis.fetch;
-    });
-
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-    });
-
     function deferredResponse() {
       let resolve;
       const promise = new Promise((promiseResolve) => {
         resolve = promiseResolve;
       });
-      return {
-        promise,
-        resolveWith: (actors) =>
-          resolve({ ok: true, json: async () => ({ actors }) }),
-      };
+      return { promise, resolveWith: (actors) => resolve(actors) };
     }
 
     it("ignores a response that arrives after a newer request", async () => {
@@ -849,7 +919,7 @@ describe("rich-text-input", () => {
       const first = deferredResponse();
       const second = deferredResponse();
       const pending = [first.promise, second.promise];
-      globalThis.fetch = () => pending.shift();
+      element.searchMentions = () => pending.shift();
 
       element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
       const firstUpdate = element.updateMentionSuggestions();
@@ -873,7 +943,7 @@ describe("rich-text-input", () => {
       element.setText("Hi @al");
 
       const first = deferredResponse();
-      globalThis.fetch = () => first.promise;
+      element.searchMentions = () => first.promise;
 
       element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
       const firstUpdate = element.updateMentionSuggestions();

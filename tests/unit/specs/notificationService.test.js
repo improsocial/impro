@@ -278,14 +278,16 @@ describe("NotificationService", () => {
       await service.fetchNumNotifications();
       assert.deepEqual(service.$numNotifications.get(), 5);
 
-      const markPromise = service.markNotificationsAsRead();
+      const markPromise = service.markNotificationsAsRead(
+        "2026-01-01T00:00:00.000Z",
+      );
 
       assert.deepEqual(service.$numNotifications.get(), 0);
 
       await markPromise;
     });
 
-    it("should call api.markNotificationsAsRead", async () => {
+    it("should call api.markNotificationsAsRead with the given seenAt", async () => {
       const markAsReadFn = mock.fn();
       const api = createMockApi({
         numNotifications: 5,
@@ -293,9 +295,12 @@ describe("NotificationService", () => {
       });
       const service = new NotificationService(api);
 
-      await service.markNotificationsAsRead();
+      await service.markNotificationsAsRead("2026-01-01T00:00:00.000Z");
 
       assert.deepEqual(markAsReadFn.mock.callCount(), 1);
+      assert.deepEqual(markAsReadFn.mock.calls[0].arguments, [
+        "2026-01-01T00:00:00.000Z",
+      ]);
     });
   });
 });

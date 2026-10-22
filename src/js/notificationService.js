@@ -58,7 +58,8 @@ export class NotificationService {
     }
     return false;
   }
-  async markNotificationsAsRead() {
+
+  async markNotificationsAsRead(seenAt) {
     // optimistic update
     this.$numNotifications.set(0);
     let updated = false;
@@ -66,7 +67,7 @@ export class NotificationService {
     // Try this a few times, since the endpoint is pretty unstable
     while (!updated && retries < 5) {
       try {
-        await this.api.markNotificationsAsRead();
+        await this.api.markNotificationsAsRead(seenAt);
         updated = true;
       } catch (error) {
         console.error(error);

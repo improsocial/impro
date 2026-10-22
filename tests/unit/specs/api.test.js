@@ -794,6 +794,129 @@ describe("getFeed", () => {
     assert(url.includes("limit=50"));
     assert(url.includes("cursor=somecursor"));
   });
+
+  describe("topics header", () => {
+    const FEED_URI = "at://did:plc:feed/app.bsky.feed.generator/myfeed";
+
+    it("serializes tags and updatedAt into the header", async () => {
+      const session = createMockSession({ feed: [] });
+      const api = new Api(session);
+
+      await api.getFeed(FEED_URI, {
+        interests: {
+          tags: ["art", "tech"],
+          updatedAt: "2025-03-01T00:00:00.000Z",
+        },
+      });
+
+      const { options } = session.getLastFetchOptions();
+      assert.deepEqual(
+        options.headers["x-atproto-bsky-topics"],
+        "art,tech;2025-03-01T00:00:00.000Z",
+      );
+    });
+
+    it("omits updatedAt when not set", async () => {
+      const session = createMockSession({ feed: [] });
+      const api = new Api(session);
+
+      await api.getFeed(FEED_URI, {
+        interests: { tags: ["art", "tech"], updatedAt: null },
+      });
+
+      const { options } = session.getLastFetchOptions();
+      assert.deepEqual(options.headers["x-atproto-bsky-topics"], "art,tech");
+    });
+
+    it("sends an empty header for empty interests", async () => {
+      const session = createMockSession({ feed: [] });
+      const api = new Api(session);
+
+      await api.getFeed(FEED_URI, {
+        interests: { tags: [], updatedAt: null },
+      });
+
+      const { options } = session.getLastFetchOptions();
+      assert.deepEqual(options.headers["x-atproto-bsky-topics"], "");
+    });
+
+    it("does not send the header when interests are null", async () => {
+      const session = createMockSession({ feed: [] });
+      const api = new Api(session);
+
+      await api.getFeed(FEED_URI, { interests: null });
+
+      const { options } = session.getLastFetchOptions();
+      assert.deepEqual(options.headers["x-atproto-bsky-topics"], undefined);
+    });
+  });
+});
+
+describe("Accept-Language header", () => {
+  const FEED_URI = "at://did:plc:feed/app.bsky.feed.generator/myfeed";
+
+  function setLanguages(languages) {
+    Object.defineProperty(navigator, "languages", {
+      value: languages,
+      configurable: true,
+    });
+  }
+
+  afterEach(() => {
+    delete navigator.languages;
+    delete navigator.language;
+  });
+
+  it("sends browser language codes on getFeed", async () => {
+    setLanguages(["en-US", "en-GB", "ja-JP"]);
+    const session = createMockSession({ feed: [] });
+    const api = new Api(session);
+
+    await api.getFeed(FEED_URI);
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["Accept-Language"], "en,ja");
+  });
+
+  it("sends it alongside the topics header", async () => {
+    setLanguages(["fr-FR"]);
+    const session = createMockSession({ feed: [] });
+    const api = new Api(session);
+
+    await api.getFeed(FEED_URI, {
+      interests: { tags: ["art"], updatedAt: null },
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["Accept-Language"], "fr");
+    assert.deepEqual(options.headers["x-atproto-bsky-topics"], "art");
+  });
+
+  it("sends browser language codes on getTrends", async () => {
+    setLanguages(["de-DE", "en-US"]);
+    const session = createMockSession({ trends: [] });
+    const api = new Api(session);
+
+    await api.getTrends();
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["Accept-Language"], "de,en");
+  });
+
+  it("sends an empty header when no browser languages are available", async () => {
+    setLanguages([]);
+    Object.defineProperty(navigator, "language", {
+      value: "",
+      configurable: true,
+    });
+    const session = createMockSession({ feed: [] });
+    const api = new Api(session);
+
+    await api.getFeed(FEED_URI);
+
+    const { options } = session.getLastFetchOptions();
+    assert.deepEqual(options.headers["Accept-Language"], "");
+  });
 });
 
 describe("getFeedGenerator", () => {
@@ -1173,13 +1296,13 @@ describe("markNotificationsAsRead", () => {
     const session = createMockSession({});
     const api = new Api(session);
 
-    await api.markNotificationsAsRead();
+    await api.markNotificationsAsRead("2026-01-01T00:00:00.000Z");
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.notification.updateSeen"));
     assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assert(body.seenAt !== undefined);
+    assert.deepEqual(body.seenAt, "2026-01-01T00:00:00.000Z");
   });
 });
 

@@ -75,11 +75,10 @@ function postContextMenuTemplate({
   onClickToggleQuoteDetachment,
   onClickToggleReplyHiddenForEveryone,
 }) {
-  const canPin = isUserPost && !post.record?.reply;
   const canHidePostForMe = !post.viewer?.isHidden;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
-    ${isAuthenticated && canPin
+    ${isAuthenticated && isUserPost
       ? html`
           <context-menu-item-group>
             <context-menu-item

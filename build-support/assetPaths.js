@@ -17,8 +17,11 @@ export const MIME = {
   ".woff2": "font/woff2",
 };
 
-// Excludes HTML and unknown extensions
+// Mirrors the "include" list in src/_routes.json
+const ASSET_DIRS = ["/js/", "/css/", "/img/", "/oauth/", "/plugin-sdk/"];
+
 export function isAssetPath(pathname) {
+  if (!ASSET_DIRS.some((dir) => pathname.startsWith(dir))) return false;
   const match = /\.[^./]+$/.exec(pathname);
   if (!match) return false;
   const type = MIME[match[0].toLowerCase()];

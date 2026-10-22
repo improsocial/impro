@@ -23,7 +23,6 @@ export const BSKY_CHAT_SERVICE_DID = "did:web:api.bsky.chat#bsky_chat";
 // Bluesky-operated services
 export const PUBLIC_SERVICE_ENDPOINT_URL = "https://public.api.bsky.app";
 export const HANDLE_RESOLVER_SERVICE_URL = "https://public.api.bsky.app";
-export const TYPEAHEAD_SERVICE_URL = "https://public.api.bsky.app";
 export const LINK_CARD_SERVICE_URL = "https://cardyb.bsky.app";
 export const OG_CARD_SERVICE_URL = "https://ogcard.cdn.bsky.app";
 export const CDN_URL = "https://cdn.bsky.app";
@@ -37,6 +36,12 @@ export const VIDEO_SERVICE_URL = "https://video.bsky.app";
 export const VIDEO_SERVICE_DID = "did:web:video.bsky.app";
 
 export const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
+
+export const BSKY_FEED_OWNER_DIDS = [
+  "did:plc:z72i7hdynmk6r22z27h6tvur",
+  "did:plc:vpkhqolt662uhesyj6nxm7ys",
+  "did:plc:q6gjnaw2blty4crticxkmujt",
+];
 
 export const LIVE_ALLOWED_SERVICES = [
   { domain: "twitch.tv", displayName: "Twitch" },

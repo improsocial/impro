@@ -51,6 +51,7 @@ export default async function profileView({
       { feedType: "posts", name: "Posts" },
       isAuthenticated ? { feedType: "replies", name: "Replies" } : null,
       isLabeler ? null : { feedType: "media", name: "Media" },
+      isLabeler ? null : { feedType: "videos", name: "Videos" },
       isCurrentUser ? { feedType: "likes", name: "Likes" } : null,
     ].filter(Boolean);
   }

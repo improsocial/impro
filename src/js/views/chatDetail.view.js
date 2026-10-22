@@ -27,8 +27,7 @@ import {
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import {
   postEmbedTemplate,
@@ -1150,9 +1149,7 @@ export default async function chatDetailView({
     return html`<div class="chat-info-panel" data-testid="chat-info-panel">
       ${avatarTemplate({ author: profile, showLiveStatus: false })}
       <div class="chat-info-panel-name">
-        ${getDisplayName(profile)}${verificationBadgeTemplate({
-          profile,
-        })}${automatedAccountBadgeTemplate({ profile })}
+        ${getDisplayName(profile)}${profileBadgesTemplate({ profile })}
       </div>
       ${hasValidHandle(profile)
         ? html`<div class="chat-info-panel-handle">@${profile.handle}</div>`
@@ -1420,14 +1417,16 @@ export default async function chatDetailView({
           },
           title,
           subtitle,
-          titleRightItemTemplate: convo?.muted
-            ? () =>
-                html`<app-icon
+          titleRightItemTemplate: () =>
+            html`${otherMember
+              ? profileBadgesTemplate({ profile: otherMember })
+              : ""}${convo?.muted
+              ? html`<app-icon
                   class="header-title-muted-icon"
                   icon="bell-off"
                   data-testid="header-muted-icon"
                 ></app-icon>`
-            : null,
+              : ""}`,
           titleHref:
             groupDetails && canViewGroupDetails
               ? linkToGroupChatDetails(convoId)
@@ -1548,6 +1547,8 @@ export default async function chatDetailView({
                       })
                     : ""}
                   <chat-input
+                    .searchMentions=${(query) =>
+                      dataLayer.declarative.searchMentions(query)}
                     @send=${(e) =>
                       handleSendMessage(e.detail.message, e.detail.onSuccess)}
                     @input-change=${(e) => handleComposerInput(e.detail)}

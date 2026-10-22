@@ -4,8 +4,7 @@ import {
   avatarPlaceholderTemplate,
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import "/js/components/app-icon.js";
 
 export function accountSwitcherListTemplate({
@@ -125,8 +124,8 @@ function identityTemplate({ profile, account }) {
         ${profile
           ? getDisplayName(profile)
           : (account.handle ?? account.did)}${profile
-          ? verificationBadgeTemplate({ profile })
-          : ""}${profile ? automatedAccountBadgeTemplate({ profile }) : ""}
+          ? profileBadgesTemplate({ profile })
+          : ""}
       </span>
       ${handle
         ? html`<span class="account-switcher-handle">@${handle}</span>`

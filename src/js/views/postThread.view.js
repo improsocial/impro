@@ -133,6 +133,13 @@ export default async function postThreadView({
     );
   }
 
+  function replyHasHideLabel(reply) {
+    return (
+      reply.post.mediaLabel?.visibility === "hide" ||
+      !!reply.post.badgeLabels?.some((badge) => badge.visibility === "hide")
+    );
+  }
+
   function doShowReply(reply) {
     const post = reply.post;
     if (!post) {
@@ -144,6 +151,7 @@ export default async function postThreadView({
       isMutedPost(post) ||
       post.isBlockedReply ||
       replyHasContentLabel(reply) ||
+      replyHasHideLabel(reply) ||
       post.isHidden
     ) {
       return false;
@@ -341,7 +349,11 @@ export default async function postThreadView({
     if (!reply.post) {
       return false;
     }
-    if (isMutedPost(reply.post) || replyHasContentLabel(reply)) {
+    if (
+      isMutedPost(reply.post) ||
+      replyHasContentLabel(reply) ||
+      replyHasHideLabel(reply)
+    ) {
       return true;
     }
     // If the post author blocked the replier, put the reply in the hidden section

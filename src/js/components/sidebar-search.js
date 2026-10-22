@@ -3,6 +3,7 @@ import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
 import "/js/components/app-icon.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/container-link.js";
@@ -41,7 +42,9 @@ function typeaheadTemplate({ query, profiles, onCommit, onSelectProfile }) {
               ${avatarTemplate({ author: profile, clickAction: "none" })}
               <div class="search-typeahead-text">
                 <div class="search-typeahead-name">
-                  ${getDisplayName(profile)}
+                  ${getDisplayName(profile)}${profileBadgesTemplate({
+                    profile,
+                  })}
                 </div>
                 <div class="search-typeahead-handle">@${profile.handle}</div>
               </div>

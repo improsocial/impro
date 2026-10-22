@@ -219,6 +219,44 @@ test.describe("Settings view", () => {
       ).toBeVisible();
     });
 
+    test("shows verification and automated account badges on account rows", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const botProfile = createProfile({
+        did: "did:plc:botuser123",
+        handle: "botuser.bsky.social",
+        displayName: "Bot User",
+        labels: [{ val: "bot" }],
+        verification: {
+          verifiedStatus: "valid",
+          trustedVerifierStatus: "none",
+        },
+      });
+      mockServer.addProfile(botProfile);
+      await mockServer.setup(page);
+
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        { did: botProfile.did, handle: botProfile.handle },
+      ]);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      await view
+        .locator('[data-testid="settings-switch-account-toggle"]')
+        .click();
+
+      const row = view.locator('[data-testid="settings-account-row"]');
+      await expect(row).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        row.locator('[data-testid="verification-badge"]'),
+      ).toBeVisible();
+      await expect(
+        row.locator('[data-testid="automated-account-badge"]'),
+      ).toBeVisible();
+    });
+
     test("shows a spinner in place of the ellipsis button while switching accounts", async ({
       page,
     }) => {

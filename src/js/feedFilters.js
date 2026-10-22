@@ -288,6 +288,9 @@ class FilterContentLabeledPosts extends FeedFilter {
       if (contentLabel?.visibility === "hide") {
         return false;
       }
+      if (item.post.mediaLabel?.visibility === "hide") {
+        return false;
+      }
       if (hasHiddenBadgeLabel(item.post)) {
         return false;
       }
@@ -366,6 +369,19 @@ export function filterAlgorithmicFeed(
     feed: filter.filterFeedItems(feed.feed),
     cursor: feed.cursor,
   };
+}
+
+export function filterSearchResults(feedItems, isAuthenticated) {
+  const filter = FeedFilter.compose(
+    new FilterBlockedQuotes(),
+    new FilterBlockedPosts(),
+    new FilterMutedQuotes(),
+    new FilterMutedPosts(),
+    new FilterHiddenPosts(),
+    new FilterContentLabeledPosts(),
+    new FilterUnauthorizedPosts(isAuthenticated),
+  );
+  return filter.filterFeedItems(feedItems);
 }
 
 export function filterBookmarksFeed(feed) {

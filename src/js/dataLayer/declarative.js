@@ -218,6 +218,11 @@ export class Declarative {
     return preview;
   }
 
+  async searchMentions(query) {
+    await this.requests.loadMentionTypeahead(query);
+    return this.derived.$mentionTypeaheadResults.get() ?? [];
+  }
+
   async ensureConvoForProfile(profileDid) {
     let convo = this.derived.$convoForProfile.get(profileDid);
     if (!convo) {

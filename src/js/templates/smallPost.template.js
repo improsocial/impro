@@ -36,6 +36,7 @@ function contentWarningTemplate({
     const isAuthorLabel = contentLabel.label.uri === post?.author?.did;
     return moderationWarningTemplate({
       className: "post-content-warning",
+      label: contentLabel.label,
       labelDefinition: contentLabel.labelDefinition,
       labeler: contentLabel.labeler,
       noOverride: contentLabel.noOverride,

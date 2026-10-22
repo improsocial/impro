@@ -165,13 +165,46 @@ describe("ScrollLock", () => {
       assert.deepEqual(scrollToCalls[0], [0, 3600]);
     });
 
+    // Locked, main sits where its margin puts it; unlocked, its rect follows
+    // its document position and the scroll position
+    const mockMainRect = (main, layout) => {
+      main.getBoundingClientRect = () => ({
+        top: main.style.marginTop
+          ? layout.lockedTop
+          : layout.documentTop - window.scrollY,
+      });
+    };
+
     it("follows main if it moved while locked", () => {
       const main = container.querySelector("main");
-      main.getBoundingClientRect = () => ({ top: -3500 });
+      const layout = { lockedTop: -3500, documentTop: 100 };
+      mockMainRect(main, layout);
       const lock = createLock();
-      main.getBoundingClientRect = () => ({ top: -3540 });
+      layout.lockedTop = -3540;
       lock.release();
       assert.deepEqual(scrollToCalls[0], [0, 3640]);
+    });
+
+    it("ignores a stale lock-time rect (iOS WebKit)", () => {
+      const main = container.querySelector("main");
+      // Seen on iOS: right after locking, the rect is still offset by scrollY
+      main.getBoundingClientRect = () => ({ top: 100 });
+      const lock = createLock();
+      mockMainRect(main, { lockedTop: -3500, documentTop: 100 });
+      lock.release();
+      assert.deepEqual(scrollToCalls[0], [0, 3600]);
+    });
+
+    it("keeps main in place when content above it changed while locked", () => {
+      const main = container.querySelector("main");
+      const layout = { lockedTop: -3500, documentTop: 100 };
+      mockMainRect(main, layout);
+      const lock = createLock();
+      // 300px inserted above main
+      layout.lockedTop = -3200;
+      layout.documentTop = 400;
+      lock.release();
+      assert.deepEqual(scrollToCalls[0], [0, 3600]);
     });
   });
 

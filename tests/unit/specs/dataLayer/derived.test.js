@@ -17,6 +17,7 @@ import {
   createProfile,
   createFeedItem,
   createThreadViewPost,
+  createLabelerView,
 } from "../../../shared/factories.js";
 import { trackDisposable } from "../../testHelpers.js";
 
@@ -52,6 +53,7 @@ function fakePreferences(overrides = {}) {
     getProfileBlurLabel: () => null,
     getBadgeLabelsForProfile: () => [],
     getFollowingFeedPreference: () => null,
+    hasHideLabel: () => false,
     clone() {
       return this;
     },
@@ -388,6 +390,42 @@ describe("$hydratedHashtagFeeds", () => {
     assert.deepEqual(result.feed[0].post.likeCount, 6);
     assert.deepEqual(result.feed[0].post.viewer.like, "fake like");
   });
+
+  it("should filter out muted, hidden, and hide-labeled posts", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        isPostHidden: (uri) => uri === "hidden",
+        getContentLabel: (post) =>
+          post.uri === "labeled" ? { visibility: "hide" } : null,
+      }),
+    });
+    const mutedAuthor = createProfile({
+      did: "did:plc:muted",
+      handle: "muted.test",
+      viewer: { muted: true },
+    });
+    dataStore.setProfiles([mutedAuthor]);
+    dataStore.$posts.set("muted", { uri: "muted", author: mutedAuthor });
+    dataStore.$posts.set("hidden", { uri: "hidden" });
+    dataStore.$posts.set("labeled", { uri: "labeled" });
+    dataStore.$posts.set("ok", { uri: "ok" });
+    dataStore.$hashtagFeeds.set(hashtagKey, {
+      posts: [
+        { uri: "muted" },
+        { uri: "hidden" },
+        { uri: "labeled" },
+        { uri: "ok" },
+      ],
+      cursor: "c",
+    });
+
+    const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
+    assert.deepEqual(
+      result.feed.map((item) => item.post.uri),
+      ["ok"],
+    );
+  });
 });
 
 describe("$hydratedProfiles", () => {
@@ -662,6 +700,139 @@ describe("$actorFeeds", () => {
     };
     dataStore.$actorFeeds.set(did, actorFeeds);
     assert.deepEqual(derived.$actorFeeds.get(did), actorFeeds);
+  });
+});
+
+describe("feed generator and list moderation", () => {
+  const ownerDid = "did:plc:owner";
+  const labelerDid = "did:plc:labeler";
+
+  function makeLabelPreferences() {
+    return new Preferences(
+      [],
+      [
+        createLabelerView({
+          did: labelerDid,
+          handle: "labeler.test",
+          labelDefinitions: [
+            { identifier: "spam", blurs: "content", defaultSetting: "hide" },
+            { identifier: "rude", blurs: "content", defaultSetting: "warn" },
+          ],
+        }),
+      ],
+    );
+  }
+
+  function label(uri, val) {
+    return { src: labelerDid, uri, val, cts: "2025-01-01T00:00:00.000Z" };
+  }
+
+  const plainCreator = createProfile({ did: ownerDid, handle: "owner.test" });
+  const blockingCreator = createProfile({
+    did: "did:plc:blocking",
+    handle: "blocking.test",
+    viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/1" },
+  });
+  const blockedByCreator = createProfile({
+    did: "did:plc:blockedby",
+    handle: "blockedby.test",
+    viewer: { blockedBy: true },
+  });
+  const mutedCreator = createProfile({
+    did: "did:plc:muted",
+    handle: "muted.test",
+    viewer: { muted: true },
+  });
+  const labeledCreator = createProfile({
+    did: "did:plc:labeled",
+    handle: "labeled.test",
+    labels: [label("did:plc:labeled", "spam")],
+  });
+
+  function item(uri, creator, labels = []) {
+    return { uri, creator, labels };
+  }
+
+  const items = [
+    item("plain", plainCreator),
+    item("hide-labeled", plainCreator, [label("hide-labeled", "spam")]),
+    item("warn-labeled", plainCreator, [label("warn-labeled", "rude")]),
+    item("blocking", blockingCreator),
+    item("blocked-by", blockedByCreator),
+    item("muted", mutedCreator),
+    item("labeled-creator", labeledCreator),
+  ];
+
+  function setup() {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: makeLabelPreferences(),
+    });
+    dataStore.setProfiles([
+      plainCreator,
+      blockingCreator,
+      blockedByCreator,
+      mutedCreator,
+      labeledCreator,
+    ]);
+    return { dataStore, derived };
+  }
+
+  function uris(collection) {
+    return collection.map((entry) => entry.uri);
+  }
+
+  it("should hide blocked and hide-labeled feeds on a profile but keep muted creators", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$actorFeeds.set(ownerDid, { feeds: items, cursor: "c" });
+    assert.deepEqual(uris(derived.$actorFeeds.get(ownerDid).feeds), [
+      "plain",
+      "warn-labeled",
+      "muted",
+    ]);
+  });
+
+  it("should hide blocked and hide-labeled lists on a profile but keep muted creators", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$actorLists.set(ownerDid, { lists: items, cursor: "c" });
+    assert.deepEqual(uris(derived.$actorLists.get(ownerDid).lists), [
+      "plain",
+      "warn-labeled",
+      "muted",
+    ]);
+  });
+
+  it("should also hide feeds from muted creators in popular feeds", () => {
+    const { dataStore, derived } = setup();
+    dataStore.$popularFeeds.set(items);
+    assert.deepEqual(uris(derived.$popularFeeds.get()), [
+      "plain",
+      "warn-labeled",
+    ]);
+  });
+
+  it("should never hide the current user's own feeds and lists", () => {
+    const { dataStore, derived } = setup();
+    dataStore.setCurrentUser(labeledCreator);
+    const ownItems = [
+      item("own-labeled", labeledCreator, [label("own-labeled", "spam")]),
+    ];
+    dataStore.$actorFeeds.set(labeledCreator.did, {
+      feeds: ownItems,
+      cursor: "c",
+    });
+    dataStore.$actorLists.set(labeledCreator.did, {
+      lists: ownItems,
+      cursor: "c",
+    });
+    dataStore.$popularFeeds.set(ownItems);
+    assert.deepEqual(uris(derived.$actorFeeds.get(labeledCreator.did).feeds), [
+      "own-labeled",
+    ]);
+    assert.deepEqual(uris(derived.$actorLists.get(labeledCreator.did).lists), [
+      "own-labeled",
+    ]);
+    assert.deepEqual(uris(derived.$popularFeeds.get()), ["own-labeled"]);
   });
 });
 
@@ -1550,6 +1721,73 @@ describe("$hydratedPosts (nested quotes and author labels)", () => {
     assert.deepEqual(result.author.blurLabel, "adult");
   });
 
+  it("should replace a quoted post's author with the stored profile", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.setProfiles([
+      createProfile({
+        did: "did:quoted",
+        handle: "quoted.bsky.social",
+        displayName: "Stored Name",
+      }),
+    ]);
+    dataStore.$posts.set(postURI, makeQuotePost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.author.displayName, "Stored Name");
+  });
+
+  it("should apply profile patches to a quoted post's author", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, patchStore } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.setProfiles([
+      createProfile({ did: "did:quoted", handle: "quoted.bsky.social" }),
+    ]);
+    dataStore.$posts.set(postURI, makeQuotePost());
+    patchStore.addProfilePatch("did:quoted", { type: "muteProfile" });
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.author.viewer.muted, true);
+  });
+
+  it("should keep the embed author when no stored profile exists", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(postURI, makeQuotePost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.author, { did: "did:quoted" });
+  });
+
+  it("should not replace the author of a blocked quote", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.setProfiles([
+      createProfile({ did: "did:blocked", handle: "blocked.bsky.social" }),
+    ]);
+    const blockedAuthor = { did: "did:blocked", viewer: { blockedBy: true } };
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      record: { text: "quoting post" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "at://did:blocked/app.bsky.feed.post/q",
+          blocked: true,
+          author: blockedAuthor,
+        },
+      },
+    });
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.author, blockedAuthor);
+  });
+
   it("should keep a third-party-blocked quote blocked when the quoted post is not loaded", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
@@ -1944,6 +2182,188 @@ describe("$notifications", () => {
     assert.deepEqual(derived.$notifications.get()[0].isRead, true);
     dataStore.$notificationsLastSeenAt.set("2025-01-15T10:00:00.000Z");
     assert.deepEqual(derived.$notifications.get()[0].isRead, false);
+  });
+
+  describe("label moderation", () => {
+    const labelerDid = "did:plc:labeler";
+    const following = "at://did:plc:me/app.bsky.graph.follow/1";
+
+    function makeLabelPreferences() {
+      const labelerDefs = [
+        createLabelerView({
+          did: labelerDid,
+          handle: "labeler.test",
+          labelDefinitions: [
+            { identifier: "spam", blurs: "content", defaultSetting: "hide" },
+            { identifier: "rude", blurs: "content", defaultSetting: "warn" },
+          ],
+        }),
+      ];
+      return new Preferences([], labelerDefs);
+    }
+
+    function accountLabel(did, val, src = labelerDid) {
+      return { src, uri: did, val, cts: "2025-01-01T00:00:00.000Z" };
+    }
+
+    function profileRecordLabel(did, val) {
+      return {
+        src: labelerDid,
+        uri: `at://${did}/app.bsky.actor.profile/self`,
+        val,
+        cts: "2025-01-01T00:00:00.000Z",
+      };
+    }
+
+    function labeledAuthor(labels, viewer = {}) {
+      return createProfile({
+        did: "did:plc:labeled",
+        handle: "labeled.test",
+        labels,
+        viewer,
+      });
+    }
+
+    function hydratedUris(derived) {
+      return derived.$notifications
+        .get()
+        .map((notification) => notification.uri);
+    }
+
+    it("should hide notifications from authors with a hide account label", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const labeled = labeledAuthor([accountLabel("did:plc:labeled", "spam")]);
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author, uri: "n1" }),
+        createNotification({ reason: "follow", author: labeled, uri: "n2" }),
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    it("should keep notifications from authors with a warn account label", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const labeled = labeledAuthor([accountLabel("did:plc:labeled", "rude")]);
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author: labeled, uri: "n1" }),
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    it("should ignore hide labels on the author's profile record", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const labeled = labeledAuthor([
+        profileRecordLabel("did:plc:labeled", "spam"),
+      ]);
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author: labeled, uri: "n1" }),
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    it("should keep notifications from followed authors with a hide account label", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const labeled = labeledAuthor([accountLabel("did:plc:labeled", "spam")], {
+        following,
+      });
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author: labeled, uri: "n1" }),
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    it("should hide notifications from followed authors with !hide or !takedown", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const hidden = createProfile({
+        did: "did:plc:hidden",
+        handle: "hidden.test",
+        labels: [accountLabel("did:plc:hidden", "!hide", "did:plc:mod")],
+        viewer: { following },
+      });
+      const takenDown = createProfile({
+        did: "did:plc:takendown",
+        handle: "takendown.test",
+        labels: [accountLabel("did:plc:takendown", "!takedown", "did:plc:mod")],
+        viewer: { following },
+      });
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author, uri: "n1" }),
+        createNotification({ reason: "follow", author: hidden, uri: "n2" }),
+        createNotification({ reason: "follow", author: takenDown, uri: "n3" }),
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    it("should hide notifications carrying a hide label themselves", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const labeledNotification = {
+        ...createNotification({ reason: "follow", author, uri: "n2" }),
+        labels: [accountLabel("n2", "spam")],
+      };
+      seedNotifications(dataStore, [
+        createNotification({ reason: "follow", author, uri: "n1" }),
+        labeledNotification,
+      ]);
+      assert.deepEqual(hydratedUris(derived), ["n1"]);
+    });
+
+    for (const reason of ["reply", "mention", "quote"]) {
+      it(`should hide ${reason} notifications whose post has a hide label, even from followed authors`, () => {
+        const dataStore = new DataStore(createSessionState(null));
+        const { derived } = makeDerived(dataStore, {
+          preferences: makeLabelPreferences(),
+        });
+        const followed = createProfile({
+          did: "did:plc:followed",
+          handle: "followed.test",
+          viewer: { following },
+        });
+        dataStore.$posts.set("labeled", {
+          uri: "labeled",
+          author: followed,
+          record: { text: "x" },
+          labels: [accountLabel("labeled", "spam")],
+        });
+        dataStore.$posts.set("clean", {
+          uri: "clean",
+          author: followed,
+          record: { text: "y" },
+          labels: [],
+        });
+        seedNotifications(dataStore, [
+          createNotification({
+            reason,
+            author: followed,
+            uri: "labeled",
+            record: {},
+          }),
+          createNotification({
+            reason,
+            author: followed,
+            uri: "clean",
+            record: {},
+          }),
+        ]);
+        assert.deepEqual(hydratedUris(derived), ["clean"]);
+      });
+    }
   });
 });
 
@@ -2394,9 +2814,191 @@ describe("actor search results", () => {
     const { derived } = makeDerived(dataStore);
     assert.deepEqual(derived.$searchTypeaheadResults.get(), null);
     seedProfile(dataStore);
-    dataStore.$searchTypeaheadResults.set({ actors: [{ did }] });
+    dataStore.$searchTypeaheadResults.set({ actors: [{ did }], query: "fo" });
     const result = derived.$searchTypeaheadResults.get();
     assert.deepEqual(result[0].handle, "found.test");
+  });
+
+  describe("typeahead moderation", () => {
+    const labelerDid = "did:plc:labeler";
+
+    function makeLabelPreferences() {
+      return new Preferences(
+        [],
+        [
+          createLabelerView({
+            did: labelerDid,
+            handle: "labeler.test",
+            labelDefinitions: [
+              { identifier: "spam", blurs: "content", defaultSetting: "hide" },
+            ],
+          }),
+        ],
+      );
+    }
+
+    function accountLabel(profileDid, val, src = labelerDid) {
+      return { src, uri: profileDid, val, cts: "2025-01-01T00:00:00.000Z" };
+    }
+
+    function seedTypeahead(dataStore, $results, profiles, query) {
+      dataStore.setProfiles(profiles);
+      $results.set({
+        actors: profiles.map((profile) => ({ did: profile.did })),
+        query,
+      });
+    }
+
+    const plain = createProfile({ did: "did:plc:plain", handle: "al.test" });
+    const blocking = createProfile({
+      did: "did:plc:blocking",
+      handle: "alblocked.test",
+      viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/1" },
+    });
+    const blockedBy = createProfile({
+      did: "did:plc:blockedby",
+      handle: "alblocker.test",
+      viewer: { blockedBy: true },
+    });
+    const muted = createProfile({
+      did: "did:plc:muted",
+      handle: "almuted.test",
+      viewer: { muted: true },
+    });
+    const labeled = createProfile({
+      did: "did:plc:labeled",
+      handle: "allabeled.test",
+      labels: [accountLabel("did:plc:labeled", "spam")],
+    });
+    const profileRecordLabeled = createProfile({
+      did: "did:plc:profilelabeled",
+      handle: "alprofile.test",
+      labels: [
+        {
+          src: labelerDid,
+          uri: "at://did:plc:profilelabeled/app.bsky.actor.profile/self",
+          val: "spam",
+          cts: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    function resultHandles(profiles) {
+      return profiles.map((profile) => profile.handle);
+    }
+
+    it("should hide blocked, blocking, and hide-labeled accounts but keep muted ones", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      seedTypeahead(
+        dataStore,
+        dataStore.$searchTypeaheadResults,
+        [plain, blocking, blockedBy, muted, labeled, profileRecordLabeled],
+        "al",
+      );
+      assert.deepEqual(resultHandles(derived.$searchTypeaheadResults.get()), [
+        "al.test",
+        "almuted.test",
+        "alprofile.test",
+      ]);
+    });
+
+    it("should apply the same filtering to the sidebar typeahead", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      seedTypeahead(
+        dataStore,
+        dataStore.$sidebarSearchTypeaheadResults,
+        [plain, blocking, labeled],
+        "al",
+      );
+      assert.deepEqual(
+        resultHandles(derived.$sidebarSearchTypeaheadResults.get()),
+        ["al.test"],
+      );
+    });
+
+    it("should keep an exact handle match even when blocked or hide-labeled", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      seedTypeahead(
+        dataStore,
+        dataStore.$searchTypeaheadResults,
+        [blocking],
+        " ALBlocked.test ",
+      );
+      assert.deepEqual(resultHandles(derived.$searchTypeaheadResults.get()), [
+        "alblocked.test",
+      ]);
+      seedTypeahead(
+        dataStore,
+        dataStore.$searchTypeaheadResults,
+        [labeled],
+        "allabeled.test",
+      );
+      assert.deepEqual(resultHandles(derived.$searchTypeaheadResults.get()), [
+        "allabeled.test",
+      ]);
+    });
+
+    it("should apply the same filtering to the mention typeahead", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      seedTypeahead(
+        dataStore,
+        dataStore.$mentionTypeaheadResults,
+        [plain, blocking, muted, labeled],
+        "al",
+      );
+      assert.deepEqual(resultHandles(derived.$mentionTypeaheadResults.get()), [
+        "al.test",
+        "almuted.test",
+      ]);
+    });
+
+    it("should hide an exact handle match with !hide or !takedown", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      const takenDown = createProfile({
+        did: "did:plc:takendown",
+        handle: "gone.test",
+        labels: [accountLabel("did:plc:takendown", "!takedown", "did:plc:mod")],
+      });
+      seedTypeahead(
+        dataStore,
+        dataStore.$searchTypeaheadResults,
+        [takenDown],
+        "gone.test",
+      );
+      assert.deepEqual(derived.$searchTypeaheadResults.get(), []);
+    });
+
+    it("should never hide the current user", () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const { derived } = makeDerived(dataStore, {
+        preferences: makeLabelPreferences(),
+      });
+      dataStore.setCurrentUser(labeled);
+      seedTypeahead(
+        dataStore,
+        dataStore.$searchTypeaheadResults,
+        [labeled],
+        "al",
+      );
+      assert.deepEqual(resultHandles(derived.$searchTypeaheadResults.get()), [
+        "allabeled.test",
+      ]);
+    });
   });
 });
 
@@ -2443,6 +3045,41 @@ describe("post search results", () => {
     assert.deepEqual(latest.length, 1);
     assert.deepEqual(derived.$postSearchCursorTop.get(), "tc");
     assert.deepEqual(derived.$postSearchCursorLatest.get(), "lc");
+  });
+
+  it("should filter out muted, hidden, and hide-labeled posts", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        isPostHidden: (uri) => uri === "hidden",
+        getMediaLabel: (post) =>
+          post.uri === "labeled" ? { visibility: "hide" } : null,
+      }),
+    });
+    const mutedAuthor = createProfile({
+      did: "did:plc:muted",
+      handle: "muted.test",
+      viewer: { muted: true },
+    });
+    dataStore.setProfiles([mutedAuthor]);
+    dataStore.$posts.set("muted", { uri: "muted", author: mutedAuthor });
+    dataStore.$posts.set("hidden", { uri: "hidden" });
+    dataStore.$posts.set("labeled", { uri: "labeled" });
+    dataStore.$posts.set("ok", { uri: "ok" });
+    dataStore.$postSearchResultsTop.set({
+      posts: [
+        { uri: "muted" },
+        { uri: "hidden" },
+        { uri: "labeled" },
+        { uri: "ok" },
+      ],
+      cursor: "tc",
+    });
+
+    assert.deepEqual(
+      derived.$postSearchResultsTop.get().map((post) => post.uri),
+      ["ok"],
+    );
   });
 });
 

@@ -20,6 +20,7 @@ import {
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import "/js/components/container-link.js";
@@ -88,7 +89,11 @@ export default async function chatView({
         <div class="convo-content">
           <div class="convo-header">
             <div class="convo-name">
-              ${groupDetails ? groupDetails.name : getDisplayName(otherUser)}
+              ${groupDetails
+                ? groupDetails.name
+                : html`${getDisplayName(otherUser)}${profileBadgesTemplate({
+                    profile: otherUser,
+                  })}`}
               ${convo.muted
                 ? html`<app-icon
                     class="convo-muted-icon"

@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import "/js/components/app-icon.js";
 import { getDisplayName, isAvailableJoinLinkPreview } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
@@ -95,7 +96,7 @@ function ownerRowTemplate({ owner }) {
       href=${linkToProfile(owner)}
       @click=${(event) => event.stopPropagation()}
       >${displayName}</a
-    >
+    >${profileBadgesTemplate({ profile: owner })}
     <span class="chat-join-link-embed-owner-handle">@${owner.handle}</span>
   </div>`;
 }

@@ -14,8 +14,7 @@ import {
   linkToProfileFollowing,
 } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { Component } from "/js/components/component.js";
 import "/js/components/floating-card.js";
@@ -300,9 +299,7 @@ function hoverCardTemplate({
       </div>
       <a class="profile-hover-card-name-link" href="${linkToProfile(profile)}">
         <div class="profile-hover-card-name" data-testid="hover-card-name">
-          ${displayName}${verificationBadgeTemplate({
-            profile,
-          })}${automatedAccountBadgeTemplate({ profile })}
+          ${displayName}${profileBadgesTemplate({ profile })}
         </div>
         <div class="profile-hover-card-handle-row">
           ${followedBy && !isBlocking && !isBlockedBy

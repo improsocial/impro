@@ -260,4 +260,84 @@ test.describe("Pin feed flow", () => {
     await expect(tabs).toHaveCount(1, { timeout: 10000 });
     await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-following");
   });
+
+  test("should update the sidebar and home tabs after pinning from search results without a reload", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.addSearchFeedGenerators([feed]);
+    mockServer.setSavedFeeds([feed.uri]);
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/search?q=trending&tab=feeds");
+    const view = page.locator("#search-view");
+    const paneItems = page.locator(
+      '[data-testid="pinned-feeds-pane"] [data-testid="pinned-feeds-item"]',
+    );
+    await expect(paneItems).toHaveCount(1, { timeout: 10000 });
+    await expect(view.locator(".feeds-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await view.locator(".pin-feed-button").click();
+    await expect(view.locator(".pin-feed-button.pinned")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await expect(paneItems).toHaveCount(2);
+    await expect(paneItems.nth(1)).toHaveAttribute(
+      "data-pinned-value",
+      feed.uri,
+    );
+
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
+    const homeView = page.locator("#home-view");
+    await expect(homeView.locator(".tab-bar-button")).toHaveCount(2, {
+      timeout: 10000,
+    });
+  });
+
+  test("should update the sidebar and home tabs after unpinning from feed detail without a reload", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+    const detailView = page.locator("#feed-detail-view");
+    const paneItems = page.locator(
+      '[data-testid="pinned-feeds-pane"] [data-testid="pinned-feeds-item"]',
+    );
+    await expect(paneItems).toHaveCount(2, { timeout: 10000 });
+
+    await detailView.locator(".pin-feed-button.pinned").click();
+    await expect(detailView.locator(".pin-feed-button.pinned")).toHaveCount(0);
+
+    await expect(paneItems).toHaveCount(1);
+    await expect(paneItems.nth(0)).toHaveAttribute(
+      "data-pinned-value",
+      "following",
+    );
+
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
+    const homeView = page.locator("#home-view");
+    await expect(homeView.locator(".tab-bar-button")).toHaveCount(1, {
+      timeout: 10000,
+    });
+  });
 });

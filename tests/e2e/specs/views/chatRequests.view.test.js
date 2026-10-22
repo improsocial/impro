@@ -227,6 +227,47 @@ test.describe("Chat requests view", () => {
     ).toBeVisible();
   });
 
+  test("should show verification and automated account badges on request names", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const bot = createProfile({
+      did: "did:plc:bot1",
+      handle: "bot.bsky.social",
+      displayName: "Bot",
+      labels: [{ val: "bot" }],
+      verification: {
+        verifiedStatus: "valid",
+        trustedVerifierStatus: "none",
+      },
+    });
+    mockServer.addConvos([
+      createConvo({
+        id: "convo-req-1",
+        otherMember: bot,
+        status: "request",
+        lastMessage: createMessage({
+          id: "msg-req-1",
+          text: "Beep",
+          senderDid: bot.did,
+        }),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const name = page.locator("#chat-requests-view .convo-name");
+    await expect(name).toContainText("Bot", { timeout: 10000 });
+    await expect(
+      name.locator('[data-testid="verification-badge"]'),
+    ).toBeVisible();
+    await expect(
+      name.locator('[data-testid="automated-account-badge"]'),
+    ).toBeVisible();
+  });
+
   test("should display Chat requests header and request items", async ({
     page,
   }) => {

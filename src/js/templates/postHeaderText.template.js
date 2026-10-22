@@ -1,8 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { formatRelativeTime } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 export function postHeaderTextTemplate({
@@ -23,9 +22,7 @@ export function postHeaderTextTemplate({
         >`
       : html`<span class="post-name" data-testid="post-author-name"
           >${getDisplayName(author)}</span
-        >`}${verificationBadgeTemplate({
-      profile: author,
-    })}${automatedAccountBadgeTemplate({ profile: author })}
+        >`}${profileBadgesTemplate({ profile: author })}
     ${includeHandle
       ? enableProfileLink
         ? html`<a

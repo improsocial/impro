@@ -51,18 +51,15 @@ function lockScroll(container) {
     header,
     main,
     scrollY,
-    lockedMainTop: main ? main.getBoundingClientRect().top : null,
   };
 }
 
 function unlockScroll(
-  { header, main, scrollY, lockedMainTop },
+  { header, main, scrollY },
   { restoreScroll = true } = {},
 ) {
-  let scrollTo = 0;
+  const releasedMainTop = main ? main.getBoundingClientRect().top : null;
   if (main) {
-    // Follows main if it moved while locked
-    scrollTo = scrollY + lockedMainTop - main.getBoundingClientRect().top;
     main.style.marginTop = "";
     main.style.display = "";
   }
@@ -79,6 +76,11 @@ function unlockScroll(
   body.style.width = "";
   body.style.height = "";
   if (restoreScroll) {
+    let scrollTo = scrollY;
+    if (main) {
+      const mainDocumentTop = main.getBoundingClientRect().top + window.scrollY;
+      scrollTo = mainDocumentTop - releasedMainTop;
+    }
     window.scrollTo(0, scrollTo);
   }
   resyncIOSFixedLayers();

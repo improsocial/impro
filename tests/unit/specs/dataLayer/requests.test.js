@@ -147,6 +147,63 @@ describe("loadPostThread", () => {
 describe("loadNextFeedPage", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
+  describe("interests", () => {
+    const BSKY_FEED_URI =
+      "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
+    const interestsPreferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#interestsPref",
+          tags: ["art", "tech"],
+          updatedAt: "2025-03-01T00:00:00.000Z",
+        },
+      ],
+      [],
+    );
+
+    function makeCapturingApi({ isAuthenticated = true } = {}) {
+      const calls = [];
+      return {
+        calls,
+        isAuthenticated,
+        getFeed: async (uri, options) => {
+          calls.push(options);
+          return { feed: [], cursor: "" };
+        },
+      };
+    }
+
+    it("should pass the user's interests for Bluesky-owned feeds", async () => {
+      const mockApi = makeCapturingApi();
+      const requests = makeRequests(mockApi, undefined, interestsPreferences);
+
+      await requests.loadNextFeedPage({ type: "feed", uri: BSKY_FEED_URI });
+
+      assert.deepEqual(mockApi.calls[0].interests, {
+        tags: ["art", "tech"],
+        updatedAt: "2025-03-01T00:00:00.000Z",
+      });
+    });
+
+    it("should not pass interests for third-party feeds", async () => {
+      const mockApi = makeCapturingApi();
+      const requests = makeRequests(mockApi, undefined, interestsPreferences);
+
+      await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+
+      assert.deepEqual(mockApi.calls[0].interests, null);
+    });
+
+    it("should not pass interests when logged out", async () => {
+      const mockApi = makeCapturingApi({ isAuthenticated: false });
+      const requests = makeRequests(mockApi, undefined, interestsPreferences);
+
+      await requests.loadNextFeedPage({ type: "feed", uri: BSKY_FEED_URI });
+
+      assert.deepEqual(mockApi.calls[0].interests, null);
+    });
+  });
+
   it("should cache post numbering from feed items that carry it", async () => {
     const mockApi = {
       getFeed: async () => ({
@@ -916,6 +973,22 @@ describe("loadNextAuthorFeedPage", () => {
     assert.deepEqual(capturedParams.includePins, false);
   });
 
+  it("should use posts_with_video filter for videos feedType", async () => {
+    let capturedParams;
+    const mockApi = {
+      getAuthorFeed: async (_did, params) => {
+        capturedParams = params;
+        return { feed: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi);
+
+    await requests.loadNextAuthorFeedPage(did, "videos");
+
+    assert.deepEqual(capturedParams.filter, "posts_with_video");
+    assert.deepEqual(capturedParams.includePins, false);
+  });
+
   it("should call getActorLikes for likes feedType", async () => {
     let actorLikesCalled = false;
     let authorFeedCalled = false;
@@ -1366,6 +1439,7 @@ describe("loadSearchTypeahead", () => {
 
     const stored = dataStore.$searchTypeaheadResults.get();
     assert.deepEqual(stored.actors.length, 1);
+    assert.deepEqual(stored.query, "alice");
     assert.deepEqual(stored.actors[0].did, "did:plc:a");
     assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
       did: "did:plc:a",
@@ -1405,6 +1479,25 @@ describe("loadSearchTypeahead", () => {
     resolveSearch();
     await inFlight;
 
+    assert.deepEqual(dataStore.$searchTypeaheadResults.get(), null);
+  });
+});
+
+describe("loadMentionTypeahead", () => {
+  it("should store the search results with their query", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a", handle: "a.test" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadMentionTypeahead("alice");
+
+    const stored = dataStore.$mentionTypeaheadResults.get();
+    assert.deepEqual(stored.actors[0].did, "did:plc:a");
+    assert.deepEqual(stored.query, "alice");
     assert.deepEqual(dataStore.$searchTypeaheadResults.get(), null);
   });
 });

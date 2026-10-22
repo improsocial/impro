@@ -62,6 +62,39 @@ describe("chat-input", () => {
     });
   });
 
+  describe("ChatInput - mention search", () => {
+    it("forwards searchMentions to the rich-text-input", () => {
+      const searchMentions = async () => [];
+      const element = document.createElement("chat-input");
+      element.searchMentions = searchMentions;
+      document.body.appendChild(element);
+
+      assert.deepEqual(
+        getRichTextInput(element).searchMentions,
+        searchMentions,
+      );
+    });
+
+    it("warns instead of erroring when searchMentions is not provided", async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
+      const error = t.mock.method(console, "error", () => {});
+      const element = createChatInput();
+      const richTextInput = getRichTextInput(element);
+      richTextInput.setText("Hi @al");
+      richTextInput.detectPendingMention = () => ({
+        query: "al",
+        start: 3,
+        end: 6,
+      });
+
+      await richTextInput.updateMentionSuggestions();
+
+      assert.deepEqual(warn.mock.callCount(), 1);
+      assert.deepEqual(error.mock.callCount(), 0);
+      assert.deepEqual(document.querySelector(".mention-typeahead-host"), null);
+    });
+  });
+
   describe("ChatInput - disabled state", () => {
     it("should not be disabled by default", () => {
       const element = createChatInput();

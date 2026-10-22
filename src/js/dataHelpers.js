@@ -896,6 +896,23 @@ export function getLabelNameAndDescription(
   };
 }
 
+export function getModerationWarningLabelName(labelDefinition) {
+  if (
+    labelDefinition.identifier === "porn" ||
+    labelDefinition.identifier === "sexual"
+  ) {
+    return "Adult Content";
+  }
+  return getLabelNameAndDescription(labelDefinition).name;
+}
+
+export function isSelfLabel(label) {
+  const subjectDid = label.uri.startsWith("did:")
+    ? label.uri
+    : parseUri(label.uri).repo;
+  return label.src === subjectDid;
+}
+
 export function getLabelerForLabel(label, labelers) {
   const matchingLabeler = labelers.find(
     (labeler) => labeler.creator.did === label.src,

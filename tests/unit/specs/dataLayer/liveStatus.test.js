@@ -8,7 +8,11 @@ import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { DraftMediaStore } from "/js/drafts.js";
-import { isAllowedLiveHost, isStatusValid } from "/js/dataHelpers.js";
+import {
+  createEmbedFromPost,
+  isAllowedLiveHost,
+  isStatusValid,
+} from "/js/dataHelpers.js";
 import { normalizeUrl, formatDuration } from "/js/utils.js";
 import { ApiError } from "/js/api.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
@@ -242,6 +246,32 @@ describe("live status", () => {
       dataStore.setPosts([post]);
       assert.equal(derived.$hydratedProfiles.get(did).isLive, true);
       assert.equal(derived.$hydratedPosts.get(post.uri).author.isLive, true);
+    });
+
+    it("attaches isLive to quoted post authors", () => {
+      const { derived, dataStore } = makeDerived();
+      const status = createLiveStatusView({ did, expiresAt: futureExpiry() });
+      const quotedPost = createPost({
+        uri: `at://${did}/app.bsky.feed.post/live1`,
+        text: "hello",
+        authorHandle: "liveuser.bsky.social",
+        authorDisplayName: "Live User",
+        authorStatus: status,
+      });
+      const quotingPost = createPost({
+        uri: "at://did:plc:quoter/app.bsky.feed.post/quote1",
+        text: "look",
+        authorHandle: "quoter.bsky.social",
+        authorDisplayName: "Quoter",
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: createEmbedFromPost(quotedPost),
+        },
+      });
+      dataStore.setPosts([quotingPost]);
+      const hydrated = derived.$hydratedPosts.get(quotingPost.uri);
+      assert.equal(hydrated.author.isLive, undefined);
+      assert.equal(hydrated.embed.record.author.isLive, true);
     });
 
     it("does not attach isLive when the status is inactive", () => {

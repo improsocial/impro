@@ -174,6 +174,7 @@ export function createProfile({
   viewer,
   labels,
   status,
+  verification,
 }) {
   return {
     did,
@@ -190,6 +191,7 @@ export function createProfile({
     ...(followsCount !== undefined ? { followsCount } : {}),
     ...(postsCount !== undefined ? { postsCount } : {}),
     ...(status ? { status } : {}),
+    ...(verification ? { verification } : {}),
   };
 }
 

@@ -921,6 +921,54 @@ test.describe("Search view", () => {
       await expect(view.locator("tab-bar")).toBeHidden();
     });
 
+    test("should show verification and automated account badges on typeahead results", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+        createProfile({
+          did: "did:plc:profile2",
+          handle: "alicebot.bsky.social",
+          displayName: "Alice Bot",
+          labels: [
+            {
+              src: "did:plc:profile2",
+              uri: "at://did:plc:profile2/app.bsky.actor.profile/self",
+              val: "bot",
+              cts: "2025-01-01T00:00:00.000Z",
+            },
+          ],
+          verification: {
+            verifiedStatus: "valid",
+            trustedVerifierStatus: "none",
+          },
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("ali");
+
+      const results = view.locator('[data-testid="search-typeahead-result"]');
+      await expect(results).toHaveCount(2, { timeout: 10000 });
+      for (const testid of ["verification-badge", "automated-account-badge"]) {
+        await expect(
+          results.nth(0).locator(`[data-testid="${testid}"]`),
+        ).toHaveCount(0);
+        await expect(
+          results.nth(1).locator(`[data-testid="${testid}"]`),
+        ).toBeVisible();
+      }
+    });
+
     test("should show a loading spinner until typeahead results arrive", async ({
       page,
     }) => {
@@ -1681,6 +1729,39 @@ test.describe("Search view", () => {
         timeout: 10000,
       });
       expect(mockServer.searchHistory).toBe(null);
+    });
+
+    test("shows verification and automated account badges on recent profiles", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const bot = createProfile({
+        did: "did:plc:recent1",
+        handle: "bot.bsky.social",
+        displayName: "Bot",
+        labels: [{ val: "bot" }],
+        verification: {
+          verifiedStatus: "valid",
+          trustedVerifierStatus: "none",
+        },
+      });
+      mockServer.addProfile(bot);
+      mockServer.setSearchHistory({ profiles: [bot.did] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const tile = page.locator(
+        '#search-view [data-testid="search-recent-profile"]',
+      );
+      await expect(tile).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        tile.locator('[data-testid="verification-badge"]'),
+      ).toBeVisible();
+      await expect(
+        tile.locator('[data-testid="automated-account-badge"]'),
+      ).toBeVisible();
     });
 
     test("renders recent profiles in stored order and navigates on tap", async ({

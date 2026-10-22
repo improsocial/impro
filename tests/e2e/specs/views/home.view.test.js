@@ -787,7 +787,7 @@ test.describe("Home view", () => {
             cts: "2025-01-01T00:00:00.000Z",
           },
           {
-            val: "porn",
+            val: "!warn",
             src: "did:plc:ar7c4by46qjdydhdevvrndac",
             uri: postUri,
             cts: "2025-01-01T00:00:00.000Z",

@@ -15,12 +15,29 @@ self.addEventListener("push", (event) => {
         includeUncontrolled: true,
       });
       const focused = clients.filter((client) => client.focused);
-      // If a client is focused, skip showing the notification
+      // If a client is active, skip showing the notification
+      let answered = false;
       if (focused.length > 0) {
+        const requestId = crypto.randomUUID();
+        const channel = new MessageChannel();
+        const reply = new Promise((resolve) => {
+          const timer = setTimeout(() => resolve(false), 1000);
+          if (typeof timer.unref === "function") timer.unref();
+          channel.port1.onmessage = (event) => {
+            if (event.data?.type !== "push-received-ack") return;
+            if (event.data?.requestId !== requestId) return;
+            clearTimeout(timer);
+            resolve(true);
+          };
+        });
         for (const client of focused) {
-          client.postMessage({ type: "push-received" });
+          client.postMessage({ type: "push-received", requestId }, [
+            channel.port2,
+          ]);
         }
-      } else {
+        answered = await reply;
+      }
+      if (!answered) {
         await self.registration.showNotification(title || "Impro", {
           body,
           tag,

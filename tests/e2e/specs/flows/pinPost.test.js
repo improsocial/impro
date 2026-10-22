@@ -69,6 +69,59 @@ test.describe("Pin post flow", () => {
     ).toBeVisible();
   });
 
+  test("should pin a reply from the user's profile", async ({ page }) => {
+    const mockServer = new MockServer();
+    const parentRef = {
+      uri: "at://did:plc:other/app.bsky.feed.post/parent1",
+      cid: "bafyreitestparent1",
+    };
+    const reply = createPost({
+      uri: `at://${userProfile.did}/app.bsky.feed.post/reply1`,
+      text: "Pin this reply",
+      authorHandle: userProfile.handle,
+      authorDisplayName: userProfile.displayName,
+      reply: { root: parentRef, parent: parentRef },
+    });
+    mockServer.addAuthorFeedPosts(userProfile.did, "posts_and_author_threads", [
+      reply,
+    ]);
+
+    await mockServer.setup(page);
+    const putRecordPayloads = [];
+    await page.route("**/xrpc/com.atproto.repo.putRecord*", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body?.collection === "app.bsky.actor.profile") {
+        putRecordPayloads.push(body);
+      }
+      await route.fallback();
+    });
+
+    await login(page);
+
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    const feedItem = profileView.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator(".text-button").click();
+    await page
+      .locator(
+        '[data-testid="menu-action-post-pin"][data-teststate="unpinned"]',
+      )
+      .click();
+
+    await expect(
+      profileView.locator('[data-testid="pinned-label"]'),
+    ).toBeVisible({ timeout: 5000 });
+
+    await expect.poll(() => putRecordPayloads.length).toBeGreaterThan(0);
+    const lastPayload = putRecordPayloads[putRecordPayloads.length - 1];
+    expect(lastPayload.record.pinnedPost).toEqual({
+      uri: reply.uri,
+      cid: reply.cid,
+    });
+  });
+
   test("should not show Pin option on another user's post", async ({
     page,
   }) => {

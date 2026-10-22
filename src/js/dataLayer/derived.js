@@ -3,6 +3,7 @@ import {
   filterAlgorithmicFeed,
   filterAuthorFeed,
   filterBookmarksFeed,
+  filterSearchResults,
 } from "/js/feedFilters.js";
 import {
   createBlockedPost,
@@ -98,20 +99,62 @@ function applyLabels(post, preferences) {
   );
 }
 
-// Match social-app: hide notifications from blocked / muted
-// users unless the viewer follows them (a follow overrides a mute).
-function shouldHideNotification(notification) {
+function isHideableOffenseLabel(label) {
+  return label.val === "!hide" || label.val === "!takedown";
+}
+
+function isAccountLabel(label) {
+  return !label.uri.endsWith("/app.bsky.actor.profile/self");
+}
+
+function shouldHideNotification(notification, preferences) {
+  const author = notification.author;
+  if (author.labels?.some(isHideableOffenseLabel)) return true;
   if (
     notification.reason === "subscribed-post" &&
     notification.post?.viewer?.hasMutedWord
   ) {
     return true;
   }
-  const viewer = notification.author?.viewer;
-  if (!viewer) return false;
-  if (viewer.blocking) return true;
-  if (viewer.muted && !viewer.following) return true;
-  return false;
+  if (author.viewer?.blocking) return true;
+  if (
+    preferences &&
+    ["reply", "mention", "quote"].includes(notification.reason) &&
+    notification.post &&
+    preferences.hasHideLabel(notification.post.labels ?? [])
+  ) {
+    return true;
+  }
+  if (author.viewer?.following) return false;
+  if (author.viewer?.muted) return true;
+  if (!preferences) return false;
+  return preferences.hasHideLabel([
+    ...(notification.labels ?? []),
+    ...(author.labels ?? []).filter(isAccountLabel),
+  ]);
+}
+
+// Match social-app: an exact handle match stays visible (so the account
+// can still be reached) unless it carries a !hide / !takedown label.
+function shouldHideTypeaheadProfile(profile, query, preferences) {
+  const accountLabels = (profile.labels ?? []).filter(isAccountLabel);
+  if (profile.handle.toLowerCase() === query.toLowerCase().trim()) {
+    return accountLabels.some(isHideableOffenseLabel);
+  }
+  if (profile.viewer?.blocking || profile.viewer?.blockedBy) return true;
+  if (!preferences) return false;
+  return preferences.hasHideLabel(accountLabels);
+}
+
+// Created items == feed generators and lists
+function shouldHideCreatedItem(item, preferences) {
+  const creator = item.creator;
+  if (creator.viewer?.blocking || creator.viewer?.blockedBy) return true;
+  if (!preferences) return false;
+  return preferences.hasHideLabel([
+    ...(item.labels ?? []),
+    ...(creator.labels ?? []).filter(isAccountLabel),
+  ]);
 }
 
 function filterBlockedReactions(reactions, memberProfiles) {
@@ -315,16 +358,22 @@ export class Derived extends ReactiveStore {
     this.$notifications = new Signal.Computed(() => {
       const data = this.dataStore.$notifications.get();
       if (!data) return null;
+      const preferences = this.$preferences.get();
       return data.notifications
         .map((notification) => this.hydrateNotification(notification))
-        .filter((notification) => !shouldHideNotification(notification));
+        .filter(
+          (notification) => !shouldHideNotification(notification, preferences),
+        );
     });
     this.$mentionNotifications = new Signal.Computed(() => {
       const data = this.dataStore.$mentionNotifications.get();
       if (!data) return null;
+      const preferences = this.$preferences.get();
       return data.notifications
         .map((notification) => this.hydrateNotification(notification))
-        .filter((notification) => !shouldHideNotification(notification));
+        .filter(
+          (notification) => !shouldHideNotification(notification, preferences),
+        );
     });
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
       const postThread = this.dataStore.$postThreads.get(postURI);
@@ -380,7 +429,7 @@ export class Derived extends ReactiveStore {
         });
       }
       return {
-        feed: hydratedFeedItems,
+        feed: filterSearchResults(hydratedFeedItems, this.isAuthenticated),
         cursor: data.cursor,
       };
     });
@@ -434,12 +483,17 @@ export class Derived extends ReactiveStore {
     this.$searchTypeaheadResults = new Signal.Computed(() => {
       const data = this.dataStore.$searchTypeaheadResults.get();
       if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+      return this.hydrateTypeaheadResults(data);
     });
     this.$sidebarSearchTypeaheadResults = new Signal.Computed(() => {
       const data = this.dataStore.$sidebarSearchTypeaheadResults.get();
       if (!data) return null;
-      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+      return this.hydrateTypeaheadResults(data);
+    });
+    this.$mentionTypeaheadResults = new Signal.Computed(() => {
+      const data = this.dataStore.$mentionTypeaheadResults.get();
+      if (!data) return null;
+      return this.hydrateTypeaheadResults(data);
     });
     this.$recentSearchTerms = new Signal.Computed(() => {
       const preferences = this.$preferences.get();
@@ -506,12 +560,16 @@ export class Derived extends ReactiveStore {
     this.$postLanguageHistory = new Signal.Computed(() =>
       this.sessionState.$postLanguageHistory.get(),
     );
-    this.$postSearchResultsTop = new Signal.Computed(() =>
-      this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
-    );
-    this.$postSearchResultsLatest = new Signal.Computed(() =>
-      this.hydratePostSearchResults(this.dataStore.$postSearchResultsLatest),
-    );
+    this.$postSearchResultsTop = new Signal.Computed(() => {
+      const data = this.dataStore.$postSearchResultsTop.get();
+      if (!data) return null;
+      return this.hydratePostSearchResults(data);
+    });
+    this.$postSearchResultsLatest = new Signal.Computed(() => {
+      const data = this.dataStore.$postSearchResultsLatest.get();
+      if (!data) return null;
+      return this.hydratePostSearchResults(data);
+    });
     this.$postSearchCursorTop = new Signal.Computed(
       () => this.dataStore.$postSearchResultsTop.get()?.cursor ?? null,
     );
@@ -606,17 +664,33 @@ export class Derived extends ReactiveStore {
     this.$actorFeeds = new ComputedMap((did) => {
       const data = this.dataStore.$actorFeeds.get(did);
       if (!data) return data;
+      const currentUserDid = this.$currentUser.get()?.did;
+      const preferences = this.$preferences.get();
       return {
         ...data,
-        feeds: data.feeds.map((feed) => this.hydrateCreator(feed)),
+        feeds: data.feeds
+          .map((feed) => this.hydrateCreator(feed))
+          .filter(
+            (feed) =>
+              feed.creator.did === currentUserDid ||
+              !shouldHideCreatedItem(feed, preferences),
+          ),
       };
     });
     this.$actorLists = new ComputedMap((did) => {
       const data = this.dataStore.$actorLists.get(did);
       if (!data) return data;
+      const currentUserDid = this.$currentUser.get()?.did;
+      const preferences = this.$preferences.get();
       return {
         ...data,
-        lists: data.lists.map((list) => this.hydrateCreator(list)),
+        lists: data.lists
+          .map((list) => this.hydrateCreator(list))
+          .filter(
+            (list) =>
+              list.creator.did === currentUserDid ||
+              !shouldHideCreatedItem(list, preferences),
+          ),
       };
     });
     this.$actorStarterPacks = new ComputedMap((did) => {
@@ -632,10 +706,19 @@ export class Derived extends ReactiveStore {
     this.$popularFeeds = new Signal.Computed(() => {
       const feeds = this.dataStore.$popularFeeds.get();
       if (!feeds) return null;
-      return feeds.map(
-        (feed) =>
-          this.$feedGenerators.get(feed.uri) ?? this.hydrateCreator(feed),
-      );
+      const currentUserDid = this.$currentUser.get()?.did;
+      const preferences = this.$preferences.get();
+      return feeds
+        .map(
+          (feed) =>
+            this.$feedGenerators.get(feed.uri) ?? this.hydrateCreator(feed),
+        )
+        .filter(
+          (feed) =>
+            feed.creator.did === currentUserDid ||
+            (!feed.creator.viewer?.muted &&
+              !shouldHideCreatedItem(feed, preferences)),
+        );
     });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
       this.dataStore.$listsWithMembershipByActor.get(did),
@@ -914,6 +997,18 @@ export class Derived extends ReactiveStore {
     return { ...item, embed: updated };
   }
 
+  hydrateQuotedAuthors(post) {
+    return transformNestedQuotes(post, (quotedPost) => {
+      if (quotedPost.$type !== "app.bsky.embed.record#viewRecord") {
+        return quotedPost;
+      }
+      const did = quotedPost.author?.did;
+      const storedAuthor = did ? this.$hydratedProfiles.get(did) : null;
+      if (!storedAuthor) return quotedPost;
+      return { ...quotedPost, author: storedAuthor };
+    });
+  }
+
   applyReferenceListOptOut(list) {
     if (!list) return list;
     if (!this.dataStore.$referenceListOptOuts.has(list.uri)) return list;
@@ -972,6 +1067,7 @@ export class Derived extends ReactiveStore {
     }
     let result = this.resolveBlockedQuote(post);
     result = this.attachJoinLinkPreview(result);
+    result = this.hydrateQuotedAuthors(result);
     result = applyMutedWords(result, preferences);
     result = applyIsHidden(result, preferences);
     if (result.viewer) {
@@ -1026,16 +1122,28 @@ export class Derived extends ReactiveStore {
     };
   }
 
-  hydratePostSearchResults($storedResults) {
-    const data = $storedResults.get();
-    if (!data) return null;
+  hydrateTypeaheadResults(data) {
+    const currentUserDid = this.$currentUser.get()?.did;
+    const preferences = this.$preferences.get();
+    return data.actors
+      .map((actor) => this.$hydratedProfiles.get(actor.did))
+      .filter(
+        (profile) =>
+          profile.did === currentUserDid ||
+          !shouldHideTypeaheadProfile(profile, data.query, preferences),
+      );
+  }
+
+  hydratePostSearchResults(data) {
     const hydratedSearchResults = [];
     for (const result of data.posts) {
       const post = this.$hydratedPosts.get(result.uri);
       if (!post) continue;
-      hydratedSearchResults.push(this.attachParentAuthor(post));
+      hydratedSearchResults.push({ post: this.attachParentAuthor(post) });
     }
-    return hydratedSearchResults;
+    return filterSearchResults(hydratedSearchResults, this.isAuthenticated).map(
+      (item) => item.post,
+    );
   }
 
   hydrateNotification(rawNotification) {

@@ -8,6 +8,7 @@ export function automatedAccountBadgeTemplate({ profile }) {
 
   return html`<button
     class="automated-account-badge"
+    data-testid="automated-account-badge"
     title="Automated Account"
     @click=${(e) => {
       e.preventDefault();

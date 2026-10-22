@@ -15,6 +15,7 @@ import {
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/container-link.js";
@@ -93,7 +94,9 @@ export default async function chatRequestsView({
               <div class="convo-name">
                 ${groupDetails
                   ? groupDetails.name
-                  : getDisplayName(otherMember)}
+                  : html`${getDisplayName(otherMember)}${profileBadgesTemplate({
+                      profile: otherMember,
+                    })}`}
               </div>
               ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
             </div>

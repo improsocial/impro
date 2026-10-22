@@ -4,6 +4,7 @@ import { TokenRefreshError as OauthRefreshTokenError } from "/js/oauth.js";
 import {
   batch,
   buildQueryString,
+  getBrowserLanguageCodes,
   getCurrentTimestamp,
   unique,
 } from "/js/utils.js";
@@ -62,6 +63,17 @@ function buildAcceptLabelersHeader(labelerDids) {
   return labelerDids
     .map((did) => (did === BSKY_LABELER_DID ? `${did};redact` : did))
     .join(", ");
+}
+
+// Matches the header format in social-app
+function buildBskyTopicsHeader(interests) {
+  const tags = interests.tags.join(",");
+  return interests.updatedAt ? `${tags};${interests.updatedAt}` : tags;
+}
+
+// Matches the header format in social-app
+function buildAcceptLanguageHeader() {
+  return getBrowserLanguageCodes().join(",");
 }
 
 // Used for merging provided headers with defaults
@@ -430,13 +442,18 @@ export class Api {
     return res.data.thread;
   }
 
-  async getFeed(feedURI, { limit = 31, cursor = "" } = {}) {
+  async getFeed(feedURI, { limit = 31, cursor = "", interests } = {}) {
+    const headers = { "Accept-Language": buildAcceptLanguageHeader() };
+    if (interests) {
+      headers["x-atproto-bsky-topics"] = buildBskyTopicsHeader(interests);
+    }
     const res = await this.appViewRequest(`app.bsky.feed.getFeed`, {
       query: {
         feed: feedURI,
         limit,
         cursor,
       },
+      headers,
     });
     return res.data;
   }
@@ -582,6 +599,7 @@ export class Api {
   async getTrends({ limit = 5 } = {}) {
     const res = await this.appViewRequest(`app.bsky.unspecced.getTrends`, {
       query: { limit },
+      headers: { "Accept-Language": buildAcceptLanguageHeader() },
     });
     return res.data;
   }
@@ -822,10 +840,10 @@ export class Api {
     return res.data;
   }
 
-  async markNotificationsAsRead() {
+  async markNotificationsAsRead(seenAt) {
     await this.appViewRequest("app.bsky.notification.updateSeen", {
       method: "POST",
-      body: { seenAt: getCurrentTimestamp() },
+      body: { seenAt },
       parseJson: false,
     });
   }

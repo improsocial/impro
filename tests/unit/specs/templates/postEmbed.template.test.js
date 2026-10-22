@@ -415,7 +415,11 @@ describe("postEmbedTemplate - external links", () => {
     };
     const mediaLabel = {
       visibility: "hide",
-      label: { val: "porn", src: "did:plc:labeler" },
+      label: {
+        val: "porn",
+        src: "did:plc:labeler",
+        uri: "at://did:plc:author/app.bsky.feed.post/abc",
+      },
       labelDefinition: {
         identifier: "porn",
         blurs: "media",

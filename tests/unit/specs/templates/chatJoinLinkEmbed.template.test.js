@@ -134,6 +134,45 @@ describe("chatJoinLinkEmbedTemplate", () => {
     assert.deepEqual(disabled, false);
   });
 
+  it("renders verification and automated account badges for the owner", () => {
+    const container = renderEmbed({
+      preview: makeJoinLinkPreview({
+        owner: {
+          did: "did:plc:owner",
+          handle: "owner.test",
+          viewer: {},
+          verification: {
+            verifiedStatus: "valid",
+            trustedVerifierStatus: "none",
+          },
+          labels: [{ val: "bot" }],
+        },
+      }),
+    });
+    const owner = container.querySelector(
+      "[data-testid='join-link-embed-owner']",
+    );
+    assert(owner.querySelector("[data-testid='verification-badge']") !== null);
+    assert(
+      owner.querySelector("[data-testid='automated-account-badge']") !== null,
+    );
+  });
+
+  it("renders no owner badges for an unverified, non-automated owner", () => {
+    const container = renderEmbed({ preview: makeJoinLinkPreview() });
+    const owner = container.querySelector(
+      "[data-testid='join-link-embed-owner']",
+    );
+    assert.deepEqual(
+      owner.querySelector("[data-testid='verification-badge']"),
+      null,
+    );
+    assert.deepEqual(
+      owner.querySelector("[data-testid='automated-account-badge']"),
+      null,
+    );
+  });
+
   it("renders the requested action when viewer.requestedAt is set and no convoId", () => {
     const container = renderEmbed({
       preview: makeJoinLinkPreview({

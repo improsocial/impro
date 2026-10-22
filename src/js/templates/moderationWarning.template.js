@@ -1,23 +1,32 @@
 import { html } from "/js/lib/lit-html.js";
-import { getLabelNameAndDescription } from "/js/dataHelpers.js";
+import { BSKY_LABELER_DID } from "/js/config.js";
+import { getModerationWarningLabelName, isSelfLabel } from "/js/dataHelpers.js";
 import { linkToLabeler } from "/js/navigation.js";
 import { classnames } from "/js/utils.js";
 
 export function moderationWarningTemplate({
   className = "",
   isAuthorLabel,
+  label,
   labelDefinition,
   labeler,
   noOverride,
   children,
 }) {
-  let { name: labelName } = getLabelNameAndDescription(labelDefinition);
+  let labelName = getModerationWarningLabelName(labelDefinition);
   if (isAuthorLabel) {
     labelName += " (Account)";
   }
-  // If no labeler, the labeler is the author of the post
-  const labelerName = labeler ? "@" + labeler.creator.handle : "the author.";
-  const labelerLink = labeler ? linkToLabeler(labeler) : null;
+  let labelerName = "an unknown labeler";
+  let labelerLink = null;
+  if (isSelfLabel(label)) {
+    labelerName = "the author.";
+  } else if (labeler) {
+    labelerName = "@" + labeler.creator.handle;
+    labelerLink = linkToLabeler(labeler);
+  } else if (label.src === BSKY_LABELER_DID) {
+    labelerName = "moderation.bsky.app";
+  }
   return html`<moderation-warning
     class=${classnames("post-moderation-warning", className)}
     data-teststate="label"

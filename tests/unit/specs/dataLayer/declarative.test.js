@@ -862,3 +862,31 @@ describe("ensureConvoForProfile", () => {
     assert.deepEqual(error.message, "Conversation not found");
   });
 });
+
+describe("searchMentions", () => {
+  it("should load the query and return the derived results", async () => {
+    const results = [{ did: "did:plc:alice", handle: "alice.test" }];
+    const loadedQueries = [];
+    const derived = { $mentionTypeaheadResults: sig(() => results) };
+    const requests = {
+      loadMentionTypeahead: async (query) => {
+        loadedQueries.push(query);
+      },
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.searchMentions("ali");
+
+    assert.deepEqual(result, results);
+    assert.deepEqual(loadedQueries, ["ali"]);
+  });
+
+  it("should return an empty list when no results are stored", async () => {
+    const derived = { $mentionTypeaheadResults: sig(() => null) };
+    const requests = { loadMentionTypeahead: async () => {} };
+
+    const declarative = new Declarative(derived, requests);
+
+    assert.deepEqual(await declarative.searchMentions("ali"), []);
+  });
+});

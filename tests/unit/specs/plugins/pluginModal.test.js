@@ -508,10 +508,42 @@ describe("permission prompts", () => {
       '[data-testid="fetch-permission-prompt"]',
     );
     assert.equal(
-      prompt.querySelector("code").textContent,
-      "https://api.example.com/*",
+      prompt.querySelector('[data-testid="fetch-origin-host"]').textContent,
+      "api.example.com",
     );
+    assert.equal(prompt.querySelector("code"), null);
     await respondToConfirm(false);
     assert.equal(await prompting, false);
+  });
+
+  it("lists every requested fetch pattern in the install prompt", async () => {
+    const prompting = showPluginInstallModal({
+      pluginName: "Alpha",
+      permissions: Permissions.parse({
+        fetch: [
+          "https://api.example.com/*",
+          "https://*.example.org/*",
+          "https://example.net/v1/*",
+        ],
+      }),
+    });
+    await waitFor(() =>
+      document.querySelector('[data-testid="install-prompt"]'),
+    );
+    const prompt = document.querySelector('[data-testid="install-prompt"]');
+    const hosts = [
+      ...prompt.querySelectorAll('[data-testid="fetch-origin-host"]'),
+    ].map((element) => element.textContent);
+    assert.deepEqual(hosts, [
+      "api.example.com",
+      "*.example.org",
+      "example.net",
+    ]);
+    const patterns = [...prompt.querySelectorAll("code")].map(
+      (element) => element.textContent,
+    );
+    assert.deepEqual(patterns, ["https://example.net/v1/*"]);
+    await respondToConfirm(false);
+    await prompting;
   });
 });

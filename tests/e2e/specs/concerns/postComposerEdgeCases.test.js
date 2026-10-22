@@ -15,6 +15,45 @@ function createTestImage(name) {
 }
 
 test.describe("Post Composer Edge Cases", () => {
+  test("mention typeahead hides blocked accounts", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addTypeaheadProfiles([
+      createProfile({
+        did: "did:plc:alice123",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      }),
+      createProfile({
+        did: "did:plc:alicia456",
+        handle: "alicia.bsky.social",
+        displayName: "Alicia",
+        viewer: { blocking: "at://did:plc:testuser/app.bsky.graph.block/1" },
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type("Hello @ali");
+
+    await expect(page.locator(".mention-typeahead")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.locator(".mention-suggestion")).toHaveCount(1);
+    await expect(page.locator(".mention-suggestion-handle")).toContainText(
+      "@alice.bsky.social",
+    );
+  });
+
   test("character limit enforcement — counter turns red and submit disabled past 300 chars", async ({
     page,
   }) => {

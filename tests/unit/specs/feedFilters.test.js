@@ -605,6 +605,31 @@ describe("filterAuthorFeed", () => {
     );
   });
 
+  it("should filter out posts with media label hide", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          mediaLabel: { visibility: "hide" },
+        },
+      }),
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/2",
+          mediaLabel: { visibility: "warn" },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assert.deepEqual(
+      result.feed.map((item) => item.post.uri),
+      ["at://did:plc:test/app.bsky.feed.post/2"],
+    );
+  });
+
   it("should keep posts with content label warn", () => {
     const items = [
       createFeedItem({

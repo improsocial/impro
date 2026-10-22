@@ -509,6 +509,7 @@ export class Mutations {
     } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
+    this._addPinnedItem("feed", feedUri);
   }
 
   async pinList(listUri) {
@@ -527,6 +528,7 @@ export class Mutations {
     } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
+    this._addPinnedItem("list", listUri);
   }
 
   async unpinFeed(feedUri) {
@@ -544,6 +546,7 @@ export class Mutations {
     } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
+    this._removePinnedItem(feedUri);
   }
 
   async unpinList(listUri) {
@@ -561,6 +564,33 @@ export class Mutations {
     } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
+    this._removePinnedItem(listUri);
+  }
+
+  _addPinnedItem(type, uri) {
+    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    if (!pinnedItems || pinnedItems.some((item) => item.data.uri === uri)) {
+      return;
+    }
+    const data = untrack(() =>
+      type === "list"
+        ? this.dataStore.$lists.get(uri)
+        : this.dataStore.$feedGenerators.get(uri),
+    );
+    if (!data) {
+      return;
+    }
+    this.dataStore.setPinnedItems([...pinnedItems, { type, data }]);
+  }
+
+  _removePinnedItem(uri) {
+    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    if (!pinnedItems?.some((item) => item.data.uri === uri)) {
+      return;
+    }
+    this.dataStore.setPinnedItems(
+      pinnedItems.filter((item) => item.data.uri !== uri),
+    );
   }
 
   async setPinnedItems(values) {
@@ -1379,12 +1409,7 @@ export class Mutations {
         });
       }
     }
-    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
-    if (pinnedItems?.some((item) => item.data?.uri === list.uri)) {
-      this.dataStore.setPinnedItems(
-        pinnedItems.filter((item) => item.data?.uri !== list.uri),
-      );
-    }
+    this._removePinnedItem(list.uri);
     const preferences = await this.preferencesProvider.requirePreferences();
     if (preferences.isFeedPinned(list.uri)) {
       const newPreferences = preferences.unpinFeed(list.uri);

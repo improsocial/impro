@@ -2,6 +2,7 @@ import { html, keyed, render } from "/js/lib/lit-html.js";
 import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
@@ -343,7 +344,9 @@ export default async function searchView({
                 ${avatarTemplate({ author: profile, clickAction: "none" })}
                 <div class="search-typeahead-text">
                   <div class="search-typeahead-name">
-                    ${getDisplayName(profile)}
+                    ${getDisplayName(profile)}${profileBadgesTemplate({
+                      profile,
+                    })}
                   </div>
                   <div class="search-typeahead-handle">@${profile.handle}</div>
                 </div>
@@ -390,7 +393,9 @@ export default async function searchView({
       @click=${() => handleRecentProfileRecord(profile.did)}
     >
       ${avatarTemplate({ author: profile, clickAction: "none" })}
-      <div class="search-recent-profile-name">${getDisplayName(profile)}</div>
+      <div class="search-recent-profile-name">
+        ${getDisplayName(profile)}${profileBadgesTemplate({ profile })}
+      </div>
       <button
         type="button"
         class="embed-preview-close-button search-recent-profile-remove"

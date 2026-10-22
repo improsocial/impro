@@ -3,7 +3,11 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { avatarThumbnailUrl, cdnImageUrl } from "/js/dataHelpers.js";
+import {
+  avatarThumbnailUrl,
+  cdnImageUrl,
+  isLabelerProfile,
+} from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/app-icon.js";
@@ -92,6 +96,7 @@ class EditProfileDialog extends Component {
 
   render() {
     const isCropping = !!this._croppingTarget;
+    const isLabeler = !!this._profile && isLabelerProfile(this._profile);
 
     const displayNameCount = graphemeCount(this._displayName);
     const descriptionCount = graphemeCount(this._description);
@@ -156,9 +161,11 @@ class EditProfileDialog extends Component {
                 <image-cropper
                   src="${this._croppingImageSrc}"
                   aspect-ratio="${this._croppingTarget === "avatar" ? 1 : 3}"
-                  shape="${this._croppingTarget === "avatar"
-                    ? "circle"
-                    : "square"}"
+                  shape="${this._croppingTarget !== "avatar"
+                    ? "square"
+                    : isLabeler
+                      ? "rounded-square"
+                      : "circle"}"
                 ></image-cropper>
               </div>
             </div>`
@@ -216,12 +223,18 @@ class EditProfileDialog extends Component {
                     class="form-dialog-avatar-wrapper"
                     @click=${(event) => this._openImageMenu(event, "avatar")}
                   >
-                    <div class="form-dialog-avatar-preview">
+                    <div
+                      class=${classnames("form-dialog-avatar-preview", {
+                        "labeler-avatar": isLabeler,
+                      })}
+                    >
                       ${avatarSrc
                         ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
                         : html`<img
                             class="form-dialog-avatar-placeholder"
-                            src="/img/avatar-fallback.svg"
+                            src=${isLabeler
+                              ? "/img/labeler-avatar-fallback.svg"
+                              : "/img/avatar-fallback.svg"}
                             alt=""
                           />`}
                       <div class="form-dialog-image-overlay"></div>

@@ -20,8 +20,7 @@ import {
 } from "/js/utils.js";
 import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/detected-rich-text.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -501,9 +500,7 @@ export function profileCardTemplate({
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">
-          ${getDisplayName(profile)}${verificationBadgeTemplate({
-            profile,
-          })}${automatedAccountBadgeTemplate({ profile })}
+          ${getDisplayName(profile)}${profileBadgesTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
           ${isFollowedBy && !isBlocking && !isBlockedBy

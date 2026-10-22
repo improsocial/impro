@@ -49,6 +49,35 @@ async function clickNotification(listeners, data) {
   return event;
 }
 
+async function receivePush(listeners, payload) {
+  let pending = null;
+  const event = {
+    data: { json: () => payload },
+    waitUntil(promise) {
+      pending = promise;
+    },
+  };
+  listeners.get("push")(event);
+  await pending;
+  return event;
+}
+
+// A focused client whose page is alive: postMessage answers over the
+// transferred port the same way the real page does.
+function createAnsweringClient(url) {
+  const client = createWindowClient(url);
+  client.focused = true;
+  client.postMessage = mock.fn((message, [port]) => {
+    queueMicrotask(() =>
+      port.postMessage({
+        type: "push-received-ack",
+        requestId: message.requestId,
+      }),
+    );
+  });
+  return client;
+}
+
 describe("service worker notificationclick", () => {
   let client;
 
@@ -82,5 +111,57 @@ describe("service worker notificationclick", () => {
     assert.deepEqual(self.clients.openWindow.mock.calls[0].arguments, [
       `${ORIGIN}/notifications`,
     ]);
+  });
+});
+
+describe("service worker push", () => {
+  const payload = {
+    title: "Impro",
+    body: "alice liked your post",
+    url: "/notifications",
+    tag: "n:abc123",
+  };
+
+  it("skips the system notification when a focused window answers", async () => {
+    const client = createAnsweringClient(`${ORIGIN}/`);
+    const { listeners, self } = loadServiceWorker({ clients: [client] });
+
+    await receivePush(listeners, payload);
+
+    const [message] = client.postMessage.mock.calls[0].arguments;
+    assert.equal(message.type, "push-received");
+    assert.equal(typeof message.requestId, "string");
+    assert.equal(self.registration.showNotification.mock.callCount(), 0);
+  });
+
+  it("notifies when the focused window never answers", async () => {
+    const frozen = createWindowClient(`${ORIGIN}/`);
+    frozen.focused = true;
+    const { listeners, self } = loadServiceWorker({ clients: [frozen] });
+
+    await receivePush(listeners, payload);
+
+    assert.deepEqual(
+      self.registration.showNotification.mock.calls[0].arguments,
+      [
+        payload.title,
+        {
+          body: payload.body,
+          tag: payload.tag,
+          icon: "/img/impro-logo-192.png",
+          data: { url: payload.url },
+        },
+      ],
+    );
+  });
+
+  it("notifies when no window is focused", async () => {
+    const client = createWindowClient(`${ORIGIN}/`);
+    const { listeners, self } = loadServiceWorker({ clients: [client] });
+
+    await receivePush(listeners, payload);
+
+    assert.equal(client.postMessage.mock.callCount(), 0);
+    assert.equal(self.registration.showNotification.mock.callCount(), 1);
   });
 });

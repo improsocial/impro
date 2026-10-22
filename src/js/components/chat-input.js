@@ -134,6 +134,7 @@ class ChatInput extends Component {
           <rich-text-input
             placeholder="Write a message"
             typeahead-direction="up"
+            .searchMentions=${this.searchMentions}
             ?disabled=${this.disabled}
             @input=${(e) => this.handleInput(e)}
             @keydown=${(e) => this.handleKeyDown(e)}

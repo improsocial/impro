@@ -150,6 +150,56 @@ describe("edit-profile-dialog", () => {
         "Placeholder should use avatar fallback SVG",
       );
     });
+
+    it("should use the labeler fallback for a labeler with no avatar", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile({
+        ...mockProfile,
+        avatar: null,
+        associated: { labeler: true },
+      });
+      const placeholder = element.querySelector(
+        ".form-dialog-avatar-placeholder",
+      );
+      assert(
+        placeholder.src.includes("labeler-avatar-fallback.svg"),
+        "Placeholder should use labeler avatar fallback SVG",
+      );
+    });
+  });
+
+  describe("EditProfileDialog - cropper shape", () => {
+    function openCropper(element, target) {
+      element._croppingTarget = target;
+      element._croppingImageSrc = "data:image/png;base64,AAAA";
+      element.render();
+      return element.querySelector("image-cropper");
+    }
+
+    it("should use a circle cropper for a regular profile avatar", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      const cropper = openCropper(element, "avatar");
+      assert.deepEqual(cropper.getAttribute("shape"), "circle");
+    });
+
+    it("should use a rounded-square cropper for a labeler avatar", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile({ ...mockProfile, associated: { labeler: true } });
+      const cropper = openCropper(element, "avatar");
+      assert.deepEqual(cropper.getAttribute("shape"), "rounded-square");
+    });
+
+    it("should use a square cropper for a labeler banner", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile({ ...mockProfile, associated: { labeler: true } });
+      const cropper = openCropper(element, "banner");
+      assert.deepEqual(cropper.getAttribute("shape"), "square");
+    });
   });
 
   describe("EditProfileDialog - character counts", () => {

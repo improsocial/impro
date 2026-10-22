@@ -60,6 +60,7 @@ function lockedContentWarningTemplate({ post, lockedContentLabel, children }) {
   }
   return moderationWarningTemplate({
     className: "post-content-warning",
+    label: lockedContentLabel.label,
     labelDefinition: lockedContentLabel.labelDefinition,
     labeler: lockedContentLabel.labeler,
     noOverride: true,

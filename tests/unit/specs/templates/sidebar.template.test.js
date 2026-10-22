@@ -156,6 +156,49 @@ describe("sidebarTemplate - logged in state", () => {
     assert(name.textContent.includes("Test User"));
   });
 
+  it("should render verification and automated account badges next to the display name", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: {
+        ...mockUser,
+        verification: {
+          verifiedStatus: "valid",
+          trustedVerifierStatus: "none",
+        },
+        labels: [{ val: "bot" }],
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const name = container.querySelector(
+      "[data-testid='sidebar-profile-name']",
+    );
+    assert(name.querySelector("[data-testid='verification-badge']") !== null);
+    assert(
+      name.querySelector("[data-testid='automated-account-badge']") !== null,
+    );
+  });
+
+  it("should not render badges for an unverified, non-automated user", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const name = container.querySelector(
+      "[data-testid='sidebar-profile-name']",
+    );
+    assert.deepEqual(
+      name.querySelector("[data-testid='verification-badge']"),
+      null,
+    );
+    assert.deepEqual(
+      name.querySelector("[data-testid='automated-account-badge']"),
+      null,
+    );
+  });
+
   it("should render user handle with @ prefix", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,

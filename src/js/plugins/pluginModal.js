@@ -133,15 +133,39 @@ function permissionsSectionTemplate({ title, items = [] }) {
   `;
 }
 
+function fetchOriginTemplate({ pattern }) {
+  const host = pattern.replace(/^[a-z]+:\/\//i, "").split("/")[0];
+  const isWholeHttpsHost = pattern === `https://${host}/*`;
+  return html`<li class="fetch-permission-origin">
+    <span class="fetch-permission-origin-icon">
+      <app-icon icon="globe-earth-line"></app-icon>
+    </span>
+    <div class="fetch-permission-origin-text">
+      <span class="fetch-permission-origin-host" data-testid="fetch-origin-host"
+        >${host}</span
+      >
+      ${isWholeHttpsHost ? null : html`<code>${pattern}</code>`}
+    </div>
+  </li>`;
+}
+
+function fetchOriginListTemplate({ patterns }) {
+  return html`<ul class="fetch-permission-origins" data-testid="fetch-origins">
+    ${patterns.map((pattern) => fetchOriginTemplate({ pattern }))}
+  </ul>`;
+}
+
 function permissionsListTemplate({ permissions }) {
   const sections = [];
   const fetchPatterns = permissions.fetch ?? [];
   if (fetchPatterns.length > 0) {
     sections.push(
-      permissionsSectionTemplate({
-        title: "Send network requests to:",
-        items: fetchPatterns.map((pattern) => html`<code>${pattern}</code>`),
-      }),
+      html`<div class="permission-prompt-section">
+        <div class="permission-prompt-section-title">
+          Send network requests to:
+        </div>
+        ${fetchOriginListTemplate({ patterns: fetchPatterns })}
+      </div>`,
     );
   }
   if (permissions.userFetch) {
@@ -226,13 +250,15 @@ export async function showPluginFetchPermissionModal({ pluginName, origin }) {
   const name = pluginName ?? "This plugin";
   return confirmModal(
     html`<div class="permission-prompt" data-testid="fetch-permission-prompt">
-      <span class="permission-prompt-intro">${name} wants permission to:</span>
-      <div class="permission-prompt-sections">
-        ${permissionsSectionTemplate({
-          title: "Send network requests to:",
-          items: [html`<code>${origin}</code>`],
-        })}
+      <p class="fetch-permission-intro">
+        <strong>${name}</strong> wants to send and receive data from this site:
+      </p>
+      <div class="fetch-permission-card">
+        ${fetchOriginListTemplate({ patterns: [origin] })}
       </div>
+      <p class="fetch-permission-note">
+        You can revoke this anytime in the plugin's settings.
+      </p>
     </div>`,
     {
       title: "Allow network access?",

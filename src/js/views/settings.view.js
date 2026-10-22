@@ -19,6 +19,7 @@ import {
   avatarPlaceholderTemplate,
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 export default async function settingsView({
@@ -118,7 +119,9 @@ export default async function settingsView({
                         : avatarPlaceholderTemplate()}</span
                     >
                     <span class="vertical-nav-label">
-                      ${getDisplayName(account)}
+                      ${getDisplayName(account)}${profile
+                        ? profileBadgesTemplate({ profile })
+                        : ""}
                       ${account.needsReauth
                         ? html`<span class="account-switcher-reauth-hint"
                             >Sign in again</span

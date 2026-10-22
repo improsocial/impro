@@ -17,7 +17,11 @@ import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
 import { trackDisposable } from "../../testHelpers.js";
 import { isBlockedPost, MAX_HIDDEN_REPLIES } from "/js/dataHelpers.js";
-import { createPost } from "../../../shared/factories.js";
+import {
+  createFeedGenerator,
+  createList,
+  createPost,
+} from "../../../shared/factories.js";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2464,10 +2468,80 @@ describe("pinFeed", () => {
     );
     return {
       mutations,
+      dataStore,
       patchStore,
       getUpdatedPreferences: () => updatedPreferences,
     };
   }
+
+  const timelineItem = {
+    type: "timeline",
+    data: { uri: "following", displayName: "Following" },
+  };
+
+  it("should append the feed to loaded pinned items", async () => {
+    const { mutations, dataStore } = setupWithPreferences([
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ]);
+    const feedGenerator = createFeedGenerator({
+      uri: feedUri,
+      displayName: "Cool",
+      creatorHandle: "feed.test",
+    });
+    dataStore.setFeedGenerators([feedGenerator]);
+    dataStore.setPinnedItems([timelineItem]);
+
+    await mutations.pinFeed(feedUri);
+
+    assert.deepEqual(dataStore.$pinnedItems.get(), [
+      timelineItem,
+      { type: "feed", data: feedGenerator },
+    ]);
+  });
+
+  it("should leave pinned items unloaded when they haven't been loaded", async () => {
+    const { mutations, dataStore } = setupWithPreferences([
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ]);
+    dataStore.setFeedGenerators([
+      createFeedGenerator({
+        uri: feedUri,
+        displayName: "Cool",
+        creatorHandle: "feed.test",
+      }),
+    ]);
+
+    await mutations.pinFeed(feedUri);
+
+    assert.deepEqual(dataStore.$pinnedItems.get(), null);
+  });
+
+  it("should not update pinned items when saving fails", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const preferences = new Preferences(
+      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
+      [],
+    );
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), {
+      requirePreferences: () => preferences,
+      updatePreferences: async () => {
+        throw new Error("network");
+      },
+    });
+    dataStore.setFeedGenerators([
+      createFeedGenerator({
+        uri: feedUri,
+        displayName: "Cool",
+        creatorHandle: "feed.test",
+      }),
+    ]);
+    dataStore.setPinnedItems([timelineItem]);
+
+    await assert.rejects(mutations.pinFeed(feedUri), /network/);
+
+    assert.deepEqual(dataStore.$pinnedItems.get(), [timelineItem]);
+  });
 
   it("should append a pinned saved-feed entry when not previously saved", async () => {
     const { mutations, getUpdatedPreferences } = setupWithPreferences([
@@ -2631,6 +2705,42 @@ describe("unpinFeed", () => {
     await mutations.unpinFeed(feedUri);
     assert.deepEqual(updatedPreferences.isFeedPinned(feedUri), false);
     assert.deepEqual(updatedPreferences.obj[0].items.length, 1);
+  });
+
+  it("should remove the feed from loaded pinned items", async () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+        },
+      ],
+      [],
+    );
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), {
+      requirePreferences: () => preferences,
+      updatePreferences: async () => {},
+    });
+    const timelineItem = {
+      type: "timeline",
+      data: { uri: "following", displayName: "Following" },
+    };
+    dataStore.setPinnedItems([
+      timelineItem,
+      {
+        type: "feed",
+        data: createFeedGenerator({
+          uri: feedUri,
+          displayName: "Cool",
+          creatorHandle: "feed.test",
+        }),
+      },
+    ]);
+
+    await mutations.unpinFeed(feedUri);
+
+    assert.deepEqual(dataStore.$pinnedItems.get(), [timelineItem]);
   });
 
   it("should add an optimistic patch and remove it on success", async () => {
@@ -4994,6 +5104,25 @@ describe("pinList", () => {
     assert.deepEqual(pinFeedCalls.length, 1);
     assert.deepEqual(pinFeedCalls[0].feedUri, listUri);
     assert.deepEqual(pinFeedCalls[0].type, "list");
+  });
+
+  it("should append the list to loaded pinned items", async () => {
+    const { provider } = makeMockProvider();
+    const dataStore = new DataStore(createSessionState(null));
+    const mutations = makeMutations({}, dataStore, new PatchStore(), provider);
+    const list = createList({
+      uri: listUri,
+      name: "Cool list",
+      creatorHandle: "list.test",
+    });
+    dataStore.setLists([list]);
+    dataStore.setPinnedItems([]);
+
+    await mutations.pinList(listUri);
+
+    assert.deepEqual(dataStore.$pinnedItems.get(), [
+      { type: "list", data: list },
+    ]);
   });
 
   it("should remove patch after successful update", async () => {

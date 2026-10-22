@@ -3,7 +3,7 @@ import {
   cdnImageUrl,
   getRKey,
   doHideAuthorOnUnauthenticated,
-  getLabelNameAndDescription,
+  getModerationWarningLabelName,
   parseYouTubeVideoFromUrl,
   galleryItemsToImages,
 } from "/js/dataHelpers.js";
@@ -37,6 +37,7 @@ import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.templ
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
   return mediaLabel
     ? moderationWarningTemplate({
+        label: mediaLabel.label,
         labelDefinition: mediaLabel.labelDefinition,
         labeler: mediaLabel.labeler,
         noOverride: mediaLabel.noOverride,
@@ -198,10 +199,7 @@ export function quotedPostTemplate({
   const contentLabel = quotedPost.contentLabel;
   if (contentLabel && contentLabel.visibility !== "ignore") {
     isMuted = true;
-    const { name: labelName } = getLabelNameAndDescription(
-      contentLabel.labelDefinition,
-    );
-    mutedLabel = labelName;
+    mutedLabel = getModerationWarningLabelName(contentLabel.labelDefinition);
     mutedIconStyle = "info";
     mutedNoOverride = contentLabel.noOverride;
     const isAuthorLabel = contentLabel.label.uri === quotedPost?.author?.did;

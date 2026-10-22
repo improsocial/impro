@@ -341,6 +341,43 @@ test.describe("Notifications view", () => {
     await expect(item.locator(".notification-avatar")).toHaveCount(3);
   });
 
+  test("should navigate to a profile when clicking an avatar in a collapsed author list", async ({
+    page,
+  }) => {
+    const likedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/popular1",
+      text: "Popular post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([likedPost]);
+    mockServer.addNotifications(
+      [alice, bob].map((author) =>
+        createNotification({
+          reason: "like",
+          author,
+          reasonSubject: likedPost.uri,
+          indexedAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const item = page.locator("#notifications-view .notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(
+      item.locator('[data-testid="notification-authors-toggle"]'),
+    ).toHaveAttribute("data-teststate", "collapsed");
+
+    await item.locator(".notification-avatar").nth(1).click();
+    await expect(page).toHaveURL(/\/profile\/bob\.bsky\.social$/);
+  });
+
   test("should not show an author list toggle for a single author", async ({
     page,
   }) => {
@@ -1704,6 +1741,131 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".error-state")).toHaveCount(0);
   });
 
+  test.describe("Load latest button", () => {
+    test("should show when scrolled down and reload from the top when clicked", async ({
+      page,
+    }) => {
+      const { likedPosts, notifications } = createPagedLikeNotifications(30);
+      const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item").first()).toBeVisible({
+        timeout: 10000,
+      });
+      const button = view.locator('[data-testid="load-latest-button"]');
+      await expect(button).toHaveCount(0);
+
+      await page.evaluate(() => window.scrollTo(0, 1000));
+      await expect(button).toBeVisible();
+      await expect(button).toHaveAttribute("data-teststate", "default");
+
+      const reloadRequest = page.waitForRequest((request) =>
+        request.url().includes("/xrpc/app.bsky.notification.listNotifications"),
+      );
+      await button.click();
+      await reloadRequest;
+
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+      await expect(button).toHaveCount(0);
+    });
+
+    test("should highlight when new notifications arrive and load them when clicked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          isRead: false,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "push-received" } }),
+        );
+      });
+
+      const button = view.locator('[data-testid="load-latest-button"]');
+      await expect(button).toHaveAttribute("data-teststate", "has-new", {
+        timeout: 10000,
+      });
+
+      await button.click();
+
+      await expect(
+        view.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(button).toHaveCount(0);
+    });
+
+    test("should clear the badge only once the reload finishes and keep loaded items unread", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          isRead: false,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "push-received" } }),
+        );
+      });
+      const badge = page.locator(
+        '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+      );
+      const button = view.locator('[data-testid="load-latest-button"]');
+      await expect(badge).toBeVisible({ timeout: 10000 });
+      await expect(button).toHaveAttribute("data-teststate", "has-new");
+
+      mockServer.setNotificationsDelay(2000);
+      await button.click();
+
+      const followItem = view.locator(
+        '[data-testid="notification-item"][data-teststate="follow"]',
+      );
+      await expect(followItem).toHaveCount(0);
+      await expect(badge).toBeVisible();
+      await expect(followItem).toBeVisible({ timeout: 10000 });
+      await expect(badge).toHaveCount(0);
+      await expect(followItem).toHaveClass(/unread/);
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,
@@ -2127,6 +2289,155 @@ test.describe("Notifications view", () => {
       );
       await view.locator(".tab-bar-button").nth(0).click();
       await reloadRequest;
+    });
+
+    test("should refresh the All tab when refreshing the Mentions tab", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const allPanel = view.locator(".notifications-feed").nth(0);
+      await expect(allPanel.locator(".notification-avatar")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: bob,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await view.locator(".tab-bar-button").nth(1).click();
+      await view.locator(".tab-bar-button").nth(0).click();
+
+      await expect(allPanel.locator(".notification-avatar")).toHaveCount(2, {
+        timeout: 10000,
+      });
+    });
+
+    test("should refresh a loaded Mentions tab when refreshing the All tab", async ({
+      page,
+    }) => {
+      const { mentionPosts, notifications } =
+        createPagedMentionNotifications(2);
+      const mockServer = new MockServer();
+      mockServer.addPosts([mentionPosts[0]]);
+      mockServer.addNotifications([notifications[0]]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const mentionsPanel = view.locator(".notifications-feed").nth(1);
+      const mentionItems = mentionsPanel.locator(".notification-reply-wrapper");
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(mentionItems).toHaveCount(1, { timeout: 10000 });
+
+      await view.locator(".tab-bar-button").nth(0).click();
+      await expect(view.locator('[data-testid="tab-all"]')).toHaveClass(
+        /active/,
+      );
+
+      mockServer.addPosts([mentionPosts[1]]);
+      mockServer.addNotifications([notifications[1]]);
+      await view.locator(".tab-bar-button").nth(0).click();
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      await expect(mentionItems).toHaveCount(2, { timeout: 10000 });
+    });
+
+    test("should refresh the Mentions tab when returning to the page", async ({
+      page,
+    }) => {
+      const { mentionPosts, notifications } =
+        createPagedMentionNotifications(2);
+      const mockServer = new MockServer();
+      mockServer.addPosts([mentionPosts[0]]);
+      mockServer.addNotifications([notifications[0]]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const activePanel = view.locator(".notifications-feed:not([hidden])");
+      const items = activePanel.locator(".notification-reply-wrapper");
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(items).toHaveCount(1, { timeout: 10000 });
+
+      await page.locator('[data-testid="sidebar-nav-home"]').click();
+      await expect(page.locator("#home-view")).toBeVisible({
+        timeout: 10000,
+      });
+
+      mockServer.addPosts([mentionPosts[1]]);
+      mockServer.addNotifications([notifications[1]]);
+      await page.locator('[data-testid="sidebar-nav-notifications"]').click();
+
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
+      await expect(items).toHaveCount(2, { timeout: 10000 });
+    });
+
+    test("should clear the notifications badge when refreshing the Mentions tab", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view.locator('[data-testid="tab-mentions"]')).toHaveClass(
+        /active/,
+      );
+
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: bob,
+          isRead: false,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "push-received" } }),
+        );
+      });
+      const badge = page.locator(
+        '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+      );
+      await expect(badge).toBeVisible({ timeout: 10000 });
+
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      await expect(badge).toHaveCount(0, { timeout: 10000 });
     });
   });
 

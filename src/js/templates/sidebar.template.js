@@ -12,6 +12,7 @@ import {
   avatarPlaceholderTemplate,
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
@@ -303,7 +304,11 @@ export function sidebarTemplate({
         </div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name" data-testid="sidebar-profile-name">
-            ${displayName || html`<span>&nbsp;</span>`}
+            ${displayName
+              ? html`${displayName}${profileBadgesTemplate({
+                  profile: currentUser,
+                })}`
+              : html`<span>&nbsp;</span>`}
           </div>
           <div
             class="sidebar-profile-handle"

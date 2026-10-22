@@ -54,6 +54,65 @@ test.describe("Chat view", () => {
     );
   });
 
+  test("should show verification and automated account badges on convo names", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bot = createProfile({
+      did: "did:plc:bot1",
+      handle: "bot.bsky.social",
+      displayName: "Bot",
+      labels: [{ val: "bot" }],
+      verification: {
+        verifiedStatus: "valid",
+        trustedVerifierStatus: "none",
+      },
+    });
+    mockServer.addConvos([
+      createConvo({
+        id: "convo-1",
+        otherMember: alice,
+        lastMessage: createMessage({
+          id: "msg-1",
+          text: "Hi",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+        }),
+      }),
+      createConvo({
+        id: "convo-2",
+        otherMember: bot,
+        lastMessage: createMessage({
+          id: "msg-2",
+          text: "Beep",
+          senderDid: bot.did,
+          sentAt: "2025-01-15T11:00:00.000Z",
+        }),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    const names = chatView.locator(".convo-name");
+    await expect(names).toHaveCount(2, { timeout: 10000 });
+    for (const testid of ["verification-badge", "automated-account-badge"]) {
+      await expect(
+        names.nth(0).locator(`[data-testid="${testid}"]`),
+      ).toHaveCount(0);
+      await expect(
+        names.nth(1).locator(`[data-testid="${testid}"]`),
+      ).toBeVisible();
+    }
+  });
+
   test("should display multiple conversations", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({

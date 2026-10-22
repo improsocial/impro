@@ -1741,6 +1741,75 @@ test.describe("Post thread view", () => {
       await expect(hiddenSection).toBeVisible();
     });
 
+    test("should place replies with a hide-level media label in the hidden section", async ({
+      page,
+    }) => {
+      const postWithReplies = createPost({
+        uri: postUri,
+        text: "Post with media-labeled reply",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount: 2,
+      });
+
+      const normalReply = createPost({
+        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+        text: "Normal reply",
+        authorHandle: "replier1.bsky.social",
+        authorDisplayName: "Replier One",
+      });
+
+      const labeledReply = createPost({
+        uri: "at://did:plc:labeled1/app.bsky.feed.post/labeledreply",
+        text: "Media labeled reply content",
+        authorHandle: "labeled1.bsky.social",
+        authorDisplayName: "Labeled User",
+        labels: [
+          {
+            val: "porn",
+            src: "did:plc:ar7c4by46qjdydhdevvrndac",
+            uri: "at://did:plc:labeled1/app.bsky.feed.post/labeledreply",
+            cts: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([postWithReplies, normalReply, labeledReply]);
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: postWithReplies,
+        parent: null,
+        replies: [
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: normalReply,
+            replies: [],
+          },
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: labeledReply,
+            replies: [],
+          },
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view).toContainText("Normal reply", { timeout: 10000 });
+
+      const replyChains = view.locator(".post-thread-reply-chains");
+      await expect(replyChains).not.toContainText(
+        "Media labeled reply content",
+      );
+
+      const hiddenSection = view.locator("hidden-replies-section");
+      await expect(hiddenSection).toBeVisible();
+    });
+
     test("should reveal hidden replies when clicking 'Show more replies'", async ({
       page,
     }) => {

@@ -326,6 +326,17 @@ export class Preferences {
     return Preferences.getLabelerDidsFromPreferences(this.obj);
   }
 
+  getInterests() {
+    const pref = Preferences.getPreferenceByType(
+      this.obj,
+      "app.bsky.actor.defs#interestsPref",
+    );
+    if (!pref) {
+      return { tags: [], updatedAt: null };
+    }
+    return { tags: pref.tags, updatedAt: pref.updatedAt ?? null };
+  }
+
   isSubscribedToLabeler(did) {
     const labelerPreference = Preferences.getLabelerPreference(this.obj);
     if (!labelerPreference) {
@@ -420,13 +431,13 @@ export class Preferences {
   }
 
   getLabelDefinitionAndLabeler(label) {
+    const labeler = getLabelerForLabel(label, this.labelerDefs);
     // First check global labels
     const globalDef = getGlobalLabelDefinition(label.val);
     if (globalDef) {
-      return { labelDefinition: globalDef, labeler: null };
+      return { labelDefinition: globalDef, labeler };
     }
     // Then check labeler-defined labels
-    const labeler = getLabelerForLabel(label, this.labelerDefs);
     if (!labeler) return null;
     const labelDefinition = getDefinitionForLabel(label, labeler);
     if (!labelDefinition) return null;
@@ -563,6 +574,14 @@ export class Preferences {
       }
     }
     return currentLabel;
+  }
+
+  hasHideLabel(labels) {
+    return labels.some((label) => {
+      const result = this.getLabelDefinitionAndLabeler(label);
+      if (!result) return false;
+      return this.getLabelVisibility(label, result.labelDefinition) === "hide";
+    });
   }
 
   isPostHidden(postUri) {

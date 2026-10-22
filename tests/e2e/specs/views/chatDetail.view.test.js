@@ -1091,6 +1091,38 @@ test.describe("Chat detail view", () => {
     ).toHaveCount(0);
   });
 
+  test("should show verification and automated account badges in the 1-1 header title", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const bot = createProfile({
+      did: "did:plc:bot1",
+      handle: "bot.bsky.social",
+      displayName: "Bot",
+      labels: [{ val: "bot" }],
+      verification: {
+        verifiedStatus: "valid",
+        trustedVerifierStatus: "none",
+      },
+    });
+    mockServer.addConvos([createConvo({ id: "convo-1", otherMember: bot })]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const title = page.locator(
+      '#chat-detail-view [data-testid="header-title"]',
+    );
+    await expect(title).toContainText("Bot", { timeout: 10000 });
+    await expect(
+      title.locator('[data-testid="verification-badge"]'),
+    ).toBeVisible();
+    await expect(
+      title.locator('[data-testid="automated-account-badge"]'),
+    ).toBeVisible();
+  });
+
   test("should mute a 1-1 conversation from the chat menu", async ({
     page,
   }) => {

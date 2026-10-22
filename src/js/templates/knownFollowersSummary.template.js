@@ -1,6 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { linkToProfileKnownFollowers } from "/js/navigation.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import { getDisplayName, isLabelerProfile } from "/js/dataHelpers.js";
+import { classnames } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 
 export function getKnownFollowersText({ count, followers }) {
@@ -44,7 +45,11 @@ export function knownFollowersSummaryTemplate({
     <div class="known-followers-avatars">
       ${avatars.map(
         (follower) => html`
-          <div class="known-followers-avatar">
+          <div
+            class=${classnames("known-followers-avatar", {
+              "labeler-avatar": isLabelerProfile(follower),
+            })}
+          >
             ${avatarTemplate({ author: follower, clickAction: "none" })}
           </div>
         `,

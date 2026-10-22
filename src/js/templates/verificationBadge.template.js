@@ -24,6 +24,7 @@ export function verificationBadgeTemplate({ profile }) {
   const isVerifier = role === "verifier";
   return html`<span
     class="verification-badge"
+    data-testid="verification-badge"
     title="${isVerifier ? "Trusted Verifier" : "Verified"}"
     >${isVerifier
       ? html`<app-icon icon="verifier-check"></app-icon>`

@@ -509,6 +509,7 @@ function composerPostTemplate({
   onRemovePost,
   onInput,
   onPaste,
+  searchMentions,
   onRemoveImage,
   onEditAltText,
   onRemoveVideo,
@@ -552,6 +553,7 @@ function composerPostTemplate({
           <rich-text-input
             @input=${(e) => onInput(e)}
             @paste=${(e) => onPaste(e)}
+            .searchMentions=${searchMentions}
             placeholder="${promptText}"
           ></rich-text-input>
         </div>
@@ -950,6 +952,8 @@ class PostComposer extends Component {
                       onRemovePost: () => this.handleRemovePost(postState.id),
                       onInput: (e) => this.handleInput(postState.id, e),
                       onPaste: (e) => this.handlePaste(postState.id, e),
+                      searchMentions: (query) =>
+                        this.dataLayer.declarative.searchMentions(query),
                       onRemoveImage: (imageId) =>
                         this.handleRemoveImage(postState.id, imageId),
                       onEditAltText: (imageId) =>

@@ -22,7 +22,7 @@ import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError, isRecordNotFoundError } from "/js/api.js";
-import { FOLLOWING_FEED_URI } from "/js/config.js";
+import { FOLLOWING_FEED_URI, BSKY_FEED_OWNER_DIDS } from "/js/config.js";
 
 const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logAddMember",
@@ -534,9 +534,18 @@ export class Requests {
       case "list":
         feed = await this.api.getListFeed(uri, { limit, cursor });
         break;
-      case "feed":
-        feed = await this.api.getFeed(uri, { limit, cursor });
+      case "feed": {
+        const preferences = await this.preferencesProvider.requirePreferences();
+        const shouldSendInterests =
+          this.api.isAuthenticated &&
+          BSKY_FEED_OWNER_DIDS.includes(parseUri(uri).repo);
+        feed = await this.api.getFeed(uri, {
+          limit,
+          cursor,
+          interests: shouldSendInterests ? preferences.getInterests() : null,
+        });
         break;
+      }
       default:
         throw new Error(`Unknown pinned item type: ${type}`);
     }
@@ -665,7 +674,7 @@ export class Requests {
       return;
     }
     this.dataStore.setProfiles(searchData.actors);
-    $results.set(searchData);
+    $results.set({ ...searchData, query });
   }
 
   async loadChatRecipientSearch(query, { limit = 12 } = {}) {
@@ -690,6 +699,14 @@ export class Requests {
       $results: this.dataStore.$sidebarSearchTypeaheadResults,
       $latestRequestTime:
         this.dataStore.$latestSidebarSearchTypeaheadRequestTime,
+    });
+  }
+
+  async loadMentionTypeahead(query, { limit = 8 } = {}) {
+    await this._loadProfileTypeahead(query, {
+      limit,
+      $results: this.dataStore.$mentionTypeaheadResults,
+      $latestRequestTime: this.dataStore.$latestMentionTypeaheadRequestTime,
     });
   }
 
@@ -913,6 +930,10 @@ export class Requests {
           break;
         case "media":
           params.filter = "posts_with_media";
+          params.includePins = false;
+          break;
+        case "videos":
+          params.filter = "posts_with_video";
           params.includePins = false;
           break;
         default:

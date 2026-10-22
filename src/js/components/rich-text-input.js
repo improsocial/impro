@@ -2,9 +2,9 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { getIndexFromByteIndex, getByteLength } from "/js/utils.js";
-import { TYPEAHEAD_SERVICE_URL } from "/js/config.js";
 
 const FACET_TYPES = new Set([
   "app.bsky.richtext.facet#mention",
@@ -315,7 +315,9 @@ function mentionSuggestionsTemplate({
             })}
             <div class="mention-suggestion-text">
               <div class="mention-suggestion-name">
-                ${getDisplayName(actor)}
+                ${getDisplayName(actor)}${profileBadgesTemplate({
+                  profile: actor,
+                })}
               </div>
               <div
                 class="mention-suggestion-handle"
@@ -583,17 +585,7 @@ export class RichTextInput extends Component {
 
   async fetchMentionSuggestions(query) {
     try {
-      const queryParams = new URLSearchParams({
-        q: query,
-        limit: "8",
-      });
-      const response = await fetch(
-        `${TYPEAHEAD_SERVICE_URL}/xrpc/app.bsky.actor.searchActorsTypeahead?${queryParams.toString()}`,
-      );
-      if (response.ok) {
-        const data = await response.json();
-        return data.actors;
-      }
+      return await this.searchMentions(query);
     } catch (error) {
       console.error("Error fetching mention suggestions:", error);
     }
@@ -603,6 +595,13 @@ export class RichTextInput extends Component {
 
   async updateMentionSuggestions() {
     const pendingMention = this.detectPendingMention();
+
+    if (pendingMention && !this.searchMentions) {
+      console.warn(
+        "rich-text-input: searchMentions not provided, skipping mention suggestions",
+      );
+      return;
+    }
 
     if (pendingMention) {
       this.currentMentionQuery = pendingMention.query;

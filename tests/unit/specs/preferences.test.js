@@ -355,6 +355,44 @@ describe("Preferences.getLabelerDids", () => {
   });
 });
 
+describe("Preferences.getInterests", () => {
+  it("should return tags and updatedAt from the interests preference", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#interestsPref",
+          tags: ["art", "tech"],
+          updatedAt: "2025-03-01T00:00:00.000Z",
+        },
+      ],
+      [],
+    );
+
+    assert.deepEqual(preferences.getInterests(), {
+      tags: ["art", "tech"],
+      updatedAt: "2025-03-01T00:00:00.000Z",
+    });
+  });
+
+  it("should return null updatedAt when not set", () => {
+    const preferences = new Preferences(
+      [{ $type: "app.bsky.actor.defs#interestsPref", tags: ["art"] }],
+      [],
+    );
+
+    assert.deepEqual(preferences.getInterests(), {
+      tags: ["art"],
+      updatedAt: null,
+    });
+  });
+
+  it("should return empty interests when there is no interests preference", () => {
+    const preferences = new Preferences([], []);
+
+    assert.deepEqual(preferences.getInterests(), { tags: [], updatedAt: null });
+  });
+});
+
 describe("Preferences.getMutedWords", () => {
   it("should return muted words items", () => {
     const obj = [
@@ -2293,6 +2331,75 @@ describe("Preferences.getProfileBlurLabel", () => {
   });
 });
 
+describe("Preferences.hasHideLabel", () => {
+  const labelerDefs = [
+    {
+      creator: { did: "did:labeler1", handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          { identifier: "spam", blurs: "content", defaultSetting: "warn" },
+          { identifier: "verified", blurs: "none", defaultSetting: "hide" },
+        ],
+      },
+    },
+  ];
+
+  it("should return false when there are no labels", () => {
+    const preferences = new Preferences([], labelerDefs);
+    assert.deepEqual(preferences.hasHideLabel([]), false);
+  });
+
+  it("should return false for a label whose visibility is warn", () => {
+    const preferences = new Preferences([], labelerDefs);
+    assert.deepEqual(
+      preferences.hasHideLabel([{ src: "did:labeler1", val: "spam" }]),
+      false,
+    );
+  });
+
+  it("should return true when the user's preference sets a label to hide", () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#contentLabelPref",
+          label: "spam",
+          labelerDid: "did:labeler1",
+          visibility: "hide",
+        },
+      ],
+      labelerDefs,
+    );
+    assert.deepEqual(
+      preferences.hasHideLabel([{ src: "did:labeler1", val: "spam" }]),
+      true,
+    );
+  });
+
+  it("should return true for hide labels regardless of blur type", () => {
+    const preferences = new Preferences([], labelerDefs);
+    assert.deepEqual(
+      preferences.hasHideLabel([{ src: "did:labeler1", val: "verified" }]),
+      true,
+    );
+  });
+
+  it("should return true for global labels that default to hide", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(
+      preferences.hasHideLabel([{ src: "did:plc:author", val: "!hide" }]),
+      true,
+    );
+  });
+
+  it("should ignore labels from labelers the user doesn't subscribe to", () => {
+    const preferences = new Preferences([], labelerDefs);
+    assert.deepEqual(
+      preferences.hasHideLabel([{ src: "did:labeler2", val: "spam" }]),
+      false,
+    );
+  });
+});
+
 describe("Preferences.getContentLabelPref", () => {
   it("should return matching content label preference", () => {
     const labelerDid = "did:plc:testlabeler";
@@ -2590,6 +2697,22 @@ describe("Preferences.getContentLabel - global labels", () => {
     assert.deepEqual(result.visibility, "warn");
     assert.deepEqual(result.labelDefinition.identifier, "!warn");
     assert.deepEqual(result.labeler, null);
+  });
+
+  it("should resolve the labeler for a global label from a loaded labeler", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:modservice", handle: "mod.test" },
+        policies: { labelValueDefinitions: [] },
+      },
+    ];
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:plc:modservice", val: "!warn" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assert.deepEqual(result.labeler, labelerDefs[0]);
   });
 
   it("should not allow user to override !hide visibility", () => {

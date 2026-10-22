@@ -3,8 +3,7 @@ import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/app-icon.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
@@ -48,9 +47,7 @@ function nameTemplate({ actor, doLink }) {
     class="profile-list-item-display-name"
     data-testid="profile-list-item-display-name"
   >
-    ${getDisplayName(actor)}${verificationBadgeTemplate({
-      profile: actor,
-    })}${automatedAccountBadgeTemplate({ profile: actor })}
+    ${getDisplayName(actor)}${profileBadgesTemplate({ profile: actor })}
   </span>`;
   if (doLink) {
     return html`<a class="profile-list-item-name" href="${linkToProfile(actor)}"

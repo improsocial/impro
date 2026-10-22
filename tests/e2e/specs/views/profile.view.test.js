@@ -409,7 +409,9 @@ test.describe("Profile view", () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
-  test("should show Posts, Replies, and Media tabs", async ({ page }) => {
+  test("should show Posts, Replies, Media, and Videos tabs", async ({
+    page,
+  }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
@@ -418,7 +420,7 @@ test.describe("Profile view", () => {
 
     const view = page.locator("#profile-view");
     const tabBar = view.locator("tab-bar");
-    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(3, {
+    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(4, {
       timeout: 10000,
     });
     await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveAttribute(
@@ -433,6 +435,39 @@ test.describe("Profile view", () => {
       "data-testid",
       "tab-media",
     );
+    await expect(tabBar.locator(".tab-bar-button").nth(3)).toHaveAttribute(
+      "data-testid",
+      "tab-videos",
+    );
+  });
+
+  test("should show video posts in the Videos tab", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    mockServer.addAuthorFeedPosts(otherUser.did, "posts_with_video", [
+      createPost({
+        uri: "at://did:plc:otheruser1/app.bsky.feed.post/video1",
+        text: "Video post",
+        authorHandle: otherUser.handle,
+        authorDisplayName: otherUser.displayName,
+      }),
+    ]);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const tabBar = page.locator("#profile-view tab-bar");
+    await tabBar.locator('[data-testid="tab-videos"]').click({
+      timeout: 10000,
+    });
+    await expect(tabBar.locator('[data-testid="tab-videos"]')).toHaveClass(
+      /active/,
+    );
+    await expect(
+      page.locator(
+        '#profile-view .feed-container:not([hidden]) [data-testid="feed-item"]',
+      ),
+    ).toContainText("Video post");
   });
 
   test("should switch active tab when clicking tab buttons", async ({
@@ -565,10 +600,10 @@ test.describe("Profile view", () => {
 
     const view = page.locator("#profile-view");
     const tabBar = view.locator("tab-bar");
-    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(5, {
+    await expect(tabBar.locator(".tab-bar-button")).toHaveCount(6, {
       timeout: 10000,
     });
-    await expect(tabBar.locator(".tab-bar-button").nth(3)).toHaveAttribute(
+    await expect(tabBar.locator(".tab-bar-button").nth(4)).toHaveAttribute(
       "data-testid",
       "tab-likes",
     );
@@ -1861,7 +1896,7 @@ test.describe("Profile view", () => {
       ).toBeVisible({ timeout: 10000 });
     });
 
-    test("should not prefetch the media feed on a labeler profile", async ({
+    test("should not prefetch the media or video feeds on a labeler profile", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1908,6 +1943,7 @@ test.describe("Profile view", () => {
         .toContain("posts_with_replies");
       await page.waitForLoadState("networkidle");
       expect(authorFeedFilters).not.toContain("posts_with_media");
+      expect(authorFeedFilters).not.toContain("posts_with_video");
     });
 
     test("should show 'Labels' tab and 'Subscribed' button when subscribed to a labeler", async ({
@@ -2242,7 +2278,7 @@ test.describe("Profile view", () => {
   });
 
   test.describe("Logged-out behavior", () => {
-    test("should display Posts and Media tabs only (no Replies or Likes)", async ({
+    test("should display Posts, Media, and Videos tabs only (no Replies or Likes)", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -2253,7 +2289,7 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       const tabBar = view.locator("tab-bar");
-      await expect(tabBar.locator(".tab-bar-button")).toHaveCount(2, {
+      await expect(tabBar.locator(".tab-bar-button")).toHaveCount(3, {
         timeout: 10000,
       });
       await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveAttribute(
@@ -2263,6 +2299,10 @@ test.describe("Profile view", () => {
       await expect(tabBar.locator(".tab-bar-button").nth(1)).toHaveAttribute(
         "data-testid",
         "tab-media",
+      );
+      await expect(tabBar.locator(".tab-bar-button").nth(2)).toHaveAttribute(
+        "data-testid",
+        "tab-videos",
       );
     });
 
