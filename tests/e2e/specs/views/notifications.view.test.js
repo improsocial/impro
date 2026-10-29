@@ -2399,7 +2399,7 @@ test.describe("Notifications view", () => {
       await expect(items).toHaveCount(2, { timeout: 10000 });
     });
 
-    test("should clear the notifications badge when refreshing the Mentions tab", async ({
+    test("should not clear the notifications badge until the All tab is shown", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -2435,7 +2435,14 @@ test.describe("Notifications view", () => {
       );
       await expect(badge).toBeVisible({ timeout: 10000 });
 
+      const reloadRequest = page.waitForResponse((response) =>
+        response.url().includes("app.bsky.notification.listNotifications"),
+      );
       await view.locator(".tab-bar-button").nth(1).click();
+      await reloadRequest;
+      await expect(badge).toBeVisible();
+
+      await view.locator(".tab-bar-button").nth(0).click();
 
       await expect(badge).toHaveCount(0, { timeout: 10000 });
     });

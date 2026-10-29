@@ -832,6 +832,7 @@ export default async function notificationsView({
   }
 
   const tabScroll = new TabScrollMemory();
+  let pendingSeenAt = null;
 
   async function handleTabClick(tab) {
     const currentTab = state.$activeTab.get();
@@ -843,6 +844,10 @@ export default async function notificationsView({
       state.$activeTab.set(tab),
     );
     if (!switched) return;
+    if (tab === "all" && pendingSeenAt) {
+      notificationService.markNotificationsAsRead(pendingSeenAt);
+      pendingSeenAt = null;
+    }
     if (tab === "mentions" && !dataLayer.derived.$mentionNotifications.get()) {
       await loadMentionNotifications({ reload: true });
     }
@@ -982,8 +987,12 @@ export default async function notificationsView({
       limit: NOTIFICATIONS_PAGE_SIZE,
     });
     if (dataLayer.requests.statusStore.getError("loadNotifications")) return;
-    // can be called async
-    notificationService.markNotificationsAsRead(seenAt);
+    if (state.$activeTab.get() === "all") {
+      pendingSeenAt = null;
+      notificationService.markNotificationsAsRead(seenAt);
+    } else {
+      pendingSeenAt = seenAt;
+    }
   }
 
   async function loadMentionNotifications({ reload = false } = {}) {
