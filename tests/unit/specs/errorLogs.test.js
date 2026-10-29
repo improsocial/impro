@@ -91,6 +91,15 @@ describe("auth debug log", () => {
     assert(entries[0].time);
   });
 
+  it("tags entries with a stable per-tab id", () => {
+    localStorage.setItem("debug-auth", "true");
+    logAuthEvent("boot", { did: null });
+    logAuthEvent("logout", { did: null });
+    const [first, second] = readAuthDebugLog();
+    assert(first.tab);
+    assert.equal(first.tab, second.tab);
+  });
+
   it("caps the number of stored entries", () => {
     localStorage.setItem("debug-auth", "true");
     for (let i = 0; i < 205; i++) {

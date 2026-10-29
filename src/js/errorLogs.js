@@ -133,6 +133,7 @@ export function enableErrorLogs() {
 const AUTH_DEBUG_FLAG_KEY = "debug-auth";
 const AUTH_DEBUG_LOG_KEY = "debug-auth-log";
 const AUTH_DEBUG_LOG_MAX_ENTRIES = 200;
+const AUTH_DEBUG_TAB_ID = crypto.randomUUID().slice(0, 8);
 
 function isAuthDebugEnabled() {
   try {
@@ -156,6 +157,7 @@ export function logAuthEvent(event, details) {
   const entry = {
     time: new Date().toISOString(),
     event,
+    tab: AUTH_DEBUG_TAB_ID,
     path: window.location.pathname,
     ...details,
   };

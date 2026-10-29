@@ -9,6 +9,7 @@ import {
   InvalidAuthUrlError,
 } from "/js/oauth.js";
 import { IdentityResolver } from "/js/atproto.js";
+import { readAuthDebugLog } from "/js/errorLogs.js";
 
 describe("oauth", () => {
   async function generateTestKeypair() {
@@ -593,6 +594,29 @@ describe("oauth", () => {
       assert.deepEqual(stored.refreshToken, "new-rt");
     });
 
+    it("should log refresh start and success with token suffixes", async (t) => {
+      t.mock.method(console, "info", () => {});
+      localStorage.setItem("debug-auth", "true");
+      const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+      globalThis.fetch.__interceptJson(TOKEN_URL, {
+        access_token: "new-at",
+        refresh_token: "refresh-token-abc123",
+        expires_in: 3600,
+      });
+      globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+      await session.fetch("https://pds.example.com/xrpc/foo");
+      const entries = readAuthDebugLog().filter((entry) =>
+        entry.event.startsWith("oauth-refresh-"),
+      );
+      assert.deepEqual(
+        entries.map((entry) => [entry.event, entry.usedToken, entry.newToken]),
+        [
+          ["oauth-refresh-start", "rt", undefined],
+          ["oauth-refresh-success", "rt", "abc123"],
+        ],
+      );
+    });
+
     it("should pass a timeout signal to the refresh request", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
       globalThis.fetch.__interceptJson(TOKEN_URL, {
@@ -753,6 +777,50 @@ describe("oauth", () => {
       );
     });
 
+    it("should recognize invalid_grant returned after a DPoP nonce retry", async () => {
+      const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+      let refreshCount = 0;
+      globalThis.fetch.__intercept(TOKEN_URL, async () => {
+        refreshCount++;
+        if (refreshCount === 1) {
+          return mockResponse({
+            ok: false,
+            status: 400,
+            body: { error: "use_dpop_nonce" },
+            headers: { "DPoP-Nonce": "fresh-nonce" },
+          });
+        }
+        const stored = JSON.parse(
+          localStorage.getItem("oauth_session:did:plc:test"),
+        );
+        localStorage.setItem(
+          "oauth_session:did:plc:test",
+          JSON.stringify({
+            ...stored,
+            accessToken: "rotated-at",
+            refreshToken: "rotated-rt",
+            expiresAt: Date.now() + 3600000,
+          }),
+        );
+        return mockResponse({
+          ok: false,
+          status: 400,
+          body: { error: "invalid_grant" },
+        });
+      });
+      globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+      const response = await session.fetch("https://pds.example.com/xrpc/foo");
+      assert(response.ok);
+      assert.deepEqual(refreshCount, 2);
+      const pdsCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/xrpc/foo"),
+      );
+      assert.deepEqual(
+        pdsCall.options.headers.Authorization,
+        "DPoP rotated-at",
+      );
+    });
+
     it("should throw TokenRefreshError on invalid_grant when no concurrent rotation occurred", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
       globalThis.fetch.__intercept(TOKEN_URL, async () =>
@@ -798,6 +866,30 @@ describe("oauth", () => {
       const response = await session.fetch("https://pds.example.com/xrpc/foo");
       assert.deepEqual(globalThis.fetch.calls.length, 2);
       assert(response.ok);
+    });
+
+    it("should attach the error body to the response after a nonce retry", async () => {
+      const session = await getLoadedSession();
+      let callCount = 0;
+      globalThis.fetch.__intercept(PDS_URL, async () => {
+        callCount++;
+        if (callCount === 1) {
+          return mockResponse({
+            ok: false,
+            status: 401,
+            body: { error: "use_dpop_nonce" },
+            headers: { "DPoP-Nonce": "fresh-nonce" },
+          });
+        }
+        return mockResponse({
+          ok: false,
+          status: 401,
+          body: { error: "use_dpop_nonce" },
+        });
+      });
+      const response = await session.fetch("https://pds.example.com/xrpc/foo");
+      assert.deepEqual(globalThis.fetch.calls.length, 2);
+      assert.deepEqual(response.data, { error: "use_dpop_nonce" });
     });
 
     it("should not retry when 401 without use_dpop_nonce error", async () => {

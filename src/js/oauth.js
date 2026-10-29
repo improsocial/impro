@@ -293,14 +293,13 @@ class DPoPRequests {
     if (
       !response.ok &&
       [401, 400].includes(response.status) &&
-      retryCount === 0 &&
       !options.noDpopRetry // NOTE: special option if we just want to get the dpop nonce
     ) {
       try {
         const errorData = await response.json();
         // attach consumed body to the response, in case the parent needs it
         response.data = errorData;
-        if (errorData.error === "use_dpop_nonce") {
+        if (errorData.error === "use_dpop_nonce" && retryCount === 0) {
           return await this.fetch(url, options, retryCount + 1);
         }
       } catch {
@@ -395,6 +394,13 @@ export class Session {
     const maxRetries = 2;
     const backoffMs = Session.refreshBackoffMs * Math.pow(2, retryCount);
 
+    logAuthEvent("oauth-refresh-start", {
+      did: this.sessionData.did,
+      retryCount,
+      usedToken: usedRefreshToken.slice(-6),
+      expiresAt: new Date(this.sessionData.expiresAt).toISOString(),
+    });
+
     let response;
     try {
       response = await authServer.refresh(params, {
@@ -461,6 +467,11 @@ export class Session {
       Date.now() + newTokenResponse.expires_in * 1000;
 
     this.save();
+    logAuthEvent("oauth-refresh-success", {
+      did: this.sessionData.did,
+      usedToken: usedRefreshToken.slice(-6),
+      newToken: newTokenResponse.refresh_token.slice(-6),
+    });
   }
 
   adoptRotatedSession(usedRefreshToken) {

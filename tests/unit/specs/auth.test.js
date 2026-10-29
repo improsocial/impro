@@ -5,9 +5,11 @@ import {
   Auth,
   BasicAuthProvider,
   BasicAuthSession,
+  OAuthProvider,
   RefreshTokenError,
   getMissingScopes,
 } from "/js/auth.js";
+import { OauthClient } from "/js/oauth.js";
 import { TimeoutError } from "/js/utils.js";
 
 const originalWindow = globalThis.window;
@@ -44,6 +46,34 @@ function makeMockProvider({ logoutFn } = {}) {
     getSession: mock.fn(() => Promise.resolve(null)),
   };
 }
+
+describe("OAuthProvider.getClient", () => {
+  it("shares one client between concurrent callers", async (t) => {
+    const client = {};
+    const load = t.mock.method(OauthClient, "load", async () => client);
+    const provider = new OAuthProvider({ identityResolver: null });
+    const [first, second] = await Promise.all([
+      provider.getClient(),
+      provider.getClient(),
+    ]);
+    assert.equal(first, client);
+    assert.equal(second, client);
+    assert.equal(load.mock.callCount(), 1);
+  });
+
+  it("retries loading after a failed load", async (t) => {
+    const client = {};
+    let loadCount = 0;
+    t.mock.method(OauthClient, "load", async () => {
+      loadCount++;
+      if (loadCount === 1) throw new Error("load failed");
+      return client;
+    });
+    const provider = new OAuthProvider({ identityResolver: null });
+    await assert.rejects(provider.getClient(), /load failed/);
+    assert.equal(await provider.getClient(), client);
+  });
+});
 
 describe("Auth constructor", () => {
   it("throws when no provider is given", () => {

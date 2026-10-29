@@ -209,17 +209,22 @@ export class BasicAuthProvider {
 export class OAuthProvider {
   constructor({ identityResolver } = {}) {
     this._client = null;
+    this._loadingClient = null;
     this.identityResolver = identityResolver;
   }
 
   async getClient() {
-    if (!this._client) {
-      this._client = await OauthClient.load({
+    if (this._client) return this._client;
+    if (!this._loadingClient) {
+      this._loadingClient = OauthClient.load({
         clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
         redirectUri: `https://${window.env.hostName}/callback.html`,
         identityResolver: this.identityResolver,
+      }).finally(() => {
+        this._loadingClient = null;
       });
     }
+    this._client = await this._loadingClient;
     return this._client;
   }
 
