@@ -136,7 +136,7 @@ html {
   --post-border-color: var(--generic-border-color);
   --avatar-border-color: var(--generic-border-color);
   --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
-  --reply-context-line-width: 2px;
+  --reply-context-line-width: 1px;
   --thread-tree-post-padding-x: 16px;
   --thread-tree-avatar-center: calc(
     var(--thread-tree-post-padding-x) + var(--avatar-size-thread-tree) / 2
