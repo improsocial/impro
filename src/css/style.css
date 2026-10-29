@@ -158,6 +158,8 @@ html {
     var(--lighter-gray),
     var(--light-gray)
   );
+  --fab-color: var(--highlight-color);
+  --fab-icon-color: var(--white);
   --back-button-hover-color: var(--post-hover-color);
   --icon-button-color: var(--text-color-muted);
   --tab-bar-button-active-color: var(--highlight-color);
@@ -7967,8 +7969,8 @@ sidebar-search {
   width: 60px;
   height: 60px;
   border-radius: var(--circular-button-border-radius);
-  background-color: var(--primary-button-color);
-  color: var(--primary-button-text-color);
+  background-color: var(--fab-color);
+  color: var(--fab-icon-color);
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow-color-light);
