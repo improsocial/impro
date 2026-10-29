@@ -1743,6 +1743,13 @@ plugin-blob-image .blob-image-fallback {
 }
 
 @media (min-width: 800px) and (max-width: 1199px) {
+  .sidebar-nav-item {
+    align-self: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
   .sidebar-compose-button {
     align-self: center;
     margin-left: 0;
