@@ -290,7 +290,7 @@ async function openProfileContextMenu(event, props) {
   menu.classList.add("profile-context-menu");
   const itemHolder = document.createElement("div");
   render(profileContextMenuTemplate({ ...props, pluginItems }), itemHolder);
-  while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+  menu.append(...itemHolder.childNodes);
   document.body.appendChild(menu);
   menu.open(event.clientX, event.clientY);
   menu

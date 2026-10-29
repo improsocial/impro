@@ -313,7 +313,7 @@ function openContextMenu(event, contents, { className = null } = {}) {
   if (className) menu.classList.add(className);
   const itemHolder = document.createElement("div");
   render(contents, itemHolder);
-  while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+  menu.append(...itemHolder.childNodes);
   document.body.appendChild(menu);
   menu.open(event.clientX, event.clientY);
   menu

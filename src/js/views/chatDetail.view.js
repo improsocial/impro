@@ -244,7 +244,7 @@ export default async function chatDetailView({
     menu.classList.add("message-context-menu");
     const itemHolder = document.createElement("div");
     render(messageContextMenuTemplate({ message }), itemHolder);
-    while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+    menu.append(...itemHolder.childNodes);
     document.body.appendChild(menu);
     menu.open(event.clientX, event.clientY);
     // Keep the message marked active while the menu is open so the

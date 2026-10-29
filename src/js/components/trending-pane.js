@@ -5,6 +5,9 @@ import { whenElementVisible } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 
 const TREND_LIMIT = 5;
 
@@ -32,10 +35,10 @@ function trendingSkeletonTemplate() {
   </div>`;
 }
 
-function trendingHideButtonTemplate({ onClick }) {
+function trendingOptionsButtonTemplate({ onClick }) {
   return html`<button
-    class="trending-hide-button"
-    data-testid="trending-hide-button"
+    class="trending-options-button"
+    data-testid="trending-options-button"
     aria-label="Trending options"
     @click=${onClick}
   >
@@ -43,12 +46,31 @@ function trendingHideButtonTemplate({ onClick }) {
   </button>`;
 }
 
-function trendingPaneTemplate({ rows, isLoading, isAuthenticated, onHide }) {
+function trendingContextMenuTemplate({ onHide }) {
+  return html`<context-menu-item-group>
+    <context-menu-item
+      data-testid="menu-action-hide-trending"
+      icon="eye-off-line"
+      @click=${onHide}
+    >
+      Hide trending topics
+    </context-menu-item>
+  </context-menu-item-group>`;
+}
+
+function trendingPaneTemplate({
+  rows,
+  isLoading,
+  isAuthenticated,
+  onClickOptions,
+}) {
   return html`<section class="trending-pane" data-testid="trending-pane">
     <header class="trending-pane-header">
       <app-icon icon="pulse-line"></app-icon>
       <h2 class="trending-pane-title">Trending</h2>
-      ${isAuthenticated ? trendingHideButtonTemplate({ onClick: onHide }) : ""}
+      ${isAuthenticated
+        ? trendingOptionsButtonTemplate({ onClick: onClickOptions })
+        : ""}
     </header>
     <div class="trending-list">
       ${isLoading
@@ -100,7 +122,7 @@ class TrendingPane extends Component {
             rows,
             isLoading,
             isAuthenticated: this.isAuthenticated,
-            onHide: () => this.handleHide(),
+            onClickOptions: (event) => this.openContextMenu(event),
           }),
           this,
         );
@@ -125,6 +147,22 @@ class TrendingPane extends Component {
     if (this.dataLayer.derived.$trends.get() === null) {
       this.$failed?.set(true);
     }
+  }
+
+  openContextMenu(event) {
+    const menu = document.createElement("context-menu");
+    menu.classList.add("trending-context-menu");
+    const itemHolder = document.createElement("div");
+    render(
+      trendingContextMenuTemplate({ onHide: () => this.handleHide() }),
+      itemHolder,
+    );
+    menu.append(...itemHolder.childNodes);
+    document.body.appendChild(menu);
+    menu.open(event.clientX, event.clientY);
+    menu
+      .querySelector("dialog")
+      .addEventListener("close", () => menu.remove(), { once: true });
   }
 
   async handleHide() {

@@ -466,7 +466,7 @@ trending-pane {
   font-weight: 600;
 }
 
-.trending-hide-button {
+.trending-options-button {
   display: flex;
   align-items: center;
   padding: 2px;
@@ -477,7 +477,7 @@ trending-pane {
   color: var(--text-color-muted);
 }
 
-.trending-hide-button app-icon {
+.trending-options-button app-icon {
   width: 20px;
   height: 20px;
   display: block;
@@ -632,7 +632,7 @@ pinned-feeds-pane {
     text-decoration: underline;
   }
 
-  .trending-hide-button:hover {
+  .trending-options-button:hover {
     background-color: color-mix(
       in srgb,
       var(--text-color-muted) 15%,
