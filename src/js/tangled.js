@@ -51,10 +51,21 @@ async function findRepoRecord(pds, ownerDid, repoName) {
   return null;
 }
 
+// Knots running knot2 serve blobs via org.tangled.git.getBlob; older Go knots
+// only have the legacy sh.tangled.repo.blob.
+async function detectKnotApi(knot) {
+  const response = await fetch(
+    `https://${knot}/xrpc/org.tangled.knot.describeKnot`,
+  );
+  if (response.ok) return "git";
+  if (response.status === 404) return "legacy";
+  throw new Error(`Could not describe tangled knot "${knot}"`);
+}
+
 const REPO_INFO_REVALIDATE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Resolves an "<ownerHandle>/<repoName>" path to the {knot, repoDid} pair its
-// blobs are served from.
+// Resolves an "<ownerHandle>/<repoName>" path to the {knot, repoDid, api}
+// its blobs are served from.
 export class TangledResolver {
   constructor(identityResolver = new IdentityResolver()) {
     this._pending = new Map();
@@ -68,12 +79,16 @@ export class TangledResolver {
     }
     const promise = (async () => {
       const persisted = await this._read(path);
-      if (persisted?.knot && persisted?.repoDid) {
+      if (persisted?.knot && persisted?.repoDid && persisted?.api) {
         const age = Date.now() - (persisted.resolvedAt ?? 0);
         if (age > REPO_INFO_REVALIDATE_AFTER_MS) {
           this._revalidate(path);
         }
-        return { knot: persisted.knot, repoDid: persisted.repoDid };
+        return {
+          knot: persisted.knot,
+          repoDid: persisted.repoDid,
+          api: persisted.api,
+        };
       }
       const info = await this._resolveFromNetwork(path);
       await this._write(path, info);
@@ -123,7 +138,8 @@ export class TangledResolver {
         `tangled repo record for "${path}" is missing knot/repoDid`,
       );
     }
-    return { knot, repoDid };
+    const api = await detectKnotApi(knot);
+    return { knot, repoDid, api };
   }
 
   _revalidate(path) {
@@ -149,9 +165,14 @@ export class TangledResolver {
     }
   }
 
-  async _write(path, { knot, repoDid }) {
+  async _write(path, { knot, repoDid, api }) {
     try {
-      await this._store.put(path, { knot, repoDid, resolvedAt: Date.now() });
+      await this._store.put(path, {
+        knot,
+        repoDid,
+        api,
+        resolvedAt: Date.now(),
+      });
     } catch (error) {
       console.warn(`Could not cache tangled repo info for "${path}"`, error);
     }

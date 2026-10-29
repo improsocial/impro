@@ -523,7 +523,9 @@ describe("SourceProvider.getCacheUrls with fonts", () => {
 // SourceProvider resolves tangled: repos entirely through standard AT
 // Protocol infrastructure instead: owner handle -> the owner's PDS (for the
 // repo's own "sh.tangled.repo" record, which carries {knot, repoDid}) ->
-// the knot's own CORS-enabled blob endpoint. The handle -> PDS step is
+// the knot's own CORS-enabled blob endpoint. knotApi picks which blob
+// endpoint the knot speaks: "git" (knot2's org.tangled.git.getBlob, detected
+// by its describeKnot answering) or "legacy" (sh.tangled.repo.blob). The handle -> PDS step is
 // slingshot's mini doc, falling back to resolveHandle -> plc.directory.
 // This stubs global fetch to answer those resolution requests by URL
 // pattern; the actual file-content request is left to the caller (via
@@ -542,6 +544,7 @@ function stubTangledResolution({
   repoName = "alpha",
   content = null,
   legacyRecordKey = false,
+  knotApi = "git",
 }) {
   const calls = [];
   const fetchImpl = async (url, options) => {
@@ -600,6 +603,11 @@ function stubTangledResolution({
         ],
       });
     }
+    if (urlStr === `https://${knot}/xrpc/org.tangled.knot.describeKnot`) {
+      return knotApi === "git"
+        ? jsonResponse({ did: `did:web:${knot}` })
+        : { ok: false, status: 404 };
+    }
     if (content && urlStr.startsWith(`https://${knot}/`)) {
       return content;
     }
@@ -619,6 +627,11 @@ function stubTangledResolution({
 }
 
 function knotBlobUrl({ knot, repoDid, ref, path }) {
+  const params = new URLSearchParams({ repo: repoDid, ref, path });
+  return `https://${knot}/xrpc/org.tangled.git.getBlob?${params}`;
+}
+
+function legacyKnotBlobUrl({ knot, repoDid, ref, path }) {
   const params = new URLSearchParams({ repo: repoDid, ref, path, raw: "true" });
   return `https://${knot}/xrpc/sh.tangled.repo.blob?${params}`;
 }
@@ -657,8 +670,30 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
       );
       assert.deepEqual(manifest.id, "alpha");
-      // resolveMiniDoc, getRecord
-      assert.deepEqual(stub.calls.length, 2);
+      // resolveMiniDoc, getRecord, describeKnot
+      assert.deepEqual(stub.calls.length, 3);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("fetches through the legacy blob endpoint on knots without describeKnot", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({ ...identity, knotApi: "legacy" });
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    try {
+      const provider = new SourceProvider(pluginCache);
+      await provider.getManifest(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(
+        pluginCache.calls[0].url,
+        legacyKnotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
+      );
     } finally {
       stub.restore();
     }
@@ -725,9 +760,9 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
       const repo = `tangled:${identity.ownerHandle}/alpha`;
       await provider.getManifest("alpha", "1.0.0", repo);
       await provider.getSource("alpha", "1.0.0", repo);
-      // Still just the 2 resolution calls, not 4 — the second fetch reused
-      // the cached {knot, repoDid}.
-      assert.deepEqual(stub.calls.length, 2);
+      // Still just the 3 resolution calls, not 6 — the second fetch reused
+      // the cached {knot, repoDid, api}.
+      assert.deepEqual(stub.calls.length, 3);
       assert.deepEqual(pluginCache.calls.length, 2);
     } finally {
       stub.restore();
@@ -807,8 +842,8 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         pluginCache.calls[0].url,
         knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
       );
-      // resolveMiniDoc, getRecord (404), listRecords
-      assert.deepEqual(stub.calls.length, 3);
+      // resolveMiniDoc, getRecord (404), listRecords, describeKnot
+      assert.deepEqual(stub.calls.length, 4);
     } finally {
       stub.restore();
     }
@@ -883,8 +918,8 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
   });
 });
 
-// The knot's raw=true mode 403s for font mime types, so getFont fetches the
-// JSON-wrapped (base64) response for tangled repos instead and decodes it
+// A legacy knot's raw=true mode 403s for font mime types, so getFont fetches
+// the JSON-wrapped (base64) response from legacy knots instead and decodes it
 // client-side. Verified against a real binary file on the live server
 // (byte-for-byte identical to a raw=true fetch of the same file) separately
 // from this suite; these tests cover the decode logic in isolation.
@@ -897,9 +932,39 @@ function wrappedFontResponse(bytes) {
 }
 
 describe("SourceProvider.getFont with tangled.sh-hosted plugins", () => {
-  it("fetches the non-raw wrapped response and decodes it into a Blob", async () => {
+  it("fetches raw font bytes from org.tangled.git.getBlob", async () => {
     const identity = makeIdentity();
     const stub = stubTangledResolution(identity);
+    const bytes = woff2Bytes();
+    const pluginCache = fakePluginCache(async () => ({
+      ok: true,
+      status: 200,
+      async arrayBuffer() {
+        return bytes.buffer;
+      },
+    }));
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const blob = await provider.getFont(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+        "fonts/f.woff2",
+      );
+      assert.deepEqual(
+        pluginCache.calls[0].url,
+        knotBlobUrl({ ...identity, ref: "1.0.0", path: "fonts/f.woff2" }),
+      );
+      assert.deepEqual(blob.type, "font/woff2");
+      assert.deepEqual(blob.size, bytes.byteLength);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("fetches the non-raw wrapped response from legacy knots and decodes it into a Blob", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({ ...identity, knotApi: "legacy" });
     const bytes = woff2Bytes();
     const pluginCache = fakePluginCache(async () => wrappedFontResponse(bytes));
     try {
@@ -930,7 +995,7 @@ describe("SourceProvider.getFont with tangled.sh-hosted plugins", () => {
 
   it("rejects invalid magic bytes the same way as GitHub/local fonts", async () => {
     const identity = makeIdentity();
-    const stub = stubTangledResolution(identity);
+    const stub = stubTangledResolution({ ...identity, knotApi: "legacy" });
     const notFont = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
     const pluginCache = fakePluginCache(async () =>
       wrappedFontResponse(notFont),
@@ -962,7 +1027,7 @@ function fakeTangledResolver() {
   return {
     invalidated: [],
     async resolveRepoInfo() {
-      return { knot: "knot.example", repoDid: "did:plc:repo" };
+      return { knot: "knot.example", repoDid: "did:plc:repo", api: "git" };
     },
     async invalidate(path) {
       this.invalidated.push(path);

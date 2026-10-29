@@ -13,6 +13,7 @@ describe("TangledResolver", () => {
 
   let identityResolutions;
   let recordFetches;
+  let knotDescribeStatus;
   let resolver;
   // A fresh path per test: the persisted binding is keyed by it, so reusing
   // one would let an earlier test's entry satisfy a later test's first call
@@ -47,6 +48,11 @@ describe("TangledResolver", () => {
         json: async () => ({ value: { knot, repoDid } }),
       };
     });
+    fetchMock.__intercept(/org\.tangled\.knot\.describeKnot/, async () => ({
+      ok: knotDescribeStatus === 200,
+      status: knotDescribeStatus,
+      json: async () => ({ did: `did:web:${knot}` }),
+    }));
   }
 
   beforeEach(() => {
@@ -54,6 +60,7 @@ describe("TangledResolver", () => {
     globalThis.fetch = new MockFetch();
     identityResolutions = 0;
     recordFetches = 0;
+    knotDescribeStatus = 200;
     // Own identity resolver per test, so no endpoint is cached across tests
     resolver = new TangledResolver(new IdentityResolver());
     stubResolutionChain();
@@ -71,8 +78,36 @@ describe("TangledResolver", () => {
   it("resolves through the owner's PDS on a cold cache", async () => {
     const info = await resolver.resolveRepoInfo(nextPath());
 
-    assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
     assert.deepEqual(identityResolutions, 1);
+  });
+
+  it("detects a legacy knot that has no describeKnot", async () => {
+    knotDescribeStatus = 404;
+
+    const info = await resolver.resolveRepoInfo(nextPath());
+
+    assert.deepEqual(info, { knot, repoDid, api: "legacy" });
+  });
+
+  it("fails resolution when the knot can't be described", async () => {
+    knotDescribeStatus = 502;
+
+    await assert.rejects(() => resolver.resolveRepoInfo(nextPath()));
+  });
+
+  it("re-resolves a persisted binding that has no knot api", async () => {
+    const path = nextPath();
+    await resolver._store.put(path, {
+      knot,
+      repoDid,
+      resolvedAt: Date.now(),
+    });
+
+    const info = await resolver.resolveRepoInfo(path);
+
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
+    assert.deepEqual(recordFetches, 1);
   });
 
   it("memoizes within a session", async () => {
@@ -94,7 +129,7 @@ describe("TangledResolver", () => {
       new IdentityResolver(),
     ).resolveRepoInfo(path);
 
-    assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
     assert.deepEqual(identityResolutions, 1);
   });
 
@@ -112,7 +147,7 @@ describe("TangledResolver", () => {
       new IdentityResolver(),
     ).resolveRepoInfo(path);
 
-    assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
     assert.deepEqual(identityResolutions, 0);
   });
 
@@ -128,7 +163,7 @@ describe("TangledResolver", () => {
     ).resolveRepoInfo(path);
 
     // Served without waiting on the revalidation
-    assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
     await flush();
     assert.deepEqual(identityResolutions, 1);
   });
@@ -157,7 +192,7 @@ describe("TangledResolver", () => {
       new IdentityResolver(),
     ).resolveRepoInfo(path);
 
-    assert.deepEqual(info, { knot, repoDid });
+    assert.deepEqual(info, { knot, repoDid, api: "git" });
     assert.deepEqual(recordFetches, 1);
     assert.deepEqual(identityResolutions, 1);
   });
