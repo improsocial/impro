@@ -8052,6 +8052,7 @@ sidebar-search {
   .load-latest-button {
     bottom: 20px;
     left: calc(50vw - 300px + 16px);
+    box-shadow: none;
   }
 }
 
