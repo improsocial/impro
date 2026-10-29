@@ -26,6 +26,8 @@ import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { Signal } from "/js/signals.js";
+import { showToast } from "/js/toasts.js";
 
 export default async function chatView({
   root,
@@ -34,6 +36,8 @@ export default async function chatView({
   context: { auth, dataLayer, chatNotificationService, newChatService },
 }) {
   await auth.requireAuth();
+
+  const $loadMoreError = new Signal.State(null);
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -163,12 +167,23 @@ export default async function chatView({
     `;
   }
 
-  function convosTemplate({ convos, hasMore, currentUser }) {
+  function loadMoreErrorTemplate() {
+    return html`<div
+      class="error-state error-state-inline"
+      data-testid="convo-list-load-more-error"
+    >
+      <div>There was an error loading conversations.</div>
+      ${tryAgainButtonTemplate({ onClick: () => loadMoreConvos() })}
+    </div>`;
+  }
+
+  function convosTemplate({ convos, hasMore, currentUser, loadMoreError }) {
     return paginatedListTemplate({
       items: convos,
       renderItem: (convo) => convoItemTemplate({ convo, currentUser }),
       hasMore,
-      onLoadMore: loadConvoList,
+      onLoadMore: loadMoreConvos,
+      errorTemplate: loadMoreError ? loadMoreErrorTemplate() : null,
       emptyTemplate: html`<div
         class="feed-end-message"
         data-testid="empty-state"
@@ -194,7 +209,23 @@ export default async function chatView({
   }
 
   async function loadPageData() {
+    $loadMoreError.set(null);
     await loadConvoList({ reload: true });
+    const error = dataLayer.requests.statusStore.getError("loadConvoList");
+    if (error && dataLayer.derived.$convoList.get()) {
+      console.warn(error);
+      showToast("Couldn't refresh conversations", { style: "error" });
+    }
+  }
+
+  async function loadMoreConvos() {
+    $loadMoreError.set(null);
+    await loadConvoList();
+    const error = dataLayer.requests.statusStore.getError("loadConvoList");
+    if (error) {
+      console.warn(error);
+    }
+    $loadMoreError.set(error);
   }
 
   onPageShow(root, ({ action }) => {
@@ -215,6 +246,7 @@ export default async function chatView({
       dataLayer.requests.statusStore.$statuses.get("loadConvoList");
     const cursor = dataLayer.derived.$convoListCursor.get();
     const hasMore = !!cursor;
+    const loadMoreError = $loadMoreError.get();
     const hasUnreadRequests =
       (chatNotificationService?.$numUnreadRequestConvos.get() ?? 0) > 0;
 
@@ -234,7 +266,7 @@ export default async function chatView({
         })}
         <main class="chat-main">
           ${(() => {
-            if (convosRequestStatus.error) {
+            if (convosRequestStatus.error && !convos) {
               return convosErrorTemplate({
                 error: convosRequestStatus.error,
               });
@@ -246,6 +278,7 @@ export default async function chatView({
                 currentUser,
                 convos: acceptedConvos,
                 hasMore,
+                loadMoreError,
               });
             } else {
               return convoSkeletonTemplate();
@@ -266,9 +299,12 @@ export default async function chatView({
   });
 
   async function loadConvoList({ reload = false } = {}) {
-    await dataLayer.requests.loadConvoList({
-      reload,
-      limit: 30,
-    });
+    // Non-ApiErrors are rethrown, but still recorded in the status store
+    await dataLayer.requests
+      .loadConvoList({
+        reload,
+        limit: 30,
+      })
+      .catch(() => {});
   }
 }

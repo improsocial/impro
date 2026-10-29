@@ -37,6 +37,7 @@ export class MockServer {
     this.messageCounter = 0;
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
+    this.listConvosFailure = null;
     this.listMembersFailure = null;
     this.getPostsFailure = null;
     this.createRecordFailures = new Map();
@@ -616,6 +617,20 @@ export class MockServer {
 
   failListMembers({ status = 500, error = "InternalServerError", message }) {
     this.listMembersFailure = { status, error, message };
+  }
+
+  // Pass onlyWithCursor to fail only paginated (load-more) requests
+  failListConvos({
+    status = 500,
+    error = "InternalServerError",
+    message,
+    onlyWithCursor = false,
+  } = {}) {
+    this.listConvosFailure = { status, error, message, onlyWithCursor };
+  }
+
+  clearListConvosFailure() {
+    this.listConvosFailure = null;
   }
 
   failGetPosts({ status = 500, error = "InternalServerError", message } = {}) {
@@ -1408,6 +1423,17 @@ export class MockServer {
       const readState = url.searchParams.get("readState");
       const status = url.searchParams.get("status");
       const cursor = url.searchParams.get("cursor") || "";
+      if (
+        this.listConvosFailure &&
+        (cursor || !this.listConvosFailure.onlyWithCursor)
+      ) {
+        const { status, error, message } = this.listConvosFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
       let allConvos = this.convos;

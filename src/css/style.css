@@ -1986,12 +1986,6 @@ button.sidebar-plugin-nav-item {
   text-align: center;
 }
 
-.notifications-load-more-error,
-.post-thread-load-error,
-.feed-load-more-error {
-  padding: 32px 16px;
-}
-
 .feed-feedback-message {
   font-size: 13px;
   color: var(--text-color-muted);
@@ -10213,6 +10207,10 @@ moderation-warning .toggle-content {
   align-items: center;
   justify-content: center;
   line-height: 1.5;
+}
+
+.error-state-inline {
+  padding: 32px 16px;
 }
 
 .error-state h3 {

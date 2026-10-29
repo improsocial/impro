@@ -104,7 +104,7 @@ export default async function postThreadView({
 
   function threadLoadErrorTemplate({ onRetry }) {
     return html`<div
-      class="error-state post-thread-load-error"
+      class="error-state error-state-inline"
       data-testid="thread-load-error"
     >
       <div>Couldn't load this thread.</div>

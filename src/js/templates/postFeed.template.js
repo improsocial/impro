@@ -212,7 +212,7 @@ function feedItemTemplate({
 
 function feedLoadMoreErrorTemplate({ onRetry }) {
   return html`<div
-    class="error-state feed-load-more-error"
+    class="error-state error-state-inline"
     data-testid="feed-load-more-error"
   >
     <div>Couldn't load more posts.</div>

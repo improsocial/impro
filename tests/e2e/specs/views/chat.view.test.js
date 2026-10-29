@@ -624,16 +624,8 @@ test.describe("Chat view", () => {
     page,
   }) => {
     const mockServer = new MockServer();
+    mockServer.failListConvos();
     await mockServer.setup(page);
-
-    // Override listConvos to return error
-    await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "InternalServerError" }),
-      }),
-    );
 
     await login(page);
     await page.goto("/messages");
@@ -642,6 +634,73 @@ test.describe("Chat view", () => {
     await expect(
       chatView.locator('[data-testid="convo-list-error"]'),
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should keep the conversation list and show a toast when a refresh fails", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addConvos([
+      createConvo({
+        id: "convo-1",
+        otherMember: createProfile({ did: "did:plc:alice1" }),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".convo-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    mockServer.failListConvos();
+    await page.locator('[data-testid="sidebar-nav-chat"]').click();
+
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(chatView.locator(".convo-item")).toHaveCount(1);
+    await expect(
+      chatView.locator('[data-testid="convo-list-error"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should show an inline retry when loading more conversations fails", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addConvos(
+      Array.from({ length: 35 }, (_, i) =>
+        createConvo({
+          id: `convo-${i}`,
+          otherMember: createProfile({ did: `did:plc:member${i}` }),
+        }),
+      ),
+    );
+    mockServer.failListConvos({ onlyWithCursor: true });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    const loadMoreError = chatView.locator(
+      '[data-testid="convo-list-load-more-error"]',
+    );
+    await loadMoreError.scrollIntoViewIfNeeded({ timeout: 10000 });
+    await expect(loadMoreError).toBeVisible();
+    await expect(chatView.locator(".convo-item")).toHaveCount(30);
+
+    mockServer.clearListConvosFailure();
+    await loadMoreError.locator(".try-again-button").click();
+
+    await expect(chatView.locator(".convo-item")).toHaveCount(35, {
+      timeout: 10000,
+    });
+    await expect(loadMoreError).toHaveCount(0);
   });
 
   test.describe("Live status", () => {

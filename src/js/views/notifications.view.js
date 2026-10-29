@@ -780,7 +780,7 @@ export default async function notificationsView({
 
   function loadMoreErrorTemplate({ onRetry }) {
     return html`<div
-      class="error-state notifications-load-more-error"
+      class="error-state error-state-inline"
       data-testid="notifications-load-more-error"
     >
       <div>There was an error loading notifications.</div>
