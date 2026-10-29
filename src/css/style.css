@@ -182,8 +182,7 @@ html {
   --tag-border-radius: 6px;
   --list-avatar-border-radius: 20%;
   --feed-avatar-border-radius: 20%;
-  --icon-button-border-radius: 8px;
-  --header-button-border-radius: 999px;
+  --icon-button-border-radius: 999px;
   --feed-feedback-inner-border-radius: 8px;
   --text-input-border-radius: 999px;
   --moderation-warning-border-radius: 12px;
@@ -863,10 +862,6 @@ plugin-slot:empty {
   width: 30px;
 }
 
-.header .icon-button {
-  border-radius: var(--header-button-border-radius);
-}
-
 .floating-back-button {
   position: absolute;
   display: flex;
@@ -876,7 +871,7 @@ plugin-slot:empty {
   cursor: pointer;
   background: var(--overlay-color);
   color: var(--off-white);
-  border-radius: var(--header-button-border-radius);
+  border-radius: var(--icon-button-border-radius);
   top: 16px;
   left: 16px;
   height: 30px;
