@@ -146,13 +146,13 @@ html {
   );
 
   /* button colors */
-  --primary-button-color: var(--highlight-color);
+  --primary-button-color: var(--text-color);
   --primary-button-hover-color: color-mix(
     in srgb,
-    var(--highlight-color) 80%,
+    var(--primary-button-color) 80%,
     transparent
   );
-  --primary-button-text-color: var(--white);
+  --primary-button-text-color: var(--background-color);
   --secondary-button-color: light-dark(var(--lightest-gray), var(--gray));
   --secondary-button-hover-color: light-dark(
     var(--lighter-gray),
@@ -179,29 +179,32 @@ html {
 
   /* border radius */
   --skeleton-border-radius: 4px;
-  --tag-border-radius: 4px;
+  --tag-border-radius: 6px;
   --list-avatar-border-radius: 20%;
   --feed-avatar-border-radius: 20%;
-  --icon-button-border-radius: 4px;
-  --feed-feedback-inner-border-radius: 6px;
-  --text-input-border-radius: 8px;
-  --moderation-warning-border-radius: 8px;
-  --blocked-post-radius: 8px;
-  --context-menu-button-radius: 8px;
-  --sidebar-nav-item-border-radius: 8px;
-  --context-menu-item-group-border-radius: 8px;
-  --report-selected-item-border-radius: 8px;
-  --toast-border-radius: 8px;
-  --image-preview-border-radius: 8px;
-  --typeahead-border-radius: 8px;
-  --card-border-radius: 8px;
+  --icon-button-border-radius: 8px;
+  --header-button-border-radius: 999px;
+  --feed-feedback-inner-border-radius: 8px;
+  --text-input-border-radius: 999px;
+  --moderation-warning-border-radius: 12px;
+  --blocked-post-radius: 12px;
+  --context-menu-button-radius: 12px;
+  --sidebar-nav-item-border-radius: 999px;
+  --context-menu-item-group-border-radius: var(--context-menu-button-radius);
+  --report-selected-item-border-radius: 12px;
+  --toast-border-radius: 12px;
+  --image-preview-border-radius: 12px;
+  --typeahead-border-radius: 14px;
+  --card-border-radius: 14px;
+  --textarea-border-radius: 14px;
   --image-border-radius: 14px;
   --video-border-radius: 14px;
   --embed-border-radius: 14px;
-  --context-menu-border-radius: 10px;
-  --dialog-border-radius: 12px;
-  --callout-border-radius: 12px;
+  --callout-border-radius: 14px;
+  /* concentric with the buttons inside the desktop menu's 4px padding */
+  --context-menu-border-radius: calc(var(--context-menu-button-radius) + 4px);
   --message-bubble-border-radius: 18px;
+  --dialog-border-radius: 20px;
   --sheet-border-radius: 20px;
   --message-input-border-radius: 24px;
   --reaction-palette-border-radius: 30px;
@@ -441,7 +444,7 @@ trending-pane {
   margin: 16px;
   padding: 16px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
 }
 
 .trending-pane-header {
@@ -510,7 +513,7 @@ pinned-feeds-pane {
   box-sizing: border-box;
   padding: 6px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--sidebar-nav-item-border-radius);
   background: none;
   color: var(--text-color-muted);
   font-family: inherit;
@@ -578,7 +581,7 @@ pinned-feeds-pane {
 .pinned-feeds-skeleton-bar {
   display: inline-block;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .trending-list {
@@ -821,6 +824,7 @@ plugin-slot:empty {
   cursor: pointer;
   color: var(--text-color);
   padding: 4px 8px;
+  border-radius: var(--icon-button-border-radius);
   opacity: 0.6;
 }
 
@@ -859,6 +863,10 @@ plugin-slot:empty {
   width: 30px;
 }
 
+.header .icon-button {
+  border-radius: var(--header-button-border-radius);
+}
+
 .floating-back-button {
   position: absolute;
   display: flex;
@@ -868,7 +876,7 @@ plugin-slot:empty {
   cursor: pointer;
   background: var(--overlay-color);
   color: var(--off-white);
-  border-radius: var(--icon-button-border-radius);
+  border-radius: var(--header-button-border-radius);
   top: 16px;
   left: 16px;
   height: 30px;
@@ -1207,7 +1215,7 @@ input[type="color"]::-moz-color-swatch {
   letter-spacing: 0.03em;
   line-height: 1;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   pointer-events: none;
   z-index: 1;
 }
@@ -1234,7 +1242,7 @@ input[type="color"]::-moz-color-swatch {
   font-size: 12px;
   padding: 3px 6px;
   bottom: -8px;
-  border-radius: 5px;
+  border-radius: var(--tag-border-radius);
 }
 
 header {
@@ -1934,7 +1942,7 @@ button.sidebar-plugin-nav-item {
   position: absolute;
   background: var(--highlight-color);
   color: var(--white);
-  border-radius: var(--context-menu-border-radius);
+  border-radius: var(--label-badge-border-radius);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -3015,7 +3023,7 @@ animated-button {
   left: 6px;
   bottom: 6px;
   padding: 3px 6px;
-  border-radius: 6px;
+  border-radius: var(--tag-border-radius);
   background: var(--alt-indicator-background);
   color: var(--white);
   font-size: 12px;
@@ -3354,7 +3362,7 @@ streaming-video.is-paused .gif-play-toggle app-icon {
 .list-avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--embed-border-radius);
+  border-radius: var(--list-avatar-border-radius);
   object-fit: cover;
 }
 
@@ -4005,7 +4013,7 @@ image-carousel {
 .notification-starter-pack-icon {
   width: 12px;
   height: 12px;
-  border-radius: 3px;
+  border-radius: var(--list-avatar-border-radius);
   vertical-align: -1px;
   margin-right: 4px;
 }
@@ -4122,7 +4130,7 @@ image-carousel {
   left: 5px;
   bottom: 5px;
   padding: 3px 6px;
-  border-radius: 6px;
+  border-radius: var(--tag-border-radius);
   background-color: var(--overlay-color-darker);
   color: var(--overlay-text-color);
   font-size: 8px;
@@ -4613,7 +4621,7 @@ image-carousel {
 .group-chat-admin-badge {
   align-self: center;
   padding: 3px 10px 4px;
-  border-radius: 999px;
+  border-radius: var(--label-badge-border-radius);
   font-size: 13px;
   font-weight: 500;
   color: var(--highlight-color);
@@ -4800,7 +4808,7 @@ image-carousel {
 .message-reply-quote {
   padding: 4px 8px;
   margin-bottom: 6px;
-  border-radius: 8px;
+  border-radius: calc(var(--message-bubble-border-radius) - 10px);
   font-size: 13px;
   opacity: 0.9;
   cursor: pointer;
@@ -5496,7 +5504,7 @@ chat-input .rich-text-input-placeholder {
   gap: 4px;
   background: var(--background-color);
   border: var(--hair) solid var(--generic-border-color);
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   padding: 2px 8px;
   margin-top: -8px;
   position: relative;
@@ -5581,7 +5589,7 @@ chat-input .rich-text-input-placeholder {
 
 .live-status-thumb {
   position: relative;
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   overflow: hidden;
   aspect-ratio: 1.91 / 1;
   background-color: var(--image-placeholder-color);
@@ -5610,7 +5618,7 @@ chat-input .rich-text-input-placeholder {
   letter-spacing: 0.03em;
   line-height: 1;
   padding: 4px 7px;
-  border-radius: 5px;
+  border-radius: var(--tag-border-radius);
 }
 
 .live-status-title {
@@ -5718,7 +5726,7 @@ chat-input .rich-text-input-placeholder {
   font-size: 16px;
   padding: 10px 12px;
   border: 1px solid var(--generic-border-color);
-  border-radius: 8px;
+  border-radius: var(--text-input-border-radius);
   background: var(--background-color);
   color: var(--text-color);
   margin-bottom: 12px;
@@ -5727,7 +5735,7 @@ chat-input .rich-text-input-placeholder {
 .live-dialog-info-box {
   font-size: 13px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--callout-border-radius);
   background: color-mix(in srgb, var(--text-color-muted) 12%, transparent);
   color: var(--text-color-muted);
 }
@@ -5741,7 +5749,7 @@ chat-input .rich-text-input-placeholder {
   display: flex;
   gap: 12px;
   border: 1px solid var(--generic-border-color);
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   padding: 8px;
   align-items: center;
 }
@@ -5751,7 +5759,7 @@ chat-input .rich-text-input-placeholder {
   height: 64px;
   flex-shrink: 0;
   background: color-mix(in srgb, var(--text-color-muted) 12%, transparent);
-  border-radius: 6px;
+  border-radius: calc(var(--card-border-radius) - 8px);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -5849,7 +5857,7 @@ chat-input .rich-text-input-placeholder {
   gap: 4px;
   background: var(--background-color);
   border: var(--hair) solid var(--generic-border-color);
-  border-radius: 16px;
+  border-radius: var(--pill-button-border-radius);
   padding: 4px 10px;
   font-size: 14px;
   cursor: pointer;
@@ -6800,7 +6808,7 @@ sidebar-search {
   top: calc(100% + 4px);
   overflow: hidden;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--typeahead-border-radius);
   background: var(--background-color);
   box-shadow: var(--shadow-color-light);
 }
@@ -7120,7 +7128,7 @@ sidebar-search {
 .list-detail-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: var(--list-avatar-border-radius);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -7175,7 +7183,7 @@ sidebar-search {
 .starter-pack-detail-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: var(--list-avatar-border-radius);
   flex-shrink: 0;
 }
 
@@ -7287,7 +7295,7 @@ sidebar-search {
   gap: 8px;
   margin: 0 16px 16px;
   padding: 10px 12px;
-  border-radius: var(--text-input-border-radius);
+  border-radius: var(--callout-border-radius);
   background-color: var(--error-subtle-color);
 }
 
@@ -7614,7 +7622,7 @@ sidebar-search {
   font-size: 18px;
   font-weight: 600;
   padding: 12px 20px;
-  border-radius: 8px;
+  border-radius: var(--toast-border-radius);
   background-color: var(--background-color);
 }
 
@@ -7784,7 +7792,7 @@ sidebar-search {
   padding: 6px 8px;
   margin-right: 4px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--icon-button-border-radius);
   background: none;
   color: var(--highlight-color);
   cursor: pointer;
@@ -8097,7 +8105,7 @@ sidebar-search {
   will-change: transform, opacity;
   background: var(--context-menu-background-color);
   border: 1px solid var(--generic-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
   box-shadow: var(--shadow-color-light);
   overflow: hidden;
 }
@@ -8510,7 +8518,7 @@ context-menu-item-group > context-menu-item > button {
 
 .permission-prompt-section {
   border: 1px solid var(--generic-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
   background-color: var(--background-color-secondary);
   padding: 12px 14px;
 }
@@ -8538,7 +8546,7 @@ context-menu-item-group > context-menu-item > button {
   border: 1px solid var(--generic-border-color);
   color: var(--text-color);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   word-break: break-all;
 }
 
@@ -8573,7 +8581,7 @@ context-menu-item-group > context-menu-item > button {
   margin-top: 14px;
   padding: 0 14px;
   border: 1px solid var(--generic-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
   background-color: var(--background-color-secondary);
 }
 
@@ -8887,7 +8895,7 @@ context-menu-item-group > context-menu-item > button {
   min-height: 120px;
   padding: 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--text-input-border-radius);
+  border-radius: var(--textarea-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   font-family: inherit;
@@ -9633,7 +9641,7 @@ context-menu-item-group > context-menu-item > button {
   gap: 8px;
   padding: 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
   cursor: pointer;
 }
 
@@ -9674,7 +9682,7 @@ context-menu-item-group > context-menu-item > button {
   width: 56px;
   height: 56px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   border: var(--hair) solid var(--post-border-color);
 }
 
@@ -9702,7 +9710,7 @@ context-menu-item-group > context-menu-item > button {
 .draft-item-tag {
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--label-badge-border-radius);
   background-color: var(--secondary-background-color);
   color: var(--text-color-muted);
 }
@@ -9762,7 +9770,7 @@ context-menu-item-group > context-menu-item > button {
   display: flex;
   flex-direction: column;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--card-border-radius);
   overflow: hidden;
 }
 
@@ -10125,7 +10133,7 @@ moderation-warning .toggle-content {
   color: color-mix(in srgb, var(--warning-color) 60%, var(--text-color));
   font-size: 14px;
   line-height: 1.5;
-  border-radius: var(--text-input-border-radius);
+  border-radius: var(--callout-border-radius);
 }
 .warning-area h4 {
   color: var(--warning-color);
@@ -10277,7 +10285,7 @@ moderation-warning .toggle-content {
   right: 4px;
   z-index: 9999;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   font-size: 10px;
@@ -10621,7 +10629,7 @@ moderation-warning .toggle-content {
   min-height: 80px;
   padding: 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--text-input-border-radius);
+  border-radius: var(--textarea-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   font-family: inherit;
@@ -11087,7 +11095,7 @@ label:has(toggle-switch[disabled]) {
 .interaction-settings-list-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: var(--list-avatar-border-radius);
   flex-shrink: 0;
 }
 
@@ -11415,7 +11423,7 @@ label:has(toggle-switch[disabled]) {
 @media (hover: hover) {
   .new-group-entry-button:hover {
     background: var(--highlight-color-tint);
-    border-radius: 8px;
+    border-radius: var(--context-menu-button-radius);
   }
 }
 
@@ -11432,7 +11440,7 @@ label:has(toggle-switch[disabled]) {
   align-items: center;
   gap: 6px;
   padding: 4px 6px 4px 4px;
-  border-radius: 999px;
+  border-radius: var(--label-badge-border-radius);
   background: var(--highlight-color-tint);
   flex-shrink: 0;
 }
@@ -11713,13 +11721,13 @@ label:has(toggle-switch[disabled]) {
 .new-chat-skeleton-name {
   width: 120px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .new-chat-skeleton-handle {
   width: 90px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .starter-pack-wizard-dialog .search-dialog-content {
@@ -11813,7 +11821,7 @@ label:has(toggle-switch[disabled]) {
 }
 
 .starter-pack-wizard-avatar .feed-avatar {
-  border-radius: 8px;
+  border-radius: var(--feed-avatar-border-radius);
   object-fit: cover;
 }
 
@@ -12119,7 +12127,7 @@ tab-bar[full-width] .tab-bar-button {
 .form-dialog-textarea {
   padding: 10px 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--text-input-border-radius);
+  border-radius: var(--textarea-border-radius);
   background-color: var(--text-input-background-color);
   color: var(--text-color);
   font-size: 16px;
@@ -12814,6 +12822,7 @@ h2.setting-item-name {
 .setting-item-textarea,
 .plugin-content textarea {
   resize: vertical;
+  border-radius: var(--textarea-border-radius);
 }
 
 .installed-plugins-header {
@@ -12843,7 +12852,7 @@ h2.setting-item-name {
   padding: 12px;
   margin-bottom: 16px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 8px;
+  border-radius: var(--callout-border-radius);
   background-color: light-dark(var(--lightest-gray), var(--gray));
   color: var(--text-color);
   font-size: 16px;
@@ -12899,7 +12908,7 @@ h2.setting-item-name {
   bottom: auto;
   max-height: 80vh;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 22px;
+  border-radius: var(--dialog-border-radius);
   box-shadow: none;
   animation: none;
   transform: translate(-50%, -50%);
