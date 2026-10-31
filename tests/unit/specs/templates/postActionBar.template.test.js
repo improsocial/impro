@@ -1019,3 +1019,50 @@ describe("postActionBarTemplate - share menu", () => {
     container.remove();
   });
 });
+
+describe("postActionBarTemplate - plugin action bar slot", () => {
+  it("should render a post-action-bar plugin slot when pluginService is provided", () => {
+    const feedGenerator = {
+      uri: "at://did:plc:feed/app.bsky.feed.generator/test",
+    };
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      feedGenerator,
+      pluginService: {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const slot = container.querySelector(
+      ".post-actions-secondary plugin-slot[name='post-action-bar']",
+    );
+    assert(slot !== null);
+    assert.deepEqual(slot.getAttribute("context-uri"), post.uri);
+    assert.deepEqual(slot.getAttribute("context-feed-uri"), feedGenerator.uri);
+  });
+
+  it("should pass an empty feed uri outside a feed", () => {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService: {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const slot = container.querySelector("plugin-slot[name='post-action-bar']");
+    assert.deepEqual(slot.getAttribute("context-feed-uri"), "");
+  });
+
+  it("should not render a plugin slot without pluginService", () => {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(container.querySelector("plugin-slot"), null);
+  });
+});

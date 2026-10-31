@@ -2759,6 +2759,10 @@ container-link {
   flex: 0;
 }
 
+.post-actions-secondary plugin-slot {
+  display: contents;
+}
+
 .post-actions .text-button {
   display: flex;
   align-items: center;

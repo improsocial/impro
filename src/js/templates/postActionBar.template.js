@@ -26,6 +26,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/animated-button.js";
+import "/js/components/plugin-slot.js";
 
 function getBlueskyLinkForPost(post) {
   const rkey = getRKey(post);
@@ -567,6 +568,14 @@ export function postActionBarTemplate({
         </div>
       </div>
       <div class="post-actions-secondary">
+        ${pluginService
+          ? html`<plugin-slot
+              name="post-action-bar"
+              context-uri=${post.uri}
+              context-feed-uri=${feedGenerator?.uri ?? ""}
+              .pluginService=${pluginService}
+            ></plugin-slot>`
+          : ""}
         <div class="post-action post-action-bookmark">
           ${keyed(
             post.uri,
