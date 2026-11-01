@@ -348,6 +348,13 @@ export class TokenRefreshError extends Error {
   }
 }
 
+// Serialize token refreshes across tabs. The auth server revokes the whole
+// session when a refresh token is used twice, so only one tab may spend it.
+function withRefreshLock(did, callback) {
+  if (!navigator.locks?.request) return callback();
+  return navigator.locks.request(`oauth-refresh:${did}`, () => callback());
+}
+
 export class Session {
   static refreshBackoffMs = 500;
   static concurrentRefreshRecoveryMs = 1000;
@@ -491,11 +498,47 @@ export class Session {
     return false;
   }
 
+  isExpiring() {
+    return Date.now() > this.sessionData.expiresAt - 60000;
+  }
+
+  // Pick up tokens that another tab saved since this one loaded the session
+  reloadFromStorage() {
+    const stored = localStorage.getItem(
+      SESSION_KEY_PREFIX + this.sessionData.did,
+    );
+    if (!stored) return;
+    try {
+      const data = JSON.parse(stored);
+      if (data?.refreshToken) {
+        this.sessionData = data;
+      }
+    } catch {
+      // pass
+    }
+  }
+
+  async refreshIfNeeded() {
+    await withRefreshLock(this.sessionData.did, async () => {
+      const previousRefreshToken = this.sessionData.refreshToken;
+      this.reloadFromStorage();
+      if (!this.isExpiring()) {
+        logAuthEvent("oauth-refresh-skipped", {
+          did: this.sessionData.did,
+          previousToken: previousRefreshToken.slice(-6),
+          storedToken: this.sessionData.refreshToken.slice(-6),
+        });
+        return;
+      }
+      await this.refreshToken();
+    });
+  }
+
   async fetch(url, { headers = {}, ...options } = {}) {
     // refresh session if needed
-    if (Date.now() > this.sessionData.expiresAt - 60000) {
+    if (this.isExpiring()) {
       if (!this.pendingRefresh) {
-        this.pendingRefresh = this.refreshToken().finally(() => {
+        this.pendingRefresh = this.refreshIfNeeded().finally(() => {
           this.pendingRefresh = null;
         });
       }
