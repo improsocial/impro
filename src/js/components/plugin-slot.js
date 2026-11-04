@@ -77,7 +77,7 @@ class PluginSlot extends Component {
   }
 
   static get observedAttributes() {
-    return ["name", "context-uri", "context-did"];
+    return ["name", "context-uri", "context-did", "context-feed-uri"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {

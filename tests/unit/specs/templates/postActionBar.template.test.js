@@ -1019,3 +1019,74 @@ describe("postActionBarTemplate - share menu", () => {
     container.remove();
   });
 });
+
+describe("postActionBarTemplate - plugin action bar slots", () => {
+  function renderActionBar(options) {
+    const container = document.createElement("div");
+    render(
+      postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        ...options,
+      }),
+      container,
+    );
+    return container;
+  }
+
+  it("should render secondary-start and secondary-end slots in order", () => {
+    const container = renderActionBar({ pluginService: {} });
+    const names = [...container.querySelectorAll("plugin-slot")].map((slot) =>
+      slot.getAttribute("name"),
+    );
+    assert.deepEqual(names, [
+      "post-action-bar:secondary-start",
+      "post-action-bar:secondary-end",
+    ]);
+  });
+
+  it("should place the slots before Bookmark and after More", () => {
+    const container = renderActionBar({ pluginService: {} });
+    const secondaryStart = container.querySelector(
+      "plugin-slot[name='post-action-bar:secondary-start']",
+    );
+    const secondaryEnd = container.querySelector(
+      "plugin-slot[name='post-action-bar:secondary-end']",
+    );
+    assert.equal(
+      secondaryStart.nextElementSibling,
+      container.querySelector(".post-action-bookmark"),
+    );
+    assert.equal(
+      secondaryEnd.previousElementSibling,
+      container.querySelector("[data-testid='post-action-more']").parentElement,
+    );
+  });
+
+  it("should pass the post uri and feed uri to every slot", () => {
+    const feedGenerator = {
+      uri: "at://did:plc:feed/app.bsky.feed.generator/test",
+    };
+    const container = renderActionBar({ feedGenerator, pluginService: {} });
+    for (const slot of container.querySelectorAll("plugin-slot")) {
+      assert.deepEqual(slot.getAttribute("context-uri"), post.uri);
+      assert.deepEqual(
+        slot.getAttribute("context-feed-uri"),
+        feedGenerator.uri,
+      );
+    }
+  });
+
+  it("should pass an empty feed uri outside a feed", () => {
+    const container = renderActionBar({ pluginService: {} });
+    for (const slot of container.querySelectorAll("plugin-slot")) {
+      assert.deepEqual(slot.getAttribute("context-feed-uri"), "");
+    }
+  });
+
+  it("should not render plugin slots without pluginService", () => {
+    const container = renderActionBar({});
+    assert.deepEqual(container.querySelector("plugin-slot"), null);
+  });
+});

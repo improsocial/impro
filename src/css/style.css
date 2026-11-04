@@ -652,8 +652,8 @@ plugin-rich-text {
   display: contents;
 }
 
-plugin-slot:empty {
-  display: none;
+plugin-slot {
+  display: contents;
 }
 
 .rich-text a {
@@ -2270,8 +2270,7 @@ container-link {
   align-items: center;
 }
 
-.author-badges .label-badges,
-.author-badges plugin-slot {
+.author-badges .label-badges {
   display: contents;
 }
 
