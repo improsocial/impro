@@ -22,6 +22,7 @@ import {
   createEmbedFromPost,
   replaceQuotedPost,
   MAX_HIDDEN_REPLIES,
+  sanitizePronouns,
 } from "/js/dataHelpers.js";
 import {
   addPostLanguagesToHistory,
@@ -1092,6 +1093,7 @@ export class Mutations {
     {
       displayName,
       description,
+      pronouns,
       avatarBlob,
       bannerBlob,
       removeAvatar,
@@ -1125,6 +1127,13 @@ export class Mutations {
       updatedRecord.description = description;
       delete updatedRecord.descriptionFacets;
     }
+    const sanitizedPronouns =
+      pronouns !== undefined ? sanitizePronouns(pronouns) : undefined;
+    if (sanitizedPronouns) {
+      updatedRecord.pronouns = sanitizedPronouns;
+    } else if (sanitizedPronouns !== undefined) {
+      delete updatedRecord.pronouns;
+    }
     if (avatarRef) {
       updatedRecord.avatar = avatarRef;
     } else if (removeAvatar) {
@@ -1140,6 +1149,9 @@ export class Mutations {
 
     // Update in memory
     const patch = { displayName, description };
+    if (sanitizedPronouns !== undefined) {
+      patch.pronouns = sanitizedPronouns || null;
+    }
     if (avatarRef) {
       patch.avatar = buildCdnUrl("avatar", profile.did, avatarRef.ref.$link);
     } else if (removeAvatar) {

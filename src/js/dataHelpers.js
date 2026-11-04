@@ -875,6 +875,10 @@ export function isAutomatedAccount(profile) {
   return labels.some((label) => label.val === "bot");
 }
 
+export function sanitizePronouns(pronouns) {
+  return (pronouns ?? "").trim();
+}
+
 export function isLabelerProfile(profile) {
   return profile.associated?.labeler;
 }

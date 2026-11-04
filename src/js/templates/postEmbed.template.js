@@ -164,6 +164,7 @@ export function quotedPostTemplate({
   isAuthenticated,
   condensed = false,
   pluginService,
+  showPronouns = false,
 }) {
   if (!quotedPost) {
     return html`<div class="quoted-post embed-card">Post not found</div>`;
@@ -233,6 +234,7 @@ export function quotedPostTemplate({
               author: quotedPost.author,
               timestamp: quotedPost.indexedAt,
               enableProfileLink: false,
+              includePronouns: showPronouns,
             })}
           </div>
           ${authorBadgesTemplate({
@@ -668,6 +670,7 @@ export function recordEmbedTemplate({
   isAuthenticated,
   condensed = false,
   pluginService,
+  showPronouns = false,
 }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
@@ -684,6 +687,7 @@ export function recordEmbedTemplate({
         isAuthenticated,
         condensed,
         pluginService,
+        showPronouns,
       });
     case "app.bsky.embed.record#viewBlocked":
       return blockedQuoteTemplate();

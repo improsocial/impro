@@ -175,6 +175,7 @@ export function createProfile({
   labels,
   status,
   verification,
+  pronouns,
 }) {
   return {
     did,
@@ -192,6 +193,7 @@ export function createProfile({
     ...(postsCount !== undefined ? { postsCount } : {}),
     ...(status ? { status } : {}),
     ...(verification ? { verification } : {}),
+    ...(pronouns ? { pronouns } : {}),
   };
 }
 

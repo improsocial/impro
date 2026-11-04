@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { render } from "/js/lib/lit-html.js";
@@ -208,6 +208,53 @@ describe("profileCardTemplate", () => {
     assert(
       container.querySelector("[data-testid='follows-you-badge']") !== null,
     );
+  });
+
+  describe("pronouns", () => {
+    afterEach(() => {
+      document
+        .querySelectorAll('[data-testid="alert-modal"]')
+        .forEach((dialog) => dialog.remove());
+    });
+
+    it("should render a pronoun badge in the profile name when the profile has pronouns", () => {
+      const result = profileCardTemplate({
+        profile: { ...mockProfile, pronouns: "They/Them" },
+        onClickFollow: () => {},
+      });
+      const container = document.createElement("div");
+      render(result, container);
+      const badge = container.querySelector(
+        "[data-testid='profile-name'] [data-testid='pronoun-badge']",
+      );
+      assert.equal(badge.textContent, "They/Them");
+    });
+
+    it("should open an info modal when the pronoun badge is clicked", () => {
+      const result = profileCardTemplate({
+        profile: { ...mockProfile, pronouns: "they/them" },
+        onClickFollow: () => {},
+      });
+      const container = document.createElement("div");
+      render(result, container);
+      container.querySelector("[data-testid='pronoun-badge']").click();
+      const dialog = document.querySelector('[data-testid="alert-modal"]');
+      assert(dialog !== null);
+      assert(dialog.textContent.includes("they/them"));
+    });
+
+    it("should not render a pronoun badge when the profile has no pronouns", () => {
+      const result = profileCardTemplate({
+        profile: mockProfile,
+        onClickFollow: () => {},
+      });
+      const container = document.createElement("div");
+      render(result, container);
+      assert.equal(
+        container.querySelector("[data-testid='pronoun-badge']"),
+        null,
+      );
+    });
   });
 
   it("should render reposts hidden badge only for reposts-only mutes", () => {

@@ -211,6 +211,7 @@ function replyToTemplate({ post }) {
             timestamp: post.indexedAt,
             includeHandle: false,
             includeTime: false,
+            includePronouns: true,
           })}
           <div class="post-body">
             ${post.record.text
@@ -613,6 +614,7 @@ function composerPostTemplate({
                 record: postState.quotedRecord,
                 isAuthenticated: true,
                 pluginService,
+                showPronouns: true,
               })}
             </div>
           </div>`

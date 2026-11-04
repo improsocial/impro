@@ -1,10 +1,67 @@
-import { describe, it } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
 describe("postHeaderTextTemplate", () => {
+  describe("pronouns", () => {
+    afterEach(() => {
+      document
+        .querySelectorAll('[data-testid="alert-modal"]')
+        .forEach((dialog) => dialog.remove());
+    });
+
+    function renderHeader(author, options) {
+      const container = document.createElement("div");
+      render(
+        postHeaderTextTemplate({
+          author,
+          timestamp: post.indexedAt,
+          ...options,
+        }),
+        container,
+      );
+      return container.querySelector("[data-testid='pronoun-badge']");
+    }
+
+    it("renders trimmed pronouns when includePronouns is set", () => {
+      const badge = renderHeader(
+        { ...post.author, pronouns: "  She/Her " },
+        { includePronouns: true },
+      );
+      assert.equal(badge.textContent, "She/Her");
+    });
+
+    it("opens an info modal when the badge is clicked", () => {
+      const badge = renderHeader(
+        { ...post.author, pronouns: "she/her" },
+        { includePronouns: true },
+      );
+      badge.click();
+      const dialog = document.querySelector('[data-testid="alert-modal"]');
+      assert(dialog !== null);
+      assert(dialog.textContent.includes("she/her"));
+    });
+
+    it("omits the badge by default", () => {
+      const badge = renderHeader({ ...post.author, pronouns: "she/her" }, {});
+      assert.equal(badge, null);
+    });
+
+    it("omits the badge when the author has no pronouns", () => {
+      assert.equal(renderHeader(post.author, { includePronouns: true }), null);
+    });
+
+    it("omits the badge when pronouns are whitespace only", () => {
+      const badge = renderHeader(
+        { ...post.author, pronouns: "   " },
+        { includePronouns: true },
+      );
+      assert.equal(badge, null);
+    });
+  });
+
   it("should render header with author name", () => {
     const result = postHeaderTextTemplate({
       author: post.author,

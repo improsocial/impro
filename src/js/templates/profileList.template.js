@@ -160,7 +160,7 @@ export function profileListItemTemplate({
         ${rightItem}
       </div>
       ${showsFollowsYou && !compact
-        ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
+        ? html`<div class="profile-tag" data-testid="follows-you-badge">
             Follows you
           </div>`
         : ""}
