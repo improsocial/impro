@@ -90,7 +90,7 @@ describe("post-composer", () => {
     it("should render post button", () => {
       const element = createPostComposer();
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector('[data-testid="composer-submit-button"]');
       assert(postButton !== null);
     });
 
@@ -208,7 +208,7 @@ describe("post-composer", () => {
       connectElement(element);
       patchFirstPost(element, { text: "x".repeat(301) });
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector('[data-testid="composer-submit-button"]');
       assert(postButton.disabled);
     });
   });
@@ -492,7 +492,7 @@ describe("post-composer", () => {
       connectElement(element);
       element.state.$isSending.set(true);
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector('[data-testid="composer-submit-button"]');
       assert(postButton.disabled);
     });
   });
@@ -543,7 +543,7 @@ describe("post-composer", () => {
       assert.deepEqual(element.state.$isSending.get(), false);
       assert.deepEqual(getFirstPost(element).text, "Hello world");
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector('[data-testid="composer-submit-button"]');
       assert(postButton.disabled);
       assert.deepEqual(postButton.querySelector(".loading-spinner"), null);
 

@@ -910,7 +910,7 @@ class PostComposer extends Component {
                   </button>`
                 : ""}
               <button
-                class="rounded-button rounded-button-primary"
+                class="rounded-button rounded-button-highlight"
                 data-testid="composer-submit-button"
                 data-teststate=${submitTestState}
                 @click=${() => this.send()}

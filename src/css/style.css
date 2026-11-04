@@ -153,6 +153,13 @@ html {
     transparent
   );
   --primary-button-text-color: var(--background-color);
+  --highlight-button-color: var(--highlight-color);
+  --highlight-button-hover-color: color-mix(
+    in srgb,
+    var(--highlight-button-color) 80%,
+    transparent
+  );
+  --highlight-button-text-color: var(--white);
   --secondary-button-color: light-dark(var(--lightest-gray), var(--gray));
   --secondary-button-hover-color: light-dark(
     var(--lighter-gray),
@@ -714,6 +721,15 @@ plugin-slot {
   border-top-color: var(--primary-button-text-color);
 }
 
+.rounded-button.rounded-button-highlight {
+  background-color: var(--highlight-button-color);
+  color: var(--highlight-button-text-color);
+}
+
+.rounded-button.rounded-button-highlight .loading-spinner {
+  border-top-color: var(--highlight-button-text-color);
+}
+
 .rounded-button.rounded-button-secondary-inverted {
   background-color: var(--text-color);
   color: var(--background-color);
@@ -730,6 +746,10 @@ plugin-slot {
 
   .rounded-button.rounded-button-primary:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
+  }
+
+  .rounded-button.rounded-button-highlight:not(:disabled):hover {
+    background-color: var(--highlight-button-hover-color);
   }
 
   .rounded-button.rounded-button-secondary-inverted:not(:disabled):hover {
@@ -5366,8 +5386,8 @@ chat-input .rich-text-input-placeholder {
   width: 40px;
   height: 40px;
   border-radius: var(--circular-button-border-radius);
-  color: var(--primary-button-text-color);
-  background-color: var(--primary-button-color);
+  color: var(--highlight-button-text-color);
+  background-color: var(--highlight-button-color);
   border: none;
   display: flex;
   align-items: center;
@@ -5377,7 +5397,7 @@ chat-input .rich-text-input-placeholder {
 }
 
 .message-input-send-button .loading-spinner {
-  border-top-color: var(--primary-button-text-color);
+  border-top-color: var(--highlight-button-text-color);
   border-left-color: transparent;
   border-right-color: transparent;
   border-bottom-color: transparent;
@@ -5394,7 +5414,7 @@ chat-input .rich-text-input-placeholder {
 }
 
 .message-input-send-button app-icon {
-  color: var(--overlay-text-color);
+  color: var(--highlight-button-text-color);
   width: 20px;
   height: 20px;
   left: 2px;
@@ -11204,34 +11224,12 @@ label:has(toggle-switch[disabled]) {
 
 .new-chat-button {
   display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  padding: 0;
-  background-color: var(--primary-button-color);
-  color: var(--primary-button-text-color);
-  height: 33px;
-  width: 33px;
-  border-radius: var(--circular-button-border-radius);
-  transition: background-color 0.2s;
 }
 
 @media (min-width: 800px) {
   .new-chat-button {
     display: flex;
   }
-}
-
-@media (hover: hover) {
-  .new-chat-button:hover {
-    background-color: var(--primary-button-hover-color);
-  }
-}
-
-.new-chat-button app-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .new-chat-fab app-icon {
