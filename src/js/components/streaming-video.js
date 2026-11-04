@@ -131,6 +131,21 @@ function isAutoplayDisabled() {
   return untrack(() => deviceState.$autoplayDisabled.get());
 }
 
+// In iOS standalone PWAs, any playing video with an audio track interrupts
+// other apps' audio (even when muted) unless the session is ambient
+function updateAudioSessionType() {
+  if (!("audioSession" in navigator)) {
+    return;
+  }
+  const hasAudiblePlayback = [...connectedPlayers].some((player) => {
+    const video = player.querySelector("video");
+    return video !== null && !video.paused && !video.muted;
+  });
+  navigator.audioSession.type = hasAudiblePlayback ? "playback" : "ambient";
+}
+
+updateAudioSessionType();
+
 function formatRemainingTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
@@ -155,6 +170,7 @@ class StreamingVideo extends Component {
   }
 
   handleVolumeChange = (event) => {
+    updateAudioSessionType();
     if (this._pendingProgrammaticVolumeChange) {
       this._pendingProgrammaticVolumeChange = false;
       return;
@@ -165,6 +181,7 @@ class StreamingVideo extends Component {
   };
 
   handlePlay = () => {
+    updateAudioSessionType();
     this._pausedByUser = false;
     this._updatePausedIndicator();
     this._updateControlsIndicator();
@@ -174,6 +191,7 @@ class StreamingVideo extends Component {
   };
 
   handlePause = () => {
+    updateAudioSessionType();
     this._updatePausedIndicator();
     this._updateControlsIndicator();
   };
@@ -278,6 +296,7 @@ class StreamingVideo extends Component {
     this.releaseStreaming();
     window.removeEventListener("page-transition", this.handlePageTransition);
     connectedPlayers.delete(this);
+    updateAudioSessionType();
     if (this._isActiveCandidate) {
       activeVideoObserver.unobserve(this);
       allElements.delete(this);
