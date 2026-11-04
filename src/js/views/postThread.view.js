@@ -552,8 +552,8 @@ export default async function postThreadView({
   function repliesSkeletonTemplate({ numReplies }) {
     return html`
       <div class="post-thread-replies-skeleton">
-        ${Array.from({ length: Math.min(numReplies, 10) }).map(() =>
-          postSkeletonTemplate(),
+        ${Array.from({ length: Math.min(numReplies, 10) }).map((_, index) =>
+          postSkeletonTemplate({ index }),
         )}
       </div>
     `;
@@ -791,9 +791,9 @@ export default async function postThreadView({
 
   function threadSkeletonTemplate() {
     return html`<div class="post-thread">
-      ${Array.from({ length: 3 }).map(() => {
-        return postSkeletonTemplate();
-      })}
+      ${Array.from({ length: 3 }).map((_, index) =>
+        postSkeletonTemplate({ index }),
+      )}
     </div>`;
   }
 

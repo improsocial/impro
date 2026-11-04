@@ -48,7 +48,9 @@ export function paginatedListTemplate({
 }) {
   if (!items) {
     return html`<div class=${containerClass} data-testid=${containerTestId}>
-      ${Array.from({ length: skeletonCount }).map(() => renderSkeletonItem())}
+      ${Array.from({ length: skeletonCount }).map((_, index) =>
+        renderSkeletonItem({ index }),
+      )}
     </div>`;
   }
   const trailing = errorTemplate
