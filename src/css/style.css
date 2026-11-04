@@ -281,8 +281,8 @@ html {
     rgba(255, 255, 255, 0.05)
   );
   --skeleton-gradient-mid: light-dark(
-    rgba(0, 0, 0, 0.08),
-    rgba(255, 255, 255, 0.1)
+    rgba(0, 0, 0, 0.055),
+    rgba(255, 255, 255, 0.075)
   );
 
   /* indicator backgrounds */
@@ -1072,7 +1072,7 @@ input[type="color"]::-moz-color-swatch {
     var(--skeleton-gradient-edge) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -1428,6 +1428,27 @@ tab-bar:not([full-width]) {
 
 tab-bar.is-scroll-frozen {
   overflow-x: hidden;
+}
+
+.tab-bar-skeleton {
+  display: flex;
+  height: 46px;
+  overflow: hidden;
+}
+
+.tab-bar-skeleton-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 16px 17px;
+}
+
+.tab-bar-skeleton-bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .profile-card {

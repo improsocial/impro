@@ -187,6 +187,18 @@ export default async function homeView({
     </div>`;
   }
 
+  function tabBarSkeletonTemplate() {
+    return html`<div class="tab-bar-skeleton" data-testid="tab-bar-skeleton">
+      ${Array.from(
+        { length: 4 },
+        () =>
+          html`<div class="tab-bar-skeleton-item">
+            <span class="skeleton-animate tab-bar-skeleton-bar"></span>
+          </div>`,
+      )}
+    </div>`;
+  }
+
   function pinnedItemsErrorTemplate() {
     return html`<div class="error-state" data-testid="pinned-items-error">
       <div>Error loading feeds</div>
@@ -307,16 +319,19 @@ export default async function homeView({
               <app-icon icon="hashtag-line"></app-icon>
             </a>
           `,
-          bottomItemTemplate: () => html`
-            <tab-bar
-              .tabs=${(pinnedItems ?? []).map((item) => ({
-                value: item.uri,
-                label: item.displayName,
-              }))}
-              active-tab=${currentFeedUri}
-              @tab-click=${(event) => handleTabClick(event.detail)}
-            ></tab-bar>
-          `,
+          bottomItemTemplate: () =>
+            !pinnedItems && !pinnedItemsRequestStatus.error
+              ? tabBarSkeletonTemplate()
+              : html`
+                  <tab-bar
+                    .tabs=${(pinnedItems ?? []).map((item) => ({
+                      value: item.uri,
+                      label: item.displayName,
+                    }))}
+                    active-tab=${currentFeedUri}
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
+                `,
         })}
         <main>
           ${pinnedItems

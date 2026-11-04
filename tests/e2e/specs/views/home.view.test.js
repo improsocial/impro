@@ -643,11 +643,15 @@ test.describe("Home view", () => {
     await expect(
       view.locator('.feed-container [data-testid="post-skeleton"]').first(),
     ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="tab-bar-skeleton"]')).toBeVisible();
     await expect(view.locator('[data-testid="tab-following"]')).toHaveCount(0);
 
     await expect(view.locator('[data-testid="tab-following"]')).toBeVisible({
       timeout: 10000,
     });
+    await expect(view.locator('[data-testid="tab-bar-skeleton"]')).toHaveCount(
+      0,
+    );
     await expect(
       view.locator('[data-testid="pinned-items-error"]'),
     ).toHaveCount(0);
@@ -675,6 +679,9 @@ test.describe("Home view", () => {
     await expect(errorState).toBeVisible({ timeout: 10000 });
     await expect(errorState.locator(".try-again-button")).toBeVisible();
     await expect(view.locator('[data-testid="post-skeleton"]')).toHaveCount(0);
+    await expect(view.locator('[data-testid="tab-bar-skeleton"]')).toHaveCount(
+      0,
+    );
   });
 
   test("should render error state for Following feed without a creator profile link", async ({
