@@ -2801,6 +2801,7 @@ container-link {
   position: relative;
   top: -6px;
   font-size: 22px;
+  line-height: 18px;
 }
 
 .post-action {
@@ -2821,9 +2822,32 @@ container-link {
   background: none;
   cursor: pointer;
   color: var(--post-action-icon-color);
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
   min-width: 30px;
   padding: 5px;
+  border-radius: var(--pill-button-border-radius);
+  --post-action-hover-color: var(--highlight-color);
+}
+
+.post-action-repost {
+  --post-action-hover-color: var(--repost-color);
+}
+
+.like-button {
+  --post-action-hover-color: var(--like-color);
+}
+
+@media (hover: hover) {
+  button.post-action-button:not([disabled]):hover {
+    color: var(--post-action-hover-color);
+    background-color: color-mix(
+      in srgb,
+      var(--post-action-hover-color) 12%,
+      transparent
+    );
+  }
 }
 
 .post-action-button[disabled] {
