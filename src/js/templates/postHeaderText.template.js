@@ -2,6 +2,7 @@ import { html } from "/js/lib/lit-html.js";
 import { formatRelativeTime } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
+import { pronounBadgeTemplate } from "/js/templates/pronounBadge.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 export function postHeaderTextTemplate({
@@ -10,6 +11,7 @@ export function postHeaderTextTemplate({
   includeTime = true,
   includeHandle = true,
   enableProfileLink = true,
+  includePronouns = false,
 }) {
   return html`<div class="post-header-text">
     ${enableProfileLink
@@ -22,7 +24,9 @@ export function postHeaderTextTemplate({
         >`
       : html`<span class="post-name" data-testid="post-author-name"
           >${getDisplayName(author)}</span
-        >`}${profileBadgesTemplate({ profile: author })}
+        >`}${profileBadgesTemplate({ profile: author })}${includePronouns
+      ? pronounBadgeTemplate({ profile: author })
+      : ""}
     ${includeHandle
       ? enableProfileLink
         ? html`<a

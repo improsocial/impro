@@ -211,6 +211,7 @@ export function largePostTemplate({
             author: post.author,
             timestamp: post.indexedAt,
             includeTime: false,
+            includePronouns: true,
           })}
         </div>
         ${showFollowButton && post.author

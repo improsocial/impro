@@ -815,6 +815,34 @@ describe("postEmbedTemplate - quoted posts", () => {
     assert.deepEqual(handleElement.tagName.toLowerCase(), "span");
   });
 
+  describe("pronouns", () => {
+    const record = {
+      $type: "app.bsky.embed.record#viewRecord",
+      author: { ...post.author, pronouns: "she/her" },
+      value: post.record,
+      uri: post.uri,
+    };
+
+    function renderRecord(options) {
+      const container = document.createElement("div");
+      render(
+        recordEmbedTemplate({ record, isAuthenticated: true, ...options }),
+        container,
+      );
+      return container.querySelector(
+        ".quoted-post [data-testid='pronoun-badge']",
+      );
+    }
+
+    it("shows the quoted author's pronouns when showPronouns is set", () => {
+      assert.equal(renderRecord({ showPronouns: true }).textContent, "she/her");
+    });
+
+    it("hides the quoted author's pronouns by default", () => {
+      assert.equal(renderRecord({}), null);
+    });
+  });
+
   it("should render blocked quote embed", () => {
     const embed = {
       $type: "app.bsky.embed.record#view",

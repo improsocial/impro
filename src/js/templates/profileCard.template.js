@@ -15,6 +15,7 @@ import { formatLargeNumber, classnames, groupBy, noop } from "/js/utils.js";
 import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/detected-rich-text.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
+import { pronounBadgeTemplate } from "/js/templates/pronounBadge.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -494,12 +495,15 @@ export function profileCardTemplate({
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">
-          ${getDisplayName(profile)}${profileBadgesTemplate({ profile })}
+          ${getDisplayName(profile)}${profileBadgesTemplate({
+            profile,
+          })}${pronounBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
+          <div class="profile-handle">@${profile.handle}</div>
           ${isFollowedBy && !isBlocking && !isBlockedBy
             ? html`<div
-                class="profile-follows-you"
+                class="profile-tag"
                 data-testid="follows-you-badge"
               >
                 Follows you
@@ -507,14 +511,13 @@ export function profileCardTemplate({
             : ""}
           ${profile.viewer?.mutedOnlyReposts
             ? html`<div
-                class="profile-follows-you profile-reposts-hidden"
+                class="profile-tag profile-reposts-hidden"
                 data-testid="reposts-hidden-badge"
               >
                 <app-icon icon="repost-off"></app-icon>
                 Reposts hidden
               </div>`
             : ""}
-          <div class="profile-handle">@${profile.handle}</div>
         </div>
       </div>
     </div>

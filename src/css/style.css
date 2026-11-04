@@ -4551,7 +4551,7 @@ image-carousel {
   text-align: center;
 }
 
-.chat-info-panel .profile-follows-you {
+.chat-info-panel .profile-tag {
   margin-top: 4px;
 }
 
@@ -6187,14 +6187,31 @@ emoji-picker-dialog emoji-picker,
   height: 16px;
 }
 
-.profile-follows-you {
+.profile-tag {
   font-size: 13px;
+  color: var(--text-color);
   background: var(--secondary-button-color);
-  padding: 3px 8px;
+  padding: 2px 4px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
   width: fit-content;
   flex: none;
+}
+
+.pronoun-badge {
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: none;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.profile-name .pronoun-badge {
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .profile-reposts-hidden {
@@ -8201,12 +8218,28 @@ sidebar-search {
   align-items: center;
 }
 
-.profile-hover-card-name-link {
-  color: inherit;
-  text-decoration: none;
+.profile-hover-card-name-block {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.profile-hover-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profile-hover-card-name-link,
+.profile-hover-card-handle {
+  color: inherit;
+  text-decoration: none;
+}
+
+.profile-hover-card-name-link {
+  min-width: 0;
 }
 
 .profile-hover-card-name {

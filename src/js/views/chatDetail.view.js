@@ -1151,7 +1151,7 @@ export default async function chatDetailView({
         ? html`<div class="chat-info-panel-handle">@${profile.handle}</div>`
         : ""}
       ${isFollowedBy
-        ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
+        ? html`<div class="profile-tag" data-testid="follows-you-badge">
             Follows you
           </div>`
         : ""}
