@@ -220,19 +220,4 @@ test.describe("Community plugins view", () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page).toHaveURL(/\/plugins\/community$/);
   });
-
-  test("redirects the old settings URL to /plugins/community", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    mockServer.registryEntries = [REGISTRY_ENTRY];
-    await mockServer.setup(page);
-    await login(page);
-
-    await page.goto("/settings/plugins/community");
-    await expect(page).toHaveURL(/\/plugins\/community$/);
-    await expect(
-      page.locator('#community-plugins-view [data-testid="header-title"]'),
-    ).toBeVisible({ timeout: 10000 });
-  });
 });

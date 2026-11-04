@@ -34,7 +34,6 @@ export default async function listDetailView({
   root,
   params,
   context: {
-    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -43,9 +42,6 @@ export default async function listDetailView({
   },
 }) {
   const { handleOrDid, rkey } = params;
-  const optOutEnabled =
-    isAuthenticated &&
-    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
 
   const profileDid = await resolveDidFromHandleOrDid(
     handleOrDid,
@@ -152,7 +148,7 @@ export default async function listDetailView({
     const starterPackUri = isReference
       ? dataLayer.derived.$starterPackUriForList.get(listUri)
       : null;
-    const showOptOut = optOutEnabled && !isCurrentUserList && isReference;
+    const showOptOut = isAuthenticated && !isCurrentUserList && isReference;
     const isOptedOut = !!list?.viewer?.referenceListOptOut;
     const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
     render(

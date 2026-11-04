@@ -6,12 +6,11 @@ import { linkToPostFromUri } from "/js/navigation.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 
 export class PostComposerService {
-  constructor(dataLayer, identityResolver, pluginService, { draftsEnabled }) {
+  constructor(dataLayer, identityResolver, pluginService) {
     this.dataLayer = dataLayer;
     this.identityResolver = identityResolver;
     this.pluginService = pluginService;
     this.currentPostComposer = null;
-    this.draftsEnabled = draftsEnabled;
   }
 
   async composePost({
@@ -41,7 +40,6 @@ export class PostComposerService {
         ? createEmbedFromPost(quotedPost)
         : null;
       this.currentPostComposer.currentUser = currentUser;
-      this.currentPostComposer.draftsEnabled = this.draftsEnabled;
       this.currentPostComposer.addEventListener("send-post", async (e) => {
         const {
           posts,

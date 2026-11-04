@@ -95,7 +95,6 @@ const ACCOUNTS_KEY = "oauth_accounts";
 const CURRENT_DID_KEY = "oauth_current_did";
 const IN_FLIGHT_PREFIX = "oauth_in_flight_";
 const IN_FLIGHT_MAX_AGE_MS = 10 * 60 * 1000;
-const LEGACY_SESSION_KEY = "oauth_session";
 
 function readAccounts() {
   const raw = localStorage.getItem(ACCOUNTS_KEY);
@@ -136,38 +135,6 @@ function deleteAccount(did) {
   writeAccounts(accounts.filter((entry) => entry.did !== did));
 }
 
-function migrateLegacySession() {
-  const legacySessionData = localStorage.getItem(LEGACY_SESSION_KEY);
-  if (!legacySessionData) return;
-  if (localStorage.getItem(ACCOUNTS_KEY) !== null) {
-    // This shouldn't happen
-    localStorage.removeItem(LEGACY_SESSION_KEY);
-    return;
-  }
-  try {
-    const sessionData = JSON.parse(legacySessionData);
-    if (!sessionData?.did) {
-      localStorage.removeItem(LEGACY_SESSION_KEY);
-      return;
-    }
-    localStorage.setItem(
-      SESSION_KEY_PREFIX + sessionData.did,
-      legacySessionData,
-    );
-    writeAccounts([
-      {
-        did: sessionData.did,
-        handle: null,
-        pdsUrl: sessionData.serviceEndpoint ?? null,
-      },
-    ]);
-    localStorage.setItem(CURRENT_DID_KEY, sessionData.did);
-    localStorage.removeItem(LEGACY_SESSION_KEY);
-  } catch {
-    localStorage.removeItem(LEGACY_SESSION_KEY);
-  }
-}
-
 function removeStaleInFlightData() {
   const now = Date.now();
   for (let index = localStorage.length - 1; index >= 0; index--) {
@@ -184,7 +151,6 @@ function removeStaleInFlightData() {
   }
 }
 
-const LEGACY_DPOP_KEYPAIR_KEY = "dpop_keypair";
 const DPOP_DB_NAME = "oauth-dpop";
 const DPOP_STORE_NAME = "keys";
 const DPOP_KEYPAIR_RECORD_KEY = "keypair";
@@ -203,38 +169,8 @@ class DPoPKeyStore {
   }
 }
 
-async function migrateDPoPKeypairFromLocalStorage(keyStore) {
-  const dpopKeypairStr = localStorage.getItem(LEGACY_DPOP_KEYPAIR_KEY);
-  if (!dpopKeypairStr) return null;
-  let keypair;
-  try {
-    const { privkey, pubkey } = JSON.parse(dpopKeypairStr);
-    const privateKey = await window.crypto.subtle.importKey(
-      "jwk",
-      privkey,
-      { name: "ECDSA", namedCurve: "P-256" },
-      false,
-      ["sign"],
-    );
-    keypair = { privateKey, publicJwk: pubkey };
-  } catch (error) {
-    console.warn("oauth: DPoP keypair migration failed", error);
-    localStorage.removeItem(LEGACY_DPOP_KEYPAIR_KEY);
-    return null;
-  }
-  try {
-    await keyStore.put(keypair);
-    localStorage.removeItem(LEGACY_DPOP_KEYPAIR_KEY);
-  } catch (error) {
-    console.warn("oauth: failed to persist migrated DPoP keypair", error);
-  }
-  return keypair;
-}
-
 async function loadOrGenerateDPoPKeypair() {
   const keyStore = new DPoPKeyStore();
-  const migrated = await migrateDPoPKeypairFromLocalStorage(keyStore);
-  if (migrated) return migrated;
   try {
     const stored = await keyStore.get();
     if (stored) return stored;
@@ -616,7 +552,6 @@ export class OauthClient {
 
   static async load({ clientId, redirectUri, identityResolver }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
-    migrateLegacySession();
     return new OauthClient({
       clientId,
       redirectUri,

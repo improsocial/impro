@@ -1,9 +1,8 @@
 import "/js/components/new-chat-dialog.js";
 
 export class NewChatService {
-  constructor(dataLayer, { groupChatsEnabled }) {
+  constructor(dataLayer) {
     this.dataLayer = dataLayer;
-    this.groupChatsEnabled = groupChatsEnabled;
     this.currentDialog = null;
   }
 
@@ -14,7 +13,6 @@ export class NewChatService {
     }
     this.currentDialog = document.createElement("new-chat-dialog");
     this.currentDialog.dataLayer = this.dataLayer;
-    this.currentDialog.groupChatsEnabled = this.groupChatsEnabled;
     this.currentDialog.addEventListener("dialog-closed", () => {
       if (this.currentDialog) {
         this.currentDialog.remove();

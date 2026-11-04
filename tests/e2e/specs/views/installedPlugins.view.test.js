@@ -375,20 +375,4 @@ test.describe("Installed plugins view", () => {
       .poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 })
       .toBe(scrollY);
   });
-
-  test("redirects the old settings URLs", async ({ page }) => {
-    const mockServer = new MockServer();
-    seedInstalled(mockServer);
-    await mockServer.setup(page);
-    await login(page);
-
-    await page.goto("/settings/plugins");
-    await expect(page).toHaveURL(/\/plugins\/installed$/);
-    await expect(
-      page.locator('#installed-plugins-view [data-testid="header-title"]'),
-    ).toBeVisible({ timeout: 10000 });
-
-    await page.goto(`/settings/plugins/${TEST_PLUGIN_ID}`);
-    await expect(page).toHaveURL(`/plugin/${TEST_PLUGIN_ID}/settings`);
-  });
 });

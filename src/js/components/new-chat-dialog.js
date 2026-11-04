@@ -280,7 +280,6 @@ function chatStepResultsTemplate({
   searchStatus,
   profileFollows,
   profileFollowsStatus,
-  groupChatsEnabled,
   canCreateGroups,
   onSelect,
   onNewGroupClick,
@@ -295,12 +294,10 @@ function chatStepResultsTemplate({
       emptyMessage: "No results",
     });
   }
-  const groupEntry = groupChatsEnabled
-    ? newGroupEntryTemplate({
-        canCreateGroups,
-        onClick: onNewGroupClick,
-      })
-    : "";
+  const groupEntry = newGroupEntryTemplate({
+    canCreateGroups,
+    onClick: onNewGroupClick,
+  });
   let suggestedProfiles = null;
   if (profileFollowsStatus?.error) {
     suggestedProfiles = [];
@@ -340,7 +337,6 @@ function chatStepTemplate({
   searchStatus,
   profileFollows,
   profileFollowsStatus,
-  groupChatsEnabled,
   canCreateGroups,
   onSearchInput,
   onClearSearch,
@@ -377,7 +373,6 @@ function chatStepTemplate({
         searchStatus,
         profileFollows,
         profileFollowsStatus,
-        groupChatsEnabled,
         canCreateGroups,
         onSelect,
         onNewGroupClick,
@@ -578,7 +573,6 @@ class NewChatDialog extends Component {
       return;
     }
     this.dataLayer = this.dataLayer ?? null;
-    this.groupChatsEnabled = this.groupChatsEnabled ?? true;
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = null;
     this.state = new ReactiveStore("new-chat-dialog");
@@ -763,7 +757,6 @@ class NewChatDialog extends Component {
         searchStatus,
         profileFollows,
         profileFollowsStatus,
-        groupChatsEnabled: this.groupChatsEnabled,
         canCreateGroups,
         onSearchInput: (value) => this._onSearchInput(value),
         onClearSearch: () => this._onClearSearch(),

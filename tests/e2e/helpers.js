@@ -25,7 +25,18 @@ export async function login(page, { scope = OAUTH_SCOPES } = {}) {
     scope,
   };
   await page.addInitScript((session) => {
-    localStorage.setItem("oauth_session", JSON.stringify(session));
+    if (localStorage.getItem("oauth_accounts") !== null) return;
+    localStorage.setItem(
+      "oauth_session:" + session.did,
+      JSON.stringify(session),
+    );
+    localStorage.setItem(
+      "oauth_accounts",
+      JSON.stringify([
+        { did: session.did, handle: null, pdsUrl: session.serviceEndpoint },
+      ]),
+    );
+    localStorage.setItem("oauth_current_did", session.did);
   }, oauthSession);
 }
 

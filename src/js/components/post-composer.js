@@ -650,10 +650,6 @@ class PostComposer extends Component {
     this.state.$errorMessage = new Signal.State(null);
     this.state.$isSavingDraft = new Signal.State(false);
     this._pendingQuotedRecord = null;
-    this.state.$draftsEnabled = new Signal.State(
-      this._pendingDraftsEnabled ?? false,
-    );
-    this._pendingDraftsEnabled = null;
     this.state.$isDraggingFiles = new Signal.State(false);
     this.state.$threadgateAllow = new Signal.State(null);
     this.state.$postgateEmbeddingRules = new Signal.State(null);
@@ -776,25 +772,11 @@ class PostComposer extends Component {
     this._updatePost(this._getPosts()[0].id, { quotedRecord: value });
   }
 
-  get draftsEnabled() {
-    if (!this.state) return this._pendingDraftsEnabled ?? false;
-    return untrack(() => this.state.$draftsEnabled.get());
-  }
-
-  set draftsEnabled(value) {
-    if (!this.state) {
-      this._pendingDraftsEnabled = value;
-      return;
-    }
-    this.state.$draftsEnabled.set(value);
-  }
-
   render() {
     const isSending = this.state.$isSending.get();
     const isCancellingSend = this.state.$isCancellingSend.get();
     const sendError = this.state.$errorMessage.get();
     const isSavingDraft = this.state.$isSavingDraft.get();
-    const draftsEnabled = this.state.$draftsEnabled.get();
     const posts = this.state.$posts.get();
     const activePostIndex = Math.min(
       this.state.$activePostIndex.get(),
@@ -904,7 +886,7 @@ class PostComposer extends Component {
               >
                 Cancel
               </button>
-              ${!this.replyTo && draftsEnabled
+              ${!this.replyTo
                 ? html`<button
                     class="text-pill-button post-composer-drafts-button"
                     data-testid="composer-drafts-button"
@@ -2084,7 +2066,6 @@ class PostComposer extends Component {
   }
 
   async handleDraftsButtonClick() {
-    if (!this.draftsEnabled) return;
     if (untrack(() => this.state.$isSavingDraft.get())) return;
     if (!this.hasContent() || (this._draftId && !this._isDirty)) {
       this.openDraftsDialog();
@@ -2427,13 +2408,6 @@ class PostComposer extends Component {
     }
     if (!this.hasContent()) {
       return true;
-    }
-    if (!this.draftsEnabled) {
-      return confirmModal("Are you sure you'd like to discard this post?", {
-        title: "Discard post?",
-        confirmButtonStyle: "danger-subtle",
-        confirmButtonText: "Discard",
-      });
     }
     if (this._draftId && !this._isDirty) {
       return true;

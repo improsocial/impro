@@ -96,6 +96,11 @@ const BSKY_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.video.getJobStatus",
   "rpc:app.bsky.video.getUploadLimits",
   "rpc:app.bsky.video.uploadVideo",
+  "rpc:app.bsky.draft.getDrafts",
+  "rpc:app.bsky.draft.createDraft",
+  "rpc:app.bsky.draft.updateDraft",
+  "rpc:app.bsky.draft.deleteDraft",
+  "rpc:app.bsky.graph.searchStarterPacksV2",
 ];
 
 const BSKY_OAUTH_REPO_SCOPES = [
@@ -113,6 +118,7 @@ const BSKY_OAUTH_REPO_SCOPES = [
   "repo:app.bsky.graph.listitem",
   "repo:app.bsky.graph.starterpack",
   "repo:app.bsky.notification.declaration",
+  "repo:app.bsky.graph.referencelistoptout",
 ];
 
 const CHAT_OAUTH_RPC_SCOPES = [
@@ -138,6 +144,8 @@ const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.updateRead",
   "rpc:chat.bsky.group.getJoinLinkPreviews",
   "rpc:chat.bsky.group.requestJoin",
+  "rpc:chat.bsky.convo.getConvoMembers",
+  "rpc:chat.bsky.group.createGroup",
 ];
 
 const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
@@ -147,17 +155,9 @@ const ATPROTO_OAUTH_RPC_SCOPES = [
   "rpc:com.atproto.repo.uploadBlob",
 ];
 
-const OPTIONAL_OAUTH_RPC_SCOPES = [
-  "rpc:chat.bsky.convo.getConvoMembers",
-  "rpc:app.bsky.draft.getDrafts",
-  "rpc:app.bsky.draft.createDraft",
-  "rpc:app.bsky.draft.updateDraft",
-  "rpc:app.bsky.draft.deleteDraft",
-  "rpc:chat.bsky.group.createGroup",
-  "rpc:app.bsky.graph.searchStarterPacksV2",
-];
+const OPTIONAL_OAUTH_RPC_SCOPES = [];
 
-const OPTIONAL_OAUTH_REPO_SCOPES = ["repo:app.bsky.graph.referencelistoptout"];
+const OPTIONAL_OAUTH_REPO_SCOPES = [];
 
 function expandScope(scope) {
   if (scope.startsWith("rpc:")) {

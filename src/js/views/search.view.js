@@ -29,18 +29,8 @@ import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 export default async function searchView({
   root,
   layout,
-  context: {
-    auth,
-    dataLayer,
-    isAuthenticated,
-    pluginService,
-    interactionHandlers,
-  },
+  context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
 }) {
-  const starterPackSearchEnabled =
-    isAuthenticated &&
-    (await auth.hasScope("rpc:app.bsky.graph.searchStarterPacksV2"));
-
   function getUrlQuery() {
     return (new URLSearchParams(window.location.search).get("q") ?? "").trim();
   }
@@ -123,7 +113,7 @@ export default async function searchView({
       dataLayer.requests.loadPostSearchLatest("");
       dataLayer.requests.loadFeedSearch("");
     }
-    if (starterPackSearchEnabled) {
+    if (isAuthenticated) {
       dataLayer.requests.loadStarterPackSearch("");
     }
   }
@@ -235,7 +225,7 @@ export default async function searchView({
   function loadPageData() {
     const query = new URLSearchParams(window.location.search);
     const tab = query.get("tab");
-    if (tab && (tab !== "starterPacks" || starterPackSearchEnabled)) {
+    if (tab && (tab !== "starterPacks" || isAuthenticated)) {
       state.$activeTab.set(tab === "posts" ? "top" : tab);
     }
     const q = getUrlQuery();
@@ -694,7 +684,7 @@ export default async function searchView({
             "latest",
             "profiles",
             "feeds",
-            ...(starterPackSearchEnabled ? ["starterPacks"] : []),
+            ...(isAuthenticated ? ["starterPacks"] : []),
           ]
         : ["profiles"];
       bodyTemplate = html`<div class="search-tab-panels">
@@ -800,7 +790,7 @@ export default async function searchView({
                         { value: "latest", label: "Latest" },
                         { value: "profiles", label: "People" },
                         { value: "feeds", label: "Feeds" },
-                        ...(starterPackSearchEnabled
+                        ...(isAuthenticated
                           ? [{ value: "starterPacks", label: "Starter Packs" }]
                           : []),
                       ]}

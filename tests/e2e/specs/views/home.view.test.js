@@ -648,9 +648,9 @@ test.describe("Home view", () => {
     await expect(view.locator('[data-testid="tab-following"]')).toBeVisible({
       timeout: 10000,
     });
-    await expect(view.locator('[data-testid="pinned-items-error"]')).toHaveCount(
-      0,
-    );
+    await expect(
+      view.locator('[data-testid="pinned-items-error"]'),
+    ).toHaveCount(0);
   });
 
   test("should show an error state when pinned feeds fail to load", async ({

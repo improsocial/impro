@@ -1,6 +1,5 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import { MockServer } from "../../mockServer.js";
 import { userProfile } from "../../testData.js";
 import {
@@ -534,33 +533,6 @@ test.describe("Starter Pack Detail view", () => {
         `/profile/${userProfile.handle}/starter-pack/mine`,
       );
 
-      await view.locator(".context-menu-button").click();
-      await expect(
-        view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
-      ).toBeVisible();
-      await expect(
-        view.locator('[data-testid="menu-action-starter-pack-opt-out"]'),
-      ).toHaveCount(0);
-    });
-
-    test("should hide the opt-out item without the opt-out scope", async ({
-      page,
-    }) => {
-      const mockServer = new MockServer();
-      setupPack(mockServer);
-      setupMembers(mockServer);
-      await mockServer.setup(page);
-
-      const scopeWithoutOptOut = OAUTH_SCOPES.split(" ")
-        .filter((scope) => !scope.includes("referencelistoptout"))
-        .join(" ");
-      await login(page, { scope: scopeWithoutOptOut });
-      await page.goto(PACK_PATH);
-
-      const view = page.locator("#starter-pack-detail-view");
-      await expect(
-        view.locator('[data-testid="starter-pack-name"]'),
-      ).toBeVisible({ timeout: 10000 });
       await view.locator(".context-menu-button").click();
       await expect(
         view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),

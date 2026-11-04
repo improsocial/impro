@@ -225,7 +225,6 @@ export default async function starterPackDetailView({
   root,
   params,
   context: {
-    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -234,9 +233,6 @@ export default async function starterPackDetailView({
   },
 }) {
   const { handleOrDid, rkey } = params;
-  const optOutEnabled =
-    isAuthenticated &&
-    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
 
   const creatorDid = await resolveDidFromHandleOrDid(
     handleOrDid,
@@ -295,7 +291,7 @@ export default async function starterPackDetailView({
     const isLoaded = !!list;
     const isOwner = isLoaded && starterPack.creator.did === currentUser?.did;
     const permalink = isLoaded ? getPermalinkForStarterPack(starterPack) : null;
-    const showOptOut = isLoaded && optOutEnabled && !isOwner;
+    const showOptOut = isLoaded && isAuthenticated && !isOwner;
     const tabs = isLoaded
       ? [
           { value: "people", label: "People" },
