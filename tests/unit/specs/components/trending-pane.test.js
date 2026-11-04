@@ -53,7 +53,7 @@ describe("trending-pane", () => {
     const element = mount(makeDataLayer(() => new Promise(() => {})));
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-skeleton']").length,
-      5,
+      10,
     );
   });
 
@@ -111,9 +111,9 @@ describe("trending-pane", () => {
     );
   });
 
-  it("renders at most five rows", async () => {
+  it("renders at most ten rows", async () => {
     const dataLayer = makeDataLayer(async () => ({
-      trends: Array.from({ length: 9 }, (_, index) =>
+      trends: Array.from({ length: 14 }, (_, index) =>
         createTrend({ topic: `topic-${index}` }),
       ),
     }));
@@ -122,7 +122,7 @@ describe("trending-pane", () => {
 
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-row']").length,
-      5,
+      10,
     );
   });
 

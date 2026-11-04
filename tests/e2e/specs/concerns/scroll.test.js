@@ -177,6 +177,33 @@ test.describe("StickyFixer home header", () => {
     await expect(page.locator("dialog.sidebar")).not.toHaveAttribute("open");
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrollY);
   });
+
+  test("should keep the exact feed position when returning from a thread", async ({
+    page,
+  }) => {
+    const view = page.locator("#home-view");
+    const header = view.locator('[data-testid="header"]');
+    const targetPost = view
+      .locator('[data-testid="feed-item"]')
+      .filter({ hasText: "Timeline post 30" });
+    await targetPost.scrollIntoViewIfNeeded();
+    await expect(header).toHaveCSS("position", "fixed");
+    const scrollY = await page.evaluate(() => window.scrollY);
+    const { y: initialY } = await targetPost.boundingBox();
+
+    for (let visit = 0; visit < 3; visit++) {
+      await targetPost.locator('[data-testid="small-post"]').click();
+      await expect(page.locator("#post-detail-view")).toBeVisible();
+      await page.goBack();
+      await expect(view).toBeVisible();
+      await expect(header).toHaveCSS("position", "fixed");
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBe(scrollY);
+      const { y: restoredY } = await targetPost.boundingBox();
+      expect(Math.abs(restoredY - initialY)).toBeLessThanOrEqual(1);
+    }
+  });
 });
 
 test.describe("StickyFixer search header", () => {

@@ -56,7 +56,7 @@ function writePageToCollection(
   const current = key === undefined ? signal.get() : signal.get(key);
   const currentCursor = current?.cursor ?? "";
   if (!overwrite && currentCursor !== (requestCursor ?? "")) {
-    console.warn("Cursor mismatch, discarding page", {
+    console.debug("Cursor mismatch, discarding page", {
       itemsKey,
       key,
       requestCursor,

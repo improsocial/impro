@@ -543,6 +543,64 @@ describe("streaming-video", () => {
         assert(only.video.muted);
       });
     });
+
+    describe("audio session", () => {
+      let audioSession;
+
+      beforeEach(() => {
+        audioSession = { type: "auto" };
+        Object.defineProperty(navigator, "audioSession", {
+          value: audioSession,
+          configurable: true,
+        });
+      });
+
+      afterEach(() => {
+        delete navigator.audioSession;
+      });
+
+      it("should stay ambient while the active video plays muted", async () => {
+        const only = createCandidate();
+        only.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        assert.deepEqual(only.calls.play, 1);
+        assert.deepEqual(audioSession.type, "ambient");
+      });
+
+      it("should switch to playback when the user unmutes a playing video", async () => {
+        const only = createCandidate();
+        only.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        only.video.muted = false;
+        assert.deepEqual(audioSession.type, "playback");
+      });
+
+      it("should return to ambient when the unmuted video stops being active", async () => {
+        const first = createCandidate();
+        const second = createCandidate();
+        first.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        first.video.muted = false;
+        first.placeAt(-200);
+        second.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        assert.deepEqual(audioSession.type, "ambient");
+      });
+
+      it("should return to ambient when the unmuted video is removed", async () => {
+        const only = createCandidate();
+        only.placeAt(220);
+        updateActiveVideo();
+        await flush();
+        only.video.muted = false;
+        only.element.remove();
+        assert.deepEqual(audioSession.type, "ambient");
+      });
+    });
   });
 
   describe("StreamingVideo - gif players", () => {
