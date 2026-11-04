@@ -225,6 +225,7 @@ export class Requests {
       (query) => "loadStarterPackSearch-" + query,
     );
     this.enableStatus(this.loadTrends, "loadTrends");
+    this.enableStatus(this.loadPinnedItems, "loadPinnedItems");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
       this.loadMentionNotifications,

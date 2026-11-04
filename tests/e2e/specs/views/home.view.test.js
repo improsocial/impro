@@ -622,6 +622,61 @@ test.describe("Home view", () => {
     ).toHaveAttribute("href", "/profile/creator1.bsky.social");
   });
 
+  test("should show a feed skeleton while pinned feeds load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/slow",
+      displayName: "Slow Feed",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.setGetFeedGeneratorsDelay(2000);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(
+      view.locator('.feed-container [data-testid="post-skeleton"]').first(),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="tab-following"]')).toHaveCount(0);
+
+    await expect(view.locator('[data-testid="tab-following"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="pinned-items-error"]')).toHaveCount(
+      0,
+    );
+  });
+
+  test("should show an error state when pinned feeds fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/broken",
+      displayName: "Broken Feed",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.failGetFeedGenerators();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const errorState = view.locator('[data-testid="pinned-items-error"]');
+    await expect(errorState).toBeVisible({ timeout: 10000 });
+    await expect(errorState.locator(".try-again-button")).toBeVisible();
+    await expect(view.locator('[data-testid="post-skeleton"]')).toHaveCount(0);
+  });
+
   test("should render error state for Following feed without a creator profile link", async ({
     page,
   }) => {

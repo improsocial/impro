@@ -126,6 +126,8 @@ export class MockServer {
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
     this.getFeedGeneratorDelayMs = 0;
+    this.getFeedGeneratorsDelayMs = 0;
+    this.getFeedGeneratorsFailure = null;
     this.putPreferencesDelayMs = 0;
     this.getPreferencesDelayMs = 0;
     // Override the source served for the local test plugin's main.js; defaults
@@ -466,6 +468,18 @@ export class MockServer {
 
   setGetFeedGeneratorDelay(delayMs) {
     this.getFeedGeneratorDelayMs = delayMs;
+  }
+
+  setGetFeedGeneratorsDelay(delayMs) {
+    this.getFeedGeneratorsDelayMs = delayMs;
+  }
+
+  failGetFeedGenerators({
+    status = 500,
+    error = "InternalServerError",
+    message,
+  } = {}) {
+    this.getFeedGeneratorsFailure = { status, error, message };
   }
 
   setNotificationsSeenAt(seenAt) {
@@ -2396,7 +2410,20 @@ export class MockServer {
       },
     );
 
-    await page.route("**/xrpc/app.bsky.feed.getFeedGenerators*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getFeedGenerators*", async (route) => {
+      if (this.getFeedGeneratorsDelayMs > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.getFeedGeneratorsDelayMs),
+        );
+      }
+      if (this.getFeedGeneratorsFailure) {
+        const { status, error, message } = this.getFeedGeneratorsFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
       const url = new URL(route.request().url());
       const feedUris = url.searchParams.getAll("feeds");
       const feeds = feedUris.map(
