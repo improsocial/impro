@@ -553,6 +553,11 @@ function composerPostTemplate({
           <rich-text-input
             @input=${(e) => onInput(e)}
             @paste=${(e) => onPaste(e)}
+            @click=${(e) => {
+              if (!e.target.closest("[contenteditable]")) {
+                e.currentTarget.focus({ preventScroll: true });
+              }
+            }}
             .searchMentions=${searchMentions}
             placeholder="${promptText}"
           ></rich-text-input>

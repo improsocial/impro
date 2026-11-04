@@ -7579,8 +7579,21 @@ sidebar-search {
   padding-bottom: 0;
   overflow: visible;
   touch-action: pan-y;
+}
+
+/* Preserve the native hidden state between close() and the close event that
+   removes the composer, so the finished exit animation cannot flash back. */
+.post-composer.bottom-sheet[open] {
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 799px) {
+  .post-composer.bottom-sheet:not([data-closing]) {
+    /* Focus opens the iOS keyboard immediately. A sliding focus target can
+       make Safari pan the page using its offscreen opening position. */
+    animation: none;
+  }
 }
 
 @media (min-width: 800px) {
@@ -7757,7 +7770,7 @@ sidebar-search {
 .post-composer-scroll-area-content:has(
     .post-composer-post + .post-composer-post
   )
-  .rich-text-input {
+  .rich-text-input-container {
   min-height: 60px;
 }
 
@@ -7830,9 +7843,16 @@ sidebar-search {
   font-weight: 500;
 }
 
+.post-composer .rich-text-input-container {
+  /* Keep blank writing space outside the focused element: iOS can pan the
+     entire dialog to center a tall editor when the keyboard opens. */
+  min-height: 140px;
+  cursor: text;
+}
+
 .post-composer .rich-text-input {
   width: 100%;
-  min-height: 140px;
+  min-height: 1lh;
   border: none;
   background: transparent;
   color: var(--text-color);
