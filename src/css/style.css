@@ -602,8 +602,8 @@ pinned-feeds-pane {
   display: flex;
   gap: 6px;
   padding: 2px 0;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 16px;
   cursor: pointer;
 }
 
