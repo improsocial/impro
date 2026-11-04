@@ -9,7 +9,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 
-const TREND_LIMIT = 5;
+const TREND_LIMIT = 10;
 
 function trendingRowTemplate({ rank, label, href }) {
   return html`<container-link
