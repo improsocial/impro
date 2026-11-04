@@ -11,13 +11,7 @@ import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/app-icon.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import {
-  formatLargeNumber,
-  classnames,
-  groupBy,
-  noop,
-  sortBy,
-} from "/js/utils.js";
+import { formatLargeNumber, classnames, groupBy, noop } from "/js/utils.js";
 import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/detected-rich-text.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";

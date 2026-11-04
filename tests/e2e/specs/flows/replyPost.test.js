@@ -1,6 +1,5 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
 import { createPost } from "../../../shared/factories.js";
 

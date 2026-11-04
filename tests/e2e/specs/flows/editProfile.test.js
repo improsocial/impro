@@ -420,7 +420,6 @@ test.describe("Edit profile flow", () => {
 
     // Click "Upload from Files" to trigger file picker
     const menu = dialog.locator(".edit-profile-avatar-menu");
-    const fileInput = dialog.locator(".edit-profile-file-input");
 
     // Set a file on the hidden file input to trigger the cropper
     const [fileChooser] = await Promise.all([

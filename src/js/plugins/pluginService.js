@@ -42,7 +42,6 @@ import {
   ReactiveStore,
   untrack,
 } from "/js/signals.js";
-import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 

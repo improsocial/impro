@@ -1,4 +1,4 @@
-import { registerPlugin, Capacitor } from "/js/lib/capacitor.js";
+import { Capacitor } from "/js/lib/capacitor.js";
 
 // IOS only for now, because I couldn't get a custom capacitor plugin to work
 

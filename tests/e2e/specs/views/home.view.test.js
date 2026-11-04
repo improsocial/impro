@@ -8,7 +8,6 @@ import {
   createPost,
   createFeedItem,
 } from "../../../shared/factories.js";
-import { userProfile } from "../../testData.js";
 
 test.describe("Home view", () => {
   test("should display Following tab and feed posts", async ({ page }) => {
@@ -643,7 +642,9 @@ test.describe("Home view", () => {
     await expect(
       view.locator('.feed-container [data-testid="post-skeleton"]').first(),
     ).toBeVisible({ timeout: 10000 });
-    await expect(view.locator('[data-testid="tab-bar-skeleton"]')).toBeVisible();
+    await expect(
+      view.locator('[data-testid="tab-bar-skeleton"]'),
+    ).toBeVisible();
     await expect(view.locator('[data-testid="tab-following"]')).toHaveCount(0);
 
     await expect(view.locator('[data-testid="tab-following"]')).toBeVisible({

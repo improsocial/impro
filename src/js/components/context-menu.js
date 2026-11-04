@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames, isMobileViewport } from "/js/utils.js";
-import { Component, getChildrenFragment } from "/js/components/component.js";
+import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";

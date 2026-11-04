@@ -6,11 +6,7 @@ import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
-import {
-  linkToProfile,
-  linkToProfileByDid,
-  linkToStarterPack,
-} from "/js/navigation.js";
+import { linkToProfile, linkToProfileByDid } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import {
   bindToPage,

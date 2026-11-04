@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   PluginService,
@@ -2232,7 +2232,6 @@ describe("getBacklinks host method", () => {
   const SOURCE = "app.bsky.graph.listitem:list";
 
   function makeServiceWithStubbedConstellation() {
-    const { provider } = makeProvider();
     const calls = [];
     const constellation = {
       getLinks: async (args) => {

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { wait, raf } from "/js/utils.js";
+import { raf } from "/js/utils.js";
 import "/js/components/app-icon.js";
 
 const TOAST_GAP_PX = 8;

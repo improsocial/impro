@@ -3,7 +3,6 @@ import {
   getLabelerForLabel,
   getDefinitionForLabel,
   isBadgeLabel,
-  getLabelNameAndDescription,
   getGlobalLabelDefinition,
   getDefaultLabelSetting,
   isGlobalLabel,
