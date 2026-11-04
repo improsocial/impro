@@ -570,7 +570,7 @@ export function postActionBarTemplate({
       <div class="post-actions-secondary">
         ${pluginService
           ? html`<plugin-slot
-              name="post-action-bar"
+              name="post-action-bar:secondary-start"
               context-uri=${post.uri}
               context-feed-uri=${feedGenerator?.uri ?? ""}
               .pluginService=${pluginService}
@@ -650,6 +650,14 @@ export function postActionBarTemplate({
             <span class="text-button-text">...</span>
           </button>
         </div>
+        ${pluginService
+          ? html`<plugin-slot
+              name="post-action-bar:secondary-end"
+              context-uri=${post.uri}
+              context-feed-uri=${feedGenerator?.uri ?? ""}
+              .pluginService=${pluginService}
+            ></plugin-slot>`
+          : ""}
       </div>
     </div>
   `;
