@@ -4,8 +4,7 @@ import { userProfile } from "./testData.js";
 // Hold the pointer down on an element long enough to trigger a long-press
 // (the app uses a 500ms threshold).
 export async function longPress(page, locator) {
-  const box = await locator.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.hover();
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();

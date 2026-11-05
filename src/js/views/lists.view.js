@@ -43,7 +43,7 @@ export default async function listsView({
             <button
               class="rounded-button rounded-button-secondary new-list-button"
               data-testid="new-list-button"
-              @click=${() => handleClickNew({ currentUser })}
+              @click=${() => handleClickNew()}
             >
               + New
             </button>
@@ -69,11 +69,12 @@ export default async function listsView({
     loadLists({ reload: true });
   }
 
-  async function handleClickNew({ currentUser }) {
+  async function handleClickNew() {
     const dialog = document.createElement("create-list-dialog");
     dialog.addEventListener("list-create", async (event) => {
       const { listData, successCallback, errorCallback } = event.detail;
       try {
+        const currentUser = await dataLayer.declarative.ensureCurrentUser();
         const list = await dataLayer.mutations.createList(listData);
         showToast("List created");
         successCallback();

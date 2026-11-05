@@ -123,6 +123,7 @@ export class MockServer {
     this.searchHistory = null;
     // Seeded/captured app.bsky.actor.defs#threadViewPref; null means absent.
     this.threadViewPref = null;
+    this.getProfileDelayMs = 0;
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
     this.getFeedGeneratorDelayMs = 0;
@@ -456,6 +457,10 @@ export class MockServer {
 
   setBlobUploadDelay(delayMs) {
     this.blobUploadDelayMs = delayMs;
+  }
+
+  setGetProfileDelay(delayMs) {
+    this.getProfileDelayMs = delayMs;
   }
 
   setNotificationsDelay(delayMs) {
@@ -875,6 +880,20 @@ export class MockServer {
       this.authorFeeds.set(noRepliesKey, [post, ...existingNoReplies]);
     }
     return post;
+  }
+
+  // An in-app path opened in a new tab boots the app in a separate page that
+  // this server's page-level routes don't cover, so serve it a blank document.
+  async stubNewTabDocument(page, pathname) {
+    await page.context().route(
+      (url) => url.pathname === pathname,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: "<!doctype html><html><body></body></html>",
+        }),
+    );
   }
 
   async setup(page, { welcomeModalSeen = true } = {}) {
@@ -2044,7 +2063,12 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", async (route) => {
+      if (this.getProfileDelayMs > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.getProfileDelayMs),
+        );
+      }
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
       const profile = this.profiles.get(actor) || userProfile;

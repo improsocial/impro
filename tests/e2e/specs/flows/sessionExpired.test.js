@@ -58,10 +58,15 @@ test.describe("Session expiry flow", () => {
     await expect(
       page.locator('[data-testid="footer-nav-profile"]'),
     ).toBeVisible({ timeout: 10000 });
-    const session = await page.evaluate(
-      (did) => JSON.parse(localStorage.getItem("oauth_session:" + did)),
-      userProfile.did,
-    );
-    expect(session.accessToken).toBe("mock-access-token-refreshed");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (did) =>
+            JSON.parse(localStorage.getItem("oauth_session:" + did))
+              .accessToken,
+          userProfile.did,
+        ),
+      )
+      .toBe("mock-access-token-refreshed");
   });
 });

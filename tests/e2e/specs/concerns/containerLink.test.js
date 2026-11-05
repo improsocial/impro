@@ -22,6 +22,7 @@ async function setupFollowersList(page) {
   mockServer.addProfile(alice);
   mockServer.addProfileFollowers(profileUser.did, [alice]);
   await mockServer.setup(page);
+  await mockServer.stubNewTabDocument(page, `/profile/${alice.handle}`);
 
   await login(page);
   await page.goto(`/profile/${profileUser.did}/followers`);
@@ -59,9 +60,8 @@ test.describe("container-link", () => {
       .first()
       .click({ button: "middle" });
     const newPage = await newPagePromise;
-    await newPage.waitForLoadState("domcontentloaded");
 
-    expect(newPage.url()).toContain(`/profile/${alice.handle}`);
+    await expect(newPage).toHaveURL(new RegExp(`/profile/${alice.handle}`));
     // The original page stays on the followers list
     await expect(page).toHaveURL(startUrl);
     await newPage.close();
