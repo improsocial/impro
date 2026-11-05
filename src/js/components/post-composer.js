@@ -968,7 +968,7 @@ class PostComposer extends Component {
                   ? html`<div class="post-composer-interaction-settings-row">
                       <button
                         type="button"
-                        class="composer-interaction-settings-button rounded-button rounded-button-secondary"
+                        class="composer-interaction-settings-button rounded-button"
                         data-testid="composer-interaction-settings"
                         data-teststate=${isInteractionLimited
                           ? "limited"

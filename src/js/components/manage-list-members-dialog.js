@@ -12,11 +12,9 @@ const MAX_MEMBER_PAGES = 6;
 
 function toggleButtonTemplate({ profile, isMember, isPending, onToggle }) {
   return html`<button
-    class=${classnames(
-      "rounded-button",
-      "manage-list-members-toggle",
-      isMember ? "rounded-button-secondary" : "rounded-button-primary",
-    )}
+    class=${classnames("rounded-button", "manage-list-members-toggle", {
+      "rounded-button-primary": !isMember,
+    })}
     data-testid="manage-list-members-toggle"
     data-teststate=${isMember ? "member" : "not-member"}
     ?disabled=${isPending}

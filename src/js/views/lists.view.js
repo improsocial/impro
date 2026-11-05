@@ -41,7 +41,7 @@ export default async function listsView({
           title: "Lists",
           rightItemTemplate: () => html`
             <button
-              class="rounded-button rounded-button-secondary new-list-button"
+              class="rounded-button new-list-button"
               data-testid="new-list-button"
               @click=${() => handleClickNew()}
             >

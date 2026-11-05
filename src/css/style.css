@@ -165,6 +165,10 @@ html {
     var(--lighter-gray),
     var(--light-gray)
   );
+  --outline-button-border-color: light-dark(
+    var(--lighter-gray),
+    var(--light-gray)
+  );
   --fab-color: var(--highlight-color);
   --fab-icon-color: var(--white);
   --back-button-hover-color: var(--post-hover-color);
@@ -694,11 +698,11 @@ plugin-slot {
   gap: 8px;
   padding: 8px 15px;
   border-radius: var(--pill-button-border-radius);
-  border: none;
+  border: 1px solid var(--outline-button-border-color);
   cursor: pointer;
   font-size: 14px;
   transition: background-color 0.2s;
-  background-color: var(--secondary-button-color);
+  background-color: transparent;
 }
 
 .rounded-button app-icon[icon="plus-line"] {
@@ -710,6 +714,12 @@ plugin-slot {
   border-left-color: transparent;
   border-right-color: transparent;
   border-bottom-color: transparent;
+}
+
+.rounded-button.rounded-button-primary,
+.rounded-button.rounded-button-highlight,
+.rounded-button.rounded-button-secondary-inverted {
+  border-color: transparent;
 }
 
 .rounded-button.rounded-button-primary {
@@ -741,7 +751,7 @@ plugin-slot {
 
 @media (hover: hover) {
   .rounded-button:not(:disabled):hover {
-    background-color: var(--secondary-button-hover-color);
+    background-color: var(--secondary-button-color);
   }
 
   .rounded-button.rounded-button-primary:not(:disabled):hover {
@@ -761,11 +771,11 @@ plugin-slot {
   }
 }
 
-.rounded-button.bell-button {
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.rounded-button.bell-button,
+.rounded-button.chat-button,
+.rounded-button.ellipsis-button {
+  width: var(--profile-action-button-size);
+  padding: 0;
 }
 
 .rounded-button.bell-button app-icon {
@@ -773,21 +783,9 @@ plugin-slot {
   height: 20px;
 }
 
-.rounded-button.chat-button {
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .rounded-button.chat-button app-icon {
   width: 20px;
   height: 20px;
-}
-
-.rounded-button.ellipsis-button {
-  padding-left: 10px;
-  padding-right: 10px;
 }
 
 .rounded-button.ellipsis-button span {
@@ -4711,9 +4709,11 @@ image-carousel {
 .chat-info-panel-action-skeleton {
   width: 90px;
   height: 34px;
+  border-color: transparent;
 }
 
 .chat-info-panel-action.muted {
+  border-color: transparent;
   color: var(--error-color);
   background-color: color-mix(in srgb, var(--error-color) 12%, transparent);
 }
@@ -6092,9 +6092,11 @@ emoji-picker-dialog emoji-picker,
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
+  --profile-action-button-size: 34px;
 }
 
 .profile-top-row .rounded-button {
+  height: var(--profile-action-button-size);
   margin-left: 4px;
 }
 
@@ -6492,6 +6494,7 @@ button.profile-list-item-button.is-disabled {
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 600;
+  border: none;
   background-color: transparent;
   color: var(--text-color-muted);
 }
@@ -8850,7 +8853,7 @@ context-menu-item-group > context-menu-item > button {
 .modal-dialog-button {
   padding: 12px 20px;
   border-radius: var(--pill-button-border-radius);
-  border: none;
+  border: 1px solid var(--outline-button-border-color);
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
@@ -8858,13 +8861,19 @@ context-menu-item-group > context-menu-item > button {
   text-decoration: none;
   display: inline-block;
   text-align: center;
-  background-color: var(--secondary-button-color);
+  background-color: transparent;
 }
 
 @media (hover: hover) {
   .modal-dialog-button:hover {
-    background-color: var(--secondary-button-hover-color);
+    background-color: var(--secondary-button-color);
   }
+}
+
+.modal-dialog-button.primary-button,
+.modal-dialog-button.danger-button,
+.modal-dialog-button.danger-subtle-button {
+  border-color: transparent;
 }
 
 .modal-dialog-button.primary-button {
