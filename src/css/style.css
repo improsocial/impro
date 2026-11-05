@@ -2951,6 +2951,10 @@ animated-button {
   margin-top: 12px;
 }
 
+.large-post .post-body > .post-embed:first-child > * {
+  margin-top: 0;
+}
+
 .post-embed > * {
   margin-top: 8px;
 }
