@@ -1,5 +1,10 @@
 import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
+import {
+  login,
+  stubShareSheet,
+  disableShareSheet,
+  getSharedData,
+} from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createFeedGenerator, createPost } from "../../../shared/factories.js";
 
@@ -292,6 +297,7 @@ test.describe("Feed Detail view", () => {
     });
     mockServer.addFeedGenerators([feed]);
     await mockServer.setup(page);
+    await disableShareSheet(page);
 
     await login(page);
     await page.goto("/profile/creator1.bsky.social/feed/trending");
@@ -369,6 +375,63 @@ test.describe("Feed Detail view", () => {
     await view.locator('[data-testid="menu-action-feed-copy-link"]').click();
 
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+  });
+
+  test("should share the link via the share sheet", async ({ page }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+    await stubShareSheet(page);
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    await expect(view.locator(".context-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".context-menu-button").click();
+    await view.locator('[data-testid="menu-action-feed-share-via"]').click();
+
+    await expect
+      .poll(() => getSharedData(page))
+      .toEqual([
+        { url: "https://bsky.app/profile/creator1.bsky.social/feed/trending" },
+      ]);
+  });
+
+  test("should hide 'Share via...' when the share sheet is unavailable", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+    await disableShareSheet(page);
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    await expect(view.locator(".context-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".context-menu-button").click();
+    await expect(
+      view.locator('[data-testid="menu-action-feed-copy-link"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="menu-action-feed-share-via"]'),
+    ).toHaveCount(0);
   });
 
   test.describe("Logged-out behavior", () => {

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
-import { classnames } from "/js/utils.js";
+import { classnames, canShareUrl, shareUrl } from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
@@ -117,6 +117,17 @@ export default async function feedDetailView({
                   >
                     Open in bsky.app
                   </context-menu-item>
+                  ${canShareUrl()
+                    ? html`
+                        <context-menu-item
+                          data-testid="menu-action-feed-share-via"
+                          icon="share-up-line"
+                          @click=${() => shareUrl(feedLink)}
+                        >
+                          Share via...
+                        </context-menu-item>
+                      `
+                    : null}
                   <context-menu-item
                     data-testid="menu-action-feed-copy-link"
                     icon="link-line"

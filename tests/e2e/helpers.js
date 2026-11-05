@@ -85,3 +85,26 @@ export async function loginWithAccounts(page, accounts) {
     { accountsArg: accounts, scopeArg: OAUTH_SCOPES },
   );
 }
+
+// Replace the Web Share API with a recorder; read calls via getSharedData.
+export async function stubShareSheet(page) {
+  await page.addInitScript(() => {
+    window.__sharedData = [];
+    Object.defineProperty(Navigator.prototype, "share", {
+      value: async (data) => {
+        window.__sharedData.push(data);
+      },
+      configurable: true,
+    });
+  });
+}
+
+export async function disableShareSheet(page) {
+  await page.addInitScript(() => {
+    delete Navigator.prototype.share;
+  });
+}
+
+export async function getSharedData(page) {
+  return page.evaluate(() => window.__sharedData);
+}

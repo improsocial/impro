@@ -13,7 +13,12 @@ import {
   getPermalinkForStarterPack,
 } from "/js/navigation.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
-import { TabScrollMemory, StickyFixer } from "/js/utils.js";
+import {
+  TabScrollMemory,
+  StickyFixer,
+  canShareUrl,
+  shareUrl,
+} from "/js/utils.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
@@ -71,6 +76,17 @@ function headerMenuTemplate({
         >
           Open in bsky.app
         </context-menu-item>
+        ${canShareUrl()
+          ? html`
+              <context-menu-item
+                data-testid="menu-action-starter-pack-share-via"
+                icon="share-up-line"
+                @click=${() => shareUrl(permalink)}
+              >
+                Share via...
+              </context-menu-item>
+            `
+          : null}
         <context-menu-item
           data-testid="menu-action-starter-pack-copy-link"
           icon="link-line"

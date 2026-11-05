@@ -1,5 +1,10 @@
 import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
+import {
+  login,
+  stubShareSheet,
+  disableShareSheet,
+  getSharedData,
+} from "../../helpers.js";
 import { MockServer, MockConstellation } from "../../mockServer.js";
 import {
   createList,
@@ -328,6 +333,53 @@ test.describe("List Detail view", () => {
     await expect(
       menu.locator('[data-testid="menu-action-list-copy-link"]'),
     ).toBeVisible();
+  });
+
+  test("should share the link via the share sheet", async ({ page }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+    await stubShareSheet(page);
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(view.locator(".context-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".context-menu-button").click();
+    await view.locator('[data-testid="menu-action-list-share-via"]').click();
+
+    await expect
+      .poll(() => getSharedData(page))
+      .toEqual([
+        { url: "https://bsky.app/profile/creator1.bsky.social/lists/mylist" },
+      ]);
+  });
+
+  test("should hide 'Share via...' when the share sheet is unavailable", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+    await disableShareSheet(page);
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(view.locator(".context-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".context-menu-button").click();
+    await expect(
+      view.locator('[data-testid="menu-action-list-copy-link"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="menu-action-list-share-via"]'),
+    ).toHaveCount(0);
   });
 
   test("should open bsky.app link when 'Open in bsky.app' is clicked", async ({

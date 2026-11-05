@@ -1,5 +1,10 @@
 import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
+import {
+  login,
+  stubShareSheet,
+  disableShareSheet,
+  getSharedData,
+} from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { userProfile } from "../../testData.js";
 import {
@@ -390,6 +395,47 @@ test.describe("Starter Pack Detail view", () => {
           "https://bsky.app/starter-pack/creator1.bsky.social/coolpack",
         );
       }
+    });
+
+    test("should share the link via the share sheet", async ({ page }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      await mockServer.setup(page);
+      await stubShareSheet(page);
+      const view = await openPack(page);
+
+      await view.locator(".context-menu-button").click();
+      await view
+        .locator('[data-testid="menu-action-starter-pack-share-via"]')
+        .click();
+
+      await expect
+        .poll(() => getSharedData(page))
+        .toEqual([
+          {
+            url: "https://bsky.app/starter-pack/creator1.bsky.social/coolpack",
+          },
+        ]);
+    });
+
+    test("should hide 'Share via...' when the share sheet is unavailable", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupPack(mockServer);
+      setupMembers(mockServer);
+      await mockServer.setup(page);
+      await disableShareSheet(page);
+      const view = await openPack(page);
+
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-starter-pack-share-via"]'),
+      ).toHaveCount(0);
     });
   });
 

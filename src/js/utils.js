@@ -1472,3 +1472,17 @@ export function formatDuration(minutes) {
   if (mins > 0) parts.push(`${mins} ${mins === 1 ? "minute" : "minutes"}`);
   return parts.join(" ") || "0 minutes";
 }
+
+export function canShareUrl() {
+  return typeof navigator.share === "function";
+}
+
+export async function shareUrl(url) {
+  try {
+    await navigator.share({ url });
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      console.warn("Failed to open share sheet", error);
+    }
+  }
+}

@@ -10,6 +10,8 @@ import {
   isAndroid,
   isFirefox,
   isNil,
+  canShareUrl,
+  shareUrl,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
@@ -338,25 +340,38 @@ async function openPostContextMenu(event, props) {
 
 function shareMenuTemplate({ post }) {
   return html`
-    <context-menu-item
-      data-testid="menu-action-post-open-in-bsky"
-      icon="open-line"
-      @click=${() => {
-        window.open(getBlueskyLinkForPost(post), "_blank");
-      }}
-    >
-      Open in bsky.app
-    </context-menu-item>
-    <context-menu-item
-      data-testid="menu-action-post-copy-link"
-      icon="link-line"
-      @click=${() => {
-        navigator.clipboard.writeText(getPermalinkForPost(post));
-        showToast("Link copied to clipboard", { style: "success" });
-      }}
-    >
-      Copy link to post
-    </context-menu-item>
+    <context-menu-item-group>
+      <context-menu-item
+        data-testid="menu-action-post-open-in-bsky"
+        icon="open-line"
+        @click=${() => {
+          window.open(getBlueskyLinkForPost(post), "_blank");
+        }}
+      >
+        Open in bsky.app
+      </context-menu-item>
+      ${canShareUrl()
+        ? html`
+            <context-menu-item
+              data-testid="menu-action-post-share-via"
+              icon="share-up-line"
+              @click=${() => shareUrl(getPermalinkForPost(post))}
+            >
+              Share via...
+            </context-menu-item>
+          `
+        : null}
+      <context-menu-item
+        data-testid="menu-action-post-copy-link"
+        icon="link-line"
+        @click=${() => {
+          navigator.clipboard.writeText(getPermalinkForPost(post));
+          showToast("Link copied to clipboard", { style: "success" });
+        }}
+      >
+        Copy link to post
+      </context-menu-item>
+    </context-menu-item-group>
   `;
 }
 

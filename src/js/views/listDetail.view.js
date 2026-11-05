@@ -1,7 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
+import {
+  classnames,
+  TabScrollMemory,
+  StickyFixer,
+  canShareUrl,
+  shareUrl,
+} from "/js/utils.js";
 import {
   cdnImageUrl,
   isCurateList,
@@ -202,6 +208,17 @@ export default async function listDetailView({
                     >
                       Open in bsky.app
                     </context-menu-item>
+                    ${canShareUrl()
+                      ? html`
+                          <context-menu-item
+                            data-testid="menu-action-list-share-via"
+                            icon="share-up-line"
+                            @click=${() => shareUrl(listPermalink)}
+                          >
+                            Share via...
+                          </context-menu-item>
+                        `
+                      : null}
                     <context-menu-item
                       data-testid="menu-action-list-copy-link"
                       icon="link-line"

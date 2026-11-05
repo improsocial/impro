@@ -1,7 +1,8 @@
-import { describe, it, afterEach } from "node:test";
+import { describe, it, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { render } from "/js/lib/lit-html.js";
+import { getPermalinkForProfile } from "/js/navigation.js";
 
 const mockProfile = {
   displayName: "Test User",
@@ -1083,6 +1084,58 @@ describe("profileCardTemplate - labelerInfo parameter", () => {
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
       "subscribed",
+    );
+  });
+});
+
+describe("profileCardTemplate - share via", () => {
+  afterEach(() => {
+    delete window.navigator.share;
+    document.body.querySelector(".profile-context-menu")?.remove();
+    document.body
+      .querySelectorAll(".page-visible")
+      .forEach((element) => element.remove());
+  });
+
+  async function openProfileMenu() {
+    const container = document.createElement("div");
+    container.classList.add("page-visible");
+    document.body.appendChild(container);
+    render(
+      profileCardTemplate({
+        profile: mockProfile,
+        isAuthenticated: true,
+        isCurrentUser: false,
+      }),
+      container,
+    );
+    container.querySelector(".ellipsis-button").click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return document.body.querySelector(".profile-context-menu");
+  }
+
+  it("should open the share sheet with the profile permalink", async () => {
+    const share = mock.fn(async () => {});
+    Object.defineProperty(window.navigator, "share", {
+      value: share,
+      configurable: true,
+    });
+    const menu = await openProfileMenu();
+    menu.querySelector('[data-testid="menu-action-profile-share-via"]').click();
+    assert.deepEqual(share.mock.calls[0].arguments, [
+      { url: getPermalinkForProfile(mockProfile) },
+    ]);
+  });
+
+  it("should not render the share via item when the share sheet is unavailable", async () => {
+    const menu = await openProfileMenu();
+    assert(
+      menu.querySelector('[data-testid="menu-action-profile-share-via"]') ===
+        null,
+    );
+    assert(
+      menu.querySelector('[data-testid="menu-action-profile-copy-link"]') !==
+        null,
     );
   });
 });

@@ -1003,6 +1003,50 @@ describe("postActionBarTemplate - share menu", () => {
     container.remove();
   });
 
+  describe("share via", () => {
+    let shareCalls;
+
+    beforeEach(() => {
+      shareCalls = [];
+    });
+
+    afterEach(() => {
+      delete window.navigator.share;
+    });
+
+    it("should open the share sheet with the post permalink", async () => {
+      Object.defineProperty(window.navigator, "share", {
+        value: async (data) => shareCalls.push(data),
+        configurable: true,
+      });
+      const container = renderActionBar();
+      const menu = openShareMenu(container);
+      menu
+        .querySelector('[data-testid="menu-action-post-share-via"]')
+        .click();
+      assert.deepEqual(shareCalls, [
+        {
+          url: "https://bsky.app/profile/testauthor.bsky.social/post/3testpost2k",
+        },
+      ]);
+      container.remove();
+    });
+
+    it("should not render the share via item when the share sheet is unavailable", () => {
+      const container = renderActionBar();
+      const menu = openShareMenu(container);
+      assert(
+        menu.querySelector('[data-testid="menu-action-post-share-via"]') ===
+          null,
+      );
+      assert(
+        menu.querySelector('[data-testid="menu-action-post-copy-link"]') !==
+          null,
+      );
+      container.remove();
+    });
+  });
+
   it("should not render the share items in the more menu", async () => {
     const container = renderActionBar();
     const menu = await openMoreMenu(container);
