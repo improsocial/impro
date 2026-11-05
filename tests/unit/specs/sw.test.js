@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -134,25 +134,42 @@ describe("service worker push", () => {
     assert.equal(self.registration.showNotification.mock.callCount(), 0);
   });
 
-  it("notifies when the focused window never answers", async () => {
-    const frozen = createWindowClient(`${ORIGIN}/`);
-    frozen.focused = true;
-    const { listeners, self } = loadServiceWorker({ clients: [frozen] });
+  describe("with fake timers", () => {
+    beforeEach(() => {
+      mock.timers.enable({ apis: ["setTimeout"] });
+    });
 
-    await receivePush(listeners, payload);
+    afterEach(() => {
+      mock.timers.reset();
+    });
 
-    assert.deepEqual(
-      self.registration.showNotification.mock.calls[0].arguments,
-      [
-        payload.title,
-        {
-          body: payload.body,
-          tag: payload.tag,
-          icon: "/img/impro-logo-192.png",
-          data: { url: payload.url },
-        },
-      ],
-    );
+    it("notifies when the focused window never answers", async () => {
+      const frozen = createWindowClient(`${ORIGIN}/`);
+      frozen.focused = true;
+      const messaged = new Promise((resolve) => {
+        frozen.postMessage = mock.fn(resolve);
+      });
+      const { listeners, self } = loadServiceWorker({ clients: [frozen] });
+
+      const pushHandled = receivePush(listeners, payload);
+      await messaged;
+      assert.equal(self.registration.showNotification.mock.callCount(), 0);
+      mock.timers.tick(1000);
+      await pushHandled;
+
+      assert.deepEqual(
+        self.registration.showNotification.mock.calls[0].arguments,
+        [
+          payload.title,
+          {
+            body: payload.body,
+            tag: payload.tag,
+            icon: "/img/impro-logo-192.png",
+            data: { url: payload.url },
+          },
+        ],
+      );
+    });
   });
 
   it("notifies when no window is focused", async () => {

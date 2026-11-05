@@ -1908,7 +1908,6 @@ class PostComposer extends Component {
             };
           }),
           replyTo: this.replyTo,
-          replyRoot: this.replyRoot,
           langs: untrack(() => this._getCurrentPostLanguages()),
           threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
           postgateEmbeddingRules: untrack(() =>

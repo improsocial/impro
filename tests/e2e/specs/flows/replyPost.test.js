@@ -122,4 +122,64 @@ test.describe("Reply flow", () => {
       timeout: 10000,
     });
   });
+
+  test("should open the composer from a feed post's reply button without leaving the feed", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const rootPost = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/root1",
+      text: "Thread root",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    const feedPost = createPost({
+      uri: "at://did:plc:author2/app.bsky.feed.post/reply1",
+      text: "A reply in the feed",
+      authorHandle: "author2.bsky.social",
+      authorDisplayName: "Author Two",
+      reply: {
+        root: { uri: rootPost.uri, cid: rootPost.cid },
+        parent: { uri: rootPost.uri, cid: rootPost.cid },
+      },
+    });
+    mockServer.addPosts([rootPost, feedPost]);
+    mockServer.addTimelinePosts([feedPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const feedItem = view.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator('[data-testid="reply-button"]').click();
+
+    const composer = page.locator("post-composer");
+    await expect(composer.locator("dialog.post-composer")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL("/");
+    await expect(composer).toContainText("A reply in the feed");
+
+    await composer
+      .locator("rich-text-input [contenteditable]")
+      .fill("Replying from the feed");
+    await composer.locator('[data-testid="composer-submit-button"]').click();
+
+    await expect(composer.locator("dialog.post-composer")).not.toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL("/");
+
+    const createdPost = mockServer.applyWritesCalls
+      .flat()
+      .find((write) => write.collection === "app.bsky.feed.post");
+    expect(createdPost.value.text).toBe("Replying from the feed");
+    expect(createdPost.value.reply).toEqual({
+      root: { uri: rootPost.uri, cid: rootPost.cid },
+      parent: { uri: feedPost.uri, cid: feedPost.cid },
+    });
+  });
 });

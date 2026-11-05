@@ -203,25 +203,35 @@ describe("edit-profile-dialog", () => {
   });
 
   describe("EditProfileDialog - character counts", () => {
+    function charCountForField(element, testId) {
+      return element
+        .querySelector(`[data-testid="${testId}"]`)
+        .closest(".form-dialog-field")
+        .querySelector(".form-dialog-char-count");
+    }
+
     it("should show character count for display name", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCount = element.querySelectorAll(".form-dialog-char-count")[0];
-      assert(charCount !== null, "Char count should be rendered");
-      assert(charCount.textContent.includes("/64"), "Should show max of 64");
+      const charCount = charCountForField(element, "edit-profile-display-name");
+      assert.equal(charCount.textContent.trim(), "9/64");
+    });
+
+    it("should show character count for pronouns", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      const charCount = charCountForField(element, "edit-profile-pronouns");
+      assert.equal(charCount.textContent.trim(), "0/20");
     });
 
     it("should show character count for description", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCounts = element.querySelectorAll(".form-dialog-char-count");
-      assert(charCounts.length >= 2, "Should have at least 2 char counts");
-      assert(
-        charCounts[1].textContent.includes("/256"),
-        "Should show max of 256",
-      );
+      const charCount = charCountForField(element, "edit-profile-description");
+      assert.equal(charCount.textContent.trim(), "10/256");
     });
   });
 
