@@ -160,6 +160,7 @@ html {
     transparent
   );
   --highlight-button-text-color: var(--white);
+  --danger-button-text-color: var(--white);
   --secondary-button-color: light-dark(var(--lightest-gray), var(--gray));
   --secondary-button-hover-color: light-dark(
     var(--lighter-gray),
@@ -8883,7 +8884,7 @@ context-menu-item-group > context-menu-item > button {
 
 .modal-dialog-button.danger-button {
   background-color: var(--error-color);
-  color: var(--primary-button-text-color);
+  color: var(--danger-button-text-color);
 }
 
 .modal-dialog-button.danger-subtle-button {
@@ -8933,9 +8934,12 @@ context-menu-item-group > context-menu-item > button {
   border-bottom-color: transparent;
 }
 
-.modal-dialog-button.primary-button .loading-spinner,
-.modal-dialog-button.danger-button .loading-spinner {
+.modal-dialog-button.primary-button .loading-spinner {
   border-top-color: var(--primary-button-text-color);
+}
+
+.modal-dialog-button.danger-button .loading-spinner {
+  border-top-color: var(--danger-button-text-color);
 }
 
 .modal-dialog-button.danger-subtle-button .loading-spinner {
