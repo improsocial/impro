@@ -28,7 +28,7 @@ body,
 
 @media (min-width: 800px) {
   :focus-visible {
-    outline: 2px solid var(--primary-button-color);
+    outline: 2px solid var(--highlight-color);
     outline-offset: 2px;
   }
 }
@@ -3710,7 +3710,7 @@ image-carousel {
 }
 
 .carousel-slide:focus-visible {
-  outline: 2px solid var(--primary-button-color);
+  outline: 2px solid var(--highlight-color);
   outline-offset: 2px;
 }
 
@@ -12082,7 +12082,7 @@ tab-bar[full-width] .tab-bar-button {
 
 .form-dialog-save-button:enabled,
 .form-dialog-save-button.saving {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
 }
 
 .form-dialog-save-button {
@@ -12092,7 +12092,7 @@ tab-bar[full-width] .tab-bar-button {
 }
 
 .form-dialog-save-button .loading-spinner {
-  border-top-color: var(--primary-button-color);
+  border-top-color: var(--text-link-color);
 }
 
 .form-dialog-body {
@@ -12381,7 +12381,7 @@ image-cropper {
   height: 40px;
   border-radius: 50%;
   background: var(--background-color);
-  color: var(--primary-button-color);
+  color: var(--highlight-color);
   flex-shrink: 0;
 }
 
@@ -12604,7 +12604,7 @@ a.plugin-list-item-info {
 }
 
 .plugin-listing-meta a {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
   text-decoration: none;
   word-break: break-all;
 }
@@ -12700,7 +12700,7 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
 }
 
 #community-plugin-listing-view rendered-markdown a {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
 }
 
 #community-plugin-listing-view rendered-markdown img {
