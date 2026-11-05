@@ -334,28 +334,6 @@ class EditProfileDialog extends Component {
                 </div>
 
                 <div class="form-dialog-field">
-                  <label for="edit-profile-description">Description</label>
-                  <textarea
-                    id="edit-profile-description"
-                    class="form-dialog-textarea"
-                    .value=${this._description}
-                    @input=${(event) => {
-                      this._description = event.target.value;
-                      this.render();
-                    }}
-                    rows="4"
-                    data-testid="edit-profile-description"
-                  ></textarea>
-                  <div
-                    class=${classnames("form-dialog-char-count", {
-                      overflow: this._isDescriptionTooLong,
-                    })}
-                  >
-                    ${descriptionCount}/${MAX_DESCRIPTION_LENGTH}
-                  </div>
-                </div>
-
-                <div class="form-dialog-field">
                   <label for="edit-profile-pronouns">Pronouns</label>
                   <input
                     id="edit-profile-pronouns"
@@ -375,6 +353,28 @@ class EditProfileDialog extends Component {
                     })}
                   >
                     ${pronounsCount}/${MAX_PRONOUNS_LENGTH}
+                  </div>
+                </div>
+
+                <div class="form-dialog-field">
+                  <label for="edit-profile-description">Description</label>
+                  <textarea
+                    id="edit-profile-description"
+                    class="form-dialog-textarea"
+                    .value=${this._description}
+                    @input=${(event) => {
+                      this._description = event.target.value;
+                      this.render();
+                    }}
+                    rows="4"
+                    data-testid="edit-profile-description"
+                  ></textarea>
+                  <div
+                    class=${classnames("form-dialog-char-count", {
+                      overflow: this._isDescriptionTooLong,
+                    })}
+                  >
+                    ${descriptionCount}/${MAX_DESCRIPTION_LENGTH}
                   </div>
                 </div>
 

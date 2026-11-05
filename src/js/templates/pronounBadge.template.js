@@ -8,7 +8,7 @@ export function pronounBadgeTemplate({ profile }) {
     return "";
   }
   return html`<button
-    class="profile-tag pronoun-badge"
+    class="pronoun-badge"
     data-testid="pronoun-badge"
     title="Pronouns"
     @click=${(event) => {
