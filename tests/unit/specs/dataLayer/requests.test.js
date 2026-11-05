@@ -1844,6 +1844,38 @@ describe("loadNotifications", () => {
     assert.deepEqual(stored.cursor, "fresh");
   });
 
+  it("should tag each notification with the cursor of the page it came from", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const pages = {
+      "": { notifications: [{ reason: "like", uri: "n1" }], cursor: "page2" },
+      page2: { notifications: [{ reason: "like", uri: "n2" }], cursor: "" },
+    };
+    const mockApi = {
+      getNotifications: async ({ cursor }) => ({
+        ...pages[cursor],
+        notifications: pages[cursor].notifications.map((notification) => ({
+          ...notification,
+          author: { did: "did:plc:liker" },
+        })),
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications({ reload: true });
+    await requests.loadNotifications();
+
+    assert.deepEqual(
+      dataStore.$notifications
+        .get()
+        .notifications.map(({ uri, pageCursor }) => ({ uri, pageCursor })),
+      [
+        { uri: "n1", pageCursor: "" },
+        { uri: "n2", pageCursor: "page2" },
+      ],
+    );
+  });
+
   it("should capture seenAt on first load", async () => {
     const dataStore = new DataStore(createSessionState(null));
     const mockApi = {

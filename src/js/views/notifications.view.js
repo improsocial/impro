@@ -7,12 +7,12 @@ import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import {
   formatRelativeTime,
-  batch,
   unique,
   TabScrollMemory,
   StickyFixer,
   classnames,
   getCurrentTimestamp,
+  groupBy,
 } from "/js/utils.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import {
@@ -227,7 +227,7 @@ export default async function notificationsView({
     return ageDifferenceMs < NOTIFICATION_GROUP_WINDOW_HOURS * 60 * 60 * 1000;
   }
 
-  function groupNotificationsForBatch(notifications) {
+  function groupNotificationsForPage(notifications) {
     const notificationGroups = [];
 
     notifications.forEach((notification) => {
@@ -291,11 +291,13 @@ export default async function notificationsView({
       return null;
     }
     // Only group notifications per page
-    const batchedNotifications = batch(notifications, NOTIFICATIONS_PAGE_SIZE);
-    return batchedNotifications
-      .flatMap((batch) =>
-        groupNotificationsForBatch(
-          batch.filter(
+    const notificationPages = [
+      ...groupBy(notifications, "pageCursor").values(),
+    ];
+    return notificationPages
+      .flatMap((page) =>
+        groupNotificationsForPage(
+          page.filter(
             (notification) => !isUnavailableSubscribedPost(notification),
           ),
         ),

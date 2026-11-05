@@ -39,6 +39,17 @@ const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logDisableJoinLink",
 ]);
 
+// We group by page in the view, so save it along with notif objects
+function tagNotificationsWithPage(page, pageCursor) {
+  return {
+    ...page,
+    notifications: page.notifications.map((notification) => ({
+      ...notification,
+      pageCursor, // NOTE: LEXICON DEVIATION
+    })),
+  };
+}
+
 function readCollectionCursor(signal, { key } = {}) {
   const current = key === undefined ? signal.get() : signal.get(key);
   return current?.cursor ?? "";
@@ -975,10 +986,15 @@ export class Requests {
       await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
-    writePageToCollection(this.dataStore.$notifications, "notifications", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-    });
+    writePageToCollection(
+      this.dataStore.$notifications,
+      "notifications",
+      tagNotificationsWithPage(res, cursor),
+      {
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
   }
 
   async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
@@ -1003,7 +1019,7 @@ export class Requests {
     writePageToCollection(
       this.dataStore.$mentionNotifications,
       "notifications",
-      res,
+      tagNotificationsWithPage(res, cursor),
       {
         requestCursor: cursor,
         overwrite: reload,
