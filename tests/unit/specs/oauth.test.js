@@ -106,15 +106,12 @@ describe("oauth", () => {
 
   const ORIGINAL_REFRESH_BACKOFF_MS = Session.refreshBackoffMs;
 
-  const ORIGINAL_CONCURRENT_RECOVERY_MS = Session.concurrentRefreshRecoveryMs;
-
   let fakeIdb;
 
   beforeEach(() => {
     globalThis.fetch = new MockFetch();
     fakeIdb = installFakeIndexedDB();
     Session.refreshBackoffMs = 0;
-    Session.concurrentRefreshRecoveryMs = 0;
   });
 
   afterEach(() => {
@@ -122,7 +119,6 @@ describe("oauth", () => {
     delete globalThis.fetch;
     delete globalThis.indexedDB;
     Session.refreshBackoffMs = ORIGINAL_REFRESH_BACKOFF_MS;
-    Session.concurrentRefreshRecoveryMs = ORIGINAL_CONCURRENT_RECOVERY_MS;
   });
 
   describe("error classes", () => {
@@ -769,9 +765,8 @@ describe("oauth", () => {
       assert(threw.message.includes("server"));
     });
 
-    it("should adopt rotated tokens written by another tab on invalid_grant", async () => {
+    it("should not adopt tokens another tab stored when refresh fails with invalid_grant", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
-      // Simulate another tab rotating the session BEFORE this tab's refresh fires.
       globalThis.fetch.__intercept(TOKEN_URL, async () => {
         const stored = JSON.parse(
           localStorage.getItem("oauth_session:did:plc:test"),
@@ -792,19 +787,20 @@ describe("oauth", () => {
         });
       });
       globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
-      const response = await session.fetch("https://pds.example.com/xrpc/foo");
-      assert(response.ok);
-      // The follow-up PDS call should have used the adopted access token.
-      const pdsCall = globalThis.fetch.calls.find((call) =>
-        call.url.includes("/xrpc/foo"),
-      );
+      let threw = null;
+      try {
+        await session.fetch("https://pds.example.com/xrpc/foo");
+      } catch (error) {
+        threw = error;
+      }
+      assert(threw instanceof TokenRefreshError);
       assert.deepEqual(
-        pdsCall.options.headers.Authorization,
-        "DPoP rotated-at",
+        globalThis.fetch.calls.filter((call) => call.url.includes("/xrpc/foo")),
+        [],
       );
     });
 
-    it("should recognize invalid_grant returned after a DPoP nonce retry", async () => {
+    it("should throw TokenRefreshError on invalid_grant returned after a DPoP nonce retry", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
       let refreshCount = 0;
       globalThis.fetch.__intercept(TOKEN_URL, async () => {
@@ -817,18 +813,6 @@ describe("oauth", () => {
             headers: { "DPoP-Nonce": "fresh-nonce" },
           });
         }
-        const stored = JSON.parse(
-          localStorage.getItem("oauth_session:did:plc:test"),
-        );
-        localStorage.setItem(
-          "oauth_session:did:plc:test",
-          JSON.stringify({
-            ...stored,
-            accessToken: "rotated-at",
-            refreshToken: "rotated-rt",
-            expiresAt: Date.now() + 3600000,
-          }),
-        );
         return mockResponse({
           ok: false,
           status: 400,
@@ -836,19 +820,17 @@ describe("oauth", () => {
         });
       });
       globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
-      const response = await session.fetch("https://pds.example.com/xrpc/foo");
-      assert(response.ok);
+      let threw = null;
+      try {
+        await session.fetch("https://pds.example.com/xrpc/foo");
+      } catch (error) {
+        threw = error;
+      }
+      assert(threw instanceof TokenRefreshError);
       assert.deepEqual(refreshCount, 2);
-      const pdsCall = globalThis.fetch.calls.find((call) =>
-        call.url.includes("/xrpc/foo"),
-      );
-      assert.deepEqual(
-        pdsCall.options.headers.Authorization,
-        "DPoP rotated-at",
-      );
     });
 
-    it("should throw TokenRefreshError on invalid_grant when no concurrent rotation occurred", async () => {
+    it("should throw TokenRefreshError on invalid_grant", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
       globalThis.fetch.__intercept(TOKEN_URL, async () =>
         mockResponse({

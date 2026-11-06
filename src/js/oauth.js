@@ -293,7 +293,6 @@ function withRefreshLock(did, callback) {
 
 export class Session {
   static refreshBackoffMs = 500;
-  static concurrentRefreshRecoveryMs = 1000;
   static refreshTimeoutMs = 30000;
 
   constructor(sessionData, dpopRequests) {
@@ -382,21 +381,6 @@ export class Session {
           : await response.text();
         throw new Error(`Token refresh failed (server): ${body}`);
       }
-      // invalid_grant can mean another tab rotated the refresh token, so re-check storage and adopt if so
-      if (response.status === 400 && response.data?.error === "invalid_grant") {
-        if (this.adoptRotatedSession(usedRefreshToken)) {
-          logAuthEvent("oauth-refresh-adopted-rotated", { attempt: 1 });
-          return;
-        }
-        // attempt twice with delay
-        await new Promise((resolve) =>
-          setTimeout(resolve, Session.concurrentRefreshRecoveryMs),
-        );
-        if (this.adoptRotatedSession(usedRefreshToken)) {
-          logAuthEvent("oauth-refresh-adopted-rotated", { attempt: 2 });
-          return;
-        }
-      }
       const body = response.data
         ? JSON.stringify(response.data)
         : await response.text();
@@ -415,23 +399,6 @@ export class Session {
       usedToken: usedRefreshToken.slice(-6),
       newToken: newTokenResponse.refresh_token.slice(-6),
     });
-  }
-
-  adoptRotatedSession(usedRefreshToken) {
-    const stored = localStorage.getItem(
-      SESSION_KEY_PREFIX + this.sessionData.did,
-    );
-    if (!stored) return false;
-    try {
-      const data = JSON.parse(stored);
-      if (data?.refreshToken && data.refreshToken !== usedRefreshToken) {
-        this.sessionData = data;
-        return true;
-      }
-    } catch {
-      // pass
-    }
-    return false;
   }
 
   isExpiring() {
