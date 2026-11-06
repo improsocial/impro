@@ -6232,6 +6232,7 @@ emoji-picker-dialog emoji-picker,
 .pronoun-badge {
   display: inline-block;
   flex: none;
+  align-self: flex-end;
   font-size: 13px;
   max-width: 45%;
   overflow: hidden;
@@ -6249,7 +6250,7 @@ emoji-picker-dialog emoji-picker,
 .profile-name .pronoun-badge {
   font-size: 14px;
   margin-left: 6px;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 
 .profile-reposts-hidden {
