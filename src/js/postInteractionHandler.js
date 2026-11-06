@@ -349,6 +349,22 @@ export class PostInteractionHandler {
     }
   }
 
+  async handleReply(post) {
+    const currentUser = this.dataLayer.derived.$currentUser.get();
+    if (!currentUser) {
+      console.warn("handleReply: No current user");
+      return;
+    }
+    try {
+      await this.postComposerService.composePost({
+        currentUser,
+        replyTo: post,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   async handleQuotePost(post) {
     const currentUser = this.dataLayer.derived.$currentUser.get();
     if (!currentUser) {

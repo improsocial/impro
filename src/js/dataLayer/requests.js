@@ -39,6 +39,17 @@ const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logDisableJoinLink",
 ]);
 
+// We group by page in the view, so save it along with notif objects
+function tagNotificationsWithPage(page, pageCursor) {
+  return {
+    ...page,
+    notifications: page.notifications.map((notification) => ({
+      ...notification,
+      pageCursor, // NOTE: LEXICON DEVIATION
+    })),
+  };
+}
+
 function readCollectionCursor(signal, { key } = {}) {
   const current = key === undefined ? signal.get() : signal.get(key);
   return current?.cursor ?? "";
@@ -56,7 +67,7 @@ function writePageToCollection(
   const current = key === undefined ? signal.get() : signal.get(key);
   const currentCursor = current?.cursor ?? "";
   if (!overwrite && currentCursor !== (requestCursor ?? "")) {
-    console.warn("Cursor mismatch, discarding page", {
+    console.debug("Cursor mismatch, discarding page", {
       itemsKey,
       key,
       requestCursor,
@@ -225,6 +236,7 @@ export class Requests {
       (query) => "loadStarterPackSearch-" + query,
     );
     this.enableStatus(this.loadTrends, "loadTrends");
+    this.enableStatus(this.loadPinnedItems, "loadPinnedItems");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
       this.loadMentionNotifications,
@@ -974,10 +986,15 @@ export class Requests {
       await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
-    writePageToCollection(this.dataStore.$notifications, "notifications", res, {
-      requestCursor: cursor,
-      overwrite: reload,
-    });
+    writePageToCollection(
+      this.dataStore.$notifications,
+      "notifications",
+      tagNotificationsWithPage(res, cursor),
+      {
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
   }
 
   async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
@@ -1002,7 +1019,7 @@ export class Requests {
     writePageToCollection(
       this.dataStore.$mentionNotifications,
       "notifications",
-      res,
+      tagNotificationsWithPage(res, cursor),
       {
         requestCursor: cursor,
         overwrite: reload,

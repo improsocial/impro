@@ -1126,8 +1126,8 @@ export class StickyFixer {
   }
 
   #pin(element, stickyTop) {
+    const height = element.getBoundingClientRect().height;
     const spacer = document.createElement("div");
-    spacer.style.height = `${element.getBoundingClientRect().height}px`;
     element.before(spacer);
     const resizeObserver = new ResizeObserver(([entry]) => {
       spacer.style.height = `${entry.borderBoxSize[0].blockSize}px`;
@@ -1144,6 +1144,7 @@ export class StickyFixer {
       width: null,
     };
     this.#syncHorizontalPosition();
+    spacer.style.height = `${height}px`;
     Object.assign(element.style, {
       position: "fixed",
       top: `${stickyTop}px`,
@@ -1470,4 +1471,18 @@ export function formatDuration(minutes) {
   if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
   if (mins > 0) parts.push(`${mins} ${mins === 1 ? "minute" : "minutes"}`);
   return parts.join(" ") || "0 minutes";
+}
+
+export function canShareUrl() {
+  return typeof navigator.share === "function";
+}
+
+export async function shareUrl(url) {
+  try {
+    await navigator.share({ url });
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      console.warn("Failed to open share sheet", error);
+    }
+  }
 }

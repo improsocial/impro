@@ -50,12 +50,12 @@ export default async function chatView({
   function newChatButtonTemplate() {
     return html`
       <button
-        class="new-chat-button"
+        class="rounded-button new-chat-button"
         aria-label="New chat"
         data-testid="new-chat-button"
         @click=${() => handleNewChatClick()}
       >
-        <app-icon icon="message-plus-line"></app-icon>
+        + New
       </button>
     `;
   }

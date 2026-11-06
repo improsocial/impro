@@ -10,8 +10,6 @@ import {
   createUnavailablePost,
   createEmbedFromPost,
   getBlockedQuote,
-  getPostUriFromRepost,
-  getQuotedPost,
   isBlockedPost,
   isBlockingUser,
   isEmptyPost,
@@ -32,7 +30,6 @@ import {
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
 import {
-  effect,
   Signal,
   SignalMap,
   ComputedMap,

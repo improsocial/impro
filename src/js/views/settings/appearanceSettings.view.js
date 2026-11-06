@@ -6,7 +6,6 @@ import {
   getDefaultHighlightColor,
   getDefaultLikeColor,
   getDefaultRepostColor,
-  getDefaultColorScheme,
 } from "/js/theme.js";
 
 export default async function settingsAppearanceView({

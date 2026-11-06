@@ -2,7 +2,7 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { ApiError } from "/js/api.js";
-import { Signal, effect } from "/js/signals.js";
+import { effect } from "/js/signals.js";
 
 const SUBSCRIPTION = {
   endpoint: "https://push.example/ep/abc",

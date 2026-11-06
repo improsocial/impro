@@ -15,6 +15,7 @@ import {
 } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
+import { pronounBadgeTemplate } from "/js/templates/pronounBadge.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { Component } from "/js/components/component.js";
 import "/js/components/floating-card.js";
@@ -297,23 +298,33 @@ function hoverCardTemplate({
           })}
         </div>
       </div>
-      <a class="profile-hover-card-name-link" href="${linkToProfile(profile)}">
-        <div class="profile-hover-card-name" data-testid="hover-card-name">
-          ${displayName}${profileBadgesTemplate({ profile })}
+      <div class="profile-hover-card-name-block">
+        <div class="profile-hover-card-name-row">
+          <a
+            class="profile-hover-card-name-link"
+            href="${linkToProfile(profile)}"
+          >
+            <div class="profile-hover-card-name" data-testid="hover-card-name">
+              ${displayName}${profileBadgesTemplate({ profile })}
+            </div>
+          </a>
+          ${pronounBadgeTemplate({ profile })}
         </div>
         <div class="profile-hover-card-handle-row">
+          <a
+            class="profile-hover-card-handle"
+            href="${linkToProfile(profile)}"
+            >${hasValidHandle(profile) ? `@${profile.handle}` : ""}</a
+          >
           ${followedBy && !isBlocking && !isBlockedBy
             ? html`<span
-                class="profile-follows-you"
+                class="profile-tag"
                 data-testid="hover-card-follows-you"
                 >Follows you</span
               >`
             : null}
-          <span class="profile-hover-card-handle"
-            >${hasValidHandle(profile) ? `@${profile.handle}` : ""}</span
-          >
         </div>
-      </a>
+      </div>
       ${isBlocked
         ? null
         : html`

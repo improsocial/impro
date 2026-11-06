@@ -1,7 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import {
   createPost,
   createProfile,

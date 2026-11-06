@@ -13,6 +13,12 @@ async function stubNotificationPermission(
   page,
   { initial = "default", onPrompt = "granted" } = {},
 ) {
+  // Counted in the test process so the tally survives the handoff navigation,
+  // which wipes the page's own state.
+  const permissionRequests = { count: 0 };
+  await page.exposeFunction("__recordPermissionRequest", () => {
+    permissionRequests.count += 1;
+  });
   await page.addInitScript(
     ({ initialPermission, promptResult }) => {
       class MockNotification {
@@ -28,16 +34,16 @@ async function stubNotificationPermission(
       }
       // Records when permission was asked for, so tests can assert it happened
       // before the handoff navigation rather than after it.
-      window.__permissionRequests = 0;
       const request = MockNotification.requestPermission.bind(MockNotification);
       MockNotification.requestPermission = async () => {
-        window.__permissionRequests += 1;
+        await window.__recordPermissionRequest();
         return request();
       };
       window.Notification = MockNotification;
     },
     { initialPermission: initial, promptResult: onPrompt },
   );
+  return permissionRequests;
 }
 
 test.describe("Settings > Notifications view", () => {
@@ -267,7 +273,9 @@ test.describe("Settings > Notifications view", () => {
       const mockServer = new MockServer();
       mockServer.setNotificationServiceDid(notificationService.did);
       await mockServer.setup(page);
-      await stubNotificationPermission(page, { initial: "default" });
+      const permissionRequests = await stubNotificationPermission(page, {
+        initial: "default",
+      });
       await login(page);
       await page.goto("/settings/notifications");
 
@@ -275,7 +283,7 @@ test.describe("Settings > Notifications view", () => {
       await expect(toggle).not.toHaveAttribute("disabled", "", {
         timeout: 10000,
       });
-      expect(await page.evaluate(() => window.__permissionRequests)).toBe(0);
+      expect(permissionRequests.count).toBe(0);
 
       await toggle.click();
       // iOS Safari only raises the prompt inside a user gesture, and the
@@ -287,7 +295,7 @@ test.describe("Settings > Notifications view", () => {
         .click();
 
       await expect
-        .poll(() => page.evaluate(() => window.__permissionRequests))
+        .poll(() => permissionRequests.count)
         .toBeGreaterThan(0);
       await expect(page).toHaveURL(
         new RegExp(
@@ -360,7 +368,9 @@ test.describe("Settings > Notifications view", () => {
       const mockServer = new MockServer();
       mockServer.setNotificationServiceDid(notificationService.did);
       await mockServer.setup(page);
-      await stubNotificationPermission(page, { initial: "default" });
+      const permissionRequests = await stubNotificationPermission(page, {
+        initial: "default",
+      });
       await login(page);
       await page.goto("/settings/notifications");
 
@@ -376,7 +386,7 @@ test.describe("Settings > Notifications view", () => {
         .click();
 
       await expect(page.locator('[data-testid="choice-modal"]')).toHaveCount(0);
-      expect(await page.evaluate(() => window.__permissionRequests)).toBe(0);
+      expect(permissionRequests.count).toBe(0);
       await expect(page).toHaveURL(/\/settings\/notifications$/);
     });
 

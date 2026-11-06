@@ -1542,6 +1542,89 @@ test.describe("Notifications view", () => {
     await expect(view).toContainText("Liker 60");
   });
 
+  test("should group notifications per fetched page even when some are hidden", async ({
+    page,
+  }) => {
+    const splitPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/splitpost",
+      text: "Liked across pages",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+    const fillerPosts = [];
+    const notifications = [
+      createNotification({
+        reason: "follow",
+        author: createProfile({
+          did: "did:plc:muted1",
+          handle: "muted.bsky.social",
+          displayName: "Muted",
+          viewer: { muted: true },
+        }),
+        indexedAt: new Date(Date.now() - 60000).toISOString(),
+      }),
+    ];
+    for (let i = 1; i <= 38; i++) {
+      const post = createPost({
+        uri: `at://did:plc:testuser123/app.bsky.feed.post/filler${i}`,
+        text: `Filler post ${i}`,
+        authorHandle: "testuser.bsky.social",
+        authorDisplayName: "Test User",
+      });
+      fillerPosts.push(post);
+      notifications.push(
+        createNotification({
+          reason: "like",
+          author: createProfile({
+            did: `did:plc:filler${i}`,
+            handle: `filler${i}.bsky.social`,
+            displayName: `Filler ${i}`,
+          }),
+          reasonSubject: post.uri,
+          indexedAt: new Date(Date.now() - (i + 1) * 60000).toISOString(),
+        }),
+      );
+    }
+    // Last notification of page 1, then first notification of page 2
+    notifications.push(
+      createNotification({
+        reason: "like",
+        author: alice,
+        reasonSubject: splitPost.uri,
+        indexedAt: new Date(Date.now() - 40 * 60000).toISOString(),
+      }),
+      createNotification({
+        reason: "like",
+        author: bob,
+        reasonSubject: splitPost.uri,
+        indexedAt: new Date(Date.now() - 41 * 60000).toISOString(),
+      }),
+    );
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([splitPost, ...fillerPosts]);
+    mockServer.addNotifications(notifications);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator('[data-testid="notification-item"]');
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    await items.last().scrollIntoViewIfNeeded();
+    await expect(items).toHaveCount(40, { timeout: 10000 });
+
+    const splitPostItems = items.filter({ hasText: "Liked across pages" });
+    await expect(splitPostItems).toHaveCount(2);
+    await expect(
+      splitPostItems.nth(0).locator(".notification-avatar"),
+    ).toHaveCount(1);
+    await expect(
+      splitPostItems.nth(1).locator(".notification-avatar"),
+    ).toHaveCount(1);
+  });
+
   test("should keep page 2 notifications unread after page 1 marks all seen", async ({
     page,
   }) => {

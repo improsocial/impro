@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   unique,
+  canShareUrl,
+  shareUrl,
   groupBy,
   sortBy,
   maxBy,
@@ -2497,5 +2499,62 @@ describe("StickyFixer", () => {
     element.style.position = "static";
     start();
     assert.equal(fixedElement.getStuckScrollY(), null);
+  });
+});
+
+describe("share sheet", () => {
+  afterEach(() => {
+    delete window.navigator.share;
+  });
+
+  function stubShare(impl) {
+    Object.defineProperty(window.navigator, "share", {
+      value: mock.fn(impl),
+      configurable: true,
+    });
+    return window.navigator.share;
+  }
+
+  describe("canShareUrl", () => {
+    it("should return true when the share sheet is available", () => {
+      stubShare(async () => {});
+      assert.equal(canShareUrl(), true);
+    });
+
+    it("should return false when the share sheet is unavailable", () => {
+      assert.equal(canShareUrl(), false);
+    });
+  });
+
+  describe("shareUrl", () => {
+    it("should open the share sheet with the url", async () => {
+      const share = stubShare(async () => {});
+      await shareUrl("https://bsky.app/profile/alice.test");
+      assert.deepEqual(share.mock.calls[0].arguments, [
+        { url: "https://bsky.app/profile/alice.test" },
+      ]);
+    });
+
+    it("should ignore the user cancelling the share sheet", async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
+      stubShare(async () => {
+        const error = new Error("Share canceled");
+        error.name = "AbortError";
+        throw error;
+      });
+      await shareUrl("https://bsky.app/profile/alice.test");
+      assert.equal(warn.mock.callCount(), 0);
+    });
+
+    it("should warn when the share sheet fails", async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
+      stubShare(async () => {
+        const error = new Error("Not allowed");
+        error.name = "NotAllowedError";
+        throw error;
+      });
+      await shareUrl("https://bsky.app/profile/alice.test");
+      assert.equal(warn.mock.callCount(), 1);
+    });
   });
 });

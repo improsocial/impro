@@ -335,11 +335,10 @@ export default async function postThreadView({
     </div>`;
   }
 
-  async function handleClickReply(post, replyRoot, currentUser) {
+  async function handleClickReply(post, currentUser) {
     await postComposerService.composePost({
       currentUser,
       replyTo: post,
-      replyRoot,
     });
   }
 
@@ -552,8 +551,8 @@ export default async function postThreadView({
   function repliesSkeletonTemplate({ numReplies }) {
     return html`
       <div class="post-thread-replies-skeleton">
-        ${Array.from({ length: Math.min(numReplies, 10) }).map(() =>
-          postSkeletonTemplate(),
+        ${Array.from({ length: Math.min(numReplies, 10) }).map((_, index) =>
+          postSkeletonTemplate({ index }),
         )}
       </div>
     `;
@@ -724,7 +723,7 @@ export default async function postThreadView({
                     router.back();
                   },
                   onClickReply: async () => {
-                    await handleClickReply(mainPost, root, currentUser);
+                    await handleClickReply(mainPost, currentUser);
                   },
                   replyContext: hasParent ? "reply" : null,
                   showActionBar: !postThread.__isEmbeddedPrefill,
@@ -743,7 +742,7 @@ export default async function postThreadView({
                     class="post-thread-reply-prompt"
                     data-testid="post-thread-reply-prompt"
                     @click=${async () => {
-                      await handleClickReply(mainPost, root, currentUser);
+                      await handleClickReply(mainPost, currentUser);
                     }}
                   >
                     <div class="post-thread-reply-prompt-inner">
@@ -791,9 +790,9 @@ export default async function postThreadView({
 
   function threadSkeletonTemplate() {
     return html`<div class="post-thread">
-      ${Array.from({ length: 3 }).map(() => {
-        return postSkeletonTemplate();
-      })}
+      ${Array.from({ length: 3 }).map((_, index) =>
+        postSkeletonTemplate({ index }),
+      )}
     </div>`;
   }
 

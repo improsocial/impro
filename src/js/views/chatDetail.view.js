@@ -78,10 +78,6 @@ export default async function chatDetailView({
 }) {
   await auth.requireAuth();
 
-  const canViewGroupDetails = await auth.hasScope(
-    "rpc:chat.bsky.convo.getConvoMembers",
-  );
-
   const convoId = params.convoId;
 
   const state = new ReactiveStore("chatDetailView");
@@ -1155,7 +1151,7 @@ export default async function chatDetailView({
         ? html`<div class="chat-info-panel-handle">@${profile.handle}</div>`
         : ""}
       ${isFollowedBy
-        ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
+        ? html`<div class="profile-tag" data-testid="follows-you-badge">
             Follows you
           </div>`
         : ""}
@@ -1427,10 +1423,7 @@ export default async function chatDetailView({
                   data-testid="header-muted-icon"
                 ></app-icon>`
               : ""}`,
-          titleHref:
-            groupDetails && canViewGroupDetails
-              ? linkToGroupChatDetails(convoId)
-              : null,
+          titleHref: groupDetails ? linkToGroupChatDetails(convoId) : null,
           backButtonFallbackRoute: "/messages",
           rightItemTemplate: () => html`
             <button
@@ -1453,7 +1446,7 @@ export default async function chatDetailView({
               >
                 Open in bsky.app
               </context-menu-item>
-              ${groupDetails && canViewGroupDetails
+              ${groupDetails
                 ? html`<context-menu-item
                     data-testid="menu-action-group-chat-details"
                     icon="settings-cog-line"

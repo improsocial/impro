@@ -1,23 +1,21 @@
 import "/js/components/post-composer.js";
-import { createEmbedFromPost } from "/js/dataHelpers.js";
+import { createEmbedFromPost, getReplyRootFromPost } from "/js/dataHelpers.js";
 import { showToast } from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
 import { linkToPostFromUri } from "/js/navigation.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 
 export class PostComposerService {
-  constructor(dataLayer, identityResolver, pluginService, { draftsEnabled }) {
+  constructor(dataLayer, identityResolver, pluginService) {
     this.dataLayer = dataLayer;
     this.identityResolver = identityResolver;
     this.pluginService = pluginService;
     this.currentPostComposer = null;
-    this.draftsEnabled = draftsEnabled;
   }
 
   async composePost({
     currentUser,
     replyTo = null,
-    replyRoot = null,
     quotedPost = null,
     initialText = null,
   }) {
@@ -29,6 +27,7 @@ export class PostComposerService {
       console.warn("Post composer already open");
       return;
     }
+    const replyRoot = replyTo ? getReplyRootFromPost(replyTo) : null;
     hapticsImpactLight();
     return new Promise((resolve, reject) => {
       this.currentPostComposer = document.createElement("post-composer");
@@ -36,17 +35,14 @@ export class PostComposerService {
       this.currentPostComposer.identityResolver = this.identityResolver;
       this.currentPostComposer.pluginService = this.pluginService;
       this.currentPostComposer.replyTo = replyTo;
-      this.currentPostComposer.replyRoot = replyRoot;
       this.currentPostComposer.quotedRecord = quotedPost
         ? createEmbedFromPost(quotedPost)
         : null;
       this.currentPostComposer.currentUser = currentUser;
-      this.currentPostComposer.draftsEnabled = this.draftsEnabled;
       this.currentPostComposer.addEventListener("send-post", async (e) => {
         const {
           posts,
           replyTo: sendReplyTo,
-          replyRoot: sendReplyRoot,
           langs,
           threadgateAllow,
           postgateEmbeddingRules,
@@ -60,7 +56,7 @@ export class PostComposerService {
           const res = await this.dataLayer.mutations.createThread({
             posts,
             replyTo: sendReplyTo,
-            replyRoot: sendReplyRoot,
+            replyRoot,
             langs,
             threadgateAllow,
             postgateEmbeddingRules,

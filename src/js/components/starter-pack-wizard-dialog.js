@@ -211,10 +211,9 @@ function toggleButtonTemplate({ testId, toggleState, onToggle }) {
   else if (isIncluded) label = "Added";
   else label = "Add";
   return html`<button
-    class=${classnames(
-      "rounded-button starter-pack-wizard-toggle",
-      isIncluded ? "rounded-button-secondary" : "rounded-button-primary",
-    )}
+    class=${classnames("rounded-button starter-pack-wizard-toggle", {
+      "rounded-button-primary": !isIncluded,
+    })}
     data-testid=${testId}
     data-teststate=${toggleState}
     ?disabled=${isDisabled}
@@ -580,7 +579,7 @@ function reviewTemplate({
   const isProfiles = step === "profiles";
   const removeButton = ({ onClick, label }) =>
     html`<button
-      class="rounded-button rounded-button-secondary starter-pack-review-remove"
+      class="rounded-button starter-pack-review-remove"
       data-testid="starter-pack-review-remove"
       aria-label=${label}
       @click=${onClick}

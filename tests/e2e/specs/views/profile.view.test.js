@@ -1,5 +1,5 @@
 import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
+import { login, disableShareSheet } from "../../helpers.js";
 import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
 import {
@@ -863,6 +863,7 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
+    await disableShareSheet(page);
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -1064,6 +1065,7 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(currentUserProfile);
     await mockServer.setup(page);
+    await disableShareSheet(page);
     await login(page);
     await page.goto(`/profile/${userProfile.did}`);
 
@@ -2310,6 +2312,7 @@ test.describe("Profile view", () => {
       const mockServer = new MockServer();
       mockServer.addProfile(otherUser);
       await mockServer.setup(page);
+      await disableShareSheet(page);
 
       await page.goto(`/profile/${otherUser.did}`);
 

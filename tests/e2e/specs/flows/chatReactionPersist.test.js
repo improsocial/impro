@@ -6,7 +6,6 @@ import {
   createMessage,
   createProfile,
 } from "../../../shared/factories.js";
-import { userProfile } from "../../testData.js";
 
 test.describe("Chat reaction persistence flow", () => {
   test("should add a reaction in chat detail, navigate away, return, and verify it persists", async ({

@@ -203,25 +203,35 @@ describe("edit-profile-dialog", () => {
   });
 
   describe("EditProfileDialog - character counts", () => {
+    function charCountForField(element, testId) {
+      return element
+        .querySelector(`[data-testid="${testId}"]`)
+        .closest(".form-dialog-field")
+        .querySelector(".form-dialog-char-count");
+    }
+
     it("should show character count for display name", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCount = element.querySelectorAll(".form-dialog-char-count")[0];
-      assert(charCount !== null, "Char count should be rendered");
-      assert(charCount.textContent.includes("/64"), "Should show max of 64");
+      const charCount = charCountForField(element, "edit-profile-display-name");
+      assert.equal(charCount.textContent.trim(), "9/64");
+    });
+
+    it("should show character count for pronouns", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      const charCount = charCountForField(element, "edit-profile-pronouns");
+      assert.equal(charCount.textContent.trim(), "0/20");
     });
 
     it("should show character count for description", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCounts = element.querySelectorAll(".form-dialog-char-count");
-      assert(charCounts.length >= 2, "Should have at least 2 char counts");
-      assert(
-        charCounts[1].textContent.includes("/256"),
-        "Should show max of 256",
-      );
+      const charCount = charCountForField(element, "edit-profile-description");
+      assert.equal(charCount.textContent.trim(), "10/256");
     });
   });
 
@@ -359,6 +369,70 @@ describe("edit-profile-dialog", () => {
         placeholder !== null,
         "Avatar placeholder should be shown after removal",
       );
+    });
+  });
+
+  describe("EditProfileDialog - pronouns", () => {
+    function getPronounsInput(element) {
+      return element.querySelector("[data-testid='edit-profile-pronouns']");
+    }
+
+    function typePronouns(element, value) {
+      const input = getPronounsInput(element);
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function getSaveButton(element) {
+      return element.querySelector("[data-testid='edit-profile-save-button']");
+    }
+
+    it("pre-fills pronouns from the profile", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile({ ...mockProfile, pronouns: "they/them" });
+      assert.equal(getPronounsInput(element).value, "they/them");
+    });
+
+    it("enables save when pronouns change", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      typePronouns(element, "she/her");
+      assert.equal(getSaveButton(element).disabled, false);
+    });
+
+    it("disables save when pronouns exceed 20 characters", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      typePronouns(element, "a".repeat(21));
+      assert.equal(getSaveButton(element).disabled, true);
+    });
+
+    it("ignores surrounding whitespace when checking the pronouns length", () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      typePronouns(element, `  ${"a".repeat(20)}  `);
+      assert.equal(getSaveButton(element).disabled, false);
+    });
+
+    it("includes pronouns in the profile-save event", async () => {
+      const element = document.createElement("edit-profile-dialog");
+      connectElement(element);
+      element.setProfile(mockProfile);
+      typePronouns(element, "she/they");
+
+      const eventPromise = new Promise((resolve) => {
+        element.addEventListener("profile-save", (event) =>
+          resolve(event.detail),
+        );
+      });
+      getSaveButton(element).click();
+
+      const detail = await eventPromise;
+      assert.equal(detail.profileUpdates.pronouns, "she/they");
     });
   });
 

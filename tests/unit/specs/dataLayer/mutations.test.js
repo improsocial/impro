@@ -1502,6 +1502,77 @@ describe("updateProfile", () => {
     }
   });
 
+  it("writes trimmed pronouns to the record and the local profile, preserving case", async () => {
+    let putRecord = null;
+    const mockApi = makeMockApi({
+      putProfileRecord: async (record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+    await mutations.updateProfile(testProfile, {
+      displayName: "Name",
+      description: "Bio",
+      pronouns: "  She/Her ",
+    });
+
+    assert.equal(putRecord.pronouns, "She/Her");
+    assert.equal(dataStore.$profiles.get(testProfile.did).pronouns, "She/Her");
+  });
+
+  it("removes pronouns from the record when cleared", async () => {
+    let putRecord = null;
+    const mockApi = makeMockApi({
+      getProfileRecord: async () => ({
+        value: { displayName: "Name", pronouns: "she/her" },
+        cid: "cid123",
+      }),
+      putProfileRecord: async (record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+    await mutations.updateProfile(testProfile, {
+      displayName: "Name",
+      description: "Bio",
+      pronouns: "   ",
+    });
+
+    assert.equal("pronouns" in putRecord, false);
+    assert.equal(dataStore.$profiles.get(testProfile.did).pronouns, null);
+  });
+
+  it("leaves pronouns untouched when not passed", async () => {
+    let putRecord = null;
+    const mockApi = makeMockApi({
+      getProfileRecord: async () => ({
+        value: { displayName: "Name", pronouns: "she/her" },
+        cid: "cid123",
+      }),
+      putProfileRecord: async (record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+    dataStore.$profiles.set(testProfile.did, {
+      ...testProfile,
+      pronouns: "she/her",
+    });
+    await mutations.updateProfile(testProfile, {
+      displayName: "Name",
+      description: "Bio",
+    });
+
+    assert.equal(putRecord.pronouns, "she/her");
+    assert.equal(dataStore.$profiles.get(testProfile.did).pronouns, "she/her");
+  });
+
   it("should update currentUser when editing own profile", async () => {
     const { mutations, dataStore } = createMutationsWithMockApi(makeMockApi());
     await mutations.updateProfile(testProfile, {

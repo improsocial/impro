@@ -82,6 +82,23 @@ describe("<profile-hover-card>", () => {
     assert(card.querySelector('[data-testid="hover-card-name"]') === null);
   });
 
+  it("renders the pronoun badge after the display name, outside of any link", async () => {
+    const profile = makeDetailedProfile({ pronouns: "they/them" });
+    const { dataLayer, interactionHandlers } = makeSetup({
+      detailedProfile: profile,
+      currentUser: { did: "did:plc:viewer" },
+    });
+    const card = mountCard({ dataLayer, interactionHandlers });
+    await flushRender();
+    const badge = card.querySelector('[data-testid="pronoun-badge"]');
+    assert.equal(badge.textContent, "they/them");
+    assert.equal(badge.closest("a"), null);
+    const nameLink = card
+      .querySelector('[data-testid="hover-card-name"]')
+      .closest("a");
+    assert.equal(nameLink.nextElementSibling, badge);
+  });
+
   it("renders name, handle, counts, and bio for a detailed profile", async () => {
     const profile = makeDetailedProfile();
     const { dataLayer, interactionHandlers } = makeSetup({

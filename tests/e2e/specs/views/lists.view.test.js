@@ -116,6 +116,33 @@ test.describe("Lists view", () => {
     );
   });
 
+  test("should navigate to the new list when created before the current user loads", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.setGetProfileDelay(3000);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/lists");
+
+    const newButton = page.locator(
+      '#lists-view [data-testid="new-list-button"]',
+    );
+    await newButton.click({ timeout: 10000 });
+
+    const dialog = page.locator("create-list-dialog");
+    await dialog
+      .locator('[data-testid="create-list-name"]')
+      .fill("My New List");
+    await dialog.locator('[data-testid="create-list-save-button"]').click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`/profile/${userProfile.handle}/lists/rkey-\\d+$`),
+      { timeout: 10000 },
+    );
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

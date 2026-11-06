@@ -5,8 +5,6 @@ import { createSessionState } from "/js/dataLayer/sessionState.js";
 describe("createSessionState", () => {
   const session = { did: "did:plc:testuser" };
   const storageKey = `session-state:${session.did}`;
-  const legacyFeedKey = "home-view-currentFeedUri";
-  const legacyDisplayKey = "display-preferences";
 
   // PersistedReactiveStore saves via an effect, which flushes on a double
   // requestAnimationFrame
@@ -18,8 +16,6 @@ describe("createSessionState", () => {
 
   function cleanup() {
     localStorage.removeItem(storageKey);
-    localStorage.removeItem(legacyFeedKey);
-    localStorage.removeItem(legacyDisplayKey);
   }
 
   function stored() {
@@ -30,12 +26,7 @@ describe("createSessionState", () => {
   afterEach(cleanup);
 
   describe("without a session", () => {
-    it("uses defaults and ignores legacy keys", () => {
-      localStorage.setItem(legacyFeedKey, JSON.stringify("following"));
-      localStorage.setItem(
-        legacyDisplayKey,
-        JSON.stringify({ trendingHidden: true }),
-      );
+    it("uses defaults", () => {
       const sessionState = createSessionState(null);
       assert.deepEqual(sessionState.$selectedFeedUri.get(), null);
       assert.deepEqual(sessionState.$trendingHidden.get(), false);
@@ -60,24 +51,6 @@ describe("createSessionState", () => {
       );
       const sessionState = createSessionState(session);
       assert.deepEqual(sessionState.$selectedFeedUri.get(), "following");
-    });
-
-    it("migrates a selection stored under the legacy key", () => {
-      localStorage.setItem(legacyFeedKey, JSON.stringify("following"));
-      const sessionState = createSessionState(session);
-      assert.deepEqual(sessionState.$selectedFeedUri.get(), "following");
-      assert.deepEqual(localStorage.getItem(legacyFeedKey), null);
-    });
-
-    it("prefers the session-state key over the legacy key", () => {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ selectedFeedUri: "following" }),
-      );
-      localStorage.setItem(legacyFeedKey, JSON.stringify("stale"));
-      const sessionState = createSessionState(session);
-      assert.deepEqual(sessionState.$selectedFeedUri.get(), "following");
-      assert.deepEqual(localStorage.getItem(legacyFeedKey), null);
     });
 
     it("persists selection changes", async () => {
@@ -117,42 +90,6 @@ describe("createSessionState", () => {
       );
       const sessionState = createSessionState(session);
       assert.deepEqual(sessionState.$trendingHidden.get(), true);
-    });
-
-    it("migrates a value stored under the legacy display-preferences key", () => {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ selectedFeedUri: "following" }),
-      );
-      localStorage.setItem(
-        legacyDisplayKey,
-        JSON.stringify({ trendingHidden: true }),
-      );
-      const sessionState = createSessionState(session);
-      assert.deepEqual(sessionState.$trendingHidden.get(), true);
-      assert.deepEqual(sessionState.$selectedFeedUri.get(), "following");
-      assert.deepEqual(localStorage.getItem(legacyDisplayKey), null);
-    });
-
-    it("prefers the session-state key over the legacy key", () => {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ trendingHidden: false }),
-      );
-      localStorage.setItem(
-        legacyDisplayKey,
-        JSON.stringify({ trendingHidden: true }),
-      );
-      const sessionState = createSessionState(session);
-      assert.deepEqual(sessionState.$trendingHidden.get(), false);
-      assert.deepEqual(localStorage.getItem(legacyDisplayKey), null);
-    });
-
-    it("ignores a malformed legacy value", () => {
-      localStorage.setItem(legacyDisplayKey, "{not json");
-      const sessionState = createSessionState(session);
-      assert.deepEqual(sessionState.$trendingHidden.get(), false);
-      assert.deepEqual(localStorage.getItem(legacyDisplayKey), null);
     });
 
     it("persists changes", async () => {

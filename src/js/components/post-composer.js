@@ -211,6 +211,7 @@ function replyToTemplate({ post }) {
             timestamp: post.indexedAt,
             includeHandle: false,
             includeTime: false,
+            includePronouns: true,
           })}
           <div class="post-body">
             ${post.record.text
@@ -553,6 +554,11 @@ function composerPostTemplate({
           <rich-text-input
             @input=${(e) => onInput(e)}
             @paste=${(e) => onPaste(e)}
+            @click=${(e) => {
+              if (!e.target.closest("[contenteditable]")) {
+                e.currentTarget.focus({ preventScroll: true });
+              }
+            }}
             .searchMentions=${searchMentions}
             placeholder="${promptText}"
           ></rich-text-input>
@@ -608,6 +614,7 @@ function composerPostTemplate({
                 record: postState.quotedRecord,
                 isAuthenticated: true,
                 pluginService,
+                showPronouns: true,
               })}
             </div>
           </div>`
@@ -645,10 +652,6 @@ class PostComposer extends Component {
     this.state.$errorMessage = new Signal.State(null);
     this.state.$isSavingDraft = new Signal.State(false);
     this._pendingQuotedRecord = null;
-    this.state.$draftsEnabled = new Signal.State(
-      this._pendingDraftsEnabled ?? false,
-    );
-    this._pendingDraftsEnabled = null;
     this.state.$isDraggingFiles = new Signal.State(false);
     this.state.$threadgateAllow = new Signal.State(null);
     this.state.$postgateEmbeddingRules = new Signal.State(null);
@@ -771,25 +774,11 @@ class PostComposer extends Component {
     this._updatePost(this._getPosts()[0].id, { quotedRecord: value });
   }
 
-  get draftsEnabled() {
-    if (!this.state) return this._pendingDraftsEnabled ?? false;
-    return untrack(() => this.state.$draftsEnabled.get());
-  }
-
-  set draftsEnabled(value) {
-    if (!this.state) {
-      this._pendingDraftsEnabled = value;
-      return;
-    }
-    this.state.$draftsEnabled.set(value);
-  }
-
   render() {
     const isSending = this.state.$isSending.get();
     const isCancellingSend = this.state.$isCancellingSend.get();
     const sendError = this.state.$errorMessage.get();
     const isSavingDraft = this.state.$isSavingDraft.get();
-    const draftsEnabled = this.state.$draftsEnabled.get();
     const posts = this.state.$posts.get();
     const activePostIndex = Math.min(
       this.state.$activePostIndex.get(),
@@ -899,7 +888,7 @@ class PostComposer extends Component {
               >
                 Cancel
               </button>
-              ${!this.replyTo && draftsEnabled
+              ${!this.replyTo
                 ? html`<button
                     class="text-pill-button post-composer-drafts-button"
                     data-testid="composer-drafts-button"
@@ -910,7 +899,7 @@ class PostComposer extends Component {
                   </button>`
                 : ""}
               <button
-                class="rounded-button rounded-button-primary"
+                class="rounded-button rounded-button-highlight"
                 data-testid="composer-submit-button"
                 data-teststate=${submitTestState}
                 @click=${() => this.send()}
@@ -979,7 +968,7 @@ class PostComposer extends Component {
                   ? html`<div class="post-composer-interaction-settings-row">
                       <button
                         type="button"
-                        class="composer-interaction-settings-button rounded-button rounded-button-secondary"
+                        class="composer-interaction-settings-button rounded-button"
                         data-testid="composer-interaction-settings"
                         data-teststate=${isInteractionLimited
                           ? "limited"
@@ -1919,7 +1908,6 @@ class PostComposer extends Component {
             };
           }),
           replyTo: this.replyTo,
-          replyRoot: this.replyRoot,
           langs: untrack(() => this._getCurrentPostLanguages()),
           threadgateAllow: untrack(() => this.state.$threadgateAllow.get()),
           postgateEmbeddingRules: untrack(() =>
@@ -2079,7 +2067,6 @@ class PostComposer extends Component {
   }
 
   async handleDraftsButtonClick() {
-    if (!this.draftsEnabled) return;
     if (untrack(() => this.state.$isSavingDraft.get())) return;
     if (!this.hasContent() || (this._draftId && !this._isDirty)) {
       this.openDraftsDialog();
@@ -2422,13 +2409,6 @@ class PostComposer extends Component {
     }
     if (!this.hasContent()) {
       return true;
-    }
-    if (!this.draftsEnabled) {
-      return confirmModal("Are you sure you'd like to discard this post?", {
-        title: "Discard post?",
-        confirmButtonStyle: "danger-subtle",
-        confirmButtonText: "Discard",
-      });
     }
     if (this._draftId && !this._isDirty) {
       return true;

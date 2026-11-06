@@ -28,7 +28,7 @@ body,
 
 @media (min-width: 800px) {
   :focus-visible {
-    outline: 2px solid var(--primary-button-color);
+    outline: 2px solid var(--highlight-color);
     outline-offset: 2px;
   }
 }
@@ -153,8 +153,20 @@ html {
     transparent
   );
   --primary-button-text-color: var(--background-color);
+  --highlight-button-color: var(--highlight-color);
+  --highlight-button-hover-color: color-mix(
+    in srgb,
+    var(--highlight-button-color) 80%,
+    transparent
+  );
+  --highlight-button-text-color: var(--white);
+  --danger-button-text-color: var(--white);
   --secondary-button-color: light-dark(var(--lightest-gray), var(--gray));
   --secondary-button-hover-color: light-dark(
+    var(--lighter-gray),
+    var(--light-gray)
+  );
+  --outline-button-border-color: light-dark(
     var(--lighter-gray),
     var(--light-gray)
   );
@@ -274,8 +286,8 @@ html {
     rgba(255, 255, 255, 0.05)
   );
   --skeleton-gradient-mid: light-dark(
-    rgba(0, 0, 0, 0.08),
-    rgba(255, 255, 255, 0.1)
+    rgba(0, 0, 0, 0.055),
+    rgba(255, 255, 255, 0.075)
   );
 
   /* indicator backgrounds */
@@ -595,8 +607,8 @@ pinned-feeds-pane {
   display: flex;
   gap: 6px;
   padding: 2px 0;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 16px;
   cursor: pointer;
 }
 
@@ -652,8 +664,8 @@ plugin-rich-text {
   display: contents;
 }
 
-plugin-slot:empty {
-  display: none;
+plugin-slot {
+  display: contents;
 }
 
 .rich-text a {
@@ -687,11 +699,11 @@ plugin-slot:empty {
   gap: 8px;
   padding: 8px 15px;
   border-radius: var(--pill-button-border-radius);
-  border: none;
+  border: 1px solid var(--outline-button-border-color);
   cursor: pointer;
   font-size: 14px;
   transition: background-color 0.2s;
-  background-color: var(--secondary-button-color);
+  background-color: transparent;
 }
 
 .rounded-button app-icon[icon="plus-line"] {
@@ -705,6 +717,12 @@ plugin-slot:empty {
   border-bottom-color: transparent;
 }
 
+.rounded-button.rounded-button-primary,
+.rounded-button.rounded-button-highlight,
+.rounded-button.rounded-button-secondary-inverted {
+  border-color: transparent;
+}
+
 .rounded-button.rounded-button-primary {
   background-color: var(--primary-button-color);
   color: var(--primary-button-text-color);
@@ -712,6 +730,15 @@ plugin-slot:empty {
 
 .rounded-button.rounded-button-primary .loading-spinner {
   border-top-color: var(--primary-button-text-color);
+}
+
+.rounded-button.rounded-button-highlight {
+  background-color: var(--highlight-button-color);
+  color: var(--highlight-button-text-color);
+}
+
+.rounded-button.rounded-button-highlight .loading-spinner {
+  border-top-color: var(--highlight-button-text-color);
 }
 
 .rounded-button.rounded-button-secondary-inverted {
@@ -725,11 +752,15 @@ plugin-slot:empty {
 
 @media (hover: hover) {
   .rounded-button:not(:disabled):hover {
-    background-color: var(--secondary-button-hover-color);
+    background-color: var(--secondary-button-color);
   }
 
   .rounded-button.rounded-button-primary:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
+  }
+
+  .rounded-button.rounded-button-highlight:not(:disabled):hover {
+    background-color: var(--highlight-button-hover-color);
   }
 
   .rounded-button.rounded-button-secondary-inverted:not(:disabled):hover {
@@ -741,11 +772,11 @@ plugin-slot:empty {
   }
 }
 
-.rounded-button.bell-button {
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.rounded-button.bell-button,
+.rounded-button.chat-button,
+.rounded-button.ellipsis-button {
+  width: var(--profile-action-button-size);
+  padding: 0;
 }
 
 .rounded-button.bell-button app-icon {
@@ -753,21 +784,9 @@ plugin-slot:empty {
   height: 20px;
 }
 
-.rounded-button.chat-button {
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .rounded-button.chat-button app-icon {
   width: 20px;
   height: 20px;
-}
-
-.rounded-button.ellipsis-button {
-  padding-left: 10px;
-  padding-right: 10px;
 }
 
 .rounded-button.ellipsis-button span {
@@ -1052,7 +1071,7 @@ input[type="color"]::-moz-color-swatch {
     var(--skeleton-gradient-edge) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -1065,38 +1084,67 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .post-skeleton {
-  padding: 10px 16px 0 16px;
+  padding: 12px 16px 10px 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   display: flex;
   flex-direction: row;
   gap: 12px;
 }
 
-.skeleton-left {
-  width: 45px;
+.post-skeleton .post-actions {
+  margin-bottom: 0;
 }
 
-.skeleton-right {
-  flex: 1;
+.post-skeleton .post-action-button {
+  cursor: default;
+}
+
+.skeleton-header {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
+}
+
+.skeleton-body {
+  margin-top: 2px;
+}
+
+.skeleton-text {
+  flex-grow: 1;
+  padding: calc(1.3125em * 0.15) 0;
+}
+
+.skeleton-text-bar {
+  height: calc(1.3125em * 0.7);
+  border-radius: var(--skeleton-border-radius);
+}
+
+.skeleton-blend {
+  opacity: 0.6;
+}
+
+.skeleton-image {
+  margin-top: 8px;
+  width: 100%;
+  border-radius: var(--image-border-radius);
+}
+
+.skeleton-control-pill {
+  width: calc(18px * 1.618);
+  height: 18px;
+  border-radius: var(--pill-button-border-radius);
+}
+
+.skeleton-control-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
 }
 
 .skeleton-avatar {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-}
-
-.skeleton-content {
-  padding-top: 4px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 10px;
-  height: fit-content;
 }
 
 .skeleton-line {
@@ -1115,44 +1163,6 @@ input[type="color"]::-moz-color-swatch {
   width: 7em;
   height: 12px;
   border-radius: var(--skeleton-border-radius);
-}
-
-.skeleton-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 3em;
-  height: 28px;
-  padding-top: 8px;
-  margin-bottom: 8px;
-}
-
-.skeleton-action {
-  width: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.skeleton-action .skeleton-action-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--skeleton-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.skeleton-action .skeleton-action-icon app-icon {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.skeleton-action .skeleton-action-icon app-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 
 .avatar-image-frame {
@@ -1408,6 +1418,27 @@ tab-bar:not([full-width]) {
 
 tab-bar.is-scroll-frozen {
   overflow-x: hidden;
+}
+
+.tab-bar-skeleton {
+  display: flex;
+  height: 46px;
+  overflow: hidden;
+}
+
+.tab-bar-skeleton-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 16px 17px;
+}
+
+.tab-bar-skeleton-bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .profile-card {
@@ -2270,8 +2301,7 @@ container-link {
   align-items: center;
 }
 
-.author-badges .label-badges,
-.author-badges plugin-slot {
+.author-badges .label-badges {
   display: contents;
 }
 
@@ -2770,6 +2800,7 @@ container-link {
   position: relative;
   top: -6px;
   font-size: 22px;
+  line-height: 18px;
 }
 
 .post-action {
@@ -2790,9 +2821,32 @@ container-link {
   background: none;
   cursor: pointer;
   color: var(--post-action-icon-color);
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
   min-width: 30px;
   padding: 5px;
+  border-radius: var(--pill-button-border-radius);
+  --post-action-hover-color: var(--highlight-color);
+}
+
+.post-action-repost {
+  --post-action-hover-color: var(--repost-color);
+}
+
+.like-button {
+  --post-action-hover-color: var(--like-color);
+}
+
+@media (hover: hover) {
+  button.post-action-button:not([disabled]):hover {
+    color: var(--post-action-hover-color);
+    background-color: color-mix(
+      in srgb,
+      var(--post-action-hover-color) 12%,
+      transparent
+    );
+  }
 }
 
 .post-action-button[disabled] {
@@ -2894,6 +2948,10 @@ animated-button {
 
 .large-post .post-embed > * {
   margin-top: 12px;
+}
+
+.large-post .post-body > .post-embed:first-child > * {
+  margin-top: 0;
 }
 
 .post-embed > * {
@@ -3652,7 +3710,7 @@ image-carousel {
 }
 
 .carousel-slide:focus-visible {
-  outline: 2px solid var(--primary-button-color);
+  outline: 2px solid var(--highlight-color);
   outline-offset: 2px;
 }
 
@@ -4520,7 +4578,7 @@ image-carousel {
   text-align: center;
 }
 
-.chat-info-panel .profile-follows-you {
+.chat-info-panel .profile-tag {
   margin-top: 4px;
 }
 
@@ -4651,10 +4709,12 @@ image-carousel {
 
 .chat-info-panel-action-skeleton {
   width: 90px;
-  height: 34px;
+  height: 36px;
+  border-color: transparent;
 }
 
 .chat-info-panel-action.muted {
+  border-color: transparent;
   color: var(--error-color);
   background-color: color-mix(in srgb, var(--error-color) 12%, transparent);
 }
@@ -5367,8 +5427,8 @@ chat-input .rich-text-input-placeholder {
   width: 40px;
   height: 40px;
   border-radius: var(--circular-button-border-radius);
-  color: var(--primary-button-text-color);
-  background-color: var(--primary-button-color);
+  color: var(--highlight-button-text-color);
+  background-color: var(--highlight-button-color);
   border: none;
   display: flex;
   align-items: center;
@@ -5378,7 +5438,7 @@ chat-input .rich-text-input-placeholder {
 }
 
 .message-input-send-button .loading-spinner {
-  border-top-color: var(--primary-button-text-color);
+  border-top-color: var(--highlight-button-text-color);
   border-left-color: transparent;
   border-right-color: transparent;
   border-bottom-color: transparent;
@@ -5395,7 +5455,7 @@ chat-input .rich-text-input-placeholder {
 }
 
 .message-input-send-button app-icon {
-  color: var(--overlay-text-color);
+  color: var(--highlight-button-text-color);
   width: 20px;
   height: 20px;
   left: 2px;
@@ -6033,9 +6093,11 @@ emoji-picker-dialog emoji-picker,
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
+  --profile-action-button-size: 34px;
 }
 
 .profile-top-row .rounded-button {
+  height: var(--profile-action-button-size);
   margin-left: 4px;
 }
 
@@ -6156,14 +6218,38 @@ emoji-picker-dialog emoji-picker,
   height: 16px;
 }
 
-.profile-follows-you {
+.profile-tag {
   font-size: 13px;
+  color: var(--text-color);
   background: var(--secondary-button-color);
-  padding: 3px 8px;
+  padding: 2px 4px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
   width: fit-content;
   flex: none;
+}
+
+.pronoun-badge {
+  display: inline-block;
+  flex: none;
+  font-size: 13px;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  color: var(--text-color-muted);
+  padding: 0;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.profile-name .pronoun-badge {
+  font-size: 14px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .profile-reposts-hidden {
@@ -6409,6 +6495,7 @@ button.profile-list-item-button.is-disabled {
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 600;
+  border: none;
   background-color: transparent;
   color: var(--text-color-muted);
 }
@@ -7560,8 +7647,21 @@ sidebar-search {
   padding-bottom: 0;
   overflow: visible;
   touch-action: pan-y;
+}
+
+/* Preserve the native hidden state between close() and the close event that
+   removes the composer, so the finished exit animation cannot flash back. */
+.post-composer.bottom-sheet[open] {
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 799px) {
+  .post-composer.bottom-sheet:not([data-closing]) {
+    /* Focus opens the iOS keyboard immediately. A sliding focus target can
+       make Safari pan the page using its offscreen opening position. */
+    animation: none;
+  }
 }
 
 @media (min-width: 800px) {
@@ -7738,7 +7838,7 @@ sidebar-search {
 .post-composer-scroll-area-content:has(
     .post-composer-post + .post-composer-post
   )
-  .rich-text-input {
+  .rich-text-input-container {
   min-height: 60px;
 }
 
@@ -7811,9 +7911,16 @@ sidebar-search {
   font-weight: 500;
 }
 
+.post-composer .rich-text-input-container {
+  /* Keep blank writing space outside the focused element: iOS can pan the
+     entire dialog to center a tall editor when the keyboard opens. */
+  min-height: 140px;
+  cursor: text;
+}
+
 .post-composer .rich-text-input {
   width: 100%;
-  min-height: 140px;
+  min-height: 1lh;
   border: none;
   background: transparent;
   color: var(--text-color);
@@ -8150,12 +8257,28 @@ sidebar-search {
   align-items: center;
 }
 
-.profile-hover-card-name-link {
-  color: inherit;
-  text-decoration: none;
+.profile-hover-card-name-block {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.profile-hover-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profile-hover-card-name-link,
+.profile-hover-card-handle {
+  color: inherit;
+  text-decoration: none;
+}
+
+.profile-hover-card-name-link {
+  min-width: 0;
 }
 
 .profile-hover-card-name {
@@ -8731,7 +8854,7 @@ context-menu-item-group > context-menu-item > button {
 .modal-dialog-button {
   padding: 12px 20px;
   border-radius: var(--pill-button-border-radius);
-  border: none;
+  border: 1px solid var(--outline-button-border-color);
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
@@ -8739,13 +8862,19 @@ context-menu-item-group > context-menu-item > button {
   text-decoration: none;
   display: inline-block;
   text-align: center;
-  background-color: var(--secondary-button-color);
+  background-color: transparent;
 }
 
 @media (hover: hover) {
   .modal-dialog-button:hover {
-    background-color: var(--secondary-button-hover-color);
+    background-color: var(--secondary-button-color);
   }
+}
+
+.modal-dialog-button.primary-button,
+.modal-dialog-button.danger-button,
+.modal-dialog-button.danger-subtle-button {
+  border-color: transparent;
 }
 
 .modal-dialog-button.primary-button {
@@ -8755,7 +8884,7 @@ context-menu-item-group > context-menu-item > button {
 
 .modal-dialog-button.danger-button {
   background-color: var(--error-color);
-  color: var(--primary-button-text-color);
+  color: var(--danger-button-text-color);
 }
 
 .modal-dialog-button.danger-subtle-button {
@@ -8805,9 +8934,12 @@ context-menu-item-group > context-menu-item > button {
   border-bottom-color: transparent;
 }
 
-.modal-dialog-button.primary-button .loading-spinner,
-.modal-dialog-button.danger-button .loading-spinner {
+.modal-dialog-button.primary-button .loading-spinner {
   border-top-color: var(--primary-button-text-color);
+}
+
+.modal-dialog-button.danger-button .loading-spinner {
+  border-top-color: var(--danger-button-text-color);
 }
 
 .modal-dialog-button.danger-subtle-button .loading-spinner {
@@ -11205,34 +11337,12 @@ label:has(toggle-switch[disabled]) {
 
 .new-chat-button {
   display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  padding: 0;
-  background-color: var(--primary-button-color);
-  color: var(--primary-button-text-color);
-  height: 33px;
-  width: 33px;
-  border-radius: var(--circular-button-border-radius);
-  transition: background-color 0.2s;
 }
 
 @media (min-width: 800px) {
   .new-chat-button {
     display: flex;
   }
-}
-
-@media (hover: hover) {
-  .new-chat-button:hover {
-    background-color: var(--primary-button-hover-color);
-  }
-}
-
-.new-chat-button app-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .new-chat-fab app-icon {
@@ -11972,7 +12082,7 @@ tab-bar[full-width] .tab-bar-button {
 
 .form-dialog-save-button:enabled,
 .form-dialog-save-button.saving {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
 }
 
 .form-dialog-save-button {
@@ -11982,7 +12092,7 @@ tab-bar[full-width] .tab-bar-button {
 }
 
 .form-dialog-save-button .loading-spinner {
-  border-top-color: var(--primary-button-color);
+  border-top-color: var(--text-link-color);
 }
 
 .form-dialog-body {
@@ -12271,7 +12381,7 @@ image-cropper {
   height: 40px;
   border-radius: 50%;
   background: var(--background-color);
-  color: var(--primary-button-color);
+  color: var(--highlight-color);
   flex-shrink: 0;
 }
 
@@ -12494,7 +12604,7 @@ a.plugin-list-item-info {
 }
 
 .plugin-listing-meta a {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
   text-decoration: none;
   word-break: break-all;
 }
@@ -12590,7 +12700,7 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
 }
 
 #community-plugin-listing-view rendered-markdown a {
-  color: var(--primary-button-color);
+  color: var(--text-link-color);
 }
 
 #community-plugin-listing-view rendered-markdown img {

@@ -14,7 +14,7 @@ To develop a plugin locally:
 ln -s /path/to/my_plugin_dir /path/to/impro/plugins-local/my_plugin_dir
 ```
 
-Your plugin should now appear in the "Community Plugins" page: `http://localhost:8080/settings/plugins/community`
+Your plugin should now appear in the "Community Plugins" page: `http://localhost:8080/plugins/community`
 
 4. Watch for changes with `npm start`
 

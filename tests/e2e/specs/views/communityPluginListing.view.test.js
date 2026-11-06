@@ -223,22 +223,4 @@ test.describe("Community plugin listing view", () => {
       new RegExp(`/login\\?returnTo=${encodeURIComponent(detailUrl())}$`),
     );
   });
-
-  test("redirects the old settings URL to the new listing URL", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    mockServer.registryEntries = [REGISTRY_ENTRY];
-    await mockServer.setup(page);
-    await login(page);
-
-    await page.goto(`/settings/plugins/community/${REMOTE_ID}`);
-    await expect(page).toHaveURL(
-      new RegExp(`/plugins/community/${REMOTE_ID}$`),
-    );
-    const view = page.locator("#community-plugin-listing-view");
-    await expect(
-      view.locator('[data-testid="plugin-listing-name"]'),
-    ).toHaveText("Remote Themes", { timeout: 10000 });
-  });
 });

@@ -4,8 +4,7 @@ import { userProfile } from "./testData.js";
 // Hold the pointer down on an element long enough to trigger a long-press
 // (the app uses a 500ms threshold).
 export async function longPress(page, locator) {
-  const box = await locator.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.hover();
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();
@@ -25,7 +24,18 @@ export async function login(page, { scope = OAUTH_SCOPES } = {}) {
     scope,
   };
   await page.addInitScript((session) => {
-    localStorage.setItem("oauth_session", JSON.stringify(session));
+    if (localStorage.getItem("oauth_accounts") !== null) return;
+    localStorage.setItem(
+      "oauth_session:" + session.did,
+      JSON.stringify(session),
+    );
+    localStorage.setItem(
+      "oauth_accounts",
+      JSON.stringify([
+        { did: session.did, handle: null, pdsUrl: session.serviceEndpoint },
+      ]),
+    );
+    localStorage.setItem("oauth_current_did", session.did);
   }, oauthSession);
 }
 
@@ -73,4 +83,27 @@ export async function loginWithAccounts(page, accounts) {
     },
     { accountsArg: accounts, scopeArg: OAUTH_SCOPES },
   );
+}
+
+// Replace the Web Share API with a recorder; read calls via getSharedData.
+export async function stubShareSheet(page) {
+  await page.addInitScript(() => {
+    window.__sharedData = [];
+    Object.defineProperty(Navigator.prototype, "share", {
+      value: async (data) => {
+        window.__sharedData.push(data);
+      },
+      configurable: true,
+    });
+  });
+}
+
+export async function disableShareSheet(page) {
+  await page.addInitScript(() => {
+    delete Navigator.prototype.share;
+  });
+}
+
+export async function getSharedData(page) {
+  return page.evaluate(() => window.__sharedData);
 }

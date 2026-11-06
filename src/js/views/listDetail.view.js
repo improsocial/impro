@@ -1,7 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { classnames, TabScrollMemory, StickyFixer } from "/js/utils.js";
+import {
+  classnames,
+  TabScrollMemory,
+  StickyFixer,
+  canShareUrl,
+  shareUrl,
+} from "/js/utils.js";
 import {
   cdnImageUrl,
   isCurateList,
@@ -34,7 +40,6 @@ export default async function listDetailView({
   root,
   params,
   context: {
-    auth,
     dataLayer,
     identityResolver,
     isAuthenticated,
@@ -43,9 +48,6 @@ export default async function listDetailView({
   },
 }) {
   const { handleOrDid, rkey } = params;
-  const optOutEnabled =
-    isAuthenticated &&
-    (await auth.hasScope("repo:app.bsky.graph.referencelistoptout"));
 
   const profileDid = await resolveDidFromHandleOrDid(
     handleOrDid,
@@ -152,7 +154,7 @@ export default async function listDetailView({
     const starterPackUri = isReference
       ? dataLayer.derived.$starterPackUriForList.get(listUri)
       : null;
-    const showOptOut = optOutEnabled && !isCurrentUserList && isReference;
+    const showOptOut = isAuthenticated && !isCurrentUserList && isReference;
     const isOptedOut = !!list?.viewer?.referenceListOptOut;
     const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
     render(
@@ -206,6 +208,17 @@ export default async function listDetailView({
                     >
                       Open in bsky.app
                     </context-menu-item>
+                    ${canShareUrl()
+                      ? html`
+                          <context-menu-item
+                            data-testid="menu-action-list-share-via"
+                            icon="share-up-line"
+                            @click=${() => shareUrl(listPermalink)}
+                          >
+                            Share via...
+                          </context-menu-item>
+                        `
+                      : null}
                     <context-menu-item
                       data-testid="menu-action-list-copy-link"
                       icon="link-line"

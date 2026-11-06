@@ -187,6 +187,25 @@ export default async function homeView({
     </div>`;
   }
 
+  function tabBarSkeletonTemplate() {
+    return html`<div class="tab-bar-skeleton" data-testid="tab-bar-skeleton">
+      ${Array.from(
+        { length: 4 },
+        () =>
+          html`<div class="tab-bar-skeleton-item">
+            <span class="skeleton-animate tab-bar-skeleton-bar"></span>
+          </div>`,
+      )}
+    </div>`;
+  }
+
+  function pinnedItemsErrorTemplate() {
+    return html`<div class="error-state" data-testid="pinned-items-error">
+      <div>Error loading feeds</div>
+      ${tryAgainButtonTemplate()}
+    </div>`;
+  }
+
   bindToPage(root, layout, "active-nav-click", (event) => {
     event.preventDefault();
     scrollAndReloadFeed();
@@ -272,7 +291,9 @@ export default async function homeView({
 
   pageEffect(root, () => {
     const currentUser = dataLayer.derived.$currentUser.get();
-    const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+    const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
+    const pinnedItemsRequestStatus =
+      dataLayer.requests.statusStore.$statuses.get("loadPinnedItems");
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     const currentFeedRequestStatus =
       dataLayer.requests.statusStore.$statuses.get(
@@ -298,31 +319,41 @@ export default async function homeView({
               <app-icon icon="hashtag-line"></app-icon>
             </a>
           `,
-          bottomItemTemplate: () => html`
-            <tab-bar
-              .tabs=${pinnedItems.map((item) => ({
-                value: item.uri,
-                label: item.displayName,
-              }))}
-              active-tab=${currentFeedUri}
-              @tab-click=${(event) => handleTabClick(event.detail)}
-            ></tab-bar>
-          `,
+          bottomItemTemplate: () =>
+            !pinnedItems && !pinnedItemsRequestStatus.error
+              ? tabBarSkeletonTemplate()
+              : html`
+                  <tab-bar
+                    .tabs=${(pinnedItems ?? []).map((item) => ({
+                      value: item.uri,
+                      label: item.displayName,
+                    }))}
+                    active-tab=${currentFeedUri}
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
+                `,
         })}
         <main>
-          ${pinnedItems.map((item) => {
-            const isMaterialized =
-              item.uri === currentFeedUri ||
-              state.$materializedFeedUris.has(item.uri);
-            return html`<div
-              class="feed-container"
-              ?hidden=${currentFeedUri !== item.uri}
-            >
-              ${isMaterialized
-                ? feedContentsTemplate({ item, currentUser })
-                : null}
-            </div>`;
-          })}
+          ${pinnedItems
+            ? pinnedItems.map((item) => {
+                const isMaterialized =
+                  item.uri === currentFeedUri ||
+                  state.$materializedFeedUris.has(item.uri);
+                return html`<div
+                  class="feed-container"
+                  ?hidden=${currentFeedUri !== item.uri}
+                >
+                  ${isMaterialized
+                    ? feedContentsTemplate({ item, currentUser })
+                    : null}
+                </div>`;
+              })
+            : pinnedItemsRequestStatus.error
+              ? pinnedItemsErrorTemplate()
+              : // show feed skeleton while pinned items are loading
+                html`<div class="feed-container">
+                  ${postFeedTemplate({ feed: null })}
+                </div>`}
         </main>
         ${isAuthenticated
           ? floatingComposeButtonTemplate({
@@ -333,7 +364,9 @@ export default async function homeView({
       </div>`,
       root,
     );
-    syncPostSeenObservers(pinnedItems);
+    if (pinnedItems) {
+      syncPostSeenObservers(pinnedItems);
+    }
     if (postSeenObservers.size > 0) {
       const feedContextsByFeedUri = $feedContextsByFeedUri.get();
       root.querySelectorAll(".feed-item").forEach((feedItem) => {
@@ -348,7 +381,9 @@ export default async function homeView({
         }
       });
     }
-    scheduleMaterializeFeeds(pinnedItems);
+    if (pinnedItems) {
+      scheduleMaterializeFeeds(pinnedItems);
+    }
   });
 
   const fixedHeader = new StickyFixer(() => root.querySelector("header"));

@@ -1120,7 +1120,7 @@ describe("route options", () => {
 
   it("appends pages to the bare container when layout is false", async () => {
     const router = new Router();
-    const { defaultContainer, bareContainer } = mountRouter(router);
+    const { bareContainer } = mountRouter(router);
     router.addRoute("/login", () => Promise.resolve({}), { layout: false });
     router.renderRoute(() => {});
 

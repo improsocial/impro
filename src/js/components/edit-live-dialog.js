@@ -117,8 +117,6 @@ class EditLiveDialog extends Component {
   }
 
   render() {
-    const record = this.liveStatus?.record;
-    const durationMinutes = record?.durationMinutes;
     const expiresAtMs = this.liveStatus?.expiresAt
       ? Date.parse(this.liveStatus.expiresAt)
       : null;

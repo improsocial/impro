@@ -10,6 +10,8 @@ import {
   isAndroid,
   isFirefox,
   isNil,
+  canShareUrl,
+  shareUrl,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
@@ -26,6 +28,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/animated-button.js";
+import "/js/components/plugin-slot.js";
 
 function getBlueskyLinkForPost(post) {
   const rkey = getRKey(post);
@@ -337,25 +340,38 @@ async function openPostContextMenu(event, props) {
 
 function shareMenuTemplate({ post }) {
   return html`
-    <context-menu-item
-      data-testid="menu-action-post-open-in-bsky"
-      icon="open-line"
-      @click=${() => {
-        window.open(getBlueskyLinkForPost(post), "_blank");
-      }}
-    >
-      Open in bsky.app
-    </context-menu-item>
-    <context-menu-item
-      data-testid="menu-action-post-copy-link"
-      icon="link-line"
-      @click=${() => {
-        navigator.clipboard.writeText(getPermalinkForPost(post));
-        showToast("Link copied to clipboard", { style: "success" });
-      }}
-    >
-      Copy link to post
-    </context-menu-item>
+    <context-menu-item-group>
+      <context-menu-item
+        data-testid="menu-action-post-open-in-bsky"
+        icon="open-line"
+        @click=${() => {
+          window.open(getBlueskyLinkForPost(post), "_blank");
+        }}
+      >
+        Open in bsky.app
+      </context-menu-item>
+      ${canShareUrl()
+        ? html`
+            <context-menu-item
+              data-testid="menu-action-post-share-via"
+              icon="share-up-line"
+              @click=${() => shareUrl(getPermalinkForPost(post))}
+            >
+              Share via...
+            </context-menu-item>
+          `
+        : null}
+      <context-menu-item
+        data-testid="menu-action-post-copy-link"
+        icon="link-line"
+        @click=${() => {
+          navigator.clipboard.writeText(getPermalinkForPost(post));
+          showToast("Link copied to clipboard", { style: "success" });
+        }}
+      >
+        Copy link to post
+      </context-menu-item>
+    </context-menu-item-group>
   `;
 }
 
@@ -567,6 +583,14 @@ export function postActionBarTemplate({
         </div>
       </div>
       <div class="post-actions-secondary">
+        ${pluginService
+          ? html`<plugin-slot
+              name="post-action-bar:secondary-start"
+              context-uri=${post.uri}
+              context-feed-uri=${feedGenerator?.uri ?? ""}
+              .pluginService=${pluginService}
+            ></plugin-slot>`
+          : ""}
         <div class="post-action post-action-bookmark">
           ${keyed(
             post.uri,
@@ -641,6 +665,14 @@ export function postActionBarTemplate({
             <span class="text-button-text">...</span>
           </button>
         </div>
+        ${pluginService
+          ? html`<plugin-slot
+              name="post-action-bar:secondary-end"
+              context-uri=${post.uri}
+              context-feed-uri=${feedGenerator?.uri ?? ""}
+              .pluginService=${pluginService}
+            ></plugin-slot>`
+          : ""}
       </div>
     </div>
   `;

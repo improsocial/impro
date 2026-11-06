@@ -19,6 +19,7 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 
 const MAX_DISPLAY_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 256;
+const MAX_PRONOUNS_LENGTH = 20;
 
 class EditProfileDialog extends Component {
   connectedCallback() {
@@ -29,6 +30,7 @@ class EditProfileDialog extends Component {
     this.scrollLock = null;
     this._displayName = "";
     this._description = "";
+    this._pronouns = "";
     this._currentAvatar = null;
     this._currentBanner = null;
     this._newAvatarDataUrl = null;
@@ -50,6 +52,7 @@ class EditProfileDialog extends Component {
     this._profile = profile;
     this._displayName = profile.displayName || "";
     this._description = profile.description || "";
+    this._pronouns = profile.pronouns || "";
     this._currentAvatar = profile.avatar
       ? cdnImageUrl(avatarThumbnailUrl(profile.avatar))
       : null;
@@ -70,6 +73,7 @@ class EditProfileDialog extends Component {
     return (
       this._displayName !== (this._profile.displayName || "") ||
       this._description !== (this._profile.description || "") ||
+      this._pronouns !== (this._profile.pronouns || "") ||
       this._newAvatarDataUrl !== null ||
       this._newBannerDataUrl !== null ||
       this._removeAvatar ||
@@ -85,12 +89,17 @@ class EditProfileDialog extends Component {
     return graphemeCount(this._description) > MAX_DESCRIPTION_LENGTH;
   }
 
+  get _isPronounsTooLong() {
+    return graphemeCount(this._pronouns.trim()) > MAX_PRONOUNS_LENGTH;
+  }
+
   get _canSave() {
     return (
       this._isDirty &&
       !this._saving &&
       !this._isDisplayNameTooLong &&
-      !this._isDescriptionTooLong
+      !this._isDescriptionTooLong &&
+      !this._isPronounsTooLong
     );
   }
 
@@ -100,6 +109,7 @@ class EditProfileDialog extends Component {
 
     const displayNameCount = graphemeCount(this._displayName);
     const descriptionCount = graphemeCount(this._description);
+    const pronounsCount = graphemeCount(this._pronouns.trim());
     const avatarSrc = this._removeAvatar
       ? null
       : this._newAvatarDataUrl || this._currentAvatar;
@@ -324,6 +334,29 @@ class EditProfileDialog extends Component {
                 </div>
 
                 <div class="form-dialog-field">
+                  <label for="edit-profile-pronouns">Pronouns</label>
+                  <input
+                    id="edit-profile-pronouns"
+                    type="text"
+                    class="form-dialog-input"
+                    placeholder="e.g. she/her"
+                    .value=${this._pronouns}
+                    @input=${(event) => {
+                      this._pronouns = event.target.value;
+                      this.render();
+                    }}
+                    data-testid="edit-profile-pronouns"
+                  />
+                  <div
+                    class=${classnames("form-dialog-char-count", {
+                      overflow: this._isPronounsTooLong,
+                    })}
+                  >
+                    ${pronounsCount}/${MAX_PRONOUNS_LENGTH}
+                  </div>
+                </div>
+
+                <div class="form-dialog-field">
                   <label for="edit-profile-description">Description</label>
                   <textarea
                     id="edit-profile-description"
@@ -480,6 +513,7 @@ class EditProfileDialog extends Component {
             profileUpdates: {
               displayName: this._displayName,
               description: this._description,
+              pronouns: this._pronouns,
               avatarBlob,
               bannerBlob,
               removeAvatar: this._removeAvatar,

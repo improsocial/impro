@@ -245,9 +245,7 @@ export function smallPostTemplate({
             currentUser,
             feedContext,
             feedGenerator,
-            onClickReply: () => {
-              window.router.go(linkToPost(post));
-            },
+            onClickReply: (post) => postInteractionHandler.handleReply(post),
             onClickLike: (post, doLike) =>
               postInteractionHandler.handleLike(post, doLike),
             onClickRepost: (post, doRepost) =>

@@ -33,10 +33,9 @@ describe("post-composer", () => {
     document.body.appendChild(container);
   }
 
-  function createPostComposer({ draftsEnabled = true } = {}) {
+  function createPostComposer() {
     const element = document.createElement("post-composer");
     element.dataLayer = makeTestDataLayer();
-    element.draftsEnabled = draftsEnabled;
     element.currentUser = {
       did: "did:plc:test",
       handle: "test.bsky.social",
@@ -90,7 +89,9 @@ describe("post-composer", () => {
     it("should render post button", () => {
       const element = createPostComposer();
       connectElement(element);
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
       assert(postButton !== null);
     });
 
@@ -208,7 +209,9 @@ describe("post-composer", () => {
       connectElement(element);
       patchFirstPost(element, { text: "x".repeat(301) });
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
       assert(postButton.disabled);
     });
   });
@@ -492,7 +495,9 @@ describe("post-composer", () => {
       connectElement(element);
       element.state.$isSending.set(true);
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
       assert(postButton.disabled);
     });
   });
@@ -543,7 +548,9 @@ describe("post-composer", () => {
       assert.deepEqual(element.state.$isSending.get(), false);
       assert.deepEqual(getFirstPost(element).text, "Hello world");
       await nextFrame();
-      const postButton = element.querySelector(".rounded-button-primary");
+      const postButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
       assert(postButton.disabled);
       assert.deepEqual(postButton.querySelector(".loading-spinner"), null);
 
@@ -1736,54 +1743,6 @@ describe("post-composer", () => {
         element.querySelector('[data-testid="composer-drafts-button"]') !==
           null,
       );
-    });
-
-    it("does not render the Drafts button when drafts are disabled", () => {
-      const element = createPostComposer({ draftsEnabled: false });
-      connectElement(element);
-      assert.deepEqual(
-        element.querySelector('[data-testid="composer-drafts-button"]'),
-        null,
-      );
-    });
-
-    it("shows the Drafts button when draftsEnabled is set after connect", async () => {
-      const element = createPostComposer({ draftsEnabled: false });
-      connectElement(element);
-      assert.deepEqual(
-        element.querySelector('[data-testid="composer-drafts-button"]'),
-        null,
-      );
-      element.draftsEnabled = true;
-      await nextFrame();
-      assert(
-        element.querySelector('[data-testid="composer-drafts-button"]') !==
-          null,
-      );
-    });
-
-    it("prompts a plain discard confirm instead of the save choice when drafts are disabled", async () => {
-      const element = createPostComposer({ draftsEnabled: false });
-      connectElement(element);
-      element.handleInput(getFirstPost(element).id, {
-        detail: { text: "hello", facets: [] },
-      });
-      const closing = element.confirmClose();
-      await respondToConfirm(true);
-      const result = await closing;
-      assert.deepEqual(result, true);
-    });
-
-    it("stays open when the discard confirm is declined with drafts disabled", async () => {
-      const element = createPostComposer({ draftsEnabled: false });
-      connectElement(element);
-      element.handleInput(getFirstPost(element).id, {
-        detail: { text: "hello", facets: [] },
-      });
-      const closing = element.confirmClose();
-      await respondToConfirm(false);
-      const result = await closing;
-      assert.deepEqual(result, false);
     });
 
     it("does not render the Drafts button for replies", () => {
@@ -4037,14 +3996,6 @@ describe("post-composer", () => {
         detail: { text: "hello", facets: [] },
       });
       element.state.$isSavingDraft.set(true);
-      await element.handleDraftsButtonClick();
-      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
-    });
-
-    it("does nothing when drafts are disabled", async () => {
-      const element = createPostComposer({ draftsEnabled: false });
-      element.openDraftsDialog = mock.fn();
-      connectElement(element);
       await element.handleDraftsButtonClick();
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
     });

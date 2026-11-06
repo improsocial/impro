@@ -733,19 +733,6 @@ describe("new-chat-dialog", () => {
       );
     });
 
-    it("should hide the group row when group chats are not enabled", () => {
-      const { dataLayer } = makeDataLayer();
-      seedFollows(dataLayer, []);
-      const element = document.createElement("new-chat-dialog");
-      element.dataLayer = dataLayer;
-      element.groupChatsEnabled = false;
-      document.body.appendChild(element);
-      assert.deepEqual(
-        element.querySelector('[data-testid="new-chat-new-group-button"]'),
-        null,
-      );
-    });
-
     it("should advance to the member-select step when groups are allowed", async () => {
       const { dataLayer } = makeDataLayer();
       seedChatActorStatus(dataLayer);

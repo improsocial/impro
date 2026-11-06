@@ -78,18 +78,6 @@ import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
 
-async function checkDraftsEnabled(auth) {
-  const results = await Promise.all(
-    [
-      "rpc:app.bsky.draft.getDrafts",
-      "rpc:app.bsky.draft.createDraft",
-      "rpc:app.bsky.draft.updateDraft",
-      "rpc:app.bsky.draft.deleteDraft",
-    ].map((scope) => auth.hasScope(scope)),
-  );
-  return results.every(Boolean);
-}
-
 export async function main() {
   // Body class for styling
   if (isNative()) {
@@ -166,17 +154,9 @@ export async function main() {
   } = notificationServiceManager;
 
   const postComposerService = session
-    ? new PostComposerService(dataLayer, identityResolver, pluginService, {
-        draftsEnabled: await checkDraftsEnabled(auth),
-      })
+    ? new PostComposerService(dataLayer, identityResolver, pluginService)
     : null;
-  const newChatService = session
-    ? new NewChatService(dataLayer, {
-        groupChatsEnabled: await auth.hasScope(
-          "rpc:chat.bsky.group.createGroup",
-        ),
-      })
-    : null;
+  const newChatService = session ? new NewChatService(dataLayer) : null;
   const accountSwitcherService = session
     ? new AccountSwitcherService(dataLayer, auth)
     : null;
@@ -437,14 +417,6 @@ export async function main() {
         return "/";
       }
     },
-    // Old community plugin URLs
-    "/settings/plugins/community": () => "/plugins/community",
-    "/settings/plugins/community/:pluginId": (params) =>
-      `/plugins/community/${encodeURIComponent(params.pluginId)}`,
-    // Old installed plugin URLs
-    "/settings/plugins": () => "/plugins/installed",
-    "/settings/plugins/:pluginId": (params) =>
-      `/plugin/${encodeURIComponent(params.pluginId)}/settings`,
   });
   router.setNotFoundView(() => notFoundView);
   router.setErrorViewResolver((error) => {

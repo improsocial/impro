@@ -1003,6 +1003,50 @@ describe("postActionBarTemplate - share menu", () => {
     container.remove();
   });
 
+  describe("share via", () => {
+    let shareCalls;
+
+    beforeEach(() => {
+      shareCalls = [];
+    });
+
+    afterEach(() => {
+      delete window.navigator.share;
+    });
+
+    it("should open the share sheet with the post permalink", async () => {
+      Object.defineProperty(window.navigator, "share", {
+        value: async (data) => shareCalls.push(data),
+        configurable: true,
+      });
+      const container = renderActionBar();
+      const menu = openShareMenu(container);
+      menu
+        .querySelector('[data-testid="menu-action-post-share-via"]')
+        .click();
+      assert.deepEqual(shareCalls, [
+        {
+          url: "https://bsky.app/profile/testauthor.bsky.social/post/3testpost2k",
+        },
+      ]);
+      container.remove();
+    });
+
+    it("should not render the share via item when the share sheet is unavailable", () => {
+      const container = renderActionBar();
+      const menu = openShareMenu(container);
+      assert(
+        menu.querySelector('[data-testid="menu-action-post-share-via"]') ===
+          null,
+      );
+      assert(
+        menu.querySelector('[data-testid="menu-action-post-copy-link"]') !==
+          null,
+      );
+      container.remove();
+    });
+  });
+
   it("should not render the share items in the more menu", async () => {
     const container = renderActionBar();
     const menu = await openMoreMenu(container);
@@ -1017,5 +1061,76 @@ describe("postActionBarTemplate - share menu", () => {
       menu.querySelector('[data-testid="menu-action-post-copy-text"]') !== null,
     );
     container.remove();
+  });
+});
+
+describe("postActionBarTemplate - plugin action bar slots", () => {
+  function renderActionBar(options) {
+    const container = document.createElement("div");
+    render(
+      postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        ...options,
+      }),
+      container,
+    );
+    return container;
+  }
+
+  it("should render secondary-start and secondary-end slots in order", () => {
+    const container = renderActionBar({ pluginService: {} });
+    const names = [...container.querySelectorAll("plugin-slot")].map((slot) =>
+      slot.getAttribute("name"),
+    );
+    assert.deepEqual(names, [
+      "post-action-bar:secondary-start",
+      "post-action-bar:secondary-end",
+    ]);
+  });
+
+  it("should place the slots before Bookmark and after More", () => {
+    const container = renderActionBar({ pluginService: {} });
+    const secondaryStart = container.querySelector(
+      "plugin-slot[name='post-action-bar:secondary-start']",
+    );
+    const secondaryEnd = container.querySelector(
+      "plugin-slot[name='post-action-bar:secondary-end']",
+    );
+    assert.equal(
+      secondaryStart.nextElementSibling,
+      container.querySelector(".post-action-bookmark"),
+    );
+    assert.equal(
+      secondaryEnd.previousElementSibling,
+      container.querySelector("[data-testid='post-action-more']").parentElement,
+    );
+  });
+
+  it("should pass the post uri and feed uri to every slot", () => {
+    const feedGenerator = {
+      uri: "at://did:plc:feed/app.bsky.feed.generator/test",
+    };
+    const container = renderActionBar({ feedGenerator, pluginService: {} });
+    for (const slot of container.querySelectorAll("plugin-slot")) {
+      assert.deepEqual(slot.getAttribute("context-uri"), post.uri);
+      assert.deepEqual(
+        slot.getAttribute("context-feed-uri"),
+        feedGenerator.uri,
+      );
+    }
+  });
+
+  it("should pass an empty feed uri outside a feed", () => {
+    const container = renderActionBar({ pluginService: {} });
+    for (const slot of container.querySelectorAll("plugin-slot")) {
+      assert.deepEqual(slot.getAttribute("context-feed-uri"), "");
+    }
+  });
+
+  it("should not render plugin slots without pluginService", () => {
+    const container = renderActionBar({});
+    assert.deepEqual(container.querySelector("plugin-slot"), null);
   });
 });

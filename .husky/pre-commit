@@ -1,4 +1,5 @@
-npm run format && npm run test:unit
+npm run format
+npm run test:unit
 
 # Typecheck the plugin SDK and regenerate its declarations
 TYPECHECK_INPUTS='^impro-plugin/(main\.js|tsconfig\.json|tsconfig\.types\.json)'

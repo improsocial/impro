@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { post, feed } from "../../testData.js";
+import { feed } from "../../testData.js";
 import { createPost, createFeedItem } from "../../../shared/factories.js";
 import { render } from "/js/lib/lit-html.js";
 import { noop } from "/js/utils.js";
