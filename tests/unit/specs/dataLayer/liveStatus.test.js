@@ -39,7 +39,7 @@ function makeDerived({ preferences } = {}) {
     patchStore,
     preferencesProvider,
     new HiddenFeedItemsStore(),
-    false,
+    null,
     new DraftMediaStore("test-media"),
   );
   trackDisposable(derived.liveStatusScheduler);

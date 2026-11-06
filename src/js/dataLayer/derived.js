@@ -170,7 +170,7 @@ export class Derived extends ReactiveStore {
     patchStore,
     preferencesProvider,
     hiddenFeedItemsStore,
-    isAuthenticated,
+    currentUserDid,
     draftMediaStore,
     liveStatusScheduler = new KeyedScheduler(),
   ) {
@@ -180,7 +180,8 @@ export class Derived extends ReactiveStore {
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
-    this.isAuthenticated = isAuthenticated;
+    this.currentUserDid = currentUserDid;
+    this.isAuthenticated = currentUserDid !== null;
     this.draftMediaStore = draftMediaStore;
     this.liveStatusScheduler = liveStatusScheduler;
     // did → increasing id, bumped when an actor's live status expires
@@ -325,11 +326,10 @@ export class Derived extends ReactiveStore {
       const pluginFilteredFeedItems =
         this.hiddenFeedItemsStore.$items.get(feedURI) ?? {};
       if (isFollowingFeedUri(feedURI)) {
-        const currentUser = this.$currentUser.get();
         const preferences = this.$preferences.get();
         return filterFollowingFeed(
           hydratedFeed,
-          currentUser,
+          this.currentUserDid,
           preferences,
           pluginFilteredFeedItems,
         );

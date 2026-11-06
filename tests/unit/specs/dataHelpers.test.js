@@ -11,6 +11,7 @@ import {
   getRKey,
   getIsLiked,
   isListFeed,
+  getFeedTypeFromUri,
   isReferenceList,
   isCurateList,
   getQuotedPost,
@@ -211,6 +212,26 @@ describe("isListFeed", () => {
 
   it("should return false for the following feed", () => {
     assert.deepEqual(isListFeed("following"), false);
+  });
+});
+
+describe("getFeedTypeFromUri", () => {
+  it("should return timeline for the following feed", () => {
+    assert.deepEqual(getFeedTypeFromUri("following"), "timeline");
+  });
+
+  it("should return list for a list URI", () => {
+    assert.deepEqual(
+      getFeedTypeFromUri("at://did:plc:123/app.bsky.graph.list/3ltcvl4ver723"),
+      "list",
+    );
+  });
+
+  it("should return feed for a feed generator URI", () => {
+    assert.deepEqual(
+      getFeedTypeFromUri("at://did:plc:123/app.bsky.feed.generator/whats-hot"),
+      "feed",
+    );
   });
 });
 

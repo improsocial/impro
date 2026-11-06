@@ -150,6 +150,16 @@ export function isFollowingFeedUri(feedURI) {
   return feedURI === FOLLOWING_FEED_URI;
 }
 
+export function getFeedTypeFromUri(feedURI) {
+  if (isFollowingFeedUri(feedURI)) {
+    return "timeline";
+  }
+  if (isListFeed(feedURI)) {
+    return "list";
+  }
+  return "feed";
+}
+
 // The `value` used in savedFeedsPrefV2 for a hydrated pinned item
 export function valueForPinnedItem(item) {
   return item.type === "timeline" ? FOLLOWING_FEED_URI : item.data.uri;

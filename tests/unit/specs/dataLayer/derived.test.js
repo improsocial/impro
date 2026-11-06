@@ -21,7 +21,10 @@ import {
 } from "../../../shared/factories.js";
 import { trackDisposable } from "../../testHelpers.js";
 
-function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
+function makeDerived(
+  dataStore,
+  { preferences, draftMediaStore, currentUserDid = null } = {},
+) {
   const patchStore = new PatchStore();
   const prefs = preferences ?? Preferences.createLoggedOutPreferences();
   const preferencesProvider = {
@@ -35,7 +38,7 @@ function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
     patchStore,
     preferencesProvider,
     hiddenFeedItemsStore,
-    false,
+    currentUserDid,
     draftMediaStore ?? new DraftMediaStore("test-media"),
   );
   trackDisposable(derived.liveStatusScheduler);
@@ -1921,6 +1924,55 @@ describe("$hydratedFeeds (reason, replies, following feed)", () => {
     assert.deepEqual(result.feed.length, 1);
     assert.deepEqual(result.feed[0].post.uri, post.uri);
     assert.deepEqual(result.cursor, "fc");
+  });
+
+  it("should filter following feed replies by the session DID before the current user loads", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      currentUserDid: "did:plc:me",
+    });
+    const strangerParent = createPost({
+      uri: "at://did:plc:stranger/app.bsky.feed.post/parent",
+      text: "parent",
+      authorHandle: "stranger.test",
+    });
+    const myParent = createPost({
+      uri: "at://did:plc:me/app.bsky.feed.post/parent",
+      text: "mine",
+      authorHandle: "me.test",
+    });
+    const replyToStranger = createPost({
+      uri: "at://did:plc:followed/app.bsky.feed.post/1",
+      text: "reply to stranger",
+      authorHandle: "followed.test",
+      authorViewer: { following: "at://did:plc:me/app.bsky.graph.follow/1" },
+    });
+    const replyToMe = createPost({
+      uri: "at://did:plc:followed/app.bsky.feed.post/2",
+      text: "reply to me",
+      authorHandle: "followed.test",
+      authorViewer: { following: "at://did:plc:me/app.bsky.graph.follow/1" },
+    });
+    for (const post of [strangerParent, myParent, replyToStranger, replyToMe]) {
+      dataStore.$posts.set(post.uri, post);
+    }
+    const replyRef = (parent) => ({
+      root: { $type: "app.bsky.feed.defs#postView", uri: parent.uri },
+      parent: { $type: "app.bsky.feed.defs#postView", uri: parent.uri },
+    });
+    dataStore.$feeds.set("following", {
+      feed: [
+        { post: { uri: replyToStranger.uri }, reply: replyRef(strangerParent) },
+        { post: { uri: replyToMe.uri }, reply: replyRef(myParent) },
+      ],
+      cursor: null,
+    });
+    assert.deepEqual(derived.$currentUser.get(), null);
+    const result = derived.$hydratedFeeds.get("following");
+    assert.deepEqual(
+      result.feed.map((item) => item.post.uri),
+      [replyToMe.uri],
+    );
   });
 });
 

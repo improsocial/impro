@@ -45,12 +45,7 @@ function createPreferences(overrides = {}) {
   };
 }
 
-function createCurrentUser(did = "did:plc:currentuser") {
-  return {
-    did,
-    handle: "currentuser.test",
-  };
-}
+const CURRENT_USER_DID = "did:plc:currentuser";
 
 describe("filterFollowingFeed", () => {
   it("should return all non-reply posts", () => {
@@ -63,10 +58,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 2);
     assert.deepEqual(result.cursor, "test-cursor");
@@ -83,10 +77,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReposts: true });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -102,10 +95,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReposts: false });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 2);
   });
@@ -124,10 +116,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReplies: true });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -142,10 +133,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 2);
   });
@@ -160,10 +150,9 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -179,15 +168,14 @@ describe("filterFollowingFeed", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 2);
   });
 
-  it("should return unfiltered feed when no currentUser", () => {
+  it("should return unfiltered feed when no user DID", () => {
     const items = [
       createFeedItem({
         post: { author: { did: "did:plc:1", handle: "user1" } },
@@ -706,10 +694,9 @@ describe("filterFollowingFeed - content label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
     assert.deepEqual(
@@ -731,10 +718,9 @@ describe("filterFollowingFeed - content label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 2);
   });
@@ -758,10 +744,9 @@ describe("filterFollowingFeed - content label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
     assert.deepEqual(
@@ -786,10 +771,9 @@ describe("filterFollowingFeed - content label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -851,10 +835,9 @@ describe("filterFollowingFeed - badge label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
     assert.deepEqual(
@@ -873,10 +856,9 @@ describe("filterFollowingFeed - badge label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -900,10 +882,9 @@ describe("filterFollowingFeed - badge label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
     assert.deepEqual(
@@ -928,10 +909,9 @@ describe("filterFollowingFeed - badge label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 1);
   });
@@ -946,10 +926,9 @@ describe("filterFollowingFeed - badge label filtering", () => {
       }),
     ];
     const feed = createFeed(items);
-    const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences, {});
+    const result = filterFollowingFeed(feed, CURRENT_USER_DID, preferences, {});
 
     assert.deepEqual(result.feed.length, 0);
   });

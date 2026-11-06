@@ -46,18 +46,18 @@ function hasHiddenBadgeLabel(post) {
 }
 
 class FilterByFollowing extends FeedFilter {
-  constructor(currentUser) {
+  constructor(userDid) {
     super();
-    this.currentUser = currentUser;
+    this.userDid = userDid;
   }
 
   filterFeedItems(feedItems) {
     // Filter the feed items to only show posts from self or people you follow
     // Logic stolen from social-app: https://github.com/bluesky-social/social-app/blob/185fd39092cd4c43db060439b03c6c49be60a34e/src/lib/api/feed-manip.ts#L324
-    if (!this.currentUser) {
+    const { userDid } = this;
+    if (!userDid) {
       return feedItems;
     }
-    const userDid = this.currentUser.did;
 
     const filteredFeedItems = [];
     for (const feedItem of feedItems) {
@@ -320,13 +320,13 @@ class FilterPluginFilteredPosts extends FeedFilter {
 
 export function filterFollowingFeed(
   feed,
-  currentUser,
+  userDid,
   preferences,
   pluginFilteredFeedItems,
 ) {
   const followingFeedPreference = preferences.getFollowingFeedPreference();
   const filter = FeedFilter.compose(
-    new FilterByFollowing(currentUser),
+    new FilterByFollowing(userDid),
     ...(followingFeedPreference?.hideReposts ? [new FilterReposts()] : []),
     ...(followingFeedPreference?.hideReplies ? [new FilterReplies()] : []),
     ...(followingFeedPreference?.hideQuotePosts

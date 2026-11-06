@@ -51,7 +51,7 @@ export class DataLayer extends EventEmitter {
       this.patchStore,
       this.preferencesProvider,
       this.hiddenFeedItemsStore,
-      this.isAuthenticated,
+      api.isAuthenticated ? api.session.did : null,
       this.draftMediaStore,
     );
     this.declarative = new Declarative(this.derived, this.requests);

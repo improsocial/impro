@@ -21,7 +21,10 @@ import {
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
-import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
+import {
+  getFeedGeneratorProxyUrl,
+  getFeedTypeFromUri,
+} from "/js/dataHelpers.js";
 import { TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 
@@ -389,16 +392,10 @@ export default async function homeView({
   const fixedHeader = new StickyFixer(() => root.querySelector("header"));
   onPageShow(root, () => fixedHeader.start());
 
-  function getFeedRequestDescriptor(uri) {
-    const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
-    const item = pinnedItems.find((i) => i.uri === uri);
-    return item ? { type: item.type, uri } : { type: "feed", uri };
-  }
-
   async function loadCurrentFeed({ reload = false } = {}) {
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     await dataLayer.requests.loadNextFeedPage(
-      getFeedRequestDescriptor(currentFeedUri),
+      { type: getFeedTypeFromUri(currentFeedUri), uri: currentFeedUri },
       { reload, limit: FEED_PAGE_SIZE + 1 },
     );
   }
@@ -432,16 +429,33 @@ export default async function homeView({
   }
 
   async function loadPageData() {
-    const pinnedItems = await dataLayer.declarative.ensurePinnedItems();
+    const [pinnedItems, initialFeedUri] = await Promise.all([
+      dataLayer.declarative.ensurePinnedItems(),
+      loadInitialFeed(),
+    ]);
     preloadHiddenFeeds(pinnedItems);
-    // Ensure current user before loading the feed to prevent a flash of
-    // unfiltered posts
-    if (isAuthenticated) {
-      await dataLayer.declarative.ensureCurrentUser();
-    }
-    if (!dataLayer.hasCachedFeed(dataLayer.derived.$selectedFeedUri.get())) {
+    // Loading pinned items moves the selection to the first pinned item if
+    // it isn't pinned or its feed couldn't be loaded
+    const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
+    if (
+      currentFeedUri !== initialFeedUri &&
+      !dataLayer.hasCachedFeed(currentFeedUri)
+    ) {
       await loadCurrentFeed();
     }
+  }
+
+  async function loadInitialFeed() {
+    const preferences =
+      await dataLayer.preferencesProvider.requirePreferences();
+    const selectedFeedUri = dataLayer.derived.$selectedFeedUri.get();
+    if (!preferences.isFeedPinned(selectedFeedUri)) {
+      return null;
+    }
+    if (!dataLayer.hasCachedFeed(selectedFeedUri)) {
+      await loadCurrentFeed();
+    }
+    return selectedFeedUri;
   }
 
   onPageShow(root, () => {

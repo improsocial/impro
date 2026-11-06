@@ -64,7 +64,7 @@ function makeDerived(
   dataStore,
   patchStore,
   preferencesProvider,
-  isAuthenticated = true,
+  currentUserDid = "did:plc:testuser",
 ) {
   // Derived' $preferences computed reads `preferencesProvider.$preferences.get()`.
   // If the provider doesn't supply that signal, give it a passthrough.
@@ -84,7 +84,7 @@ function makeDerived(
     patchStore,
     provider,
     new HiddenFeedItemsStore(),
-    isAuthenticated,
+    currentUserDid,
     new DraftMediaStore("test-media"),
   );
   trackDisposable(derived.liveStatusScheduler);

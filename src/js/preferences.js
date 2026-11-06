@@ -11,7 +11,7 @@ import { deepClone } from "/js/utils.js";
 import { generateTid } from "/js/atproto.js";
 import { LOGGED_OUT_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
-import { isListFeed } from "/js/dataHelpers.js";
+import { getFeedTypeFromUri } from "/js/dataHelpers.js";
 import { isValidGif, createMinimalGifObject } from "/js/embedHelpers.js";
 
 export const HIDDEN_POSTS_PREF_TYPE =
@@ -937,7 +937,7 @@ export class Preferences {
           items: [
             {
               id: "3l6ovcmm2vd2j",
-              type: isListFeed(LOGGED_OUT_FEED_URI) ? "list" : "feed",
+              type: getFeedTypeFromUri(LOGGED_OUT_FEED_URI),
               value: LOGGED_OUT_FEED_URI,
               pinned: true,
             },
