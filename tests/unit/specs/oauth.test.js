@@ -586,6 +586,110 @@ describe("oauth", () => {
       assert.deepEqual(tokenCalls.length, 1);
     });
 
+    describe("across tabs", () => {
+      // Fake Web Locks API: runs callbacks one at a time, like an exclusive lock
+      function installFakeLocks() {
+        let tail = Promise.resolve();
+        const requestedNames = [];
+        Object.defineProperty(navigator, "locks", {
+          configurable: true,
+          value: {
+            request(name, callback) {
+              requestedNames.push(name);
+              const result = tail.then(() => callback({ name }));
+              tail = result.catch(() => {});
+              return result;
+            },
+          },
+        });
+        return requestedNames;
+      }
+
+      // Each client keeps its own Session, like a separate tab
+      async function loadTabSessions(count, { expiresAt }) {
+        writeSession({ expiresAt });
+        const sessions = [];
+        for (let i = 0; i < count; i++) {
+          const client = await buildClient();
+          sessions.push(await client.getSession());
+        }
+        return sessions;
+      }
+
+      function interceptRotatingTokenEndpoint() {
+        const usedRefreshTokens = [];
+        globalThis.fetch.__intercept(TOKEN_URL, async (url, options) => {
+          usedRefreshTokens.push(
+            new URLSearchParams(options.body).get("refresh_token"),
+          );
+          return mockResponse({
+            body: {
+              access_token: "new-at",
+              refresh_token: "new-rt",
+              expires_in: 3600,
+            },
+          });
+        });
+        return usedRefreshTokens;
+      }
+
+      function authHeadersFor(path) {
+        return globalThis.fetch.calls
+          .filter((call) => call.url.includes(path))
+          .map((call) => call.options.headers.Authorization);
+      }
+
+      afterEach(() => {
+        delete navigator.locks;
+      });
+
+      it("should use tokens another tab already refreshed instead of refreshing again", async () => {
+        const [session] = await loadTabSessions(1, {
+          expiresAt: Date.now() + 30000,
+        });
+        writeSession({
+          accessToken: "other-tab-at",
+          refreshToken: "other-tab-rt",
+          expiresAt: Date.now() + 3600000,
+        });
+        const usedRefreshTokens = interceptRotatingTokenEndpoint();
+        globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+        await session.fetch("https://pds.example.com/xrpc/foo");
+        assert.deepEqual(usedRefreshTokens, []);
+        assert.deepEqual(authHeadersFor("/xrpc/foo"), ["DPoP other-tab-at"]);
+      });
+
+      it("should spend the refresh token only once when tabs refresh concurrently", async () => {
+        installFakeLocks();
+        const sessions = await loadTabSessions(3, {
+          expiresAt: Date.now() + 30000,
+        });
+        const usedRefreshTokens = interceptRotatingTokenEndpoint();
+        globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+        await Promise.all(
+          sessions.map((session, i) =>
+            session.fetch(`https://pds.example.com/xrpc/tab${i}`),
+          ),
+        );
+        assert.deepEqual(usedRefreshTokens, ["rt"]);
+        assert.deepEqual(
+          sessions.map((_, i) => authHeadersFor(`/xrpc/tab${i}`)[0]),
+          ["DPoP new-at", "DPoP new-at", "DPoP new-at"],
+        );
+      });
+
+      it("should hold a per-account lock while refreshing", async () => {
+        const requestedNames = installFakeLocks();
+        const [session] = await loadTabSessions(1, {
+          expiresAt: Date.now() + 30000,
+        });
+        interceptRotatingTokenEndpoint();
+        globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+        await session.fetch("https://pds.example.com/xrpc/foo");
+        assert.deepEqual(requestedNames, ["oauth-refresh:did:plc:test"]);
+      });
+    });
+
     it("should throw TokenRefreshError on non-500 refresh failure", async () => {
       const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
       globalThis.fetch.__intercept(TOKEN_URL, async () =>
@@ -1442,8 +1546,9 @@ describe("oauth", () => {
       await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
       // bob is current; refresh alice manually
       const alice = await client.getSession("did:plc:alice");
-      // Force expiry
+      // Force expiry (persisted, since refresh re-reads storage)
       alice.sessionData.expiresAt = Date.now() + 30000;
+      alice.save();
       // Reset MockFetch so the new intercept isn't shadowed by the initial
       // exchange route registered during runCallback.
       globalThis.fetch = new MockFetch();
