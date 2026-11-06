@@ -12,11 +12,11 @@ export class ReportService {
       console.warn("Report dialog already open");
       return;
     }
-    await this.dataLayer.preferencesProvider.requirePreferences();
+    await this.dataLayer.labelerDefsProvider.requireLabelerDefs();
     return new Promise((resolve, reject) => {
       this.currentReportDialog = document.createElement("report-dialog");
-      const preferences = this.dataLayer.derived.$preferences.get();
-      this.currentReportDialog.labelerDefs = preferences.labelerDefs;
+      this.currentReportDialog.labelerDefs =
+        this.dataLayer.derived.$labelerDefs.get();
       this.currentReportDialog.subjectType = subjectType;
       this.currentReportDialog.addEventListener("submit-report", async (e) => {
         const {

@@ -109,6 +109,7 @@ export class Api {
       bskyAppViewServiceDid = BSKY_APPVIEW_SERVICE_DID,
       chatAppViewServiceDid = BSKY_CHAT_SERVICE_DID,
       getLabelerDids = null,
+      waitForLabelerDefs = null,
     } = {},
   ) {
     this.isAuthenticated = !!session;
@@ -117,6 +118,7 @@ export class Api {
     this.bskyAppViewServiceDid = bskyAppViewServiceDid;
     this.chatAppViewServiceDid = chatAppViewServiceDid;
     this.getLabelerDids = getLabelerDids;
+    this.waitForLabelerDefs = waitForLabelerDefs;
   }
 
   async appViewRequest(path, options = {}) {
@@ -135,7 +137,13 @@ export class Api {
         headers["atproto-accept-labelers"] = buildAcceptLabelersHeader(allDids);
       }
     }
-    return this.request(path, { ...options, headers });
+    const response = this.request(path, { ...options, headers });
+    if (!this.waitForLabelerDefs) {
+      return response;
+    }
+    // Defer appview responses until they can be moderated
+    const [result] = await Promise.all([response, this.waitForLabelerDefs()]);
+    return result;
   }
 
   chatRequest(path, options = {}) {

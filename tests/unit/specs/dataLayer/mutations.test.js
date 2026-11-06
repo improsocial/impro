@@ -31,13 +31,33 @@ const mockIdentityResolver = {
   resolveHandle: async () => null,
 };
 
-function makeMutations(api, dataStore, patchStore, preferencesProvider) {
+function makeLabelerDefsProvider() {
+  return {
+    addedLabelerDefs: [],
+    removedLabelerDids: [],
+    async addLabelerDef(labelerDef) {
+      this.addedLabelerDefs.push(labelerDef);
+    },
+    async removeLabelerDef(did) {
+      this.removedLabelerDids.push(did);
+    },
+  };
+}
+
+function makeMutations(
+  api,
+  dataStore,
+  patchStore,
+  preferencesProvider,
+  labelerDefsProvider = makeLabelerDefsProvider(),
+) {
   return new Mutations(
     api,
     dataStore,
     dataStore.sessionState,
     patchStore,
     preferencesProvider,
+    labelerDefsProvider,
     mockIdentityResolver,
     new DraftMediaStore("test-media"),
   );
@@ -83,6 +103,7 @@ function makeDerived(
     dataStore.sessionState,
     patchStore,
     provider,
+    { $labelerDefs: new Signal.State([]) },
     new HiddenFeedItemsStore(),
     currentUserDid,
     new DraftMediaStore("test-media"),
@@ -881,6 +902,29 @@ describe("subscribeLabeler", () => {
     assert.deepEqual(patches.length, 0);
   });
 
+  it("should add the labeler definition after the preferences update", async () => {
+    const labelerDefsProvider = makeLabelerDefsProvider();
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        assert.deepEqual(labelerDefsProvider.addedLabelerDefs, []);
+      },
+    };
+    const mutations = makeMutations(
+      {},
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      mockPreferencesProvider,
+      labelerDefsProvider,
+    );
+
+    await mutations.subscribeLabeler(testProfile, testLabelerInfo);
+
+    assert.deepEqual(labelerDefsProvider.addedLabelerDefs, [testLabelerInfo]);
+  });
+
   it("should remove patch even on error", async () => {
     const mockPreferencesProvider = {
       requirePreferences: () => ({
@@ -892,11 +936,13 @@ describe("subscribeLabeler", () => {
     };
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
+    const labelerDefsProvider = makeLabelerDefsProvider();
     const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
       mockPreferencesProvider,
+      labelerDefsProvider,
     );
 
     let errorThrown = false;
@@ -907,6 +953,7 @@ describe("subscribeLabeler", () => {
     }
 
     assert.deepEqual(errorThrown, true);
+    assert.deepEqual(labelerDefsProvider.addedLabelerDefs, []);
     const patches = patchStore.$preferencePatches.get();
     assert.deepEqual(patches.length, 0);
   });
@@ -964,6 +1011,29 @@ describe("unsubscribeLabeler", () => {
 
     const patches = patchStore.$preferencePatches.get();
     assert.deepEqual(patches.length, 0);
+  });
+
+  it("should remove the labeler definition after the preferences update", async () => {
+    const labelerDefsProvider = makeLabelerDefsProvider();
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        assert.deepEqual(labelerDefsProvider.removedLabelerDids, []);
+      },
+    };
+    const mutations = makeMutations(
+      {},
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      mockPreferencesProvider,
+      labelerDefsProvider,
+    );
+
+    await mutations.unsubscribeLabeler(testProfile);
+
+    assert.deepEqual(labelerDefsProvider.removedLabelerDids, [testProfile.did]);
   });
 
   it("should remove patch even on error", async () => {
@@ -1182,7 +1252,7 @@ describe("addMutedWord", () => {
   it("should call updatePreferences with new muted word", async () => {
     let updatedPreferences = null;
     const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences([], []),
+      requirePreferences: () => new Preferences([]),
       updatePreferences: async (prefs) => {
         updatedPreferences = prefs;
       },
@@ -1212,7 +1282,7 @@ describe("addMutedWord", () => {
   it("should pass expiresAt through to preferences", async () => {
     let updatedPreferences = null;
     const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences([], []),
+      requirePreferences: () => new Preferences([]),
       updatePreferences: async (prefs) => {
         updatedPreferences = prefs;
       },
@@ -1243,28 +1313,25 @@ describe("addMutedWord", () => {
 describe("removeMutedWord", () => {
   it("should call updatePreferences with word removed", async () => {
     let updatedPreferences = null;
-    const existingPrefs = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#mutedWordsPref",
-          items: [
-            {
-              id: "word-1",
-              value: "remove-me",
-              targets: ["content"],
-              actorTarget: "all",
-            },
-            {
-              id: "word-2",
-              value: "keep-me",
-              targets: ["tag"],
-              actorTarget: "all",
-            },
-          ],
-        },
-      ],
-      [],
-    );
+    const existingPrefs = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [
+          {
+            id: "word-1",
+            value: "remove-me",
+            targets: ["content"],
+            actorTarget: "all",
+          },
+          {
+            id: "word-2",
+            value: "keep-me",
+            targets: ["tag"],
+            actorTarget: "all",
+          },
+        ],
+      },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => existingPrefs,
       updatePreferences: async (prefs) => {
@@ -2522,7 +2589,7 @@ describe("pinFeed", () => {
 
   function setupWithPreferences(preferencesObj) {
     let updatedPreferences = null;
-    const preferences = new Preferences(preferencesObj, []);
+    const preferences = new Preferences(preferencesObj);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: async (prefs) => {
@@ -2589,10 +2656,9 @@ describe("pinFeed", () => {
 
   it("should not update pinned items when saving fails", async (t) => {
     t.mock.method(console, "error", () => {});
-    const preferences = new Preferences(
-      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
-      [],
-    );
+    const preferences = new Preferences([
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ]);
     const dataStore = new DataStore(createSessionState(null));
     const mutations = makeMutations({}, dataStore, new PatchStore(), {
       requirePreferences: () => preferences,
@@ -2655,10 +2721,9 @@ describe("pinFeed", () => {
     const updatePromise = new Promise((resolve) => {
       updateResolve = resolve;
     });
-    const preferences = new Preferences(
-      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
-      [],
-    );
+    const preferences = new Preferences([
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
@@ -2686,7 +2751,7 @@ describe("pinFeed", () => {
 
 describe("setThreadView", () => {
   function setup({ updatePreferences }) {
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences,
@@ -2720,7 +2785,7 @@ describe("setThreadView", () => {
     assert.deepEqual(patches[0].body, { type: "setThreadView", view: "tree" });
     assert.deepEqual(
       patchStore
-        .applyPreferencePatches(new Preferences([], []), patches)
+        .applyPreferencePatches(new Preferences([]), patches)
         .getThreadView(),
       "tree",
     );
@@ -2749,15 +2814,12 @@ describe("unpinFeed", () => {
 
   it("should clear the pinned flag on the saved-feed entry", async () => {
     let updatedPreferences = null;
-    const preferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-        },
-      ],
-      [],
-    );
+    const preferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+      },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: async (prefs) => {
@@ -2779,15 +2841,12 @@ describe("unpinFeed", () => {
   });
 
   it("should remove the feed from loaded pinned items", async () => {
-    const preferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-        },
-      ],
-      [],
-    );
+    const preferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+      },
+    ]);
     const dataStore = new DataStore(createSessionState(null));
     const mutations = makeMutations({}, dataStore, new PatchStore(), {
       requirePreferences: () => preferences,
@@ -2819,15 +2878,12 @@ describe("unpinFeed", () => {
     const updatePromise = new Promise((resolve) => {
       updateResolve = resolve;
     });
-    const preferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-        },
-      ],
-      [],
-    );
+    const preferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+      },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
@@ -2864,25 +2920,22 @@ describe("setPinnedItems", () => {
     const updatePromise = new Promise((resolve) => {
       resolveUpdate = resolve;
     });
-    const preferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-          items: [
-            {
-              id: "1",
-              value: "following",
-              type: "timeline",
-              pinned: true,
-            },
-            { id: "2", value: feedA, type: "feed", pinned: true },
-            { id: "3", value: listA, type: "list", pinned: true },
-            { id: "4", value: feedB, type: "feed", pinned: false },
-          ],
-        },
-      ],
-      [],
-    );
+    const preferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [
+          {
+            id: "1",
+            value: "following",
+            type: "timeline",
+            pinned: true,
+          },
+          { id: "2", value: feedA, type: "feed", pinned: true },
+          { id: "3", value: listA, type: "list", pinned: true },
+          { id: "4", value: feedB, type: "feed", pinned: false },
+        ],
+      },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: async (prefs) => {
@@ -2945,18 +2998,15 @@ describe("setPinnedItems", () => {
   });
 
   it("leaves $pinnedItems untouched when updatePreferences rejects", async () => {
-    const preferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-          items: [
-            { id: "1", value: feedA, type: "feed", pinned: true },
-            { id: "2", value: listA, type: "list", pinned: true },
-          ],
-        },
-      ],
-      [],
-    );
+    const preferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [
+          { id: "1", value: feedA, type: "feed", pinned: true },
+          { id: "2", value: listA, type: "list", pinned: true },
+        ],
+      },
+    ]);
     const error = new Error("network");
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
@@ -2996,7 +3046,7 @@ describe("hidePost", () => {
 
   it("should write a preference adding the post to the hidden list", async () => {
     let updatedPreferences = null;
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: async (prefs) => {
@@ -3022,7 +3072,7 @@ describe("hidePost", () => {
     const updatePromise = new Promise((resolve) => {
       updateResolve = resolve;
     });
-    const preferences = new Preferences([], []);
+    const preferences = new Preferences([]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: () => updatePromise,
@@ -3053,22 +3103,19 @@ describe("hidePost", () => {
 describe("updateMutedWord", () => {
   it("should call updatePreferences with the word updated", async () => {
     let updatedPreferences = null;
-    const existingPrefs = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#mutedWordsPref",
-          items: [
-            {
-              id: "word-1",
-              value: "old-value",
-              targets: ["content"],
-              actorTarget: "all",
-            },
-          ],
-        },
-      ],
-      [],
-    );
+    const existingPrefs = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [
+          {
+            id: "word-1",
+            value: "old-value",
+            targets: ["content"],
+            actorTarget: "all",
+          },
+        ],
+      },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => existingPrefs,
       updatePreferences: async (prefs) => {
@@ -5232,10 +5279,9 @@ describe("pinList", () => {
 describe("pinFeed entryType", () => {
   it("should add optimistic patch with entryType 'feed'", () => {
     const feedUri = "at://did:test/app.bsky.feed.generator/xyz";
-    const preferences = new Preferences(
-      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
-      [],
-    );
+    const preferences = new Preferences([
+      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+    ]);
     const mockPreferencesProvider = {
       requirePreferences: () => preferences,
       updatePreferences: () =>
@@ -6720,7 +6766,7 @@ describe("updatePostInteractionSettings", () => {
   function makePreferenceMutations(initialPrefs) {
     let updatedPreferences = null;
     const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences(initialPrefs, []),
+      requirePreferences: () => new Preferences(initialPrefs),
       updatePreferences: async (prefs) => {
         updatedPreferences = prefs;
       },

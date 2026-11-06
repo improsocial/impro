@@ -13,6 +13,7 @@ describe("plugin-posts-feed", () => {
   async function setupDataLayer() {
     const dataLayer = makeTestDataLayer();
     await dataLayer.preferencesProvider.fetchPreferences();
+    await dataLayer.labelerDefsProvider.requireLabelerDefs();
     return dataLayer;
   }
 

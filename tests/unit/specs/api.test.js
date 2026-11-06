@@ -466,6 +466,57 @@ describe("labelers header stamping", () => {
   });
 });
 
+describe("labeler definitions hold", () => {
+  it("sends appview requests before labeler definitions load, and resolves after", async () => {
+    const session = createMockSession({ did: "did:plc:someone" });
+    let resolveLabelerDefs = null;
+    const api = new Api(session, {
+      getLabelerDids: async () => [],
+      waitForLabelerDefs: () =>
+        new Promise((resolve) => {
+          resolveLabelerDefs = resolve;
+        }),
+    });
+
+    let resolved = false;
+    const profilePromise = api.getProfile("did:plc:someone").then((profile) => {
+      resolved = true;
+      return profile;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert(session.getLastFetchOptions() !== null);
+    assert.deepEqual(resolved, false);
+
+    resolveLabelerDefs([]);
+    const profile = await profilePromise;
+    assert.deepEqual(profile.did, "did:plc:someone");
+  });
+
+  it("does not hold chat requests", async () => {
+    const session = createMockSession({ convo: { id: "convo1" } });
+    const api = new Api(session, {
+      waitForLabelerDefs: () => new Promise(() => {}),
+    });
+
+    await api.getConvo("convo1");
+
+    assert(session.getLastFetchOptions() !== null);
+  });
+
+  it("propagates labeler definition failures", async () => {
+    const session = createMockSession({});
+    const loadError = new Error("preferences failed");
+    const api = new Api(session, {
+      waitForLabelerDefs: async () => {
+        throw loadError;
+      },
+    });
+
+    await assert.rejects(() => api.getProfile("did:plc:someone"), loadError);
+  });
+});
+
 describe("token refresh failure", () => {
   let onTokenRefreshError = null;
 

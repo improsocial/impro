@@ -62,6 +62,7 @@ export class Mutations {
     sessionState,
     patchStore,
     preferencesProvider,
+    labelerDefsProvider,
     identityResolver,
     draftMediaStore,
   ) {
@@ -70,6 +71,7 @@ export class Mutations {
     this.sessionState = sessionState;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
+    this.labelerDefsProvider = labelerDefsProvider;
     this.draftMediaStore = draftMediaStore;
     this.identityResolver = identityResolver;
     this.postCreator = new PostCreator(api, identityResolver);
@@ -764,13 +766,11 @@ export class Mutations {
       labelerInfo,
     });
     const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.subscribeLabeler(
-      profile.did,
-      labelerInfo,
-    );
+    const newPreferences = preferences.subscribeLabeler(profile.did);
 
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.labelerDefsProvider.addLabelerDef(labelerInfo);
     } catch (error) {
       console.error(error);
       throw error;
@@ -788,6 +788,7 @@ export class Mutations {
     const newPreferences = preferences.unsubscribeLabeler(profile.did);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.labelerDefsProvider.removeLabelerDef(profile.did);
     } catch (error) {
       console.error(error);
       throw error;

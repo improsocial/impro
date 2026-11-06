@@ -473,6 +473,22 @@ export class PatchStore extends ReactiveStore {
     return patchedPreferences;
   }
 
+  applyLabelerDefPatches(labelerDefs, patches) {
+    let patchedLabelerDefs = labelerDefs;
+    for (const { body } of patches) {
+      if (body.type === "subscribeLabeler") {
+        if (!patchedLabelerDefs.some((def) => def.creator.did === body.did)) {
+          patchedLabelerDefs = [...patchedLabelerDefs, body.labelerInfo];
+        }
+      } else if (body.type === "unsubscribeLabeler") {
+        patchedLabelerDefs = patchedLabelerDefs.filter(
+          (def) => def.creator.did !== body.did,
+        );
+      }
+    }
+    return patchedLabelerDefs;
+  }
+
   applyPreferencePatch(preferences, patchBody) {
     switch (patchBody.type) {
       case "pinFeed":
@@ -480,10 +496,7 @@ export class PatchStore extends ReactiveStore {
       case "unpinFeed":
         return preferences.unpinFeed(patchBody.feedUri);
       case "subscribeLabeler":
-        return preferences.subscribeLabeler(
-          patchBody.did,
-          patchBody.labelerInfo,
-        );
+        return preferences.subscribeLabeler(patchBody.did);
       case "unsubscribeLabeler":
         return preferences.unsubscribeLabeler(patchBody.did);
       case "setContentLabelPref":

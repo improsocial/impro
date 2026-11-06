@@ -44,9 +44,9 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   });
 
   effect(() => {
-    const preferences = dataLayer.preferencesProvider.$preferences.get();
-    if (!preferences) return;
-    for (const labelerDef of preferences.labelerDefs) {
+    const labelerDefs = dataLayer.labelerDefsProvider.$labelerDefs.get();
+    if (!labelerDefs) return;
+    for (const labelerDef of labelerDefs) {
       precacheProfile(labelerDef.creator);
     }
   });

@@ -1,12 +1,3 @@
-import {
-  getPostLabels,
-  getLabelerForLabel,
-  getDefinitionForLabel,
-  isBadgeLabel,
-  getGlobalLabelDefinition,
-  getDefaultLabelSetting,
-  isGlobalLabel,
-} from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
 import { generateTid } from "/js/atproto.js";
 import { LOGGED_OUT_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
@@ -57,12 +48,6 @@ function getContentTextFromEmbed(embed) {
   }
 
   return texts;
-}
-
-// Locked (no-override) labels outrank user-revealable hides, which outrank warns
-function getBlurEntryRank(entry) {
-  if (entry.noOverride) return 2;
-  return entry.visibility === "hide" ? 1 : 0;
 }
 
 const MAX_RECENT_SEARCHES = 5;
@@ -120,9 +105,8 @@ function textMatchesMutedWord(text, mutedWord, languages) {
 }
 
 export class Preferences {
-  constructor(obj, labelerDefs, { persist = true } = {}) {
+  constructor(obj, { persist = true } = {}) {
     this.obj = obj;
-    this.labelerDefs = labelerDefs;
     this.persist = persist;
   }
 
@@ -344,7 +328,7 @@ export class Preferences {
     return labelerPreference.labelers.some((labeler) => labeler.did === did);
   }
 
-  subscribeLabeler(did, labelerInfo) {
+  subscribeLabeler(did) {
     const clone = this.clone();
     let labelerPreference = Preferences.getLabelerPreference(clone.obj);
     if (!labelerPreference) {
@@ -356,10 +340,6 @@ export class Preferences {
     }
     if (!labelerPreference.labelers.some((l) => l.did === did)) {
       labelerPreference.labelers.push({ did });
-    }
-    // Add labeler definition if not already present
-    if (!clone.labelerDefs.some((l) => l.creator.did === did)) {
-      clone.labelerDefs.push(labelerInfo);
     }
     return clone;
   }
@@ -373,8 +353,6 @@ export class Preferences {
     labelerPreference.labelers = labelerPreference.labelers.filter(
       (labeler) => labeler.did !== did,
     );
-    // Remove labeler definition
-    clone.labelerDefs = clone.labelerDefs.filter((l) => l.creator.did !== did);
     return clone;
   }
 
@@ -393,54 +371,11 @@ export class Preferences {
     return matchingPref ?? null;
   }
 
-  getLabelVisibility(label, labelDefinition) {
-    // Non-configurable global labels always use their default
-    if (labelDefinition.configurable === false) {
-      return getDefaultLabelSetting(labelDefinition);
-    }
-    if (this.isAdultLabelDisabled(labelDefinition)) {
-      return "hide";
-    }
-    const pref = this.getContentLabelPref({
-      label: label.val,
-      labelerDid: isGlobalLabel(label.val) ? null : label.src,
-    });
-    return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
-  }
-
   isAdultContentEnabled() {
     const adultContentPreference = Preferences.getAdultContentPreference(
       this.obj,
     );
     return adultContentPreference?.enabled ?? false;
-  }
-
-  isAdultLabelDisabled(labelDefinition) {
-    return !!labelDefinition.adultOnly && !this.isAdultContentEnabled();
-  }
-
-  _createBlurLabelEntry(visibility, label, labelDefinition, labeler) {
-    return {
-      visibility,
-      label,
-      labelDefinition,
-      labeler,
-      noOverride: this.isAdultLabelDisabled(labelDefinition),
-    };
-  }
-
-  getLabelDefinitionAndLabeler(label) {
-    const labeler = getLabelerForLabel(label, this.labelerDefs);
-    // First check global labels
-    const globalDef = getGlobalLabelDefinition(label.val);
-    if (globalDef) {
-      return { labelDefinition: globalDef, labeler };
-    }
-    // Then check labeler-defined labels
-    if (!labeler) return null;
-    const labelDefinition = getDefinitionForLabel(label, labeler);
-    if (!labelDefinition) return null;
-    return { labelDefinition, labeler };
   }
 
   setContentLabelPref({ label, visibility, labelerDid }) {
@@ -462,125 +397,6 @@ export class Preferences {
   getLabelerSettings(labelerDid) {
     const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
     return contentLabelPrefs.filter((pref) => pref.labelerDid === labelerDid);
-  }
-
-  _getBadgeLabelsFromLabels(labels, { includeBlurLabels = false } = {}) {
-    const badgeLabels = [];
-    for (const label of labels) {
-      const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (!labeler) continue;
-      const labelDefinition = getDefinitionForLabel(label, labeler);
-      if (!labelDefinition) continue;
-      const rendersAsBadge =
-        isBadgeLabel(labelDefinition) ||
-        (includeBlurLabels &&
-          ["alert", "inform"].includes(labelDefinition.severity));
-      if (!rendersAsBadge) continue;
-      const visibility = this.getLabelVisibility(label, labelDefinition);
-      if (visibility === "ignore") continue;
-      badgeLabels.push({
-        visibility,
-        label,
-        labelDefinition,
-        labeler,
-      });
-    }
-    return badgeLabels;
-  }
-
-  getBadgeLabelsForPost(post) {
-    return this._getBadgeLabelsFromLabels(getPostLabels(post));
-  }
-
-  getBadgeLabelsForProfile(profile) {
-    // Blur labels on a post surface as its content warning, so only
-    // blurs: "none" labels become pills there. A profile-targeted blur label
-    // blurs the account's content/media, not the profile card, so it still
-    // renders as a pill when its severity is alert/inform (mirrors
-    // social-app's profileList/profileView behaviors).
-    return this._getBadgeLabelsFromLabels(profile?.labels ?? [], {
-      includeBlurLabels: true,
-    });
-  }
-
-  _getLabelByBlurType(post, blurType) {
-    const labels = getPostLabels(post);
-    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
-    let currentLabel = null;
-    for (const label of labels) {
-      const result = this.getLabelDefinitionAndLabeler(label);
-      if (!result) continue;
-      const { labelDefinition, labeler } = result;
-      if (labelDefinition.blurs !== blurType) continue;
-      const labelVisibility = this.getLabelVisibility(label, labelDefinition);
-      if (labelVisibility !== "hide" && labelVisibility !== "warn") continue;
-      const entry = this._createBlurLabelEntry(
-        labelVisibility,
-        label,
-        labelDefinition,
-        labeler,
-      );
-      if (entry.noOverride) {
-        return entry;
-      }
-      if (
-        !currentLabel ||
-        getBlurEntryRank(entry) > getBlurEntryRank(currentLabel)
-      ) {
-        currentLabel = entry;
-      }
-    }
-    return currentLabel;
-  }
-
-  getContentLabel(post) {
-    return this._getLabelByBlurType(post, "content");
-  }
-
-  getMediaLabel(post) {
-    return this._getLabelByBlurType(post, "media");
-  }
-
-  getProfileBlurLabel(profileOrAuthor) {
-    const labels = profileOrAuthor?.labels ?? [];
-    let currentLabel = null;
-    for (const label of labels) {
-      const result = this.getLabelDefinitionAndLabeler(label);
-      if (!result) continue;
-      const { labelDefinition, labeler } = result;
-      if (
-        labelDefinition.blurs !== "content" &&
-        labelDefinition.blurs !== "media"
-      ) {
-        continue;
-      }
-      const visibility = this.getLabelVisibility(label, labelDefinition);
-      if (visibility !== "hide" && visibility !== "warn") continue;
-      const entry = this._createBlurLabelEntry(
-        visibility,
-        label,
-        labelDefinition,
-        labeler,
-      );
-      if (entry.noOverride) {
-        return entry;
-      }
-      if (
-        !currentLabel ||
-        getBlurEntryRank(entry) > getBlurEntryRank(currentLabel)
-      ) {
-        currentLabel = entry;
-      }
-    }
-    return currentLabel;
-  }
-
-  hasHideLabel(labels) {
-    return labels.some((label) => {
-      const result = this.getLabelDefinitionAndLabeler(label);
-      if (!result) return false;
-      return this.getLabelVisibility(label, result.labelDefinition) === "hide";
-    });
   }
 
   isPostHidden(postUri) {
@@ -752,9 +568,7 @@ export class Preferences {
   }
 
   clone() {
-    return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs), {
-      persist: this.persist,
-    });
+    return new Preferences(deepClone(this.obj), { persist: this.persist });
   }
 
   getPluginSettings(pluginId) {
@@ -944,7 +758,6 @@ export class Preferences {
           ],
         },
       ],
-      [],
       { persist: false },
     );
   }

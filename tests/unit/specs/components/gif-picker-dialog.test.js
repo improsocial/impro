@@ -61,7 +61,7 @@ describe("gif-picker-dialog", () => {
   }
 
   function seedRecents(dataLayer, gifs) {
-    let preferences = new Preferences([], []);
+    let preferences = new Preferences([]);
     for (const gif of gifs) {
       preferences = preferences.addRecentGif(gif);
     }

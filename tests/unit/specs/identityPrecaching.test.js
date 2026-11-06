@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
+import { Signal } from "/js/signals.js";
 
 function setup() {
   const dataStore = new DataStore(createSessionState(null));
   const dataLayer = {
     dataStore,
-    preferencesProvider: { $preferences: { get: () => null } },
+    labelerDefsProvider: { $labelerDefs: new Signal.State(null) },
   };
   const resolvedHandles = new Map();
   const identityResolver = {
@@ -151,5 +152,19 @@ describe("post precaching", () => {
     assert.deepEqual(resolvedHandles.get("root.test"), "did:plc:root");
     assert.deepEqual(resolvedHandles.get("quote.test"), "did:plc:quote");
     assert.deepEqual(resolvedHandles.get("nested.test"), "did:plc:nested");
+  });
+});
+
+describe("labeler precaching", () => {
+  it("should cache labeler creators once labeler definitions load", async () => {
+    const { dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataLayer.labelerDefsProvider.$labelerDefs.set([
+      { creator: { handle: "labeler.test", did: "did:plc:labeler" } },
+    ]);
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("labeler.test"), "did:plc:labeler");
   });
 });

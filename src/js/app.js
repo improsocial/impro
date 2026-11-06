@@ -41,6 +41,7 @@ import bookmarksView from "/js/views/bookmarks.view.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { LabelerDefsProvider } from "/js/dataLayer/labelerDefsProvider.js";
 import { IdentityResolver, HandleNotFoundError } from "/js/atproto.js";
 import { Router } from "/js/router.js";
 import { scrollLocks } from "/js/scrollLocks.js";
@@ -109,14 +110,20 @@ export async function main() {
   }
 
   // Create separate api with no getLabelerDids callback for managing preferences
+  // and labeler definitions
   const preferencesApi = createApi();
   const preferencesProvider = new PreferencesProvider(preferencesApi);
+  const labelerDefsProvider = new LabelerDefsProvider(
+    preferencesApi,
+    preferencesProvider,
+  );
 
   const api = createApi({
     getLabelerDids: async () => {
       const preferences = await preferencesProvider.requirePreferences();
       return preferences.getLabelerDids();
     },
+    waitForLabelerDefs: () => labelerDefsProvider.requireLabelerDefs(),
   });
 
   const draftMediaStore = new DraftMediaStore();
@@ -125,6 +132,7 @@ export async function main() {
   const dataLayer = new DataLayer(
     api,
     preferencesProvider,
+    labelerDefsProvider,
     identityResolver,
     draftMediaStore,
     hiddenFeedItemsStore,
@@ -191,9 +199,12 @@ export async function main() {
     });
   }
 
-  // Preload preferences
+  // Preload preferences and labeler definitions
   preferencesProvider.requirePreferences().catch((error) => {
     console.warn("Error preloading preferences:", error);
+  });
+  labelerDefsProvider.requireLabelerDefs().catch((error) => {
+    console.warn("Error preloading labeler definitions:", error);
   });
 
   pluginService.loadEnabledPlugins().catch((error) => {

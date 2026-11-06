@@ -8,9 +8,6 @@ describe("PreferencesProvider", () => {
   const realSetTimeout = globalThis.setTimeout;
   beforeEach(() => {
     globalThis.setTimeout = (callback) => realSetTimeout(callback, 0);
-    for (const toast of document.querySelectorAll('[data-testid="toast"]')) {
-      toast.remove();
-    }
   });
   afterEach(() => {
     globalThis.setTimeout = realSetTimeout;
@@ -24,7 +21,6 @@ describe("PreferencesProvider", () => {
         fetchCount++;
         return [];
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -42,7 +38,6 @@ describe("PreferencesProvider", () => {
         fetchCount++;
         return [];
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -60,7 +55,6 @@ describe("PreferencesProvider", () => {
         fetchCount++;
         return [];
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -82,7 +76,6 @@ describe("PreferencesProvider", () => {
         if (attempts === 1) throw new Error("500");
         return [];
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -100,7 +93,6 @@ describe("PreferencesProvider", () => {
         attempts++;
         throw new Error("500");
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -117,7 +109,6 @@ describe("PreferencesProvider", () => {
         attempts++;
         throw new Error("500");
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -135,7 +126,6 @@ describe("PreferencesProvider", () => {
         if (shouldFail) throw new Error("500");
         return [];
       },
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -164,7 +154,6 @@ describe("PreferencesProvider", () => {
     const mockApi = {
       isAuthenticated: true,
       getPreferences: async () => mockPreferencesObj,
-      getLabelers: async () => [],
     };
     const provider = new PreferencesProvider(mockApi);
 
@@ -172,47 +161,6 @@ describe("PreferencesProvider", () => {
 
     const preferences = await provider.requirePreferences();
     assert.deepEqual(preferences.obj, mockPreferencesObj);
-  });
-
-  it("should fall back to empty labeler defs when the labeler service fails", async () => {
-    const mockPreferencesObj = [
-      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
-    ];
-    const mockApi = {
-      isAuthenticated: true,
-      getPreferences: async () => mockPreferencesObj,
-      getLabelers: async () => {
-        throw new Error("502");
-      },
-    };
-    const provider = new PreferencesProvider(mockApi);
-
-    await provider.fetchPreferences();
-
-    const preferences = await provider.requirePreferences();
-    assert.deepEqual(preferences.obj, mockPreferencesObj);
-    assert.deepEqual(preferences.labelerDefs, []);
-  });
-
-  it("should warn with a toast when the labeler service fails", async () => {
-    // The toast's own auto-dismiss timer shouldn't run on the patched clock.
-    globalThis.setTimeout = realSetTimeout;
-    const mockApi = {
-      isAuthenticated: true,
-      getPreferences: async () => [],
-      getLabelers: async () => {
-        throw new Error("502");
-      },
-    };
-    const provider = new PreferencesProvider(mockApi);
-
-    await provider.fetchPreferences();
-
-    const toasts = document.querySelectorAll('[data-testid="toast"]');
-    assert.deepEqual(toasts.length, 1);
-    for (const toast of toasts) {
-      toast.remove();
-    }
   });
 
   it("should update preferences via API", async () => {
@@ -220,7 +168,6 @@ describe("PreferencesProvider", () => {
     const mockApi = {
       isAuthenticated: true,
       getPreferences: async () => [],
-      getLabelers: async () => [],
       updatePreferences: async (obj) => {
         updatedObj = obj;
       },
@@ -228,10 +175,9 @@ describe("PreferencesProvider", () => {
     const provider = new PreferencesProvider(mockApi);
     await provider.fetchPreferences();
 
-    const newPreferences = new Preferences(
-      [{ $type: "app.bsky.actor.defs#testPref" }],
-      [],
-    );
+    const newPreferences = new Preferences([
+      { $type: "app.bsky.actor.defs#testPref" },
+    ]);
     await provider.updatePreferences(newPreferences);
 
     assert.deepEqual(updatedObj, newPreferences.obj);

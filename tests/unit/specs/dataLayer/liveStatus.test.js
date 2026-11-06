@@ -25,10 +25,10 @@ import { trackDisposable } from "../../testHelpers.js";
 
 const did = "did:plc:liveuser1";
 
-function makeDerived({ preferences } = {}) {
+function makeDerived({ labeling } = {}) {
   const dataStore = new DataStore(createSessionState(null));
   const patchStore = new PatchStore();
-  const prefs = preferences ?? Preferences.createLoggedOutPreferences();
+  const prefs = Preferences.createLoggedOutPreferences();
   const preferencesProvider = {
     requirePreferences: () => prefs,
     $preferences: new Signal.State(prefs),
@@ -38,10 +38,14 @@ function makeDerived({ preferences } = {}) {
     dataStore.sessionState,
     patchStore,
     preferencesProvider,
+    { $labelerDefs: new Signal.State([]) },
     new HiddenFeedItemsStore(),
     null,
     new DraftMediaStore("test-media"),
   );
+  if (labeling) {
+    derived.$labeling = new Signal.State(labeling);
+  }
   trackDisposable(derived.liveStatusScheduler);
   return { derived, dataStore };
 }
@@ -218,13 +222,9 @@ describe("live status", () => {
     });
 
     it("returns none when the profile has a blur label", () => {
-      const preferences = {
-        getProfileBlurLabel: () => "porn",
-        clone() {
-          return this;
-        },
-      };
-      const { derived, dataStore } = makeDerived({ preferences });
+      const { derived, dataStore } = makeDerived({
+        labeling: { getProfileBlurLabel: () => "porn" },
+      });
       addLiveProfile(
         dataStore,
         createLiveStatusView({ did, expiresAt: futureExpiry() }),
@@ -445,6 +445,7 @@ describe("live status", () => {
         dataStore.sessionState,
         patchStore,
         preferencesProvider,
+        null,
         { resolveHandle: async () => null },
         new DraftMediaStore("test-media"),
       );

@@ -1,6 +1,7 @@
 import { afterEach, mock } from "node:test";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { LabelerDefsProvider } from "/js/dataLayer/labelerDefsProvider.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
@@ -32,9 +33,11 @@ export function makeTestDataLayer({
     updatePreferences: async () => {},
     ...apiOverrides,
   };
+  const preferencesProvider = new PreferencesProvider(api);
   const dataLayer = new DataLayer(
     api,
-    new PreferencesProvider(api),
+    preferencesProvider,
+    new LabelerDefsProvider(api, preferencesProvider),
     identityResolver ?? { resolveHandle: async () => null },
     draftMediaStore ?? new DraftMediaStore("test-media"),
     hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),

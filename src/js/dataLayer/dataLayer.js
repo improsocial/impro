@@ -11,6 +11,7 @@ export class DataLayer extends EventEmitter {
   constructor(
     api,
     preferencesProvider,
+    labelerDefsProvider,
     identityResolver,
     draftMediaStore,
     hiddenFeedItemsStore,
@@ -27,6 +28,7 @@ export class DataLayer extends EventEmitter {
     this.dataStore = new DataStore(this.sessionState);
     this.patchStore = new PatchStore();
     this.preferencesProvider = preferencesProvider;
+    this.labelerDefsProvider = labelerDefsProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.requests = new Requests(
       this.api,
@@ -42,6 +44,7 @@ export class DataLayer extends EventEmitter {
       this.sessionState,
       this.patchStore,
       this.preferencesProvider,
+      this.labelerDefsProvider,
       this.identityResolver,
       this.draftMediaStore,
     );
@@ -50,6 +53,7 @@ export class DataLayer extends EventEmitter {
       this.sessionState,
       this.patchStore,
       this.preferencesProvider,
+      this.labelerDefsProvider,
       this.hiddenFeedItemsStore,
       api.isAuthenticated ? api.session.did : null,
       this.draftMediaStore,

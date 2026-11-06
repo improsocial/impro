@@ -404,7 +404,41 @@ describe("Preference Patches - Labeler Patches", () => {
     const result = applyPreferencePatchesAll(patchStore, mockPreferences);
 
     assert.deepEqual(result._subscribedLabeler, labelerDid);
-    assert.deepEqual(result._labelerInfo, labelerInfo);
+  });
+
+  it("should add and remove labeler definitions for labeler patches", () => {
+    const patchStore = new PatchStore();
+    const existing = { creator: { did: "did:plc:existing" } };
+    const subscribed = { creator: { did: "did:plc:subscribed" } };
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: "did:plc:subscribed",
+      labelerInfo: subscribed,
+    });
+    patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: "did:plc:existing",
+    });
+    const result = patchStore.applyLabelerDefPatches(
+      [existing],
+      patchStore.$preferencePatches.get(),
+    );
+    assert.deepEqual(result, [subscribed]);
+  });
+
+  it("should not duplicate an already-loaded labeler definition", () => {
+    const patchStore = new PatchStore();
+    const existing = { creator: { did: "did:plc:existing" } };
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: "did:plc:existing",
+      labelerInfo: { creator: { did: "did:plc:existing" } },
+    });
+    const result = patchStore.applyLabelerDefPatches(
+      [existing],
+      patchStore.$preferencePatches.get(),
+    );
+    assert.deepEqual(result, [existing]);
   });
 
   it("should apply unsubscribeLabeler patch correctly", () => {

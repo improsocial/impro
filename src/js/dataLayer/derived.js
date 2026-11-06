@@ -28,6 +28,7 @@ import {
   getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
+import { Labeling } from "/js/labeling.js";
 import { FOLLOWING_FEED_URI } from "/js/config.js";
 import {
   Signal,
@@ -65,21 +66,21 @@ function applyIsHidden(post, preferences) {
   });
 }
 
-function applyLabelsToPost(post, preferences) {
+function applyLabelsToPost(post, labeling) {
   let result = post;
-  const badgeLabels = preferences.getBadgeLabelsForPost(post);
+  const badgeLabels = labeling.getBadgeLabelsForPost(post);
   if (badgeLabels.length > 0) {
     result = { ...result, badgeLabels };
   }
-  const contentLabel = preferences.getContentLabel(post);
+  const contentLabel = labeling.getContentLabel(post);
   if (contentLabel) {
     result = { ...result, contentLabel };
   }
-  const mediaLabel = preferences.getMediaLabel(post);
+  const mediaLabel = labeling.getMediaLabel(post);
   if (mediaLabel) {
     result = { ...result, mediaLabel };
   }
-  const authorBlurLabel = preferences.getProfileBlurLabel(result.author);
+  const authorBlurLabel = labeling.getProfileBlurLabel(result.author);
   if (authorBlurLabel) {
     result = {
       ...result,
@@ -89,10 +90,10 @@ function applyLabelsToPost(post, preferences) {
   return result;
 }
 
-function applyLabels(post, preferences) {
-  const result = applyLabelsToPost(post, preferences);
+function applyLabels(post, labeling) {
+  const result = applyLabelsToPost(post, labeling);
   return transformNestedQuotes(result, (quotedPost) =>
-    applyLabelsToPost(quotedPost, preferences),
+    applyLabelsToPost(quotedPost, labeling),
   );
 }
 
@@ -104,7 +105,7 @@ function isAccountLabel(label) {
   return !label.uri.endsWith("/app.bsky.actor.profile/self");
 }
 
-function shouldHideNotification(notification, preferences) {
+function shouldHideNotification(notification, labeling) {
   const author = notification.author;
   if (author.labels?.some(isHideableOffenseLabel)) return true;
   if (
@@ -115,17 +116,17 @@ function shouldHideNotification(notification, preferences) {
   }
   if (author.viewer?.blocking) return true;
   if (
-    preferences &&
+    labeling &&
     ["reply", "mention", "quote"].includes(notification.reason) &&
     notification.post &&
-    preferences.hasHideLabel(notification.post.labels ?? [])
+    labeling.hasHideLabel(notification.post.labels ?? [])
   ) {
     return true;
   }
   if (author.viewer?.following) return false;
   if (author.viewer?.muted) return true;
-  if (!preferences) return false;
-  return preferences.hasHideLabel([
+  if (!labeling) return false;
+  return labeling.hasHideLabel([
     ...(notification.labels ?? []),
     ...(author.labels ?? []).filter(isAccountLabel),
   ]);
@@ -133,22 +134,22 @@ function shouldHideNotification(notification, preferences) {
 
 // Match social-app: an exact handle match stays visible (so the account
 // can still be reached) unless it carries a !hide / !takedown label.
-function shouldHideTypeaheadProfile(profile, query, preferences) {
+function shouldHideTypeaheadProfile(profile, query, labeling) {
   const accountLabels = (profile.labels ?? []).filter(isAccountLabel);
   if (profile.handle.toLowerCase() === query.toLowerCase().trim()) {
     return accountLabels.some(isHideableOffenseLabel);
   }
   if (profile.viewer?.blocking || profile.viewer?.blockedBy) return true;
-  if (!preferences) return false;
-  return preferences.hasHideLabel(accountLabels);
+  if (!labeling) return false;
+  return labeling.hasHideLabel(accountLabels);
 }
 
 // Created items == feed generators and lists
-function shouldHideCreatedItem(item, preferences) {
+function shouldHideCreatedItem(item, labeling) {
   const creator = item.creator;
   if (creator.viewer?.blocking || creator.viewer?.blockedBy) return true;
-  if (!preferences) return false;
-  return preferences.hasHideLabel([
+  if (!labeling) return false;
+  return labeling.hasHideLabel([
     ...(item.labels ?? []),
     ...(creator.labels ?? []).filter(isAccountLabel),
   ]);
@@ -169,6 +170,7 @@ export class Derived extends ReactiveStore {
     sessionState,
     patchStore,
     preferencesProvider,
+    labelerDefsProvider,
     hiddenFeedItemsStore,
     currentUserDid,
     draftMediaStore,
@@ -179,6 +181,7 @@ export class Derived extends ReactiveStore {
     this.sessionState = sessionState;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
+    this.labelerDefsProvider = labelerDefsProvider;
     this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.currentUserDid = currentUserDid;
     this.isAuthenticated = currentUserDid !== null;
@@ -244,12 +247,12 @@ export class Derived extends ReactiveStore {
         this.$patchedDetailedProfiles.get(did) ??
         this.$patchedProfiles.get(did);
       const viewer = profile?.viewer;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       if (
         viewer?.blocking ||
         viewer?.blockedBy ||
         viewer?.muted ||
-        (profile && preferences && preferences.getProfileBlurLabel(profile))
+        (profile && labeling && labeling.getProfileBlurLabel(profile))
       ) {
         this.liveStatusScheduler.cancel(did);
         return { state: "none" };
@@ -307,12 +310,14 @@ export class Derived extends ReactiveStore {
     this.$hydratedPosts = new ComputedMap((uri) => {
       const post = this.$patchedPosts.get(uri);
       const preferences = this.$preferences.get();
-      return this.hydratePost(post, preferences);
+      const labeling = this.$labeling.get();
+      return this.hydratePost(post, preferences, labeling);
     });
     this.$hydratedEmbeddedPosts = new ComputedMap((uri) => {
       const post = this.dataStore.$embeddedPosts.get(uri);
       const preferences = this.$preferences.get();
-      return this.hydratePost(post, preferences);
+      const labeling = this.$labeling.get();
+      return this.hydratePost(post, preferences, labeling);
     });
     this.$hydratedFeeds = new ComputedMap((feedURI) => {
       const feed = this.dataStore.$feeds.get(feedURI);
@@ -352,24 +357,36 @@ export class Derived extends ReactiveStore {
       const patches = this.patchStore.$preferencePatches.get();
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
+    this.$labelerDefs = new Signal.Computed(() => {
+      const labelerDefs = this.labelerDefsProvider.$labelerDefs.get();
+      if (!labelerDefs) return null;
+      const patches = this.patchStore.$preferencePatches.get();
+      return this.patchStore.applyLabelerDefPatches(labelerDefs, patches);
+    });
+    this.$labeling = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      const labelerDefs = this.$labelerDefs.get();
+      if (!preferences || !labelerDefs) return null;
+      return new Labeling(preferences, labelerDefs);
+    });
     this.$notifications = new Signal.Computed(() => {
       const data = this.dataStore.$notifications.get();
       if (!data) return null;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       return data.notifications
         .map((notification) => this.hydrateNotification(notification))
         .filter(
-          (notification) => !shouldHideNotification(notification, preferences),
+          (notification) => !shouldHideNotification(notification, labeling),
         );
     });
     this.$mentionNotifications = new Signal.Computed(() => {
       const data = this.dataStore.$mentionNotifications.get();
       if (!data) return null;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       return data.notifications
         .map((notification) => this.hydrateNotification(notification))
         .filter(
-          (notification) => !shouldHideNotification(notification, preferences),
+          (notification) => !shouldHideNotification(notification, labeling),
         );
     });
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
@@ -662,7 +679,7 @@ export class Derived extends ReactiveStore {
       const data = this.dataStore.$actorFeeds.get(did);
       if (!data) return data;
       const currentUserDid = this.$currentUser.get()?.did;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       return {
         ...data,
         feeds: data.feeds
@@ -670,7 +687,7 @@ export class Derived extends ReactiveStore {
           .filter(
             (feed) =>
               feed.creator.did === currentUserDid ||
-              !shouldHideCreatedItem(feed, preferences),
+              !shouldHideCreatedItem(feed, labeling),
           ),
       };
     });
@@ -678,7 +695,7 @@ export class Derived extends ReactiveStore {
       const data = this.dataStore.$actorLists.get(did);
       if (!data) return data;
       const currentUserDid = this.$currentUser.get()?.did;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       return {
         ...data,
         lists: data.lists
@@ -686,7 +703,7 @@ export class Derived extends ReactiveStore {
           .filter(
             (list) =>
               list.creator.did === currentUserDid ||
-              !shouldHideCreatedItem(list, preferences),
+              !shouldHideCreatedItem(list, labeling),
           ),
       };
     });
@@ -704,7 +721,7 @@ export class Derived extends ReactiveStore {
       const feeds = this.dataStore.$popularFeeds.get();
       if (!feeds) return null;
       const currentUserDid = this.$currentUser.get()?.did;
-      const preferences = this.$preferences.get();
+      const labeling = this.$labeling.get();
       return feeds
         .map(
           (feed) =>
@@ -714,7 +731,7 @@ export class Derived extends ReactiveStore {
           (feed) =>
             feed.creator.did === currentUserDid ||
             (!feed.creator.viewer?.muted &&
-              !shouldHideCreatedItem(feed, preferences)),
+              !shouldHideCreatedItem(feed, labeling)),
         );
     });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
@@ -1019,14 +1036,14 @@ export class Derived extends ReactiveStore {
   }
 
   hydrateProfile(profile) {
-    const preferences = this.$preferences.get();
+    const labeling = this.$labeling.get();
     let result = profile;
-    if (preferences) {
-      const blurLabel = preferences.getProfileBlurLabel(result);
+    if (labeling) {
+      const blurLabel = labeling.getProfileBlurLabel(result);
       if (blurLabel) {
         result = { ...result, blurLabel };
       }
-      const badgeLabels = preferences.getBadgeLabelsForProfile(result);
+      const badgeLabels = labeling.getBadgeLabelsForProfile(result);
       if (badgeLabels.length > 0) {
         result = { ...result, badgeLabels };
       }
@@ -1045,8 +1062,8 @@ export class Derived extends ReactiveStore {
     return { ...item, creator: storedCreator };
   }
 
-  hydratePost(post, preferences) {
-    if (!post || !preferences) {
+  hydratePost(post, preferences, labeling) {
+    if (!post || !preferences || !labeling) {
       return null;
     }
     const storedAuthor = post.author?.did
@@ -1077,7 +1094,7 @@ export class Derived extends ReactiveStore {
         );
       }
     }
-    return applyLabels(result, preferences);
+    return applyLabels(result, labeling);
   }
 
   resolveBlockedQuote(post) {
@@ -1121,13 +1138,13 @@ export class Derived extends ReactiveStore {
 
   hydrateTypeaheadResults(data) {
     const currentUserDid = this.$currentUser.get()?.did;
-    const preferences = this.$preferences.get();
+    const labeling = this.$labeling.get();
     return data.actors
       .map((actor) => this.$hydratedProfiles.get(actor.did))
       .filter(
         (profile) =>
           profile.did === currentUserDid ||
-          !shouldHideTypeaheadProfile(profile, data.query, preferences),
+          !shouldHideTypeaheadProfile(profile, data.query, labeling),
       );
   }
 

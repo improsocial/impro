@@ -23,7 +23,12 @@ import { trackDisposable } from "../../testHelpers.js";
 
 function makeDerived(
   dataStore,
-  { preferences, draftMediaStore, currentUserDid = null } = {},
+  {
+    preferences,
+    labelerDefs = [],
+    draftMediaStore,
+    currentUserDid = null,
+  } = {},
 ) {
   const patchStore = new PatchStore();
   const prefs = preferences ?? Preferences.createLoggedOutPreferences();
@@ -31,16 +36,25 @@ function makeDerived(
     requirePreferences: () => prefs,
     $preferences: new Signal.State(prefs),
   };
+  const labelerDefsProvider = {
+    requireLabelerDefs: () => labelerDefs,
+    $labelerDefs: new Signal.State(labelerDefs),
+  };
   const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const derived = new Derived(
     dataStore,
     dataStore.sessionState,
     patchStore,
     preferencesProvider,
+    labelerDefsProvider,
     hiddenFeedItemsStore,
     currentUserDid,
     draftMediaStore ?? new DraftMediaStore("test-media"),
   );
+  if (!(prefs instanceof Preferences)) {
+    // Fake preferences stub the label moderation methods too
+    derived.$labeling = new Signal.Computed(() => derived.$preferences.get());
+  }
   trackDisposable(derived.liveStatusScheduler);
   return { derived, patchStore, hiddenFeedItemsStore };
 }
@@ -710,20 +724,17 @@ describe("feed generator and list moderation", () => {
   const ownerDid = "did:plc:owner";
   const labelerDid = "did:plc:labeler";
 
-  function makeLabelPreferences() {
-    return new Preferences(
-      [],
-      [
-        createLabelerView({
-          did: labelerDid,
-          handle: "labeler.test",
-          labelDefinitions: [
-            { identifier: "spam", blurs: "content", defaultSetting: "hide" },
-            { identifier: "rude", blurs: "content", defaultSetting: "warn" },
-          ],
-        }),
-      ],
-    );
+  function makeLabelerDefs() {
+    return [
+      createLabelerView({
+        did: labelerDid,
+        handle: "labeler.test",
+        labelDefinitions: [
+          { identifier: "spam", blurs: "content", defaultSetting: "hide" },
+          { identifier: "rude", blurs: "content", defaultSetting: "warn" },
+        ],
+      }),
+    ];
   }
 
   function label(uri, val) {
@@ -769,7 +780,7 @@ describe("feed generator and list moderation", () => {
   function setup() {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
-      preferences: makeLabelPreferences(),
+      labelerDefs: makeLabelerDefs(),
     });
     dataStore.setProfiles([
       plainCreator,
@@ -2240,8 +2251,8 @@ describe("$notifications", () => {
     const labelerDid = "did:plc:labeler";
     const following = "at://did:plc:me/app.bsky.graph.follow/1";
 
-    function makeLabelPreferences() {
-      const labelerDefs = [
+    function makeLabelerDefs() {
+      return [
         createLabelerView({
           did: labelerDid,
           handle: "labeler.test",
@@ -2251,7 +2262,6 @@ describe("$notifications", () => {
           ],
         }),
       ];
-      return new Preferences([], labelerDefs);
     }
 
     function accountLabel(did, val, src = labelerDid) {
@@ -2285,7 +2295,7 @@ describe("$notifications", () => {
     it("should hide notifications from authors with a hide account label", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const labeled = labeledAuthor([accountLabel("did:plc:labeled", "spam")]);
       seedNotifications(dataStore, [
@@ -2298,7 +2308,7 @@ describe("$notifications", () => {
     it("should keep notifications from authors with a warn account label", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const labeled = labeledAuthor([accountLabel("did:plc:labeled", "rude")]);
       seedNotifications(dataStore, [
@@ -2310,7 +2320,7 @@ describe("$notifications", () => {
     it("should ignore hide labels on the author's profile record", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const labeled = labeledAuthor([
         profileRecordLabel("did:plc:labeled", "spam"),
@@ -2324,7 +2334,7 @@ describe("$notifications", () => {
     it("should keep notifications from followed authors with a hide account label", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const labeled = labeledAuthor([accountLabel("did:plc:labeled", "spam")], {
         following,
@@ -2338,7 +2348,7 @@ describe("$notifications", () => {
     it("should hide notifications from followed authors with !hide or !takedown", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const hidden = createProfile({
         did: "did:plc:hidden",
@@ -2363,7 +2373,7 @@ describe("$notifications", () => {
     it("should hide notifications carrying a hide label themselves", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const labeledNotification = {
         ...createNotification({ reason: "follow", author, uri: "n2" }),
@@ -2380,7 +2390,7 @@ describe("$notifications", () => {
       it(`should hide ${reason} notifications whose post has a hide label, even from followed authors`, () => {
         const dataStore = new DataStore(createSessionState(null));
         const { derived } = makeDerived(dataStore, {
-          preferences: makeLabelPreferences(),
+          labelerDefs: makeLabelerDefs(),
         });
         const followed = createProfile({
           did: "did:plc:followed",
@@ -2874,19 +2884,16 @@ describe("actor search results", () => {
   describe("typeahead moderation", () => {
     const labelerDid = "did:plc:labeler";
 
-    function makeLabelPreferences() {
-      return new Preferences(
-        [],
-        [
-          createLabelerView({
-            did: labelerDid,
-            handle: "labeler.test",
-            labelDefinitions: [
-              { identifier: "spam", blurs: "content", defaultSetting: "hide" },
-            ],
-          }),
-        ],
-      );
+    function makeLabelerDefs() {
+      return [
+        createLabelerView({
+          did: labelerDid,
+          handle: "labeler.test",
+          labelDefinitions: [
+            { identifier: "spam", blurs: "content", defaultSetting: "hide" },
+          ],
+        }),
+      ];
     }
 
     function accountLabel(profileDid, val, src = labelerDid) {
@@ -2942,7 +2949,7 @@ describe("actor search results", () => {
     it("should hide blocked, blocking, and hide-labeled accounts but keep muted ones", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       seedTypeahead(
         dataStore,
@@ -2960,7 +2967,7 @@ describe("actor search results", () => {
     it("should apply the same filtering to the sidebar typeahead", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       seedTypeahead(
         dataStore,
@@ -2977,7 +2984,7 @@ describe("actor search results", () => {
     it("should keep an exact handle match even when blocked or hide-labeled", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       seedTypeahead(
         dataStore,
@@ -3002,7 +3009,7 @@ describe("actor search results", () => {
     it("should apply the same filtering to the mention typeahead", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       seedTypeahead(
         dataStore,
@@ -3019,7 +3026,7 @@ describe("actor search results", () => {
     it("should hide an exact handle match with !hide or !takedown", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       const takenDown = createProfile({
         did: "did:plc:takendown",
@@ -3038,7 +3045,7 @@ describe("actor search results", () => {
     it("should never hide the current user", () => {
       const dataStore = new DataStore(createSessionState(null));
       const { derived } = makeDerived(dataStore, {
-        preferences: makeLabelPreferences(),
+        labelerDefs: makeLabelerDefs(),
       });
       dataStore.setCurrentUser(labeled);
       seedTypeahead(
@@ -3963,11 +3970,11 @@ describe("$threadView", () => {
     derived.preferencesProvider.$preferences.set(null);
     assert.equal(derived.$threadView.get(), null);
 
-    derived.preferencesProvider.$preferences.set(new Preferences([], []));
+    derived.preferencesProvider.$preferences.set(new Preferences([]));
     assert.equal(derived.$threadView.get(), "linear");
 
     derived.preferencesProvider.$preferences.set(
-      new Preferences([], []).setThreadView("tree"),
+      new Preferences([]).setThreadView("tree"),
     );
     assert.equal(derived.$threadView.get(), "tree");
   });

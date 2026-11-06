@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { LabelerDefsProvider } from "/js/dataLayer/labelerDefsProvider.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { trackDisposable } from "../../testHelpers.js";
@@ -20,9 +21,11 @@ function createMockApi(options = {}) {
 }
 
 function createDataLayer(api) {
+  const preferencesProvider = new PreferencesProvider(api);
   const dataLayer = new DataLayer(
     api,
-    new PreferencesProvider(api),
+    preferencesProvider,
+    new LabelerDefsProvider(api, preferencesProvider),
     { resolveHandle: async () => null },
     new DraftMediaStore("test-media"),
     new HiddenFeedItemsStore(),
@@ -165,6 +168,7 @@ describe("component integration", () => {
     const post = { uri: postURI, text: "test", likeCount: 5 };
 
     await dataLayer.preferencesProvider.requirePreferences();
+    await dataLayer.labelerDefsProvider.requireLabelerDefs();
 
     // Set data through dataStore
     dataLayer.dataStore.$posts.set(postURI, post);
@@ -181,6 +185,7 @@ describe("component integration", () => {
     const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
 
     await dataLayer.preferencesProvider.requirePreferences();
+    await dataLayer.labelerDefsProvider.requireLabelerDefs();
 
     dataLayer.dataStore.$posts.set(postURI, post);
     dataLayer.patchStore.addPostPatch(postURI, { type: "addLike" });

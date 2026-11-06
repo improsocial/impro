@@ -150,16 +150,13 @@ describe("loadNextFeedPage", () => {
   describe("interests", () => {
     const BSKY_FEED_URI =
       "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
-    const interestsPreferences = new Preferences(
-      [
-        {
-          $type: "app.bsky.actor.defs#interestsPref",
-          tags: ["art", "tech"],
-          updatedAt: "2025-03-01T00:00:00.000Z",
-        },
-      ],
-      [],
-    );
+    const interestsPreferences = new Preferences([
+      {
+        $type: "app.bsky.actor.defs#interestsPref",
+        tags: ["art", "tech"],
+        updatedAt: "2025-03-01T00:00:00.000Z",
+      },
+    ]);
 
     function makeCapturingApi({ isAuthenticated = true } = {}) {
       const calls = [];

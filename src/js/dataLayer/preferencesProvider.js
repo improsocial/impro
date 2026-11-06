@@ -1,6 +1,5 @@
 import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
-import { showToast } from "/js/toasts.js";
 import { wait } from "/js/utils.js";
 
 const RETRY_DELAY_MS = 1000;
@@ -39,21 +38,7 @@ export class PreferencesProvider {
       return;
     }
     const preferencesObj = await this.api.getPreferences();
-    const labelerDids =
-      Preferences.getLabelerDidsFromPreferences(preferencesObj);
-    // A labeler service outage shouldn't prevent the app from starting: without
-    // definitions, labels from those labelers simply don't render.
-    let labelerDefs = [];
-    try {
-      labelerDefs = await this.api.getLabelers(labelerDids);
-    } catch (error) {
-      console.warn("Could not load labeler definitions:", error);
-      showToast(
-        "Failed to fetch moderation labels. Unmoderated content may be visible.",
-        { style: "warning", timeout: 6000 },
-      );
-    }
-    this._setPreferences(new Preferences(preferencesObj, labelerDefs));
+    this._setPreferences(new Preferences(preferencesObj));
   }
 
   async updatePreferences(preferences) {
