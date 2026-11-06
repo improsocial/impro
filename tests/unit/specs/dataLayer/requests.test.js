@@ -2515,7 +2515,7 @@ describe("loadConvo", () => {
       statusText: "Bad Request",
       data: { error: "InvalidConvo" },
       headers: {},
-      url: "/x",
+      url: "https://example.com/x",
     });
     const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
@@ -2639,7 +2639,7 @@ describe("loadConvoMembers", () => {
       statusText: "Bad Request",
       data: { error: "InvalidConvo" },
       headers: {},
-      url: "/x",
+      url: "https://example.com/x",
     });
     const dataStore = new DataStore(createSessionState(null));
     const mockApi = {
@@ -3552,7 +3552,7 @@ describe("enableStatus / getStatus", () => {
       statusText: "Server Error",
       data: null,
       headers: {},
-      url: "/x",
+      url: "https://example.com/x",
     });
     const mockApi = {
       getMutes: async () => {
@@ -3726,7 +3726,7 @@ describe("statusStore.$statuses", () => {
       statusText: "Server Error",
       data: null,
       headers: {},
-      url: "/x",
+      url: "https://example.com/x",
     });
     const mockApi = {
       getMutes: async () => {

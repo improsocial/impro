@@ -107,7 +107,7 @@ export function enableErrorLogs() {
     showMessage(`${event.message} at ${event.filename}:${event.lineno}`);
   });
   window.addEventListener("unhandledrejection", (event) => {
-    showMessage(`Promise rejection: ${String(event.reason)}`);
+    showMessage(`Promise rejection: ${formatArg(event.reason)}`);
   });
 
   const consoleError = console.error;

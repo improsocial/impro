@@ -22,13 +22,30 @@ import {
 
 export class ApiError extends Error {
   constructor(res) {
-    const message = `${res.status} ${res.statusText}`;
-    super(message);
+    super(ApiError.formatMessage(res));
+    this.name = "ApiError";
     this.status = res.status;
     this.statusText = res.statusText;
     this.data = res.data;
     this.headers = res.headers;
     this.url = res.url;
+  }
+
+  static formatMessage(res) {
+    const parts = [String(res.status)];
+    if (res.data?.error) {
+      parts.push(
+        res.data.message
+          ? `${res.data.error}: ${res.data.message}`
+          : res.data.error,
+      );
+    } else if (res.statusText) {
+      parts.push(res.statusText);
+    }
+    if (res.url) {
+      parts.push(`(${new URL(res.url).pathname})`);
+    }
+    return parts.join(" ");
   }
 }
 

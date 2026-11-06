@@ -53,6 +53,16 @@ describe("errorLogs overlay", () => {
     assert.deepEqual(entries().length, 1);
   });
 
+  it("shows the stack for unhandled promise rejections", () => {
+    const error = new Error("boom");
+    error.stack = "Error: boom\n    at someCaller (app.js:1:1)";
+    const event = new window.Event("unhandledrejection");
+    event.reason = error;
+    window.dispatchEvent(event);
+    assert.deepEqual(entries().length, 1);
+    assert(entries()[0].textContent.includes("at someCaller"));
+  });
+
   it("still shows errors", () => {
     console.error("[plugins:perf] errors are never suppressed");
     assert.deepEqual(entries().length, 1);

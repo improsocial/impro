@@ -189,6 +189,59 @@ describe("request", () => {
     assert.deepEqual(thrownError.data.error, "InternalServerError");
   });
 
+  it("should name the status, XRPC error, and path in the ApiError message", async () => {
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async () => ({
+        ok: false,
+        status: 401,
+        statusText: "",
+        url: "https://test.example.com/xrpc/com.example.method?foo=bar",
+        json: async () => ({
+          error: "InvalidToken",
+          message: "Token has expired",
+        }),
+      }),
+    };
+    const api = new Api(session);
+
+    let thrownError = null;
+    try {
+      await api.request("com.example.method");
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert.deepEqual(
+      String(thrownError),
+      "ApiError: 401 InvalidToken: Token has expired (/xrpc/com.example.method)",
+    );
+  });
+
+  it("should fall back to the status text when the response has no XRPC error", async () => {
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async () => ({
+        ok: false,
+        status: 502,
+        statusText: "Bad Gateway",
+        json: async () => ({}),
+      }),
+    };
+    const api = new Api(session);
+
+    let thrownError = null;
+    try {
+      await api.request("com.example.method");
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert.deepEqual(thrownError.message, "502 Bad Gateway");
+  });
+
   it("should re-throw non-refresh errors raised during fetch", async () => {
     const session = {
       serviceEndpoint: "https://test.example.com",
