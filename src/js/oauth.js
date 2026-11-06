@@ -95,6 +95,24 @@ const ACCOUNTS_KEY = "oauth_accounts";
 const CURRENT_DID_KEY = "oauth_current_did";
 const IN_FLIGHT_PREFIX = "oauth_in_flight_";
 const IN_FLIGHT_MAX_AGE_MS = 10 * 60 * 1000;
+const DPOP_NONCES_KEY = "oauth_dpop_nonces";
+
+function readDpopNonces() {
+  try {
+    return JSON.parse(localStorage.getItem(DPOP_NONCES_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDpopNonce(origin, nonce) {
+  const nonces = readDpopNonces();
+  if (nonces[origin] === nonce) return;
+  localStorage.setItem(
+    DPOP_NONCES_KEY,
+    JSON.stringify({ ...nonces, [origin]: nonce }),
+  );
+}
 
 function readAccounts() {
   const raw = localStorage.getItem(ACCOUNTS_KEY);
@@ -201,12 +219,11 @@ async function loadOrGenerateDPoPKeypair() {
 class DPoPRequests {
   constructor(dpopKeypair) {
     this.dpopKeypair = dpopKeypair;
-    this.nonces = new Map();
   }
 
   async fetch(url, options, retryCount = 0) {
     const origin = new URL(url).origin;
-    const nonce = this.nonces.get(origin) ?? null;
+    const nonce = readDpopNonces()[origin] ?? null;
     const method = options.method ?? "GET";
     const authHeader = options.headers?.Authorization;
     const accessToken = authHeader?.includes("DPoP ")
@@ -223,7 +240,7 @@ class DPoPRequests {
     // Set nonce if provided
     const dpopNonce = response.headers.get("DPoP-Nonce");
     if (dpopNonce) {
-      this.nonces.set(origin, dpopNonce);
+      saveDpopNonce(origin, dpopNonce);
     }
     // Handle nonce errors - retry once with the new nonce
     if (

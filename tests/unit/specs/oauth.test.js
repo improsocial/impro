@@ -915,6 +915,26 @@ describe("oauth", () => {
       assert(!response.ok);
     });
 
+    it("should send the nonce from an earlier page load's response", async () => {
+      const firstSession = await getLoadedSession();
+      globalThis.fetch.__intercept(PDS_URL, async () =>
+        mockResponse({
+          body: { ok: true },
+          headers: { "DPoP-Nonce": "saved-nonce" },
+        }),
+      );
+      await firstSession.fetch("https://pds.example.com/xrpc/foo");
+
+      const reloadedSession = await getLoadedSession();
+      await reloadedSession.fetch("https://pds.example.com/xrpc/foo");
+      const proof = globalThis.fetch.calls.at(-1).options.headers.DPoP;
+      const payload = JSON.parse(
+        atob(proof.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+      );
+      assert.deepEqual(payload.nonce, "saved-nonce");
+      assert.deepEqual(globalThis.fetch.calls.length, 2);
+    });
+
     it("should attach DPoP proof header to outgoing fetch", async () => {
       const session = await getLoadedSession();
       globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
