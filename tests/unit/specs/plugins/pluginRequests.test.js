@@ -49,8 +49,12 @@ function makeXrpcPluginRequests({
   const permissionCalls = [];
   const dataLayer = {
     api: {
+      request: async (path, options) => {
+        requestCalls.push({ path, options, via: "pds" });
+        return request(path, options);
+      },
       appViewRequest: async (path, options) => {
-        requestCalls.push({ path, options });
+        requestCalls.push({ path, options, via: "appview" });
         return request(path, options);
       },
     },
@@ -508,6 +512,32 @@ describe("pluginXrpcRequest", () => {
       { plugin: queryPlugin, action: "privateData" },
     ]);
     assert.deepEqual(requestCalls.length, 1);
+  });
+
+  it("sends getPreferences to the PDS instead of the AppView", async () => {
+    const data = { preferences: [] };
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests({
+      request: async () => ({ status: 200, data }),
+    });
+    const result = await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.actor.getPreferences",
+      {},
+    );
+    assert.deepEqual(result, { ok: true, status: 200, data });
+    assert.deepEqual(requestCalls.length, 1);
+    assert.deepEqual(requestCalls[0].via, "pds");
+  });
+
+  it("sends other queries to the AppView", async () => {
+    const { pluginRequests, requestCalls } = makeXrpcPluginRequests();
+    await pluginRequests.pluginXrpcRequest(
+      queryPlugin,
+      "app.bsky.feed.getTimeline",
+      {},
+    );
+    assert.deepEqual(requestCalls.length, 1);
+    assert.deepEqual(requestCalls[0].via, "appview");
   });
 
   it("rejects private queries when signed out", async () => {

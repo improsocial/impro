@@ -6,10 +6,10 @@ const FORBIDDEN_HEADERS = ["cookie"];
 const MAX_BODY_CHARS = 1_000_000;
 export const MAX_RESPONSE_BYTES = 100_000_000;
 
-// Read-only AppView query endpoints plugins may call through the user's
-// session via the xrpcQuery host method. "public" queries return the same
-// data an unauthenticated caller could fetch; "private" queries reveal
-// viewer-scoped state and require the "privateData" action permission.
+// Read-only query endpoints plugins may call through the user's session via
+// the xrpcQuery host method. "public" queries return the same data an
+// unauthenticated caller could fetch; "private" queries reveal viewer-scoped
+// state and require the "privateData" action permission.
 const PUBLIC_XRPC_QUERIES = new Set([
   "app.bsky.actor.getProfile",
   "app.bsky.actor.getProfiles",
@@ -49,6 +49,9 @@ const PRIVATE_XRPC_QUERIES = new Set([
   "app.bsky.notification.getUnreadCount",
   "app.bsky.notification.listNotifications",
 ]);
+
+// Served by the PDS itself rather than proxied to the AppView
+const PDS_XRPC_QUERIES = new Set(["app.bsky.actor.getPreferences"]);
 
 export class PluginRequests {
   constructor({ dataLayer, session, permissionsManager, fetchImpl }) {
@@ -95,7 +98,10 @@ export class PluginRequests {
     }
     const query = sanitizeXrpcParams(params);
     try {
-      const res = await this.dataLayer.api.appViewRequest(nsid, { query });
+      const { api } = this.dataLayer;
+      const res = PDS_XRPC_QUERIES.has(nsid)
+        ? await api.request(nsid, { query })
+        : await api.appViewRequest(nsid, { query });
       return { ok: true, status: res.status, data: res.data };
     } catch (error) {
       if (error instanceof ApiError) {

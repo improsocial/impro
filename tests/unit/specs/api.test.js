@@ -1296,6 +1296,7 @@ describe("updatePreferences", () => {
     assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
     assert.deepEqual(body.preferences, prefs);
+    assert.deepEqual(options.headers?.["atproto-proxy"], undefined);
   });
 });
 

@@ -795,7 +795,7 @@ export class Api {
   }
 
   async updatePreferences(preferencesObj) {
-    const res = await this.appViewRequest(`app.bsky.actor.putPreferences`, {
+    const res = await this.request(`app.bsky.actor.putPreferences`, {
       method: "POST",
       body: { preferences: preferencesObj },
       parseJson: false,
