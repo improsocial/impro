@@ -21,6 +21,7 @@ async function setupSinglePostThread(page, post) {
   await mockServer.setup(page);
   await login(page);
   await page.goto(postPath);
+  return mockServer;
 }
 
 function imageItem({ alt = "" } = {}) {
@@ -211,6 +212,7 @@ test.describe("Post embeds view — video", () => {
     return buildPost({
       embed: {
         $type: "app.bsky.embed.video#view",
+        cid: "bafkreivideo",
         playlist: "",
         thumbnail:
           "https://cdn.bsky.app/img/feed_thumbnail/plain/video-thumb@jpeg",
@@ -220,6 +222,58 @@ test.describe("Post embeds view — video", () => {
       },
     });
   }
+
+  test("downloads the original video file from the share menu", async ({
+    page,
+  }) => {
+    const mockServer = await setupSinglePostThread(page, buildVideoPost());
+
+    const view = page.locator("#post-detail-view");
+    await view.locator('[data-testid="post-action-share"]').first().click();
+    const downloadPromise = page.waitForEvent("download");
+    await page
+      .locator('[data-testid="menu-action-post-download-video"]')
+      .click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toBe("author1.bsky.social-embed1.mp4");
+    expect(mockServer.getBlobCalls).toHaveLength(1);
+    const blobUrl = new URL(mockServer.getBlobCalls[0]);
+    expect(blobUrl.searchParams.get("did")).toBe("did:plc:author1");
+    expect(blobUrl.searchParams.get("cid")).toBe("bafkreivideo");
+  });
+
+  test("shows an error toast when the video can't be downloaded", async ({
+    page,
+  }) => {
+    const mockServer = await setupSinglePostThread(page, buildVideoPost());
+    mockServer.blobFetchShouldFail = true;
+
+    const view = page.locator("#post-detail-view");
+    await view.locator('[data-testid="post-action-share"]').first().click();
+    await page
+      .locator('[data-testid="menu-action-post-download-video"]')
+      .click();
+
+    await expect(
+      page.locator('[data-testid="toast"][data-teststate="error"]'),
+    ).toBeVisible();
+  });
+
+  test("does not offer a video download for posts without a video", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildPost({ embed: undefined }));
+
+    const view = page.locator("#post-detail-view");
+    await view.locator('[data-testid="post-action-share"]').first().click();
+    await expect(
+      page.locator('[data-testid="menu-action-post-copy-link"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="menu-action-post-download-video"]'),
+    ).toHaveCount(0);
+  });
 
   test("renders a video embed with a streaming-video player", async ({
     page,

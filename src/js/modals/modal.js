@@ -79,6 +79,7 @@ export class Modal {
       const update = () => {
         render(this.render({ dismiss, update, props: this.options }), dialog);
       };
+      this.update = update;
 
       update();
 

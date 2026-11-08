@@ -355,6 +355,8 @@ export function largePostTemplate({
                   ),
                 onClickReport: (post) =>
                   postInteractionHandler.handleReport(post),
+                onClickDownloadVideo: (post) =>
+                  postInteractionHandler.handleDownloadVideo(post),
                 pluginService,
               })}
             `

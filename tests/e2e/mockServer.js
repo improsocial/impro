@@ -149,6 +149,8 @@ export class MockServer {
     this.registerPushStatus = 200;
     this.slingshotUnreachable = false;
     this.pdsEndpoint = "http://localhost:8081";
+    this.blobFetchShouldFail = false;
+    this.getBlobCalls = [];
     // did -> { cid, value } for app.bsky.actor.status/self
     this.statusRecords = new Map();
     this.putStatusCalls = [];
@@ -2434,31 +2436,34 @@ export class MockServer {
       },
     );
 
-    await page.route("**/xrpc/app.bsky.feed.getFeedGenerators*", async (route) => {
-      if (this.getFeedGeneratorsDelayMs > 0) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.getFeedGeneratorsDelayMs),
+    await page.route(
+      "**/xrpc/app.bsky.feed.getFeedGenerators*",
+      async (route) => {
+        if (this.getFeedGeneratorsDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.getFeedGeneratorsDelayMs),
+          );
+        }
+        if (this.getFeedGeneratorsFailure) {
+          const { status, error, message } = this.getFeedGeneratorsFailure;
+          return route.fulfill({
+            status,
+            contentType: "application/json",
+            body: JSON.stringify({ error, message }),
+          });
+        }
+        const url = new URL(route.request().url());
+        const feedUris = url.searchParams.getAll("feeds");
+        const feeds = feedUris.map(
+          (uri) => this.feedGenerators.find((g) => g.uri === uri) || {},
         );
-      }
-      if (this.getFeedGeneratorsFailure) {
-        const { status, error, message } = this.getFeedGeneratorsFailure;
         return route.fulfill({
-          status,
+          status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ error, message }),
+          body: JSON.stringify({ feeds }),
         });
-      }
-      const url = new URL(route.request().url());
-      const feedUris = url.searchParams.getAll("feeds");
-      const feeds = feedUris.map(
-        (uri) => this.feedGenerators.find((g) => g.uri === uri) || {},
-      );
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ feeds }),
-      });
-    });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.graph.getList*", (route) => {
       if (this.listMembersFailure) {
@@ -2843,6 +2848,25 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ did: identity.did }),
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.sync.getBlob*", (route) => {
+      this.getBlobCalls.push(route.request().url());
+      if (this.blobFetchShouldFail) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "BlobNotFound",
+            message: "Blob not found",
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "video/mp4",
+        body: "video-bytes",
       });
     });
 

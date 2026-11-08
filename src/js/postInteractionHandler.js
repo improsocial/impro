@@ -4,9 +4,13 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { html } from "/js/lib/lit-html.js";
 import {
   buildPostgateEmbeddingRules,
+  getVideoFromPost,
   MAX_DETACHED_EMBEDDING_URIS,
   MAX_HIDDEN_REPLIES,
 } from "/js/dataHelpers.js";
+import { isIOS } from "/js/utils.js";
+import { fetchPostVideoFile, saveFileToDevice } from "/js/videoUtils.js";
+import { VideoDownloadModal } from "/js/modals/videoDownload.modal.js";
 import {
   DetachedQuoteLimitError,
   HiddenReplyLimitError,
@@ -20,6 +24,7 @@ export class PostInteractionHandler {
     this.postComposerService = postComposerService;
     this.reportService = reportService;
     this._interactionSettingsDialog = null;
+    this._videoDownloadsInFlight = new Set();
   }
 
   handleEditInteractionSettings(post) {
@@ -389,6 +394,34 @@ export class PostInteractionHandler {
       });
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  async handleDownloadVideo(post) {
+    const identityResolver = this.dataLayer.identityResolver;
+    if (isIOS()) {
+      VideoDownloadModal.open({
+        loadFile: (signal) =>
+          fetchPostVideoFile(post, identityResolver, { signal }),
+      });
+      return;
+    }
+    const { cid } = getVideoFromPost(post);
+    if (this._videoDownloadsInFlight.has(cid)) {
+      return;
+    }
+    this._videoDownloadsInFlight.add(cid);
+    showToast("Downloading video…");
+    try {
+      const file = await fetchPostVideoFile(post, identityResolver, {
+        signal: null,
+      });
+      saveFileToDevice(file);
+    } catch (error) {
+      console.warn("Failed to download video", error);
+      showToast("Couldn't download video", { style: "error" });
+    } finally {
+      this._videoDownloadsInFlight.delete(cid);
     }
   }
 }

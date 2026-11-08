@@ -283,6 +283,8 @@ export function smallPostTemplate({
                 doHide,
               ),
             onClickReport: (post) => postInteractionHandler.handleReport(post),
+            onClickDownloadVideo: (post) =>
+              postInteractionHandler.handleDownloadVideo(post),
             enableFeedFeedback,
             pluginService,
           })}
