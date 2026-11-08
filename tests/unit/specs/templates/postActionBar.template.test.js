@@ -1057,6 +1057,36 @@ describe("postActionBarTemplate - share menu", () => {
       container.remove();
     });
 
+    it("should label the download as a video for regular videos", () => {
+      const container = renderActionBarForPost(videoPost);
+      const menu = openShareMenu(container);
+      assert.deepEqual(
+        menu.querySelector('[data-testid="menu-action-post-download-video"]')
+          .dataset.teststate,
+        "video",
+      );
+      container.remove();
+    });
+
+    it("should label the download as a GIF for gif-presentation videos", () => {
+      const onClickDownloadVideo = mock.fn();
+      const gifPost = {
+        ...videoPost,
+        embed: { ...videoPost.embed, presentation: "gif" },
+      };
+      const container = renderActionBarForPost(gifPost, {
+        onClickDownloadVideo,
+      });
+      const menu = openShareMenu(container);
+      const item = menu.querySelector(
+        '[data-testid="menu-action-post-download-video"]',
+      );
+      assert.deepEqual(item.dataset.teststate, "gif");
+      item.click();
+      assert.deepEqual(onClickDownloadVideo.mock.calls[0].arguments, [gifPost]);
+      container.remove();
+    });
+
     it("should offer the download for a video alongside a quoted record", () => {
       const container = renderActionBarForPost({
         ...post,

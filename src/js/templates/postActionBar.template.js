@@ -340,6 +340,7 @@ async function openPostContextMenu(event, props) {
 }
 
 function shareMenuTemplate({ post, onClickDownloadVideo }) {
+  const video = getVideoFromPost(post);
   return html`
     <context-menu-item-group>
       <context-menu-item
@@ -373,15 +374,18 @@ function shareMenuTemplate({ post, onClickDownloadVideo }) {
         Copy link to post
       </context-menu-item>
     </context-menu-item-group>
-    ${getVideoFromPost(post)
+    ${video
       ? html`
           <context-menu-item-group>
             <context-menu-item
               data-testid="menu-action-post-download-video"
+              data-teststate=${video.presentation === "gif" ? "gif" : "video"}
               icon="download-line"
               @click=${() => onClickDownloadVideo(post)}
             >
-              Download video
+              ${video.presentation === "gif"
+                ? "Download GIF"
+                : "Download video"}
             </context-menu-item>
           </context-menu-item-group>
         `
