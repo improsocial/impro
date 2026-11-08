@@ -1,0 +1,22 @@
+{
+  "$type": "place.wisp.settings",
+  "headers": [
+    { "name": "Cache-Control", "value": "no-cache", "path": "*.html" },
+    {
+      "name": "Cache-Control",
+      "value": "public, max-age=31536000, immutable",
+      "path": "/js/*"
+    },
+    {
+      "name": "Cache-Control",
+      "value": "public, max-age=31536000, immutable",
+      "path": "/css/*"
+    },
+    {
+      "name": "Cache-Control",
+      "value": "public, max-age=31536000, immutable",
+      "path": "/plugin-sdk/*"
+    },
+    { "name": "Cache-Control", "value": "no-store", "path": "/not-found.txt" }
+  ]
+}

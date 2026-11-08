@@ -9,7 +9,10 @@ export async function onRequest(context) {
     "text/html",
   );
   if (isAssetPath(pathname) && isHtml) {
-    return new Response(`Not found: ${pathname}`, {
+    const notFound = await context.env.ASSETS.fetch(
+      new URL("/not-found.txt", context.request.url),
+    );
+    return new Response(notFound.body, {
       status: 404,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",

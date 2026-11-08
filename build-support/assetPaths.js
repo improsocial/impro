@@ -5,6 +5,7 @@ export const MIME = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -17,7 +18,7 @@ export const MIME = {
   ".woff2": "font/woff2",
 };
 
-// Mirrors the "include" list in src/_routes.json
+// Mirrors deploy/cloudflare/public/_routes.json and deploy/wisp/public/_redirects
 const ASSET_DIRS = ["/js/", "/css/", "/img/", "/oauth/", "/plugin-sdk/"];
 
 export function isAssetPath(pathname) {

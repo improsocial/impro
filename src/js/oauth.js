@@ -75,7 +75,7 @@ const CLIENT_ASSERTION_TYPE =
 // If confidential oauth is enabled, include a server-signed client assertion
 async function clientAuthParams(authServerMetadata) {
   if (!window.env?.useConfidentialOauth) return {};
-  const response = await fetch("/oauth/assertion", {
+  const response = await fetch(window.env.oauthAssertionUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ aud: authServerMetadata.issuer }),

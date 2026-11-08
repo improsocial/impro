@@ -1,0 +1,6 @@
+/js/*  /not-found.txt  404
+/css/*  /not-found.txt  404
+/img/*  /not-found.txt  404
+/oauth/*  /not-found.txt  404
+/plugin-sdk/*  /not-found.txt  404
+/*  /index.html  200

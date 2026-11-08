@@ -19,6 +19,14 @@ function getIndexHtml() {
   return indexHtml;
 }
 
+let notFoundText = null;
+function getNotFoundText() {
+  if (notFoundText === null) {
+    notFoundText = fs.readFileSync(path.join(root, "not-found.txt"), "utf-8");
+  }
+  return notFoundText;
+}
+
 function send(res, status, body, type) {
   if (res.headersSent || res.writableEnded) return;
   res.writeHead(status, { "Content-Type": type });
@@ -65,7 +73,7 @@ function createStaticServer() {
     }
 
     if (isAssetPath(req.url.split("?")[0])) {
-      send(res, 404, `Not found: ${req.url}`, "text/plain; charset=utf-8");
+      send(res, 404, getNotFoundText(), "text/plain; charset=utf-8");
     } else {
       send(res, 200, getIndexHtml(), MIME[".html"]);
     }

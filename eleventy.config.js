@@ -6,6 +6,8 @@ import { watchLocalPlugins } from "./build-support/localPlugins.js";
 import { buildIconSprite } from "./build-support/buildIconSprite.js";
 
 const BUILD_DIR = process.env.BUILD_DIR || "build";
+const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "cloudflare";
+const DEPLOY_DIR = path.join("deploy", DEPLOY_TARGET, "public");
 
 // Bump to bust cache
 const CACHE_SALT = "2";
@@ -24,9 +26,16 @@ export default async function (eleventyConfig) {
   eleventyConfig.addShortcode("iconSprite", () => buildIconSprite());
   eleventyConfig.addPassthroughCopy("src/manifest.json");
   eleventyConfig.addPassthroughCopy("src/sw.js");
-  eleventyConfig.addPassthroughCopy("src/_headers");
-  eleventyConfig.addPassthroughCopy("src/_routes.json");
+  eleventyConfig.addPassthroughCopy("src/not-found.txt");
   eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
+
+  if (!fs.existsSync(DEPLOY_DIR)) {
+    throw new Error(
+      `Unknown DEPLOY_TARGET "${DEPLOY_TARGET}" (no ${DEPLOY_DIR}/)`,
+    );
+  }
+  // Provider-specific config files go at the root of the output
+  eleventyConfig.addPassthroughCopy({ [DEPLOY_DIR]: "/" });
   eleventyConfig.addWatchTarget("impro-plugin/main.js");
 
   // Prevent sandbox from being treated as a template
@@ -52,8 +61,8 @@ export default async function (eleventyConfig) {
         if (isAssetPath(url.pathname)) {
           return {
             status: 404,
-            headers: { "Content-Type": "text/plain" },
-            body: "Not Found",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: fs.readFileSync(path.join(BUILD_DIR, "not-found.txt")),
           };
         }
         return fs.readFileSync(path.join(BUILD_DIR, "index.html"), "utf-8");

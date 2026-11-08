@@ -429,7 +429,7 @@ describe("oauth", () => {
     }
 
     it("attaches a fresh assertion to refresh requests in confidential mode", async () => {
-      window.env = { useConfidentialOauth: true };
+      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
       interceptAssertion();
       await refreshSession();
       const assertionCall = globalThis.fetch.calls.find(
@@ -449,8 +449,29 @@ describe("oauth", () => {
       );
     });
 
+    it("requests the assertion from the configured endpoint", async () => {
+      const assertionUrl = "https://impro.social/oauth/assertion";
+      window.env = {
+        ...ORIGINAL_ENV,
+        useConfidentialOauth: true,
+        oauthAssertionUrl: assertionUrl,
+      };
+      globalThis.fetch.__interceptJson(assertionUrl, {
+        assertion: "signed-assertion",
+      });
+      await refreshSession();
+      assert(globalThis.fetch.calls.some((call) => call.url === assertionUrl));
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      assert.deepEqual(
+        bodyParams(tokenCall).get("client_assertion"),
+        "signed-assertion",
+      );
+    });
+
     it("sends no assertion in public mode", async () => {
-      window.env = { useConfidentialOauth: false };
+      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: false };
       await refreshSession();
       assert(
         !globalThis.fetch.calls.some((call) => call.url === "/oauth/assertion"),
@@ -462,7 +483,7 @@ describe("oauth", () => {
     });
 
     it("attaches an assertion to revocation requests in confidential mode", async () => {
-      window.env = { useConfidentialOauth: true };
+      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
       interceptAssertion();
       const client = await buildClient();
       writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
@@ -477,7 +498,7 @@ describe("oauth", () => {
     });
 
     it("fails refresh when the assertion endpoint errors", async () => {
-      window.env = { useConfidentialOauth: true };
+      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
       globalThis.fetch.__intercept("/oauth/assertion", async () =>
         mockResponse({ ok: false, status: 501 }),
       );
