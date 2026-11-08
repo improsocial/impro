@@ -252,6 +252,14 @@ export async function chooseModal(value) {
   document.querySelector(`[data-testid="${testId}"]`).click();
 }
 
+export async function dismissChoiceModal() {
+  const selector = '[data-testid="choice-modal"]';
+  await waitFor(() => document.querySelector(selector));
+  document
+    .querySelector(selector)
+    .dispatchEvent(new window.Event("cancel", { cancelable: true }));
+}
+
 // A callable fetch replacement. Assign to globalThis.fetch, register routes
 // with __intercept(matcher, handler), and inspect captured requests on `calls`.
 // Matchers are strings (matched by URL prefix) or regex (matched with .test).

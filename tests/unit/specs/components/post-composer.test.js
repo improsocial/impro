@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   chooseModal,
+  dismissChoiceModal,
   makeTestDataLayer,
   makeTestPluginService,
   respondToConfirm,
@@ -542,7 +543,7 @@ describe("post-composer", () => {
       const sendDetail = await startSend(element);
 
       const closing = element.confirmClose();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       assert.deepEqual(await closing, false);
       assert.deepEqual(sendDetail.signal.aborted, true);
       assert.deepEqual(element.state.$isSending.get(), false);
@@ -571,7 +572,7 @@ describe("post-composer", () => {
       await element.send();
 
       const closing = element.confirmClose();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       await closing;
 
       await element.send();
@@ -589,7 +590,7 @@ describe("post-composer", () => {
       const sendDetail = await startSend(element);
 
       const closing = element.confirmClose();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       await closing;
 
       let closedEventFired = false;
@@ -607,7 +608,7 @@ describe("post-composer", () => {
       const sendDetail = await startSend(element);
 
       const closing = element.confirmClose();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       await closing;
       sendDetail.errorCallback(new Error("network down"));
       await nextFrame();
@@ -1745,7 +1746,7 @@ describe("post-composer", () => {
       );
     });
 
-    it("does not render the Drafts button for replies", () => {
+    it("renders the Drafts button for replies", () => {
       const element = createPostComposer();
       element.replyTo = {
         author: { handle: "user.bsky.social", displayName: "User" },
@@ -1753,9 +1754,9 @@ describe("post-composer", () => {
         indexedAt: new Date().toISOString(),
       };
       connectElement(element);
-      assert.deepEqual(
-        element.querySelector('[data-testid="composer-drafts-button"]'),
-        null,
+      assert(
+        element.querySelector('[data-testid="composer-drafts-button"]') !==
+          null,
       );
     });
 
@@ -1801,7 +1802,7 @@ describe("post-composer", () => {
         detail: { text: "hello", facets: [] },
       });
       const closing = element.confirmClose();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       const result = await closing;
       assert.deepEqual(result, false);
     });
@@ -2154,6 +2155,124 @@ describe("post-composer", () => {
       } finally {
         delete globalThis.fetch;
       }
+    });
+
+    describe("reply drafts", () => {
+      const replyTargetUri = "at://did:plc:creator1/app.bsky.feed.post/target";
+
+      function makeReplyTarget(uri) {
+        return {
+          uri,
+          cid: "targetcid",
+          author: {
+            did: "did:plc:creator1",
+            handle: "creator1.test",
+            displayName: "Creator One",
+            avatar: null,
+          },
+          record: { text: "Target", createdAt: "2025-01-01T00:00:00Z" },
+          indexedAt: "2025-01-01T00:00:00.000Z",
+          labels: [],
+        };
+      }
+
+      function makeDraftView({ replyToUri = null, text = "draft text" } = {}) {
+        return {
+          id: "draft-1",
+          draft: {
+            deviceId: "another-device",
+            deviceName: "Web",
+            posts: [{ text }],
+            ...(replyToUri ? { replyToUri } : {}),
+          },
+        };
+      }
+
+      function getSubmitState(element) {
+        return element
+          .querySelector('[data-testid="composer-submit-button"]')
+          .getAttribute("data-teststate");
+      }
+
+      it("turns a new post into a reply to the draft's target", async () => {
+        const element = createPostComposer();
+        mock.method(element.dataLayer.declarative, "ensurePost", async (uri) =>
+          makeReplyTarget(uri),
+        );
+        connectElement(element);
+        element.open();
+        await element.restoreFromDraft(
+          makeDraftView({ replyToUri: replyTargetUri }),
+        );
+        assert.deepEqual(element.replyTo.uri, replyTargetUri);
+        assert(element.querySelector(".reply-to") !== null);
+        assert.deepEqual(getSubmitState(element), "reply");
+        let receivedDetail = null;
+        element.addEventListener("send-post", (e) => {
+          receivedDetail = e.detail;
+        });
+        await element.send();
+        assert.deepEqual(receivedDetail.replyTo.uri, replyTargetUri);
+      });
+
+      it("turns a reply into a new post when the draft isn't a reply", async () => {
+        const element = createPostComposer();
+        element.replyTo = makeReplyTarget(replyTargetUri);
+        connectElement(element);
+        element.open();
+        await element.restoreFromDraft(makeDraftView());
+        assert.deepEqual(element.replyTo, null);
+        assert.deepEqual(element.querySelector(".reply-to"), null);
+        assert.deepEqual(getSubmitState(element), "post");
+      });
+
+      it("restores the draft as a new post with a warning when the target can't be loaded", async () => {
+        const element = createPostComposer();
+        element.replyTo = makeReplyTarget(
+          "at://did:plc:other/app.bsky.feed.post/other",
+        );
+        mock.method(element.dataLayer.declarative, "ensurePost", async () => {
+          throw new Error("Post not found");
+        });
+        connectElement(element);
+        element.open();
+        await element.restoreFromDraft(
+          makeDraftView({ replyToUri: replyTargetUri, text: "kept text" }),
+        );
+        assert.deepEqual(getFirstPost(element).text, "kept text");
+        assert.deepEqual(element._draftId, "draft-1");
+        assert.deepEqual(element.replyTo, null);
+        assert.deepEqual(element.querySelector(".reply-to"), null);
+        assert.deepEqual(getSubmitState(element), "post");
+        assert(document.querySelector('[data-testid="toast"]') !== null);
+      });
+
+      it("keeps the unloaded reply target when the draft is re-saved", async () => {
+        const element = createPostComposer();
+        element.dataLayer = makeTestDataLayer();
+        mock.method(element.dataLayer.declarative, "ensurePost", async () => {
+          throw new Error("Post not found");
+        });
+        const updateDraft = mock.method(
+          element.dataLayer.mutations,
+          "updateDraft",
+          async () => {},
+        );
+        connectElement(element);
+        element.open();
+        await element.restoreFromDraft(
+          makeDraftView({ replyToUri: replyTargetUri }),
+        );
+        element.handleInput(getFirstPost(element).id, {
+          detail: { text: "edited", facets: [] },
+        });
+        assert.deepEqual(await element.saveDraft(), true);
+        const { draft } = updateDraft.mock.calls[0].arguments[0];
+        assert.deepEqual(draft.replyToUri, replyTargetUri);
+
+        element.clearComposer();
+        assert.deepEqual(element.buildDraftSnapshot().replyToUri, null);
+      });
     });
 
     it("re-saving a draft restored from another device keeps its media embeds", async () => {
@@ -2915,7 +3034,7 @@ describe("post-composer", () => {
       await waitFor(() => !dialog.open);
     });
 
-    it("stays open when Keep editing is chosen from the Cancel button", async () => {
+    it("stays open when the save prompt is dismissed from the Cancel button", async () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
@@ -2923,7 +3042,7 @@ describe("post-composer", () => {
         detail: { text: "hello", facets: [] },
       });
       element.querySelector(".post-composer-cancel-button").click();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       await nextFrame();
       await nextFrame();
       assert(element.querySelector(".post-composer").open);
@@ -2947,6 +3066,8 @@ describe("post-composer", () => {
     function createReplyComposer() {
       const element = createPostComposer();
       element.replyTo = {
+        uri: "at://did:plc:user/app.bsky.feed.post/original",
+        cid: "originalcid",
         author: { handle: "user.bsky.social", displayName: "User" },
         record: { text: "Original post", createdAt: new Date().toISOString() },
         indexedAt: new Date().toISOString(),
@@ -2960,17 +3081,37 @@ describe("post-composer", () => {
       assert.deepEqual(await element.confirmClose(), true);
     });
 
-    it("confirms discarding a reply with content", async () => {
+    it("offers to discard a reply with content", async () => {
       const element = createReplyComposer();
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "my reply", facets: [] },
       });
-      const confirmedClose = element.confirmClose();
-      await respondToConfirm(true);
-      assert.deepEqual(await confirmedClose, true);
-      const declinedClose = element.confirmClose();
-      await respondToConfirm(false);
-      assert.deepEqual(await declinedClose, false);
+      const discardingClose = element.confirmClose();
+      await chooseModal("discard");
+      assert.deepEqual(await discardingClose, true);
+      const dismissedClose = element.confirmClose();
+      await dismissChoiceModal();
+      assert.deepEqual(await dismissedClose, false);
+    });
+
+    it("saves a reply draft with its reply target", async () => {
+      const element = createReplyComposer();
+      const createDraft = mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-1",
+      );
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "my reply", facets: [] },
+      });
+      const closing = element.confirmClose();
+      await chooseModal("save");
+      assert.deepEqual(await closing, true);
+      const { draft } = createDraft.mock.calls[0].arguments[0];
+      assert.deepEqual(
+        draft.replyToUri,
+        "at://did:plc:user/app.bsky.feed.post/original",
+      );
     });
   });
 
@@ -3960,13 +4101,13 @@ describe("post-composer", () => {
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
     });
 
-    it("keeps editing without opening when Keep editing is chosen", async () => {
+    it("keeps editing without opening when the save prompt is dismissed", async () => {
       const element = createWithDialogSpy();
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
       const opening = element.handleDraftsButtonClick();
-      await chooseModal("keep");
+      await dismissChoiceModal();
       await opening;
       assert.deepEqual(getFirstPost(element).text, "hello");
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);

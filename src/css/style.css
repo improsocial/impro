@@ -122,9 +122,9 @@ html {
   --repost-color: var(--green);
   --error-color: var(--red-muted);
   --error-subtle-color: color-mix(in srgb, var(--error-color) 12%, transparent);
-  --error-subtle-hover-color: color-mix(
+  --highlight-subtle-color: color-mix(
     in srgb,
-    var(--error-color) 20%,
+    var(--highlight-color) 12%,
     transparent
   );
   --warning-color: var(--yellow);
@@ -4681,7 +4681,7 @@ image-carousel {
   font-size: 13px;
   font-weight: 500;
   color: var(--highlight-color);
-  background: color-mix(in srgb, var(--highlight-color) 12%, transparent);
+  background: var(--highlight-subtle-color);
 }
 
 .chat-info-panel-actions {
@@ -4714,14 +4714,13 @@ image-carousel {
 }
 
 .chat-info-panel-action.muted {
-  border-color: transparent;
+  border-color: var(--error-color);
   color: var(--error-color);
-  background-color: color-mix(in srgb, var(--error-color) 12%, transparent);
 }
 
 @media (hover: hover) {
   .rounded-button.chat-info-panel-action.muted:not(:disabled):hover {
-    background-color: color-mix(in srgb, var(--error-color) 20%, transparent);
+    background-color: var(--error-subtle-color);
   }
 }
 
@@ -8747,7 +8746,7 @@ context-menu-item-group > context-menu-item > button {
   border-radius: 50%;
   font-size: 16px;
   color: var(--highlight-color);
-  background-color: color-mix(in srgb, var(--highlight-color) 12%, transparent);
+  background-color: var(--highlight-subtle-color);
 }
 
 .fetch-permission-origin-text {
@@ -8873,8 +8872,7 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .modal-dialog-button.primary-button,
-.modal-dialog-button.danger-button,
-.modal-dialog-button.danger-subtle-button {
+.modal-dialog-button.danger-button {
   border-color: transparent;
 }
 
@@ -8886,17 +8884,6 @@ context-menu-item-group > context-menu-item > button {
 .modal-dialog-button.danger-button {
   background-color: var(--error-color);
   color: var(--danger-button-text-color);
-}
-
-.modal-dialog-button.danger-subtle-button {
-  background-color: var(--error-subtle-color);
-  color: var(--error-color);
-}
-
-@media (hover: hover) {
-  .modal-dialog-button.danger-subtle-button:not(:disabled):hover {
-    background-color: var(--error-subtle-hover-color);
-  }
 }
 
 @media (hover: hover) {
@@ -8941,10 +8928,6 @@ context-menu-item-group > context-menu-item > button {
 
 .modal-dialog-button.danger-button .loading-spinner {
   border-top-color: var(--danger-button-text-color);
-}
-
-.modal-dialog-button.danger-subtle-button .loading-spinner {
-  border-top-color: var(--error-color);
 }
 
 .modal-dialog-buttons-stacked {
@@ -9847,6 +9830,11 @@ context-menu-item-group > context-menu-item > button {
   color: var(--text-color-muted);
 }
 
+.draft-item-tag-highlight {
+  background-color: var(--highlight-subtle-color);
+  color: var(--highlight-color);
+}
+
 .draft-item-tag-warning {
   background-color: color-mix(in srgb, var(--error-color) 15%, transparent);
   color: var(--error-color);
@@ -9861,10 +9849,17 @@ context-menu-item-group > context-menu-item > button {
   gap: 6px;
 }
 
+.draft-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  margin-bottom: 4px;
+}
+
 .draft-item-timestamp {
   font-size: 12px;
   color: var(--text-color-muted);
-  margin-bottom: 4px;
 }
 
 .draft-item-delete app-icon {
@@ -13166,7 +13161,7 @@ h2.setting-item-name {
 
 @media (hover: hover) {
   .plugin-preview-banner-exit:hover {
-    background: color-mix(in srgb, var(--highlight-color) 12%, transparent);
+    background: var(--highlight-subtle-color);
   }
 }
 

@@ -1,6 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
+import { createPost } from "../../../shared/factories.js";
 
 async function openComposer(page) {
   const homeView = page.locator("#home-view");
@@ -78,6 +79,79 @@ test.describe("Post drafts flow", () => {
     await expect(
       page.locator('[data-testid="drafts-dialog"] [data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("save a reply as a draft, restore it from a new post, publish it as a reply", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const postUri = "at://did:plc:author1/app.bsky.feed.post/post1";
+    const post = createPost({
+      uri: postUri,
+      text: "Post to reply to",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    mockServer.addPosts([post]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post,
+      parent: null,
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/post1");
+    const threadView = page.locator("#post-detail-view");
+    await expect(threadView.locator('[data-testid="large-post"]')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Write a reply, then save it as a draft on cancel
+    await threadView.locator(".post-thread-reply-prompt").click();
+    let composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+    const replyText = "A reply worth keeping for later";
+    await composer.locator("rich-text-input [contenteditable]").fill(replyText);
+    await composer.locator(".post-composer-cancel-button").click();
+    const choiceModal = page.locator('[data-testid="choice-modal"]');
+    await expect(choiceModal).toBeVisible({ timeout: 10000 });
+    await choiceModal.locator('[data-testid="modal-choice-save"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+    expect(mockServer.drafts[0].draft.replyToUri).toBe(postUri);
+
+    // Restore it from a new-post composer; it becomes a reply again
+    await page.goto("/");
+    composer = await openComposer(page);
+    await composer.locator('[data-testid="composer-drafts-button"]').click();
+    const draftItem = page.locator(
+      '[data-testid="drafts-dialog"] [data-testid="draft-item"]',
+    );
+    await expect(draftItem).toHaveCount(1, { timeout: 10000 });
+    await expect(
+      draftItem.locator('[data-testid="draft-item-tag-reply"]'),
+    ).toBeVisible();
+    await draftItem.click();
+    await expect(composer.locator(".rich-text-input")).toContainText(
+      replyText,
+      { timeout: 10000 },
+    );
+    await expect(composer.locator(".reply-to")).toBeVisible();
+    const submitButton = composer.locator(
+      '[data-testid="composer-submit-button"]',
+    );
+    await expect(submitButton).toHaveAttribute("data-teststate", "reply");
+
+    await submitButton.click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+    const createdPost = mockServer.applyWritesCalls
+      .flat()
+      .find((write) => write.collection === "app.bsky.feed.post");
+    expect(createdPost.value.reply).toEqual({
+      root: { uri: post.uri, cid: post.cid },
+      parent: { uri: post.uri, cid: post.cid },
+    });
   });
 
   test("delete a draft from the list with confirmation", async ({ page }) => {

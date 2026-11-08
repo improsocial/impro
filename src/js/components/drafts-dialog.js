@@ -17,9 +17,15 @@ import { getDraftDeviceId } from "/js/drafts.js";
 import { parseGifFromUrl } from "/js/embedHelpers.js";
 import "/js/components/infinite-scroll-container.js";
 
-function draftTagTemplate(name, label, { warning = false } = {}) {
+function draftTagTemplate(
+  name,
+  label,
+  { warning = false, highlight = false } = {},
+) {
   return html`<span
-    class="draft-item-tag ${warning ? "draft-item-tag-warning" : ""}"
+    class="draft-item-tag ${warning ? "draft-item-tag-warning" : ""} ${highlight
+      ? "draft-item-tag-highlight"
+      : ""}"
     data-testid="draft-item-tag-${name}"
     >${label}</span
   >`;
@@ -73,6 +79,7 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
   const hasQuotes = posts.some(
     (draftPost) => (draftPost.embedRecords?.length ?? 0) > 0,
   );
+  const isReply = Boolean(draftView.draft.replyToUri);
   const replyCount = posts.length - 1;
   const showForeignMediaTag = !isOriginatingDevice && hasMissingMedia;
   const showMissingMediaTag = isOriginatingDevice && hasMissingMedia;
@@ -90,8 +97,13 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
       }}
     >
       <div class="draft-item-main">
-        <div class="draft-item-timestamp">
-          ${formatRelativeTime(draftView.updatedAt)}
+        <div class="draft-item-header">
+          <div class="draft-item-timestamp">
+            ${formatRelativeTime(draftView.updatedAt)}
+          </div>
+          ${isReply
+            ? draftTagTemplate("reply", "Reply", { highlight: true })
+            : ""}
         </div>
         ${firstPost.text
           ? html`<div class="draft-item-text">${firstPost.text}</div>`

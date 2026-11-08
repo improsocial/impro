@@ -243,6 +243,10 @@ export function buildDraftFromComposerSnapshot(snapshot) {
       buildDraftPostFromSnapshot(postSnapshot, media),
     ),
   };
+  // NOTE: lexicon deviation - same as Witchsky
+  if (snapshot.replyToUri) {
+    draft.replyToUri = snapshot.replyToUri;
+  }
   if (snapshot.threadgateAllow) {
     draft.threadgateAllow = snapshot.threadgateAllow;
   }

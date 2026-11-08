@@ -78,11 +78,17 @@ describe("drafts-dialog", () => {
     updatedAt = "2025-01-01T00:00:00.000Z",
     deviceId = getDraftDeviceId(),
     posts = [{ text: "Hello draft" }],
+    replyToUri = null,
   } = {}) {
     return {
       id,
       updatedAt,
-      draft: { deviceId, deviceName: "Web", posts },
+      draft: {
+        deviceId,
+        deviceName: "Web",
+        posts,
+        ...(replyToUri ? { replyToUri } : {}),
+      },
       posts,
     };
   }
@@ -184,6 +190,24 @@ describe("drafts-dialog", () => {
       assert.deepEqual(tags.length, 2);
       assert.deepEqual(tags[0].textContent.trim(), "1 more post");
       assert.deepEqual(tags[1].textContent.trim(), "2 more posts");
+    });
+
+    it("should tag reply drafts", () => {
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
+        createDraftView({
+          id: "draft-1",
+          replyToUri: "at://did:plc:a/app.bsky.feed.post/1",
+        }),
+        createDraftView({ id: "draft-2" }),
+      ]);
+      const element = createDialog(dataLayer);
+      const items = element.querySelectorAll('[data-testid="draft-item"]');
+      assert(items[0].querySelector('[data-testid="draft-item-tag-reply"]'));
+      assert.deepEqual(
+        items[1].querySelector('[data-testid="draft-item-tag-reply"]'),
+        null,
+      );
     });
 
     it("should tag drafts containing a quote", () => {
