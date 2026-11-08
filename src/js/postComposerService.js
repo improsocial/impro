@@ -56,7 +56,7 @@ export class PostComposerService {
           const res = await this.dataLayer.mutations.createThread({
             posts,
             replyTo: sendReplyTo,
-            replyRoot,
+            replyRoot: sendReplyTo ? getReplyRootFromPost(sendReplyTo) : null,
             langs,
             threadgateAllow,
             postgateEmbeddingRules,

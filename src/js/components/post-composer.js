@@ -634,6 +634,7 @@ class PostComposer extends Component {
     this._draftId = null;
     this._isDirty = false;
     this._originalLocalRefs = null;
+    this._pendingReplyToUri = null;
     this._sendAbortController = null;
     this._sendAttemptId = null;
     this._interactionSettingsTouched = false;
@@ -888,16 +889,14 @@ class PostComposer extends Component {
               >
                 Cancel
               </button>
-              ${!this.replyTo
-                ? html`<button
-                    class="text-pill-button post-composer-drafts-button"
-                    data-testid="composer-drafts-button"
-                    .disabled=${isSavingDraft}
-                    @click=${() => this.handleDraftsButtonClick()}
-                  >
-                    Drafts
-                  </button>`
-                : ""}
+              <button
+                class="text-pill-button post-composer-drafts-button"
+                data-testid="composer-drafts-button"
+                .disabled=${isSavingDraft}
+                @click=${() => this.handleDraftsButtonClick()}
+              >
+                Drafts
+              </button>
               <button
                 class="rounded-button rounded-button-highlight"
                 data-testid="composer-submit-button"
@@ -1162,7 +1161,7 @@ class PostComposer extends Component {
         "Are you sure you'd like to delete this post from the thread?",
         {
           title: "Delete post?",
-          confirmButtonStyle: "danger-subtle",
+          confirmButtonStyle: "danger",
           confirmButtonText: "Delete",
         },
       );
@@ -1949,6 +1948,7 @@ class PostComposer extends Component {
   buildDraftSnapshot() {
     const posts = this._getPosts();
     return {
+      replyToUri: this.replyTo ? this.replyTo.uri : this._pendingReplyToUri,
       langs: untrack(() => this.state.$selectedPostLanguages.get()),
       posts: posts.map((postState) => ({
         postText: postState.text,
@@ -2061,6 +2061,7 @@ class PostComposer extends Component {
     this.state.$selectedPostLanguages.set(null);
     this._draftId = null;
     this._originalLocalRefs = null;
+    this._pendingReplyToUri = null;
     this.render();
     this._syncInputsFromState();
     this._isDirty = false;
@@ -2078,7 +2079,7 @@ class PostComposer extends Component {
         `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
         {
           title: "Discard post?",
-          confirmButtonStyle: "danger-subtle",
+          confirmButtonStyle: "danger",
           confirmButtonText: "Discard",
         },
       );
@@ -2118,8 +2119,7 @@ class PostComposer extends Component {
           label: isEditingDraft ? "Save changes" : "Save draft",
           style: "primary",
         },
-        { value: "discard", label: "Discard", style: "danger-subtle" },
-        { value: "keep", label: "Keep editing", style: "cancel" },
+        { value: "discard", label: "Discard", style: "secondary" },
       ],
     });
   }
@@ -2235,9 +2235,20 @@ class PostComposer extends Component {
 
   async restoreFromDraft(draftView) {
     const draft = draftView.draft;
+    let replyTo = null;
+    if (draft.replyToUri) {
+      try {
+        replyTo = await this.dataLayer.declarative.ensurePost(draft.replyToUri);
+      } catch (error) {
+        console.warn("Failed to load draft reply target", error);
+        showToast("Failed to load parent post", { style: "warning" });
+      }
+    }
     const draftPosts = draft.posts?.length > 0 ? draft.posts : [{ text: "" }];
     const isOriginatingDevice = draft.deviceId === getDraftDeviceId();
     this.clearComposer();
+    this.replyTo = replyTo;
+    this._pendingReplyToUri = replyTo ? null : (draft.replyToUri ?? null);
     this._interactionSettingsTouched = true;
     this.state.$threadgateAllow.set(draft.threadgateAllow ?? null);
     this.state.$postgateEmbeddingRules.set(
@@ -2397,16 +2408,6 @@ class PostComposer extends Component {
     if (this.state.$isSending.get()) {
       this._cancelSend();
     }
-    if (this.replyTo) {
-      if (!this.hasContent()) {
-        return true;
-      }
-      return confirmModal("Are you sure you'd like to discard this reply?", {
-        title: "Discard reply?",
-        confirmButtonStyle: "danger-subtle",
-        confirmButtonText: "Discard",
-      });
-    }
     if (!this.hasContent()) {
       return true;
     }
@@ -2419,7 +2420,7 @@ class PostComposer extends Component {
         `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
         {
           title: "Discard post?",
-          confirmButtonStyle: "danger-subtle",
+          confirmButtonStyle: "danger",
           confirmButtonText: "Discard",
         },
       );

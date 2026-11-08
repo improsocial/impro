@@ -181,9 +181,11 @@ describe("buildDraftFromComposerSnapshot", () => {
       threadgateAllow = null,
       postgateEmbeddingRules = null,
       langs = null,
+      replyToUri = null,
       ...postOverrides
     } = overrides;
     return {
+      replyToUri,
       posts: [
         {
           postText: "hello world",
@@ -352,6 +354,20 @@ describe("buildDraftFromComposerSnapshot", () => {
     assert.deepEqual(draft.posts[0].labels, labels);
     assert.deepEqual(draft.threadgateAllow.length, 1);
     assert.deepEqual(draft.postgateEmbeddingRules.length, 1);
+  });
+
+  it("carries the reply target uri", () => {
+    const { draft } = buildDraftFromComposerSnapshot(
+      makeDraftSnapshot({
+        replyToUri: "at://did:plc:a/app.bsky.feed.post/1",
+      }),
+    );
+    assert.deepEqual(draft.replyToUri, "at://did:plc:a/app.bsky.feed.post/1");
+  });
+
+  it("omits the reply target for non-reply drafts", () => {
+    const { draft } = buildDraftFromComposerSnapshot(makeDraftSnapshot());
+    assert.deepEqual("replyToUri" in draft, false);
   });
 
   it("carries chosen post languages", () => {
