@@ -1,4 +1,5 @@
 import { wait } from "/js/utils.js";
+import { getRKey, getVideoFromPost } from "/js/dataHelpers.js";
 
 export const VIDEO_MAX_BYTES = 100_000_000;
 export const VIDEO_MAX_DURATION_S = 180;
@@ -131,4 +132,42 @@ export class VideoUploader {
       await wait(intervalMs);
     }
   }
+}
+
+const VIDEO_FILE_EXTENSIONS = {
+  "video/mp4": "mp4",
+  "video/mpeg": "mpeg",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+  "image/gif": "gif",
+};
+
+const OBJECT_URL_LIFETIME_MS = 40_000;
+
+export async function fetchPostVideoFile(post, identityResolver, { signal }) {
+  const video = getVideoFromPost(post);
+  const identity = await identityResolver.resolveEndpoint(post.author.did);
+  if (!identity) {
+    throw new Error(`Could not resolve PDS for ${post.author.did}`);
+  }
+  const url = new URL("/xrpc/com.atproto.sync.getBlob", identity.pds);
+  url.searchParams.set("did", post.author.did);
+  url.searchParams.set("cid", video.cid);
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`getBlob failed: HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const extension = VIDEO_FILE_EXTENSIONS[blob.type] ?? blob.type.split("/")[1];
+  const filename = `${post.author.handle}-${getRKey(post)}.${extension}`;
+  return new File([blob], filename, { type: blob.type });
+}
+
+export function saveFileToDevice(file) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_LIFETIME_MS);
 }

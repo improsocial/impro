@@ -20,6 +20,7 @@ import {
   canReplyToPost,
   getFeedGeneratorProxyUrl,
   getOwnQuoteEmbed,
+  getVideoFromPost,
   isThreadRootAuthor,
 } from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
@@ -338,7 +339,8 @@ async function openPostContextMenu(event, props) {
   });
 }
 
-function shareMenuTemplate({ post }) {
+function shareMenuTemplate({ post, onClickDownloadVideo }) {
+  const video = getVideoFromPost(post);
   return html`
     <context-menu-item-group>
       <context-menu-item
@@ -372,6 +374,22 @@ function shareMenuTemplate({ post }) {
         Copy link to post
       </context-menu-item>
     </context-menu-item-group>
+    ${video
+      ? html`
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-download-video"
+              data-teststate=${video.presentation === "gif" ? "gif" : "video"}
+              icon="download-line"
+              @click=${() => onClickDownloadVideo(post)}
+            >
+              ${video.presentation === "gif"
+                ? "Download GIF"
+                : "Download video"}
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
   `;
 }
 
@@ -473,6 +491,7 @@ export function postActionBarTemplate({
   onClickEditInteractionSettings = noop,
   onClickToggleQuoteDetachment = noop,
   onClickToggleReplyHiddenForEveryone = noop,
+  onClickDownloadVideo = noop,
   enableFeedFeedback = false,
   pluginService,
 }) {
@@ -622,7 +641,10 @@ export function postActionBarTemplate({
             data-testid="post-action-share"
             @click=${(e) => {
               e.stopPropagation();
-              openContextMenu(e, shareMenuTemplate({ post }));
+              openContextMenu(
+                e,
+                shareMenuTemplate({ post, onClickDownloadVideo }),
+              );
             }}
           >
             <div class="post-action-icon">

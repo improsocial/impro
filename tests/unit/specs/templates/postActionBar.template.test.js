@@ -1003,6 +1003,109 @@ describe("postActionBarTemplate - share menu", () => {
     container.remove();
   });
 
+  describe("download video", () => {
+    function renderActionBarForPost(targetPost, options = {}) {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(
+        postActionBarTemplate({
+          post: targetPost,
+          isAuthenticated: true,
+          currentUser: { did: "did:plc:test" },
+          pluginService: { getPostContextMenuItems: async () => [] },
+          ...options,
+        }),
+        container,
+      );
+      ensurePageVisible();
+      return container;
+    }
+
+    const videoPost = {
+      ...post,
+      embed: {
+        $type: "app.bsky.embed.video#view",
+        cid: "bafkreivideo",
+        playlist: "https://video.bsky.app/playlist.m3u8",
+      },
+    };
+
+    it("should not render the download item for posts without a video", () => {
+      const container = renderActionBarForPost(post);
+      const menu = openShareMenu(container);
+      assert(
+        menu.querySelector(
+          '[data-testid="menu-action-post-download-video"]',
+        ) === null,
+      );
+      container.remove();
+    });
+
+    it("should download the video from the share menu", () => {
+      const onClickDownloadVideo = mock.fn();
+      const container = renderActionBarForPost(videoPost, {
+        onClickDownloadVideo,
+      });
+      const menu = openShareMenu(container);
+      menu
+        .querySelector('[data-testid="menu-action-post-download-video"]')
+        .click();
+      assert.deepEqual(onClickDownloadVideo.mock.callCount(), 1);
+      assert.deepEqual(onClickDownloadVideo.mock.calls[0].arguments, [
+        videoPost,
+      ]);
+      container.remove();
+    });
+
+    it("should label the download as a video for regular videos", () => {
+      const container = renderActionBarForPost(videoPost);
+      const menu = openShareMenu(container);
+      assert.deepEqual(
+        menu.querySelector('[data-testid="menu-action-post-download-video"]')
+          .dataset.teststate,
+        "video",
+      );
+      container.remove();
+    });
+
+    it("should label the download as a GIF for gif-presentation videos", () => {
+      const onClickDownloadVideo = mock.fn();
+      const gifPost = {
+        ...videoPost,
+        embed: { ...videoPost.embed, presentation: "gif" },
+      };
+      const container = renderActionBarForPost(gifPost, {
+        onClickDownloadVideo,
+      });
+      const menu = openShareMenu(container);
+      const item = menu.querySelector(
+        '[data-testid="menu-action-post-download-video"]',
+      );
+      assert.deepEqual(item.dataset.teststate, "gif");
+      item.click();
+      assert.deepEqual(onClickDownloadVideo.mock.calls[0].arguments, [gifPost]);
+      container.remove();
+    });
+
+    it("should offer the download for a video alongside a quoted record", () => {
+      const container = renderActionBarForPost({
+        ...post,
+        embed: {
+          $type: "app.bsky.embed.recordWithMedia#view",
+          media: videoPost.embed,
+          record: { record: {} },
+        },
+      });
+      const menu = openShareMenu(container);
+      assert(
+        menu.querySelector(
+          '[data-testid="menu-action-post-download-video"]',
+        ) !== null,
+      );
+      container.remove();
+    });
+  });
+
   describe("share via", () => {
     let shareCalls;
 
@@ -1021,9 +1124,7 @@ describe("postActionBarTemplate - share menu", () => {
       });
       const container = renderActionBar();
       const menu = openShareMenu(container);
-      menu
-        .querySelector('[data-testid="menu-action-post-share-via"]')
-        .click();
+      menu.querySelector('[data-testid="menu-action-post-share-via"]').click();
       assert.deepEqual(shareCalls, [
         {
           url: "https://bsky.app/profile/testauthor.bsky.social/post/3testpost2k",
