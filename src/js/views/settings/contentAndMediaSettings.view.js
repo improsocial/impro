@@ -3,7 +3,30 @@ import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { deviceState } from "/js/deviceState.js";
 import { showToast } from "/js/toasts.js";
+import { haptics } from "/js/haptics.js";
 import "/js/components/toggle-switch.js";
+
+function hapticsSettingTemplate({ hapticsDisabled, onChange }) {
+  return html`<section
+    class="setting-item"
+    data-testid="settings-section-haptics"
+  >
+    <div class="setting-item-info">
+      <h2 class="setting-item-name">Disable haptic feedback</h2>
+      <p class="setting-item-desc">
+        Stop vibrating when you like, repost, and more.
+      </p>
+    </div>
+    <div class="setting-item-control">
+      <toggle-switch
+        data-testid="haptics-toggle"
+        label="Disable haptic feedback"
+        ?checked=${hapticsDisabled}
+        @change=${(event) => onChange(event.detail.checked)}
+      ></toggle-switch>
+    </div>
+  </section>`;
+}
 
 export default async function settingsContentAndMediaView({
   root,
@@ -13,6 +36,10 @@ export default async function settingsContentAndMediaView({
 
   function handleAutoplayChange(enabled) {
     deviceState.$autoplayDisabledSetting.set(!enabled);
+  }
+
+  function handleHapticsChange(disabled) {
+    deviceState.$hapticsDisabled.set(disabled);
   }
 
   function handleTrendingChange(shown) {
@@ -39,6 +66,7 @@ export default async function settingsContentAndMediaView({
     const autoplayDisabled = deviceState.$autoplayDisabled.get();
     const trendingHidden = dataLayer.derived.$trendingHidden.get();
     const threadView = dataLayer.derived.$threadView.get();
+    const hapticsDisabled = deviceState.$hapticsDisabled.get();
     render(
       html`<div id="settings-content-and-media-view">
         ${headerTemplate({
@@ -99,6 +127,12 @@ export default async function settingsContentAndMediaView({
               ></toggle-switch>
             </div>
           </section>
+          ${haptics.isSupported()
+            ? hapticsSettingTemplate({
+                hapticsDisabled,
+                onChange: handleHapticsChange,
+              })
+            : ""}
         </main>
       </div>`,
       root,

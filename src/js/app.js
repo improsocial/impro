@@ -58,7 +58,6 @@ import { GroupChatLinkService } from "/js/groupChatLinkService.js";
 import { LiveStatusService } from "/js/liveStatusService.js";
 import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
-import { hapticsImpactLight } from "/js/haptics.js";
 import { isNative } from "/js/utils.js";
 import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
 import { effect, untrack } from "/js/signals.js";
@@ -520,7 +519,6 @@ export async function main() {
   document.addEventListener("touchstart", () => {}, { passive: true });
 
   window.addEventListener("native-reload", () => {
-    hapticsImpactLight();
     window.location.reload();
   });
 

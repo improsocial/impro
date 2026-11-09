@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { effect } from "/js/signals.js";
 import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
@@ -216,8 +217,10 @@ export class MainLayout extends Layout {
             chatNotificationService?.$numNotifications.get() ?? null,
           onClickActiveNavItem,
           children: slot,
-          onClickComposeButton: () =>
-            postComposerService.composePost({ currentUser }),
+          onClickComposeButton: () => {
+            haptics.impactLight();
+            postComposerService.composePost({ currentUser });
+          },
           pluginService,
           previewingPlugins,
           onLongPressProfile,

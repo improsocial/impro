@@ -1,4 +1,4 @@
-import { hapticsImpactMedium } from "/js/haptics.js";
+import { haptics } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 
 export class FeedInteractionHandler {
@@ -7,9 +7,9 @@ export class FeedInteractionHandler {
   }
 
   async handlePinFeed(feedUri, doPin) {
+    haptics.impactMedium();
     if (doPin) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.pinFeed(feedUri);
         showToast("Feed pinned");
       } catch (error) {

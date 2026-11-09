@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { classnames, isMobileViewport } from "/js/utils.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { hapticsImpactLight } from "/js/haptics.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 
@@ -92,7 +91,6 @@ class ContextMenu extends Component {
   }
 
   open(x, y) {
-    hapticsImpactLight();
     this.scrollLock ??= scrollLocks.acquire({ target: this });
 
     const dialog = this.querySelector(".context-menu");

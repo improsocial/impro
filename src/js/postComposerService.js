@@ -3,7 +3,6 @@ import { createEmbedFromPost, getReplyRootFromPost } from "/js/dataHelpers.js";
 import { showToast } from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
 import { linkToPostFromUri } from "/js/navigation.js";
-import { hapticsImpactLight } from "/js/haptics.js";
 
 export class PostComposerService {
   constructor(dataLayer, identityResolver, pluginService) {
@@ -28,7 +27,6 @@ export class PostComposerService {
       return;
     }
     const replyRoot = replyTo ? getReplyRootFromPost(replyTo) : null;
-    hapticsImpactLight();
     return new Promise((resolve, reject) => {
       this.currentPostComposer = document.createElement("post-composer");
       this.currentPostComposer.dataLayer = this.dataLayer;

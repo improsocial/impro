@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { wait, TabScrollMemory, StickyFixer } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -104,6 +105,7 @@ export default async function profileView({
   }
 
   async function handleEditProfile(profile) {
+    haptics.impactLight();
     const dialog = document.createElement("edit-profile-dialog");
     dialog.addEventListener("profile-save", (event) =>
       handleSaveProfile(
@@ -577,7 +579,10 @@ export default async function profileView({
         ${isAuthenticated
           ? floatingComposeButtonTemplate({
               disabled: !currentUser,
-              onClick: () => postComposerService.composePost({ currentUser }),
+              onClick: () => {
+                haptics.impactLight();
+                postComposerService.composePost({ currentUser });
+              },
             })
           : ""}
       </div>`,

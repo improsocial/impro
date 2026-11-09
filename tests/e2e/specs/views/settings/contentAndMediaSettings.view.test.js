@@ -123,4 +123,46 @@ test.describe("Settings Content and media view", () => {
     await expect(toggle).toHaveAttribute("disabled", "", { timeout: 10000 });
     await expect(toggle).not.toHaveAttribute("disabled", { timeout: 10000 });
   });
+
+  test("should hide the haptics setting in a browser tab", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const view = page.locator("#settings-content-and-media-view");
+    await expect(
+      view.locator('[data-testid="settings-section-autoplay"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="settings-section-haptics"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should keep haptics disabled after a reload in a standalone PWA", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "standalone", { value: true });
+    });
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const view = page.locator("#settings-content-and-media-view");
+    const toggle = view.locator('[data-testid="haptics-toggle"]');
+    await expect(toggle).not.toHaveAttribute("checked", { timeout: 10000 });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("checked", "");
+
+    await page.reload();
+    await expect(
+      page.locator(
+        '#settings-content-and-media-view [data-testid="haptics-toggle"]',
+      ),
+    ).toHaveAttribute("checked", "", { timeout: 10000 });
+  });
 });

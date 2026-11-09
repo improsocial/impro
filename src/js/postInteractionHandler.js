@@ -1,4 +1,4 @@
-import { hapticsImpactMedium } from "/js/haptics.js";
+import { haptics } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { html } from "/js/lib/lit-html.js";
@@ -89,9 +89,9 @@ export class PostInteractionHandler {
   }
 
   async handleLike(post, doLike) {
+    haptics.impactLight();
     if (doLike) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.addLike(post);
       } catch (error) {
         console.error(error);
@@ -110,7 +110,7 @@ export class PostInteractionHandler {
   async handleRepost(post, doRepost) {
     if (doRepost) {
       try {
-        hapticsImpactMedium();
+        haptics.impactMedium();
         await this.dataLayer.mutations.createRepost(post);
       } catch (error) {
         console.error(error);
@@ -127,9 +127,9 @@ export class PostInteractionHandler {
   }
 
   async handleBookmark(post, doBookmark) {
+    haptics.impactLight();
     if (doBookmark) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.addBookmark(post);
         showToast("Post saved", { style: "success" });
       } catch (error) {
@@ -175,7 +175,6 @@ export class PostInteractionHandler {
   async handlePinPost(post, doPin) {
     if (doPin) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.pinPost(post);
         showToast("Post pinned to your profile", { style: "success" });
       } catch (error) {
@@ -355,6 +354,7 @@ export class PostInteractionHandler {
   }
 
   async handleReply(post) {
+    haptics.impactLight();
     const currentUser = this.dataLayer.derived.$currentUser.get();
     if (!currentUser) {
       console.warn("handleReply: No current user");
@@ -371,6 +371,7 @@ export class PostInteractionHandler {
   }
 
   async handleQuotePost(post) {
+    haptics.impactMedium();
     const currentUser = this.dataLayer.derived.$currentUser.get();
     if (!currentUser) {
       console.warn("handleQuotePost: No current user");

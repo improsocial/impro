@@ -1,4 +1,4 @@
-import { hapticsImpactLight } from "/js/haptics.js";
+import { haptics } from "/js/haptics.js";
 import "/js/components/account-switcher-dialog.js";
 
 export class AccountSwitcherService {
@@ -13,7 +13,7 @@ export class AccountSwitcherService {
       console.warn("Account switcher dialog already open");
       return;
     }
-    hapticsImpactLight();
+    haptics.impactHeavy();
     this.currentDialog = document.createElement("account-switcher-dialog");
     this.currentDialog.dataLayer = this.dataLayer;
     this.currentDialog.auth = this.auth;

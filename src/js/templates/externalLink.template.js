@@ -1,4 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { sanitizeUri } from "/js/utils.js";
 import { isVideoLink } from "/js/dataHelpers.js";
 import "/js/components/app-icon.js";
@@ -21,9 +22,10 @@ export function externalLinkTemplate({
   onClick,
   ariaLabel = null,
 }) {
-  let clickHandler = null;
+  let clickHandler = () => haptics.impactLight();
   if (onClick) {
     clickHandler = (event) => {
+      haptics.impactLight();
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
