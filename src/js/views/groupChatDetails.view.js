@@ -78,16 +78,28 @@ function groupHeaderCardTemplate({
           ${groupDetails.name}
         </div>`
       : ""}
-    ${groupDetails.createdAt
-      ? html`<div class="chat-info-panel-handle" data-testid="group-created-at">
-          Created ${formatFullDate(groupDetails.createdAt)}
-        </div>`
-      : ""}
+    <div class="chat-info-panel-meta">
+      ${groupDetails.createdAt
+        ? html`<div
+            class="chat-info-panel-handle"
+            data-testid="group-created-at"
+          >
+            Created ${formatFullDate(groupDetails.createdAt)}
+          </div>`
+        : ""}
+      ${convo.muted
+        ? html`<div
+            class="profile-tag profile-tag-with-icon"
+            data-testid="group-muted-badge"
+          >
+            <app-icon icon="bell-off-line"></app-icon>
+            Muted
+          </div>`
+        : ""}
+    </div>
     <div class="chat-info-panel-actions">
       <button
-        class="rounded-button chat-info-panel-action ${convo.muted
-          ? "muted"
-          : ""}"
+        class="rounded-button chat-info-panel-action"
         data-testid="group-settings-mute-toggle"
         data-teststate=${convo.muted ? "muted" : "unmuted"}
         aria-label=${convo.muted
@@ -97,9 +109,9 @@ function groupHeaderCardTemplate({
         @click=${() => onToggleMute(!convo.muted)}
       >
         <app-icon
-          icon=${convo.muted ? "bell-off-line" : "bell-line"}
+          icon=${convo.muted ? "bell-line" : "bell-off-line"}
         ></app-icon>
-        <span>${convo.muted ? "Muted" : "Mute"}</span>
+        <span>${convo.muted ? "Unmute" : "Mute"}</span>
       </button>
       <button
         class="rounded-button chat-info-panel-action"
@@ -126,10 +138,12 @@ function groupHeaderCardSkeletonTemplate() {
       &#8203;
       <div class="skeleton-line-short skeleton-animate"></div>
     </div>
-    <div class="chat-info-panel-handle">
-      &#8203;<span
-        class="skeleton-line-shorter skeleton-animate group-chat-header-skeleton-handle-line"
-      ></span>
+    <div class="chat-info-panel-meta">
+      <div class="chat-info-panel-handle">
+        &#8203;<span
+          class="skeleton-line-shorter skeleton-animate group-chat-header-skeleton-handle-line"
+        ></span>
+      </div>
     </div>
     <div class="chat-info-panel-actions">
       <div

@@ -4672,6 +4672,19 @@ image-carousel {
   color: var(--text-color-muted);
 }
 
+.chat-info-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  min-height: 20px;
+}
+
+.chat-info-panel-meta .profile-tag {
+  margin-top: 0;
+}
+
 .chat-info-panel-go-to-profile-button {
   margin-top: 12px;
   color: var(--text-color);
@@ -4771,17 +4784,6 @@ image-carousel {
   width: 90px;
   height: 36px;
   border-color: transparent;
-}
-
-.chat-info-panel-action.muted {
-  border-color: var(--error-color);
-  color: var(--error-color);
-}
-
-@media (hover: hover) {
-  .rounded-button.chat-info-panel-action.muted:not(:disabled):hover {
-    background-color: var(--error-subtle-color);
-  }
 }
 
 .convo-item.is-muted {
@@ -6312,13 +6314,13 @@ emoji-picker-dialog emoji-picker,
   vertical-align: baseline;
 }
 
-.profile-reposts-hidden {
+.profile-tag-with-icon {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.profile-reposts-hidden app-icon {
+.profile-tag-with-icon app-icon {
   width: 14px;
   height: 14px;
 }

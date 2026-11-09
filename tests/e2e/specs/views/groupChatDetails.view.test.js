@@ -263,6 +263,9 @@ test.describe("Group chat details view", () => {
     await expect(
       view.locator('[data-testid="group-settings-leave-button"]'),
     ).toBeVisible();
+    await expect(view.locator('[data-testid="group-muted-badge"]')).toHaveCount(
+      0,
+    );
   });
 
   test("should reflect muted state on the group mute toggle", async ({
@@ -286,6 +289,9 @@ test.describe("Group chat details view", () => {
     await expect(
       view.locator('[data-testid="group-settings-mute-toggle"]'),
     ).toHaveAttribute("data-teststate", "muted", { timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="group-muted-badge"]'),
+    ).toBeVisible();
   });
 
   test("should show not found for an unknown conversation", async ({

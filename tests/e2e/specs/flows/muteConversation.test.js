@@ -36,6 +36,9 @@ test.describe("Mute conversation flow", () => {
       timeout: 10000,
     });
     await expect(toggle).toHaveAttribute("data-teststate", "muted");
+    await expect(
+      view.locator('[data-testid="group-muted-badge"]'),
+    ).toBeVisible();
 
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
@@ -79,5 +82,8 @@ test.describe("Mute conversation flow", () => {
       timeout: 10000,
     });
     await expect(toggle).toHaveAttribute("data-teststate", "unmuted");
+    await expect(view.locator('[data-testid="group-muted-badge"]')).toHaveCount(
+      0,
+    );
   });
 });

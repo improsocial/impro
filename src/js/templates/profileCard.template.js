@@ -526,7 +526,7 @@ export function profileCardTemplate({
             : ""}
           ${profile.viewer?.mutedOnlyReposts
             ? html`<div
-                class="profile-tag profile-reposts-hidden"
+                class="profile-tag profile-tag-with-icon"
                 data-testid="reposts-hidden-badge"
               >
                 <app-icon icon="repost-off"></app-icon>
