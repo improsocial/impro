@@ -386,6 +386,29 @@ export function profileCardTemplate({
           author: profile,
           clickAction: liveStatus?.state === "active" ? "live" : "lightbox",
         })}
+        <button
+          class="rounded-button ellipsis-button"
+          @click=${(e) => {
+            openProfileContextMenu(e, {
+              profile,
+              isAuthenticated,
+              isCurrentUser,
+              isLabeler,
+              pluginService,
+              onClickFollow,
+              onClickMute,
+              onClickMuteReposts,
+              onClickBlock,
+              onClickAddToLists,
+              onClickReport,
+              onClickGoLive,
+              onClickEditLive,
+              liveStatus,
+            });
+          }}
+        >
+          <span>...</span>
+        </button>
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
           ? html` ${canSubscribe
               ? html`<button
@@ -487,29 +510,6 @@ export function profileCardTemplate({
                 : html`<app-icon icon="plus-line"></app-icon> Follow`}
           </button>`;
         })()}
-        <button
-          class="rounded-button ellipsis-button"
-          @click=${(e) => {
-            openProfileContextMenu(e, {
-              profile,
-              isAuthenticated,
-              isCurrentUser,
-              isLabeler,
-              pluginService,
-              onClickFollow,
-              onClickMute,
-              onClickMuteReposts,
-              onClickBlock,
-              onClickAddToLists,
-              onClickReport,
-              onClickGoLive,
-              onClickEditLive,
-              liveStatus,
-            });
-          }}
-        >
-          <span>...</span>
-        </button>
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">
@@ -520,10 +520,7 @@ export function profileCardTemplate({
         <div class="profile-handle-row">
           <div class="profile-handle">@${profile.handle}</div>
           ${isFollowedBy && !isBlocking && !isBlockedBy
-            ? html`<div
-                class="profile-tag"
-                data-testid="follows-you-badge"
-              >
+            ? html`<div class="profile-tag" data-testid="follows-you-badge">
                 Follows you
               </div>`
             : ""}
