@@ -7,7 +7,7 @@ import {
   makeTestDataLayer,
   respondToConfirm,
 } from "../../testHelpers.js";
-import { createTrend } from "../../../shared/factories.js";
+import { createProfile, createTrend } from "../../../shared/factories.js";
 
 describe("trending-pane", () => {
   function makeDataLayer(getTrends) {
@@ -31,7 +31,8 @@ describe("trending-pane", () => {
 
   function rowLabels(element) {
     return [...element.querySelectorAll("[data-testid='trending-row']")].map(
-      (row) => row.querySelector(".trending-label").textContent.trim(),
+      (row) =>
+        row.querySelector("[data-testid='trending-title']").textContent.trim(),
     );
   }
 
@@ -53,11 +54,11 @@ describe("trending-pane", () => {
     const element = mount(makeDataLayer(() => new Promise(() => {})));
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-skeleton']").length,
-      10,
+      4,
     );
   });
 
-  it("renders ranked rows linking to the trend target once loaded", async () => {
+  it("renders rows linking to the trend target once loaded", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: [
         createTrend({ topic: "gardening", link: "/search?q=gardening" }),
@@ -78,15 +79,9 @@ describe("trending-pane", () => {
       [...rows].map((row) => row.getAttribute("href")),
       ["/search?q=gardening", "/hashtag/cats"],
     );
-    assert.deepEqual(
-      [...element.querySelectorAll(".trending-rank")].map((rank) =>
-        rank.textContent.trim(),
-      ),
-      ["1.", "2."],
-    );
   });
 
-  it("keeps in-app paths and skips links that leave the app, renumbering the rest", async () => {
+  it("keeps in-app paths and skips links that leave the app", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: [
         createTrend({ topic: "absolute", link: "https://evil.example/steal" }),
@@ -103,15 +98,135 @@ describe("trending-pane", () => {
     await flushMicrotasks();
 
     assert.deepEqual(rowLabels(element), ["profiles", "good"]);
+  });
+
+  it("shows status, category and post count for an active trend", async () => {
+    const dataLayer = makeDataLayer(async () => ({
+      trends: [
+        createTrend({
+          topic: "gardening",
+          status: "hot",
+          category: "news",
+          postCount: 5251,
+        }),
+      ],
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+
+    const row = element.querySelector("[data-testid='trending-row']");
     assert.deepEqual(
-      [...element.querySelectorAll(".trending-rank")].map((rank) =>
-        rank.textContent.trim(),
-      ),
-      ["1.", "2."],
+      row
+        .querySelector("[data-testid='trending-status']")
+        .getAttribute("data-teststate"),
+      "active",
+    );
+    assert.deepEqual(
+      row.querySelector("[data-testid='trending-category']").textContent.trim(),
+      "News",
+    );
+    assert.deepEqual(
+      row
+        .querySelector("[data-testid='trending-post-count']")
+        .textContent.trim(),
+      `${(5251).toLocaleString()} posts`,
     );
   });
 
-  it("renders at most ten rows", async () => {
+  it("shows the age of a trend that is no longer active and omits a missing category", async () => {
+    const dataLayer = makeDataLayer(async () => ({
+      trends: [
+        createTrend({
+          topic: "gardening",
+          postCount: 1,
+          startedAt: new Date(Date.now() - 19.5 * 60 * 60 * 1000).toISOString(),
+        }),
+        createTrend({
+          topic: "cats",
+          startedAt: new Date(
+            Date.now() - 2.5 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+        }),
+      ],
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+
+    const statuses = [
+      ...element.querySelectorAll("[data-testid='trending-status']"),
+    ];
+    assert.deepEqual(
+      statuses.map((status) => status.getAttribute("data-teststate")),
+      ["past", "past"],
+    );
+    assert.deepEqual(
+      statuses.map((status) => status.textContent.trim()),
+      ["19h", "2d"],
+    );
+    assert.deepEqual(
+      element.querySelector("[data-testid='trending-category']"),
+      null,
+    );
+    assert.deepEqual(
+      element
+        .querySelector("[data-testid='trending-post-count']")
+        .textContent.trim(),
+      "1 post",
+    );
+  });
+
+  it("labels known categories and omits unrecognised ones", async () => {
+    const dataLayer = makeDataLayer(async () => ({
+      trends: [
+        createTrend({ topic: "rockets", category: "science-tech" }),
+        createTrend({ topic: "mystery", category: "brand-new-category" }),
+      ],
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+
+    const rows = element.querySelectorAll("[data-testid='trending-row']");
+    assert.deepEqual(
+      rows[0]
+        .querySelector("[data-testid='trending-category']")
+        .textContent.trim(),
+      "Science & Tech",
+    );
+    assert.deepEqual(
+      rows[1].querySelector("[data-testid='trending-category']"),
+      null,
+    );
+  });
+
+  it("shows up to three actor avatars and none when a trend has no actors", async () => {
+    const actors = ["a", "b", "c", "d"].map((name) =>
+      createProfile({
+        did: `did:plc:${name}`,
+        handle: `${name}.test`,
+        displayName: name,
+      }),
+    );
+    const dataLayer = makeDataLayer(async () => ({
+      trends: [
+        createTrend({ topic: "gardening", actors }),
+        createTrend({ topic: "cats" }),
+      ],
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+
+    const rows = element.querySelectorAll("[data-testid='trending-row']");
+    assert.deepEqual(
+      rows[0].querySelectorAll("[data-testid='avatar-image']").length,
+      3,
+    );
+    assert.deepEqual(
+      rows[1].querySelector("[data-testid='trending-avatars']"),
+      null,
+    );
+  });
+
+  it("renders at most four rows", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: Array.from({ length: 14 }, (_, index) =>
         createTrend({ topic: `topic-${index}` }),
@@ -122,7 +237,7 @@ describe("trending-pane", () => {
 
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-row']").length,
-      10,
+      4,
     );
   });
 

@@ -67,6 +67,27 @@ test.describe("Trending pane", () => {
     await expect(page.locator('[data-testid="trending-pane"]')).toHaveCount(0);
   });
 
+  test("skeleton rows match the loaded row height", async ({ page }) => {
+    let releaseTrends;
+    const trendsHeld = new Promise((resolve) => {
+      releaseTrends = resolve;
+    });
+    await page.route("**/xrpc/app.bsky.unspecced.getTrends*", async (route) => {
+      await trendsHeld;
+      await route.fallback();
+    });
+
+    await page.goto("/");
+    const skeleton = page.locator('[data-testid="trending-skeleton"]').first();
+    await expect(skeleton).toBeVisible({ timeout: 10000 });
+    const skeletonHeight = (await skeleton.boundingBox()).height;
+
+    releaseTrends();
+    const row = page.locator('[data-testid="trending-row"]').first();
+    await expect(row).toBeVisible();
+    expect((await row.boundingBox()).height).toBe(skeletonHeight);
+  });
+
   test("defers fetching trends until the pane is shown", async ({ page }) => {
     const trendRequests = [];
     page.on("request", (request) => {

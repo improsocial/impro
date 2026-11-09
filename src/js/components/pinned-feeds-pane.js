@@ -45,10 +45,14 @@ function pinnedFeedsSkeletonTemplate() {
         class="pinned-feeds-item pinned-feeds-item-skeleton"
         data-testid="pinned-feeds-skeleton"
       >
-        <span
-          class="skeleton-animate pinned-feeds-skeleton-bar"
-          style="width: ${index % 2 === 0 ? 60 : 80}%"
-        ></span>
+        <span class="pinned-feeds-item-icon skeleton-animate"></span>
+        <span class="pinned-feeds-item-label pinned-feeds-skeleton-label">
+          &#8203;
+          <span
+            class="skeleton-animate pinned-feeds-skeleton-bar"
+            style="width: ${index % 2 === 0 ? 60 : 80}%"
+          ></span>
+        </span>
       </div>`,
   )}`;
 }

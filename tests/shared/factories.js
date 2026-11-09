@@ -281,16 +281,18 @@ export function createTrend({
   postCount = 100,
   status,
   category,
+  startedAt = "2025-01-01T00:00:00.000Z",
+  actors = [],
 }) {
   return {
     topic,
     displayName: displayName ?? topic,
     link: link ?? `/search?q=${encodeURIComponent(topic)}`,
-    startedAt: "2025-01-01T00:00:00.000Z",
+    startedAt,
     postCount,
     status,
     category,
-    actors: [],
+    actors,
   };
 }
 

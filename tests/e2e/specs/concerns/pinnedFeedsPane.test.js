@@ -46,6 +46,33 @@ test.describe("Pinned feeds pane", () => {
     ).toBeVisible();
   });
 
+  test("skeleton rows match the loaded item height", async ({ page }) => {
+    let releasePreferences;
+    const preferencesHeld = new Promise((resolve) => {
+      releasePreferences = resolve;
+    });
+    await page.route(
+      "**/xrpc/app.bsky.actor.getPreferences*",
+      async (route) => {
+        await preferencesHeld;
+        await route.fallback();
+      },
+    );
+
+    await page.goto("/");
+    const skeleton = page
+      .locator('[data-testid="pinned-feeds-skeleton"]')
+      .first();
+    await expect(skeleton).toBeVisible({ timeout: 10000 });
+    const skeletonHeight = (await skeleton.boundingBox()).height;
+
+    releasePreferences();
+    const items = page.locator('[data-testid="pinned-feeds-item"]');
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    expect((await items.nth(0).boundingBox()).height).toBe(skeletonHeight);
+    expect((await items.nth(1).boundingBox()).height).toBe(skeletonHeight);
+  });
+
   test("switches the home feed when a pinned feed is clicked", async ({
     page,
   }) => {
