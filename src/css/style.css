@@ -254,6 +254,7 @@ html {
   --hair: 1px;
   --chat-detail-header-height: 56px;
   --footer-height: 55px;
+  --tab-bar-height: 50px;
   --post-thread-reply-prompt-height: 50px;
   --message-input-min-height: 70px;
   --sidebar-max-width: 300px;
@@ -1450,7 +1451,7 @@ header {
 
 tab-bar {
   display: flex;
-  height: 46px;
+  height: var(--tab-bar-height);
 }
 
 tab-bar .tab-bar-button {
@@ -1502,7 +1503,7 @@ tab-bar.is-scroll-frozen {
 
 .tab-bar-skeleton {
   display: flex;
-  height: 46px;
+  height: var(--tab-bar-height);
   overflow: hidden;
 }
 
@@ -1536,7 +1537,7 @@ tab-bar.is-scroll-frozen {
 }
 
 .feed-container {
-  min-height: calc(100dvh - 45px);
+  min-height: calc(100dvh - var(--tab-bar-height));
 }
 
 .scroll-lock-pinned {
