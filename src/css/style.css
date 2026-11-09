@@ -2776,8 +2776,8 @@ container-link {
   align-items: center;
   gap: 12px;
   height: 28px;
-  padding-top: 8px;
-  margin-bottom: 8px;
+  padding-top: 10px;
+  margin-bottom: 10px;
 }
 
 .large-post .post-actions {
