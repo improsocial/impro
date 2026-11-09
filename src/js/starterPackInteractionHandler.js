@@ -1,4 +1,3 @@
-import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 
@@ -17,7 +16,6 @@ export class StarterPackInteractionHandler {
         confirmButtonStyle: "danger",
         onConfirm: async () => {
           try {
-            hapticsImpactMedium();
             await this.dataLayer.mutations.optOutOfReferenceList(list);
             showToast("Opted out of starter pack");
           } catch (error) {
@@ -40,7 +38,6 @@ export class StarterPackInteractionHandler {
         pendingText: "Undoing…",
         onConfirm: async () => {
           try {
-            hapticsImpactMedium();
             await this.dataLayer.mutations.undoReferenceListOptOut(list);
             showToast("Opt-out undone");
           } catch (error) {

@@ -1,4 +1,5 @@
 import { Component } from "/js/components/component.js";
+import { haptics } from "/js/haptics.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { hasKeyboardInput, graphemeCount, getByteLength } from "/js/utils.js";
 import "/js/components/rich-text-input.js";
@@ -86,6 +87,7 @@ class ChatInput extends Component {
     const message = this.messageText.trim();
     const hasEmbed = this.getAttribute("has-embed") !== null;
     if (!message && !hasEmbed) return;
+    haptics.impactMedium();
     this.dispatchEvent(
       new CustomEvent("send", {
         detail: {

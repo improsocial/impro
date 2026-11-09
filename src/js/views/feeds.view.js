@@ -1,3 +1,4 @@
+import { haptics } from "/js/haptics.js";
 import {
   bindToPage,
   pageEffect,
@@ -86,6 +87,7 @@ export default async function feedsView({
             @click=${(e) => {
               e.preventDefault();
               e.stopPropagation();
+              haptics.impactMedium();
               state.$draftUnpinned.add(value);
             }}
           >

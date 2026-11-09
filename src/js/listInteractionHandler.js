@@ -1,4 +1,4 @@
-import { hapticsImpactMedium } from "/js/haptics.js";
+import { haptics } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 
@@ -8,9 +8,9 @@ export class ListInteractionHandler {
   }
 
   async handlePinList(listUri, doPin) {
+    haptics.impactMedium();
     if (doPin) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.pinList(listUri);
         showToast("List pinned");
       } catch (error) {
@@ -38,7 +38,6 @@ export class ListInteractionHandler {
     );
     if (!confirmed) return;
     try {
-      hapticsImpactMedium();
       await this.dataLayer.mutations.muteModList(list);
       showToast("List muted");
     } catch (error) {
@@ -68,7 +67,6 @@ export class ListInteractionHandler {
     );
     if (!confirmed) return;
     try {
-      hapticsImpactMedium();
       await this.dataLayer.mutations.blockModList(list);
       showToast("List blocked");
     } catch (error) {

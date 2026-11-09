@@ -1,4 +1,5 @@
 import { html, keyed, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { getPermalinkForPost } from "/js/navigation.js";
 import {
@@ -549,6 +550,7 @@ export function postActionBarTemplate({
               if (!isAuthenticated) {
                 return SignInModal.open();
               }
+              haptics.impactLight();
               openContextMenu(
                 e,
                 repostMenuTemplate({
@@ -641,6 +643,7 @@ export function postActionBarTemplate({
             data-testid="post-action-share"
             @click=${(e) => {
               e.stopPropagation();
+              haptics.impactLight();
               openContextMenu(
                 e,
                 shareMenuTemplate({ post, onClickDownloadVideo }),
@@ -658,6 +661,7 @@ export function postActionBarTemplate({
             data-testid="post-action-more"
             @click=${(e) => {
               e.stopPropagation();
+              haptics.impactLight();
               openPostContextMenu(e, {
                 post,
                 isAuthenticated,

@@ -1,4 +1,5 @@
 import "/js/components/live-status-dialog.js";
+import { haptics } from "/js/haptics.js";
 import "/js/components/edit-live-dialog.js";
 import "/js/components/go-live-dialog.js";
 
@@ -11,6 +12,7 @@ export class LiveStatusService {
   handleAvatarClick(did) {
     const liveStatus = this.dataLayer.derived.$actorLiveStatus.get(did);
     if (liveStatus?.state !== "active") return;
+    haptics.impactLight();
     const currentUser = this.dataLayer.derived.$currentUser.get();
     if (currentUser?.did === did) {
       this._openEditLiveDialog(liveStatus);

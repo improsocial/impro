@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import "/js/components/app-icon.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -308,6 +309,7 @@ export default async function notificationsView({
   }
 
   function toggleAuthorsExpanded(groupKey) {
+    haptics.impactLight();
     if (state.$expandedGroups.has(groupKey)) {
       state.$expandedGroups.delete(groupKey);
     } else {
@@ -971,7 +973,10 @@ export default async function notificationsView({
         ${isAuthenticated
           ? floatingComposeButtonTemplate({
               disabled: !currentUser,
-              onClick: () => postComposerService.composePost({ currentUser }),
+              onClick: () => {
+                haptics.impactLight();
+                postComposerService.composePost({ currentUser });
+              },
             })
           : ""}
       </div>`,

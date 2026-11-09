@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
@@ -336,6 +337,7 @@ export default async function postThreadView({
   }
 
   async function handleClickReply(post, currentUser) {
+    haptics.impactLight();
     await postComposerService.composePost({
       currentUser,
       replyTo: post,

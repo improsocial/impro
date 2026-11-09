@@ -7,3 +7,4 @@ deviceState.$autoplayDisabledSetting = new Signal.State(null);
 deviceState.$autoplayDisabled = new Signal.Computed(
   () => deviceState.$autoplayDisabledSetting.get() ?? prefersReducedMotion(),
 );
+deviceState.$hapticsDisabled = new Signal.State(false);

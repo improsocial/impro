@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -361,7 +362,10 @@ export default async function homeView({
         ${isAuthenticated
           ? floatingComposeButtonTemplate({
               disabled: !currentUser,
-              onClick: () => postComposerService.composePost({ currentUser }),
+              onClick: () => {
+                haptics.impactLight();
+                postComposerService.composePost({ currentUser });
+              },
             })
           : ""}
       </div>`,

@@ -1,4 +1,4 @@
-import { hapticsImpactMedium } from "/js/haptics.js";
+import { haptics } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -14,7 +14,7 @@ export class ProfileInteractionHandler {
   async handleFollow(profile, doFollow) {
     if (doFollow) {
       try {
-        hapticsImpactMedium();
+        haptics.impactMedium();
         await this.dataLayer.mutations.followProfile(profile);
         showToast(`Following ${getDisplayName(profile)}`);
       } catch (error) {
@@ -30,6 +30,7 @@ export class ProfileInteractionHandler {
         },
       );
       if (!confirmed) return;
+      haptics.impactMedium();
       try {
         await this.dataLayer.mutations.unfollowProfile(profile);
         showToast(`No longer following ${getDisplayName(profile)}`);
@@ -92,7 +93,6 @@ export class ProfileInteractionHandler {
       );
       if (!confirmed) return;
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.blockProfile(profile);
         showToast("Account blocked");
       } catch (error) {
@@ -137,9 +137,9 @@ export class ProfileInteractionHandler {
   }
 
   async handleSubscribe(profile, doSubscribe, labelerInfo) {
+    haptics.impactMedium();
     if (doSubscribe) {
       try {
-        hapticsImpactMedium();
         await this.dataLayer.mutations.subscribeLabeler(profile, labelerInfo);
         showToast("Subscribed to labeler");
       } catch (error) {
@@ -175,7 +175,6 @@ export class ProfileInteractionHandler {
           const { activitySubscription, successCallback, errorCallback } =
             event.detail;
           try {
-            hapticsImpactMedium();
             await this.dataLayer.mutations.updatePostNotificationSubscription(
               profile,
               activitySubscription,

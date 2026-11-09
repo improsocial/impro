@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { haptics } from "/js/haptics.js";
 import { createPost } from "../../shared/factories.js";
 import { flushMicrotasks, waitFor } from "../testHelpers.js";
 
@@ -141,5 +142,66 @@ describe("PostInteractionHandler.handleDownloadVideo", () => {
       document.querySelector('[data-testid="video-download-modal"]') !== null,
     );
     assert.deepEqual(clickedDownloads, []);
+  });
+});
+
+describe("PostInteractionHandler haptics", () => {
+  const post = createPost({
+    uri: "at://did:plc:alice/app.bsky.feed.post/3khaptics",
+    text: "hello",
+    authorHandle: "alice.test",
+  });
+
+  let handler;
+  let composePost;
+
+  beforeEach((t) => {
+    document.body.innerHTML = "";
+    t.mock.method(haptics, "impactLight", () => Promise.resolve());
+    t.mock.method(haptics, "impactMedium", () => Promise.resolve());
+    const noopMutation = async () => {};
+    const dataLayer = {
+      mutations: {
+        addLike: noopMutation,
+        removeLike: noopMutation,
+        addBookmark: noopMutation,
+        removeBookmark: noopMutation,
+      },
+      derived: { $currentUser: { get: () => ({ did: "did:plc:me" }) } },
+    };
+    composePost = mock.fn(async () => {});
+    handler = new PostInteractionHandler(dataLayer, { composePost }, null);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  for (const doLike of [true, false]) {
+    it(`plays a light haptic when ${doLike ? "liking" : "unliking"}`, async () => {
+      await handler.handleLike(post, doLike);
+      assert.equal(haptics.impactLight.mock.callCount(), 1);
+      assert.equal(haptics.impactMedium.mock.callCount(), 0);
+    });
+  }
+
+  for (const doBookmark of [true, false]) {
+    it(`plays a light haptic when ${doBookmark ? "bookmarking" : "removing a bookmark"}`, async () => {
+      await handler.handleBookmark(post, doBookmark);
+      assert.equal(haptics.impactLight.mock.callCount(), 1);
+      assert.equal(haptics.impactMedium.mock.callCount(), 0);
+    });
+  }
+
+  it("plays a light haptic when replying", async () => {
+    await handler.handleReply(post);
+    assert.equal(haptics.impactLight.mock.callCount(), 1);
+    assert.equal(composePost.mock.callCount(), 1);
+  });
+
+  it("plays a medium haptic when quoting", async () => {
+    await handler.handleQuotePost(post);
+    assert.equal(haptics.impactMedium.mock.callCount(), 1);
+    assert.equal(haptics.impactLight.mock.callCount(), 0);
   });
 });
