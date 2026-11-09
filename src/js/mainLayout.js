@@ -106,7 +106,7 @@ export function mainLayoutTemplate({
         </div>
         <div class="view-column-right">
           ${activeNavItem === "search"
-            ? html`<div class="sidebar-search-placeholder"></div>`
+            ? ""
             : html`<sidebar-search
                 .dataLayer=${dataLayer}
                 .isAuthenticated=${isAuthenticated}
