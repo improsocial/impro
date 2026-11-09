@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
+import "/js/components/animated-button.js";
 import "/js/components/animated-count.js";
 
 describe("animated-count", () => {
@@ -49,10 +50,12 @@ describe("animated-count", () => {
   }
 
   async function createCount({ count, isActive }) {
+    const button = document.createElement("animated-button");
     const element = document.createElement("animated-count");
     element.setAttribute("count", String(count));
     element.toggleAttribute("is-active", isActive);
-    document.body.appendChild(element);
+    button.appendChild(element);
+    document.body.appendChild(button);
     await flush();
     return element;
   }
@@ -61,6 +64,11 @@ describe("animated-count", () => {
     element.setAttribute("count", String(count));
     element.toggleAttribute("is-active", isActive);
     await flush();
+  }
+
+  async function clickAndSetState(element, state) {
+    element.closest("button").click();
+    await setState(element, state);
   }
 
   function currentText(element) {
@@ -86,7 +94,7 @@ describe("animated-count", () => {
 
   it("rolls up when toggled on", async () => {
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 6, isActive: true });
+    await clickAndSetState(element, { count: 6, isActive: true });
     assert.equal(currentText(element), "6");
     assert.equal(previousEl(element).textContent, "5");
     assert.equal(previousEl(element).getAttribute("aria-hidden"), "true");
@@ -99,7 +107,7 @@ describe("animated-count", () => {
 
   it("rolls down when toggled off", async () => {
     const element = await createCount({ count: 6, isActive: true });
-    await setState(element, { count: 5, isActive: false });
+    await clickAndSetState(element, { count: 5, isActive: false });
     assert.equal(currentText(element), "5");
     assert.equal(previousEl(element).textContent, "6");
     const entering = animations.find(
@@ -110,7 +118,7 @@ describe("animated-count", () => {
 
   it("removes the previous count when the exit animation finishes", async () => {
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 6, isActive: true });
+    await clickAndSetState(element, { count: 6, isActive: true });
     const exiting = animations.find(
       (animation) => animation.element === previousEl(element),
     );
@@ -120,7 +128,7 @@ describe("animated-count", () => {
 
   it("stays visible while rolling from 1 to 0, then empties", async () => {
     const element = await createCount({ count: 1, isActive: true });
-    await setState(element, { count: 0, isActive: false });
+    await clickAndSetState(element, { count: 0, isActive: false });
     assert.equal(currentText(element), "");
     assert.equal(previousEl(element).textContent, "1");
     assert(!element.classList.contains("is-empty"));
@@ -131,7 +139,7 @@ describe("animated-count", () => {
 
   it("only animates the entering count when rolling from 0 to 1", async () => {
     const element = await createCount({ count: 0, isActive: false });
-    await setState(element, { count: 1, isActive: true });
+    await clickAndSetState(element, { count: 1, isActive: true });
     assert.equal(currentText(element), "1");
     assert.equal(previousEl(element), null);
     assert.equal(animations.length, 1);
@@ -140,14 +148,40 @@ describe("animated-count", () => {
 
   it("does not animate count changes without a toggle", async () => {
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 9, isActive: false });
+    await clickAndSetState(element, { count: 9, isActive: false });
     assert.equal(currentText(element), "9");
     assert.equal(animations.length, 0);
   });
 
+  it("does not roll when toggled without a recent click", async () => {
+    const element = await createCount({ count: 5, isActive: false });
+    await setState(element, { count: 6, isActive: true });
+    assert.equal(currentText(element), "6");
+    assert.equal(previousEl(element), null);
+    assert.equal(animations.length, 0);
+  });
+
+  it("warns and does not roll without a parent animated-button", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const element = document.createElement("animated-count");
+    element.setAttribute("count", "5");
+    document.body.appendChild(element);
+    await flush();
+    assert.equal(warn.mock.callCount(), 1);
+    await setState(element, { count: 6, isActive: true });
+    assert.equal(currentText(element), "6");
+    assert.equal(animations.length, 0);
+  });
+
+  it("does not warn inside an animated-button", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    await createCount({ count: 5, isActive: false });
+    assert.equal(warn.mock.callCount(), 0);
+  });
+
   it("does not roll when the formatted count is unchanged", async () => {
     const element = await createCount({ count: 1234, isActive: false });
-    await setState(element, { count: 1235, isActive: true });
+    await clickAndSetState(element, { count: 1235, isActive: true });
     assert.equal(currentText(element), "1.2K");
     assert.equal(animations.length, 0);
   });
@@ -155,16 +189,16 @@ describe("animated-count", () => {
   it("does not roll when reduced motion is preferred", async () => {
     window.matchMedia = () => ({ matches: true });
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 6, isActive: true });
+    await clickAndSetState(element, { count: 6, isActive: true });
     assert.equal(currentText(element), "6");
     assert.equal(animations.length, 0);
   });
 
   it("cancels an in-flight roll when toggled again", async () => {
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 6, isActive: true });
+    await clickAndSetState(element, { count: 6, isActive: true });
     const firstAnimations = [...animations];
-    await setState(element, { count: 5, isActive: false });
+    await clickAndSetState(element, { count: 5, isActive: false });
     for (const animation of firstAnimations) {
       assert.equal(animation.cancel.mock.callCount(), 1);
     }
@@ -177,6 +211,7 @@ describe("animated-count", () => {
 
   it("batches count and is-active changes into one update", async () => {
     const element = await createCount({ count: 5, isActive: false });
+    element.closest("button").click();
     element.setAttribute("count", "6");
     element.toggleAttribute("is-active", true);
     await flush();
@@ -185,8 +220,8 @@ describe("animated-count", () => {
 
   it("cancels animations when disconnected", async () => {
     const element = await createCount({ count: 5, isActive: false });
-    await setState(element, { count: 6, isActive: true });
-    element.remove();
+    await clickAndSetState(element, { count: 6, isActive: true });
+    element.closest("animated-button").remove();
     for (const animation of animations) {
       assert.equal(animation.cancel.mock.callCount(), 1);
     }

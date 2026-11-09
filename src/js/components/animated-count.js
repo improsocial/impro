@@ -77,9 +77,15 @@ class AnimatedCount extends Component {
       this.appendChild(this._currentEl);
     }
 
+    const animatedButton = this.closest("animated-button");
+    if (previousCount === null && this.isConnected && !animatedButton) {
+      console.warn("animated-count has no parent animated-button");
+    }
+
     const shouldRoll =
       previousCount !== null &&
       wasActive !== isActive &&
+      animatedButton?.recentlyClicked === true &&
       formatLargeNumber(previousCount) !== formatLargeNumber(count) &&
       !prefersReducedMotion() &&
       typeof this._currentEl.animate === "function";

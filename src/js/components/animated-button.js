@@ -89,6 +89,10 @@ class AnimatedButton extends Component {
     this._isRippleAnimating = false;
   }
 
+  get recentlyClicked() {
+    return this._recentlyClicked;
+  }
+
   handleClick() {
     this._recentlyClicked = true;
     if (this._recentlyClickedTimeout) {
