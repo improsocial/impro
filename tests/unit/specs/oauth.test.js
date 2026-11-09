@@ -936,6 +936,84 @@ describe("oauth", () => {
       assert(!response.ok);
     });
 
+    describe("replayed proof", () => {
+      const REPLAYED_RESPONSE = {
+        ok: false,
+        status: 401,
+        body: { error: "invalid_dpop_proof", message: "DPoP proof replayed" },
+      };
+
+      function decodeJti(proof) {
+        const payload = JSON.parse(
+          atob(proof.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+        );
+        return payload.jti;
+      }
+
+      it("should retry a GET once with a freshly signed proof", async () => {
+        const session = await getLoadedSession();
+        let callCount = 0;
+        globalThis.fetch.__intercept(PDS_URL, async () => {
+          callCount++;
+          if (callCount === 1) return mockResponse(REPLAYED_RESPONSE);
+          return mockResponse({ body: { ok: true } });
+        });
+        const response = await session.fetch(
+          "https://pds.example.com/xrpc/foo",
+        );
+        assert(response.ok);
+        assert.deepEqual(globalThis.fetch.calls.length, 2);
+        const [firstJti, secondJti] = globalThis.fetch.calls.map((call) =>
+          decodeJti(call.options.headers.DPoP),
+        );
+        assert.notDeepEqual(firstJti, secondJti);
+      });
+
+      it("should retry a GET only once", async () => {
+        const session = await getLoadedSession();
+        globalThis.fetch.__intercept(PDS_URL, async () =>
+          mockResponse(REPLAYED_RESPONSE),
+        );
+        const response = await session.fetch(
+          "https://pds.example.com/xrpc/foo",
+        );
+        assert(!response.ok);
+        assert.deepEqual(globalThis.fetch.calls.length, 2);
+      });
+
+      it("should not retry other invalid_dpop_proof errors", async () => {
+        const session = await getLoadedSession();
+        globalThis.fetch.__intercept(PDS_URL, async () =>
+          mockResponse({
+            ok: false,
+            status: 401,
+            body: {
+              error: "invalid_dpop_proof",
+              message: 'DPoP "htu" mismatch',
+            },
+          }),
+        );
+        const response = await session.fetch(
+          "https://pds.example.com/xrpc/foo",
+        );
+        assert(!response.ok);
+        assert.deepEqual(globalThis.fetch.calls.length, 1);
+      });
+
+      it("should not retry a POST", async () => {
+        const session = await getLoadedSession();
+        globalThis.fetch.__intercept(PDS_URL, async () =>
+          mockResponse(REPLAYED_RESPONSE),
+        );
+        const response = await session.fetch(
+          "https://pds.example.com/xrpc/foo",
+          { method: "POST" },
+        );
+        assert(!response.ok);
+        assert.deepEqual(globalThis.fetch.calls.length, 1);
+      });
+    });
+
     it("should send the nonce from an earlier page load's response", async () => {
       const firstSession = await getLoadedSession();
       globalThis.fetch.__intercept(PDS_URL, async () =>

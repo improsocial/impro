@@ -411,9 +411,13 @@ export default async function homeView({
       .slice(0, 5)
       .filter((item) => !dataLayer.hasCachedFeed(item.uri));
     for (const item of itemsToPreload) {
-      await dataLayer.requests.loadNextFeedPage(item, {
-        limit: FEED_PAGE_SIZE + 1,
-      });
+      try {
+        await dataLayer.requests.loadNextFeedPage(item, {
+          limit: FEED_PAGE_SIZE + 1,
+        });
+      } catch (error) {
+        console.warn(`Failed to preload feed ${item.uri}`, error);
+      }
     }
   }
 

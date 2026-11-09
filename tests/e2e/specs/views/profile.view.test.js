@@ -1314,6 +1314,49 @@ test.describe("Profile view", () => {
     });
   });
 
+  test("should keep preloading hidden tabs without unhandled errors when preloads fail", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    mockServer.addAuthorFeedPosts(otherUser.did, "posts_and_author_threads", [
+      createPost({
+        uri: "at://did:plc:otheruser1/app.bsky.feed.post/visible",
+        text: "Visible post",
+        authorHandle: otherUser.handle,
+        authorDisplayName: otherUser.displayName,
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    const failedFilters = [];
+    await page.route("**/xrpc/app.bsky.feed.getAuthorFeed*", (route) => {
+      const filter = new URL(route.request().url()).searchParams.get("filter");
+      if (filter === "posts_and_author_threads") return route.fallback();
+      failedFilters.push(filter);
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      });
+    });
+
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error));
+
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect
+      .poll(() => [...failedFilters].sort())
+      .toEqual(["posts_with_media", "posts_with_replies", "posts_with_video"]);
+    expect(pageErrors).toEqual([]);
+  });
+
   test("should display invalid handle error for malformed handles", async ({
     page,
   }) => {

@@ -684,13 +684,17 @@ export default async function profileView({
       isLabeler,
     }).filter((feed) => feed.feedType !== activeTab);
     for (const feed of feedsToPreload) {
-      await dataLayer.requests.loadNextAuthorFeedPage(
-        profileDid,
-        feed.feedType,
-        {
-          limit: AUTHOR_FEED_PAGE_SIZE + 1,
-        },
-      );
+      try {
+        await dataLayer.requests.loadNextAuthorFeedPage(
+          profileDid,
+          feed.feedType,
+          {
+            limit: AUTHOR_FEED_PAGE_SIZE + 1,
+          },
+        );
+      } catch (error) {
+        console.warn(`Failed to preload ${feed.feedType} feed`, error);
+      }
     }
   }
 

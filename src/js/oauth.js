@@ -252,7 +252,13 @@ class DPoPRequests {
         const errorData = await response.json();
         // attach consumed body to the response, in case the parent needs it
         response.data = errorData;
-        if (errorData.error === "use_dpop_nonce" && retryCount === 0) {
+        const isRetryableProofError =
+          errorData.error === "use_dpop_nonce" ||
+          // Sometimes browsers will re-send requests on page resume - in this case, retry with new proof
+          (errorData.error === "invalid_dpop_proof" &&
+            errorData.message === "DPoP proof replayed" &&
+            method === "GET");
+        if (isRetryableProofError && retryCount === 0) {
           return await this.fetch(url, options, retryCount + 1);
         }
       } catch {
