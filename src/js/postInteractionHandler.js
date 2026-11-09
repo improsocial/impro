@@ -402,6 +402,7 @@ export class PostInteractionHandler {
     const identityResolver = this.dataLayer.identityResolver;
     if (isIOS()) {
       VideoDownloadModal.open({
+        isGif: getVideoFromPost(post).presentation === "gif",
         loadFile: (signal) =>
           fetchPostVideoFile(post, identityResolver, { signal }),
       });

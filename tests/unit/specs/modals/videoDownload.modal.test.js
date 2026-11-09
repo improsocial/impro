@@ -45,14 +45,28 @@ describe("VideoDownloadModal", () => {
   }
 
   it("opens in the preparing state with Save disabled", () => {
-    VideoDownloadModal.open({ loadFile });
+    VideoDownloadModal.open({ isGif: false, loadFile });
     assert.deepEqual(getContent().dataset.teststate, "preparing");
     assert(getSaveButton().disabled);
     assert.deepEqual(loadFile.mock.callCount(), 1);
   });
 
+  it("hides the progress bar once the file has loaded", async () => {
+    VideoDownloadModal.open({ isGif: false, loadFile });
+    assert(
+      document.querySelector('[data-testid="video-download-progress"]') !==
+        null,
+    );
+    resolveFile(new File(["video"], "alice-abc.mp4", { type: "video/mp4" }));
+    await flushMicrotasks();
+    assert(
+      document.querySelector('[data-testid="video-download-progress"]') ===
+        null,
+    );
+  });
+
   it("enables Save once the file has loaded", async () => {
-    VideoDownloadModal.open({ loadFile });
+    VideoDownloadModal.open({ isGif: false, loadFile });
     resolveFile(new File(["video"], "alice-abc.mp4", { type: "video/mp4" }));
     await flushMicrotasks();
     assert.deepEqual(getContent().dataset.teststate, "ready");
@@ -60,7 +74,7 @@ describe("VideoDownloadModal", () => {
   });
 
   it("opens the share sheet synchronously when Save is clicked, then closes", async () => {
-    const result = VideoDownloadModal.open({ loadFile });
+    const result = VideoDownloadModal.open({ isGif: false, loadFile });
     const file = new File(["video"], "alice-abc.mp4", { type: "video/mp4" });
     resolveFile(file);
     await flushMicrotasks();
@@ -91,7 +105,7 @@ describe("VideoDownloadModal", () => {
     t.mock.method(window.HTMLAnchorElement.prototype, "click", function () {
       clickedDownloads.push(this.download);
     });
-    const result = VideoDownloadModal.open({ loadFile });
+    const result = VideoDownloadModal.open({ isGif: false, loadFile });
     resolveFile(new File(["video"], "alice-abc.mp4", { type: "video/mp4" }));
     await flushMicrotasks();
     getSaveButton().click();
@@ -104,7 +118,7 @@ describe("VideoDownloadModal", () => {
     share.mock.mockImplementation(async () => {
       throw new DOMException("Share canceled", "AbortError");
     });
-    const result = VideoDownloadModal.open({ loadFile });
+    const result = VideoDownloadModal.open({ isGif: false, loadFile });
     resolveFile(new File(["video"], "alice-abc.mp4", { type: "video/mp4" }));
     await flushMicrotasks();
     getSaveButton().click();
@@ -116,7 +130,7 @@ describe("VideoDownloadModal", () => {
 
   it("shows the error state when the file fails to load", async (t) => {
     t.mock.method(console, "warn", () => {});
-    VideoDownloadModal.open({ loadFile });
+    VideoDownloadModal.open({ isGif: false, loadFile });
     rejectFile(new Error("HTTP 400"));
     await flushMicrotasks();
     assert.deepEqual(getContent().dataset.teststate, "error");
@@ -127,8 +141,17 @@ describe("VideoDownloadModal", () => {
     );
   });
 
+  it("refers to the media as a GIF for GIF posts", () => {
+    VideoDownloadModal.open({ isGif: true, loadFile });
+    assert(
+      document
+        .querySelector('[data-testid="modal-title"]')
+        .textContent.includes("GIF"),
+    );
+  });
+
   it("aborts the download when cancelled while preparing", async () => {
-    const result = VideoDownloadModal.open({ loadFile });
+    const result = VideoDownloadModal.open({ isGif: false, loadFile });
     const signal = loadFile.mock.calls[0].arguments[0];
     document.querySelector('[data-testid="modal-cancel-button"]').click();
     await result;

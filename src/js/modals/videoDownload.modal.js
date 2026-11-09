@@ -56,16 +56,26 @@ export class VideoDownloadModal extends Modal {
 
   render({ dismiss }) {
     const status = this.#status;
+    const mediaLabel = this.options.isGif ? "GIF" : "video";
     return html`
       <div class="modal-dialog-content" data-teststate=${status}>
         <h2 class="modal-dialog-title" data-testid="modal-title">
-          ${status === "error" ? "Couldn't download video" : "Save video"}
+          ${status === "error"
+            ? `Couldn't download ${mediaLabel}`
+            : `Download ${mediaLabel}`}
         </h2>
         <div class="modal-dialog-message" data-testid="modal-message">
           ${status === "preparing"
-            ? "Preparing video…"
+            ? html`Preparing ${mediaLabel}…
+                <div
+                  class="video-download-progress"
+                  role="progressbar"
+                  data-testid="video-download-progress"
+                >
+                  <div class="video-download-progress-fill"></div>
+                </div>`
             : status === "ready"
-              ? "Your video is ready to save."
+              ? `Your ${mediaLabel} is ready to save.`
               : "Something went wrong. Please try again later."}
         </div>
         <div class="modal-dialog-buttons">
@@ -85,18 +95,12 @@ export class VideoDownloadModal extends Modal {
                   Cancel
                 </button>
                 <button
-                  class="modal-dialog-button primary-button ${status ===
-                  "preparing"
-                    ? "is-pending"
-                    : ""}"
+                  class="modal-dialog-button primary-button"
                   data-testid="video-download-save-button"
                   ?disabled=${status === "preparing"}
                   @click=${() => this.#handleSave(dismiss)}
                 >
                   Save
-                  ${status === "preparing"
-                    ? html`<div class="loading-spinner"></div>`
-                    : null}
                 </button>`}
         </div>
       </div>

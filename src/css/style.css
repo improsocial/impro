@@ -8837,6 +8837,31 @@ context-menu-item-group > context-menu-item > button {
   color: var(--text-color);
 }
 
+.video-download-progress {
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 3px;
+  overflow: hidden;
+  background-color: light-dark(var(--lighter-gray), var(--light-gray));
+}
+
+.video-download-progress-fill {
+  width: 30%;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--highlight-color);
+  animation: video-download-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes video-download-progress-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(333%);
+  }
+}
+
 .alert-modal .modal-dialog-message {
   margin-bottom: 12px;
 }
