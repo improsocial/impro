@@ -2956,6 +2956,26 @@ animated-button {
   font-size: 14px;
 }
 
+animated-count {
+  position: relative;
+  display: inline-block;
+}
+
+animated-count.is-empty {
+  display: none;
+}
+
+.animated-count-current {
+  display: inline-block;
+}
+
+.animated-count-previous {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
 .post-action-counts {
   display: flex;
   flex-direction: row;

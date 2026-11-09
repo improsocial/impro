@@ -72,6 +72,24 @@ describe("postActionBarTemplate", () => {
     assert.deepEqual(replyCount.textContent.trim(), "5");
   });
 
+  it("should pass the like count and liked state to the like count", () => {
+    const result = postActionBarTemplate({
+      post: {
+        ...post,
+        likeCount: 7,
+        viewer: { ...post.viewer, like: "at://did:plc:test/like/1" },
+      },
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const likeCount = container.querySelector("[data-testid='like-count']");
+    assert.deepEqual(likeCount.getAttribute("count"), "7");
+    assert(likeCount.hasAttribute("is-active"));
+  });
+
   it("should not show reply count when post has no replies", () => {
     const postWithNoReplies = {
       ...post,

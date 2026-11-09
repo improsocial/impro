@@ -2,7 +2,7 @@ import { Component } from "/js/components/component.js";
 import { classnames } from "/js/utils.js";
 
 // Should match the CSS animation duration
-const RIPPLE_ANIMATION_DURATION = 600;
+const RIPPLE_ANIMATION_DURATION = 300;
 
 class AnimatedButton extends Component {
   static get observedAttributes() {

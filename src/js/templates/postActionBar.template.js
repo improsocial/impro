@@ -17,6 +17,7 @@ import { openContextMenu } from "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/animated-button.js";
+import "/js/components/animated-count.js";
 import "/js/components/plugin-slot.js";
 
 function getBlueskyLinkForPost(post) {
@@ -248,11 +249,12 @@ export function postActionBarTemplate({
               <div class="post-action-icon">
                 ${fillableIconTemplate({ icon: "like", filled: isLiked })}
               </div>
-              ${numLikes > 0
-                ? html`<span class="post-action-count"
-                    >${formatLargeNumber(numLikes)}</span
-                  >`
-                : null}
+              <animated-count
+                class="post-action-count"
+                data-testid="like-count"
+                count=${numLikes}
+                ?is-active=${isLiked}
+              ></animated-count>
             </animated-button>`,
           )}
         </div>
