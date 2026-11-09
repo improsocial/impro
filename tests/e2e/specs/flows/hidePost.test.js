@@ -33,7 +33,7 @@ test.describe("Hide post flow", () => {
     await expect(homeView).toContainText("Post I want to hide");
 
     // Open the post's context menu and click "Hide post for me"
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-hide"]').click();
 
     // Confirm the hide action in the dialog
@@ -103,7 +103,7 @@ test.describe("Hide post flow", () => {
 
     // Open the reply's context menu and click "Hide reply for me"
     const replyPost = view.locator('[data-testid="small-post"]');
-    await replyPost.locator(".text-button").click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-hide"]').click();
 
     // Confirm the hide action in the dialog

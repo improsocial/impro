@@ -82,7 +82,7 @@ test.describe("Plugin slot caching", () => {
     const firstPost = page
       .locator('#home-view [data-testid="feed-item"]')
       .first();
-    await firstPost.locator('[data-testid="post-action-more"]').click();
+    await firstPost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator(".post-context-menu context-menu-item", {
         hasText: "Refresh badge",
@@ -117,7 +117,7 @@ test.describe("Plugin slot caching", () => {
     const firstPost = page
       .locator('#home-view [data-testid="feed-item"]')
       .first();
-    await firstPost.locator('[data-testid="post-action-more"]').click();
+    await firstPost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator(".post-context-menu context-menu-item", {
         hasText: "Refresh badge",

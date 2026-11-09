@@ -729,6 +729,7 @@ export default async function postThreadView({
                   },
                   replyContext: hasParent ? "reply" : null,
                   showActionBar: !postThread.__isEmbeddedPrefill,
+                  showContextMenuButton: !postThread.__isEmbeddedPrefill,
                 })}
             <plugin-slot
               name="post-thread-view:after-main"

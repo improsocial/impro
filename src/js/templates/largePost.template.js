@@ -19,6 +19,10 @@ import {
   postActionBarSkeletonTemplate,
   postActionBarTemplate,
 } from "/js/templates/postActionBar.template.js";
+import {
+  postContextMenuButtonSkeletonTemplate,
+  postContextMenuButtonTemplate,
+} from "/js/templates/postContextMenuButton.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
@@ -161,6 +165,7 @@ export function largePostTemplate({
   onClickReply = noop,
   replyContext,
   showActionBar = true,
+  showContextMenuButton = true,
   afterDelete = null,
   afterHide = null,
   afterBlock = null,
@@ -214,13 +219,68 @@ export function largePostTemplate({
             includePronouns: true,
           })}
         </div>
-        ${showFollowButton && post.author
-          ? followButtonTemplate({
-              profile: post.author,
-              isFollowPending,
-              onClick: (profile, doFollow) => onClickFollow(profile, doFollow),
-            })
-          : ""}
+        <div class="large-post-header-actions">
+          ${showFollowButton && post.author
+            ? followButtonTemplate({
+                profile: post.author,
+                isFollowPending,
+                onClick: (profile, doFollow) =>
+                  onClickFollow(profile, doFollow),
+              })
+            : ""}
+          ${showContextMenuButton
+            ? postContextMenuButtonTemplate({
+                post,
+                isUserPost,
+                isAuthenticated,
+                currentUser,
+                onClickHidePost: async (post) => {
+                  await postInteractionHandler.handleHidePost(post);
+                  if (afterHide) {
+                    afterHide(post);
+                  }
+                },
+                onClickMute: (profile, doMute) =>
+                  postInteractionHandler.handleMuteAuthor(profile, doMute),
+                onClickMuteThread: (post, doMute) =>
+                  postInteractionHandler.handleMuteThread(post, doMute),
+                onClickBlock: async (profile, doBlock) => {
+                  const success =
+                    await postInteractionHandler.handleBlockAuthor(
+                      profile,
+                      doBlock,
+                    );
+                  if (success && doBlock && afterBlock) {
+                    afterBlock(post);
+                  }
+                },
+                onClickDelete: async (post) => {
+                  await postInteractionHandler.handleDeletePost(post);
+                  if (afterDelete) {
+                    afterDelete(post);
+                  }
+                },
+                onClickPin: (post, doPin) =>
+                  postInteractionHandler.handlePinPost(post, doPin),
+                onClickEditInteractionSettings: (post) =>
+                  postInteractionHandler.handleEditInteractionSettings(post),
+                onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
+                  postInteractionHandler.handleToggleQuoteDetachment(
+                    post,
+                    quotedPostUri,
+                    doDetach,
+                  ),
+                onClickToggleReplyHiddenForEveryone: (post, doHide) =>
+                  postInteractionHandler.handleToggleReplyHiddenForEveryone(
+                    post,
+                    doHide,
+                  ),
+                onClickReport: (post) =>
+                  postInteractionHandler.handleReport(post),
+                pluginService,
+              })
+            : postContextMenuButtonSkeletonTemplate()}
+        </div>
       </div>
       ${authorBadgesTemplate({
         badgeLabels,
@@ -300,7 +360,6 @@ export function largePostTemplate({
           ? html`
               ${postActionBarTemplate({
                 post,
-                isUserPost,
                 isAuthenticated,
                 currentUser,
                 onClickReply,
@@ -312,49 +371,6 @@ export function largePostTemplate({
                   postInteractionHandler.handleQuotePost(post),
                 onClickBookmark: (post, doBookmark) =>
                   postInteractionHandler.handleBookmark(post, doBookmark),
-                onClickHidePost: async (post) => {
-                  await postInteractionHandler.handleHidePost(post);
-                  if (afterHide) {
-                    afterHide(post);
-                  }
-                },
-                onClickMute: (profile, doMute) =>
-                  postInteractionHandler.handleMuteAuthor(profile, doMute),
-                onClickMuteThread: (post, doMute) =>
-                  postInteractionHandler.handleMuteThread(post, doMute),
-                onClickBlock: async (profile, doBlock) => {
-                  const success =
-                    await postInteractionHandler.handleBlockAuthor(
-                      profile,
-                      doBlock,
-                    );
-                  if (success && doBlock && afterBlock) {
-                    afterBlock(post);
-                  }
-                },
-                onClickDelete: async (post) => {
-                  await postInteractionHandler.handleDeletePost(post);
-                  if (afterDelete) {
-                    afterDelete(post);
-                  }
-                },
-                onClickPin: (post, doPin) =>
-                  postInteractionHandler.handlePinPost(post, doPin),
-                onClickEditInteractionSettings: (post) =>
-                  postInteractionHandler.handleEditInteractionSettings(post),
-                onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
-                  postInteractionHandler.handleToggleQuoteDetachment(
-                    post,
-                    quotedPostUri,
-                    doDetach,
-                  ),
-                onClickToggleReplyHiddenForEveryone: (post, doHide) =>
-                  postInteractionHandler.handleToggleReplyHiddenForEveryone(
-                    post,
-                    doHide,
-                  ),
-                onClickReport: (post) =>
-                  postInteractionHandler.handleReport(post),
                 onClickDownloadVideo: (post) =>
                   postInteractionHandler.handleDownloadVideo(post),
                 pluginService,

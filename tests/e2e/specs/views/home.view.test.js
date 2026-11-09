@@ -1537,7 +1537,9 @@ test.describe("Home view", () => {
       const sendInteractionsRequest = page.waitForRequest((req) =>
         req.url().includes("app.bsky.feed.sendInteractions"),
       );
-      await feedItem.locator(".text-button").click();
+      await feedItem
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await page.locator('[data-testid="menu-action-post-show-less"]').click();
 
       await sendInteractionsRequest;
@@ -1582,7 +1584,9 @@ test.describe("Home view", () => {
       const sendInteractionsRequest = page.waitForRequest((req) =>
         req.url().includes("app.bsky.feed.sendInteractions"),
       );
-      await feedItem.locator(".text-button").click();
+      await feedItem
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await page.locator('[data-testid="menu-action-post-show-more"]').click();
 
       await sendInteractionsRequest;

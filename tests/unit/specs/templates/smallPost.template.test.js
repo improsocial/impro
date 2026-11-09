@@ -77,6 +77,17 @@ describe("smallPostTemplate", () => {
     container.remove();
   });
 
+  it("should render the context menu button in the header instead of the action bar", () => {
+    const result = smallPostTemplate({ post, ...baseProps });
+    const container = document.createElement("div");
+    render(result, container);
+    const moreButton = container.querySelector(
+      "[data-testid='post-context-menu-button']",
+    );
+    assert(moreButton.closest(".small-post-header") !== null);
+    assert.deepEqual(moreButton.closest(".post-actions"), null);
+  });
+
   it("should render post action bar", () => {
     const result = smallPostTemplate({
       post: post,
@@ -555,7 +566,7 @@ describe("smallPostTemplate - plugin context menu items", () => {
   async function openPostContextMenu(container) {
     ensurePageVisible();
     const moreButton = container.querySelector(
-      '[data-testid="post-action-more"]',
+      '[data-testid="post-context-menu-button"]',
     );
     moreButton.click();
     await flushMicrotasks();

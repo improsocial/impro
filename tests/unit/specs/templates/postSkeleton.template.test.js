@@ -65,7 +65,7 @@ describe("postSkeletonTemplate", () => {
     );
     assert.equal(
       container.querySelectorAll(".post-actions-secondary .post-action").length,
-      3,
+      2,
     );
   });
 });

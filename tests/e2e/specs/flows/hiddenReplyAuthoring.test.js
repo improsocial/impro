@@ -89,7 +89,7 @@ test.describe("Hidden reply authoring flow", () => {
     await expect(replyPost).toBeVisible({ timeout: 10000 });
     await expect(view.locator("hidden-replies-section")).not.toBeAttached();
 
-    await replyPost.locator('[data-testid="post-action-more"]').click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     const menuItem = page.locator(
       '[data-testid="menu-action-post-toggle-reply-hidden"]',
     );
@@ -146,7 +146,7 @@ test.describe("Hidden reply authoring flow", () => {
     const replyPost = hiddenSection
       .locator('[data-testid="small-post"]')
       .filter({ hasText: "A reply to hide" });
-    await replyPost.locator('[data-testid="post-action-more"]').click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     const menuItem = page.locator(
       '[data-testid="menu-action-post-toggle-reply-hidden"]',
     );

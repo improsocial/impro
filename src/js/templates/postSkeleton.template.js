@@ -11,7 +11,9 @@ const VARIANTS = [
 function skeletonTextTemplate({ width, blend }) {
   return html`<div class="skeleton-text" style="max-width: ${width}">
     <div
-      class="skeleton-text-bar skeleton-animate ${blend ? "skeleton-blend" : ""}"
+      class="skeleton-text-bar skeleton-animate ${blend
+        ? "skeleton-blend"
+        : ""}"
     ></div>
   </div>`;
 }
@@ -19,7 +21,9 @@ function skeletonTextTemplate({ width, blend }) {
 function skeletonControlTemplate({ shape }) {
   return html`<div class="post-action">
     <div class="post-action-button">
-      <div class="skeleton-control-${shape} skeleton-animate skeleton-blend"></div>
+      <div
+        class="skeleton-control-${shape} skeleton-animate skeleton-blend"
+      ></div>
     </div>
   </div>`;
 }
@@ -52,7 +56,7 @@ export function postSkeletonTemplate({ index }) {
           )}
         </div>
         <div class="post-actions-secondary">
-          ${Array.from({ length: 3 }, () =>
+          ${Array.from({ length: 2 }, () =>
             skeletonControlTemplate({ shape: "circle" }),
           )}
         </div>

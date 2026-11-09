@@ -63,7 +63,9 @@ test.describe("Quote detachment flow", () => {
       .first();
     await expect(quotingPost).toBeVisible({ timeout: 10000 });
 
-    await quotingPost.locator('[data-testid="post-action-more"]').click();
+    await quotingPost
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     const menuItem = page.locator(
       '[data-testid="menu-action-post-toggle-quote-detachment"]',
     );
@@ -117,7 +119,9 @@ test.describe("Quote detachment flow", () => {
       .first();
     await expect(quotingPost).toBeVisible({ timeout: 10000 });
 
-    await quotingPost.locator('[data-testid="post-action-more"]').click();
+    await quotingPost
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     const menuItem = page.locator(
       '[data-testid="menu-action-post-toggle-quote-detachment"]',
     );
@@ -167,7 +171,9 @@ test.describe("Quote detachment flow", () => {
       .filter({ hasText: "Look at this post" })
       .first();
     await expect(quotingPost).toBeVisible({ timeout: 10000 });
-    await quotingPost.locator('[data-testid="post-action-more"]').click();
+    await quotingPost
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     await expect(
       page.locator('[data-testid="menu-action-post-mute-thread"]'),
     ).toBeVisible();

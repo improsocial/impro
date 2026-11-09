@@ -44,7 +44,7 @@ test.describe("Edit threadgate flow", () => {
     const badge = page.locator('[data-testid="who-can-reply-badge"]');
     await expect(badge).toHaveAttribute("data-teststate", "everybody");
 
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();
@@ -145,7 +145,7 @@ test.describe("Edit threadgate flow", () => {
 
     const largePost = page.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();
@@ -173,7 +173,7 @@ test.describe("Edit threadgate flow", () => {
     ]);
 
     // Reopening the dialog reflects the optimistic viewer state
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();
@@ -208,7 +208,7 @@ test.describe("Edit threadgate flow", () => {
     ).toBeVisible();
     await page.locator('[data-testid="modal-primary-button"]').click();
 
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await expect(
       page.locator('[data-testid="menu-action-interaction-settings"]'),
     ).not.toBeAttached();
@@ -263,7 +263,7 @@ test.describe("Edit threadgate flow", () => {
       .locator("#post-detail-view [data-testid='small-post']")
       .filter({ hasText: "My reply" });
     await expect(replyPost).toBeVisible({ timeout: 10000 });
-    await replyPost.locator('[data-testid="post-action-more"]').click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();
@@ -326,7 +326,7 @@ test.describe("Edit threadgate flow", () => {
 
     const largePost = page.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();
@@ -399,7 +399,7 @@ test.describe("Edit threadgate flow", () => {
       .locator("#post-detail-view [data-testid='small-post']")
       .filter({ hasText: "My reply" });
     await expect(replyPost).toBeVisible({ timeout: 10000 });
-    await replyPost.locator('[data-testid="post-action-more"]').click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator('[data-testid="menu-action-interaction-settings"]')
       .click();

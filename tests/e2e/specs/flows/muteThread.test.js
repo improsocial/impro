@@ -64,14 +64,20 @@ test.describe("Mute thread flow", () => {
     const replies = view.locator('[data-testid="small-post"]');
     await expect(replies).toHaveCount(2, { timeout: 10000 });
 
-    await replies.nth(0).locator('[data-testid="post-action-more"]').click();
+    await replies
+      .nth(0)
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     await page.locator(`${muteThreadItem}[data-teststate="unmuted"]`).click();
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     expect(mockServer.threadMuteRequests).toEqual([
       { root: rootUri, threadMuted: true },
     ]);
 
-    await replies.nth(1).locator('[data-testid="post-action-more"]').click();
+    await replies
+      .nth(1)
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     await page.locator(`${muteThreadItem}[data-teststate="muted"]`).click();
     await expect.poll(() => mockServer.threadMuteRequests.length).toBe(2);
     expect(mockServer.threadMuteRequests[1]).toEqual({
@@ -80,7 +86,9 @@ test.describe("Mute thread flow", () => {
     });
 
     await view
-      .locator('[data-testid="large-post"] [data-testid="post-action-more"]')
+      .locator(
+        '[data-testid="large-post"] [data-testid="post-context-menu-button"]',
+      )
       .click();
     await expect(
       page.locator(`${muteThreadItem}[data-teststate="unmuted"]`),
@@ -102,12 +110,18 @@ test.describe("Mute thread flow", () => {
     const replies = view.locator('[data-testid="small-post"]');
     await expect(replies).toHaveCount(2, { timeout: 10000 });
 
-    await replies.nth(0).locator('[data-testid="post-action-more"]').click();
+    await replies
+      .nth(0)
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     await page.locator(muteThreadItem).click();
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect.poll(() => mockServer.threadMuteRequests.length).toBe(1);
 
-    await replies.nth(1).locator('[data-testid="post-action-more"]').click();
+    await replies
+      .nth(1)
+      .locator('[data-testid="post-context-menu-button"]')
+      .click();
     await expect(
       page.locator(`${muteThreadItem}[data-teststate="unmuted"]`),
     ).toBeVisible();
@@ -135,7 +149,7 @@ test.describe("Mute thread flow", () => {
 
     await feedItems
       .filter({ hasText: "Root post" })
-      .locator('[data-testid="post-action-more"]')
+      .locator('[data-testid="post-context-menu-button"]')
       .click();
     await page.locator(muteThreadItem).click();
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();

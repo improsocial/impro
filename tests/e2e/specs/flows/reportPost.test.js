@@ -26,7 +26,7 @@ test.describe("Report post flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     // Open the post action "..." menu
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
 
     // Click "Report post"
     await page.locator('[data-testid="menu-action-post-report"]').click();
@@ -95,7 +95,7 @@ test.describe("Report post flow", () => {
     const feedItem = homeView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-report"]').click();
 
     const reportDialog = page.locator("report-dialog");

@@ -147,7 +147,7 @@ export default async function settingsView({
                               );
                             }}
                           >
-                            <app-icon icon="more-menu-line"></app-icon>
+                            <app-icon icon="more-menu-large"></app-icon>
                           </button>
                           <context-menu>
                             <context-menu-item

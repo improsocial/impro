@@ -99,7 +99,7 @@ test.describe("Mute user flow", () => {
     await expect(homeView).toContainText("Post from user to mute via menu");
 
     // Open the post's context menu and mute the user
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-mute"]').click();
 
     // Verify a toast confirms the mute action

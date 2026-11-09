@@ -107,7 +107,9 @@ test.describe("Drag-to-dismiss", () => {
     async function openReportDialog(page) {
       await setupFeedWithPost(page);
       await page
-        .locator('#home-view [data-testid="feed-item"] .text-button')
+        .locator(
+          '#home-view [data-testid="feed-item"] [data-testid="post-context-menu-button"]',
+        )
         .click();
       await page.locator('[data-testid="menu-action-post-report"]').click();
       const reportDialog = page.locator("report-dialog .report-dialog");
@@ -283,7 +285,9 @@ test.describe("Drag-to-dismiss", () => {
     async function openContextMenu(page) {
       await setupFeedWithPost(page);
       await page
-        .locator('#home-view [data-testid="feed-item"] .text-button')
+        .locator(
+          '#home-view [data-testid="feed-item"] [data-testid="post-context-menu-button"]',
+        )
         .click();
       const contextMenu = page.locator("context-menu .context-menu[open]");
       await expect(contextMenu).toBeVisible({ timeout: 5000 });

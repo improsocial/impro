@@ -79,6 +79,31 @@ describe("largePostTemplate", () => {
     container.remove();
   });
 
+  it("should render the context menu button in the header instead of the action bar", () => {
+    const result = largePostTemplate({ post, ...baseProps });
+    const container = document.createElement("div");
+    render(result, container);
+    const moreButton = container.querySelector(
+      "[data-testid='post-context-menu-button']",
+    );
+    assert(moreButton.closest(".post-content-top") !== null);
+    assert.deepEqual(moreButton.closest(".post-actions"), null);
+  });
+
+  it("should not render an interactive context menu button when showContextMenuButton is false", () => {
+    const result = largePostTemplate({
+      post,
+      ...baseProps,
+      showContextMenuButton: false,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='post-context-menu-button']"),
+      null,
+    );
+  });
+
   it("should render action counts and an action bar skeleton for an embedded prefill", () => {
     const result = largePostTemplate({
       post,
@@ -487,7 +512,7 @@ describe("largePostTemplate - plugin context menu items", () => {
   async function openPostContextMenu(container) {
     ensurePageVisible();
     const moreButton = container.querySelector(
-      '[data-testid="post-action-more"]',
+      '[data-testid="post-context-menu-button"]',
     );
     moreButton.click();
     await flushMicrotasks();

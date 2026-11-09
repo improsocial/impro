@@ -42,7 +42,7 @@ test.describe("Delete post flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     // Open the post action menu and click "Delete post"
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-delete"]').click();
 
     // Confirm deletion if a confirmation dialog appears
@@ -88,7 +88,7 @@ test.describe("Delete post flow", () => {
     await expect(view).toContainText("My thread post to delete");
 
     // Open the post action menu and click "Delete post"
-    await largePost.locator(".text-button").click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-delete"]').click();
 
     // Confirm deletion if a confirmation dialog appears
@@ -150,7 +150,7 @@ test.describe("Delete post flow", () => {
     const profileView = page.locator("#profile-view");
     const feedItem = profileView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-delete"]').click();
     const confirmButton = page.locator("button.confirm-button");
     await expect(confirmButton).toBeVisible({ timeout: 5000 });

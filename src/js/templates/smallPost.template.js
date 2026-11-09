@@ -13,6 +13,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
+import { postContextMenuButtonTemplate } from "/js/templates/postContextMenuButton.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
@@ -165,10 +166,52 @@ export function smallPostTemplate({
                       >`}
               </div>`
             : ""}
-          ${postHeaderTextTemplate({
-            author: post.author,
-            timestamp: post.indexedAt,
-          })}
+          <div class="small-post-header">
+            ${postHeaderTextTemplate({
+              author: post.author,
+              timestamp: post.indexedAt,
+            })}
+            ${postContextMenuButtonTemplate({
+              post,
+              isUserPost,
+              isAuthenticated,
+              currentUser,
+              feedContext,
+              feedGenerator,
+              onClickShowLess,
+              onClickShowMore,
+              onClickHidePost: (post) =>
+                postInteractionHandler.handleHidePost(post),
+              onClickMute: (profile, doMute) =>
+                postInteractionHandler.handleMuteAuthor(profile, doMute),
+              onClickMuteThread: (post, doMute) =>
+                postInteractionHandler.handleMuteThread(post, doMute),
+              onClickBlock: (profile, doBlock) =>
+                postInteractionHandler.handleBlockAuthor(profile, doBlock),
+              onClickDelete: (post) => {
+                postInteractionHandler.handleDeletePost(post);
+              },
+              onClickPin: (post, doPin) =>
+                postInteractionHandler.handlePinPost(post, doPin),
+              onClickEditInteractionSettings: (post) =>
+                postInteractionHandler.handleEditInteractionSettings(post),
+              onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
+                postInteractionHandler.handleToggleQuoteDetachment(
+                  post,
+                  quotedPostUri,
+                  doDetach,
+                ),
+              onClickToggleReplyHiddenForEveryone: (post, doHide) =>
+                postInteractionHandler.handleToggleReplyHiddenForEveryone(
+                  post,
+                  doHide,
+                ),
+              onClickReport: (post) =>
+                postInteractionHandler.handleReport(post),
+              enableFeedFeedback,
+              pluginService,
+            })}
+          </div>
           ${authorBadgesTemplate({
             badgeLabels: post.badgeLabels,
             did: post.author?.did,
@@ -240,10 +283,8 @@ export function smallPostTemplate({
           })}
           ${postActionBarTemplate({
             post,
-            isUserPost,
             isAuthenticated,
             currentUser,
-            feedContext,
             feedGenerator,
             onClickReply: (post) => postInteractionHandler.handleReply(post),
             onClickLike: (post, doLike) =>
@@ -254,38 +295,8 @@ export function smallPostTemplate({
               postInteractionHandler.handleQuotePost(post),
             onClickBookmark: (post, doBookmark) =>
               postInteractionHandler.handleBookmark(post, doBookmark),
-            onClickShowLess,
-            onClickShowMore,
-            onClickHidePost: (post) =>
-              postInteractionHandler.handleHidePost(post),
-            onClickMute: (profile, doMute) =>
-              postInteractionHandler.handleMuteAuthor(profile, doMute),
-            onClickMuteThread: (post, doMute) =>
-              postInteractionHandler.handleMuteThread(post, doMute),
-            onClickBlock: (profile, doBlock) =>
-              postInteractionHandler.handleBlockAuthor(profile, doBlock),
-            onClickDelete: (post) => {
-              postInteractionHandler.handleDeletePost(post);
-            },
-            onClickPin: (post, doPin) =>
-              postInteractionHandler.handlePinPost(post, doPin),
-            onClickEditInteractionSettings: (post) =>
-              postInteractionHandler.handleEditInteractionSettings(post),
-            onClickToggleQuoteDetachment: (post, quotedPostUri, doDetach) =>
-              postInteractionHandler.handleToggleQuoteDetachment(
-                post,
-                quotedPostUri,
-                doDetach,
-              ),
-            onClickToggleReplyHiddenForEveryone: (post, doHide) =>
-              postInteractionHandler.handleToggleReplyHiddenForEveryone(
-                post,
-                doHide,
-              ),
-            onClickReport: (post) => postInteractionHandler.handleReport(post),
             onClickDownloadVideo: (post) =>
               postInteractionHandler.handleDownloadVideo(post),
-            enableFeedFeedback,
             pluginService,
           })}
         </div>

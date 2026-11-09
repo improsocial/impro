@@ -108,7 +108,7 @@ test.describe("Block user flow", () => {
     await expect(homeView).toContainText("Post from user to block via menu");
 
     // Open the post's context menu and block the user
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-block"]').click();
 
     // Confirm the block in the confirmation dialog
@@ -228,7 +228,7 @@ test.describe("Block user flow", () => {
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
     // Block the author from the post thread's context menu
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-block"]').click();
 
     const confirmButton = page.locator("button.confirm-button");
@@ -275,7 +275,7 @@ test.describe("Block user flow", () => {
     const largePost = threadView.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-block"]').click();
 
     const cancelButton = page.locator('[data-testid="modal-cancel-button"]');
@@ -322,7 +322,7 @@ test.describe("Block user flow", () => {
     const largePost = threadView.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
-    await largePost.locator('[data-testid="post-action-more"]').click();
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-block"]').click();
 
     const confirmButton = page.locator("button.confirm-button");
@@ -392,7 +392,7 @@ test.describe("Block user flow", () => {
 
     // Block the reply's author from the reply's context menu
     const replyPost = view.locator('[data-testid="small-post"]');
-    await replyPost.locator(".text-button").click();
+    await replyPost.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-block"]').click();
 
     const confirmButton = page.locator("button.confirm-button");

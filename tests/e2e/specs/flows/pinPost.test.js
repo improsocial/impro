@@ -40,7 +40,7 @@ test.describe("Pin post flow", () => {
     );
 
     // Open the post action menu and click the pin item
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page.locator('[data-testid="menu-action-post-pin"]').click();
 
     // The pinned label should appear optimistically
@@ -60,7 +60,7 @@ test.describe("Pin post flow", () => {
     await profileView
       .locator('[data-testid="feed-item"]')
       .first()
-      .locator(".text-button")
+      .locator('[data-testid="post-context-menu-button"]')
       .click();
     await expect(
       page.locator(
@@ -103,7 +103,7 @@ test.describe("Pin post flow", () => {
     const feedItem = profileView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
     await page
       .locator(
         '[data-testid="menu-action-post-pin"][data-teststate="unpinned"]',
@@ -143,7 +143,7 @@ test.describe("Pin post flow", () => {
       .locator('[data-testid="feed-item"]')
       .first();
     await expect(feedItem).toBeVisible({ timeout: 10000 });
-    await feedItem.locator(".text-button").click();
+    await feedItem.locator('[data-testid="post-context-menu-button"]').click();
 
     await expect(
       page.locator('[data-testid="menu-action-post-pin"]'),

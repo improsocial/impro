@@ -1,0 +1,388 @@
+import { html } from "/js/lib/lit-html.js";
+import { haptics } from "/js/haptics.js";
+import { showToast } from "/js/toasts.js";
+import {
+  getBrowserLanguageCodes,
+  groupBy,
+  noop,
+  isAndroid,
+  isFirefox,
+  isNil,
+} from "/js/utils.js";
+import {
+  getFeedGeneratorProxyUrl,
+  getOwnQuoteEmbed,
+  isThreadRootAuthor,
+} from "/js/dataHelpers.js";
+import { richTextToString } from "/js/facetHelpers.js";
+import { openContextMenu } from "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
+import "/js/components/app-icon.js";
+
+function getFullPostText(post) {
+  return richTextToString(post.record.text, post.record.facets);
+}
+
+// The Google Translate Android app claims translate.google.com links but drops
+// their query params, so on Android the text has to be delivered via a
+// PROCESS_TEXT intent instead. Firefox doesn't support intents so fallback to the web url
+function openTranslator(text, targetLang) {
+  const webUrl = `https://translate.google.com/?sl=auto&tl=${targetLang}&text=${encodeURIComponent(text)}`;
+  if (isAndroid() && !isFirefox()) {
+    window.location.href =
+      "intent:#Intent;action=android.intent.action.PROCESS_TEXT;type=text/plain;" +
+      `S.android.intent.extra.PROCESS_TEXT=${encodeURIComponent(text)};` +
+      "B.android.intent.extra.PROCESS_TEXT_READONLY=true;" +
+      `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+  } else {
+    window.open(webUrl, "_blank");
+  }
+}
+
+function postContextMenuTemplate({
+  post,
+  isAuthenticated,
+  isUserPost,
+  isPinnedToProfile,
+  ownQuoteEmbed,
+  canHideReplyForEveryone,
+  enableFeedFeedback,
+  feedContext,
+  pluginItems,
+  onClickShowMore,
+  onClickShowLess,
+  onClickHidePost,
+  onClickMute,
+  onClickMuteThread,
+  onClickBlock,
+  onClickReport,
+  onClickDelete,
+  onClickPin,
+  onClickEditInteractionSettings,
+  onClickToggleQuoteDetachment,
+  onClickToggleReplyHiddenForEveryone,
+}) {
+  const canHidePostForMe = !post.viewer?.isHidden;
+  const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
+  return html`
+    ${isAuthenticated && isUserPost
+      ? html`
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-pin"
+              data-teststate=${isPinnedToProfile ? "pinned" : "unpinned"}
+              icon="pin-line"
+              @click=${() => onClickPin(post, !isPinnedToProfile)}
+            >
+              ${isPinnedToProfile
+                ? "Unpin from your profile"
+                : "Pin to your profile"}
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
+    ${post.record?.text
+      ? html`
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-translate"
+              icon="globe-earth-line"
+              @click=${() => {
+                const postText = getFullPostText(post);
+                const targetLang = getBrowserLanguageCodes()[0] || "en";
+                openTranslator(postText, targetLang);
+              }}
+            >
+              Translate
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-post-copy-text"
+              icon="clipboard-line"
+              @click=${() => {
+                const postText = getFullPostText(post);
+                navigator.clipboard.writeText(postText);
+                showToast("Post text copied to clipboard", {
+                  style: "success",
+                });
+              }}
+            >
+              Copy post text
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
+    ${isAuthenticated
+      ? html`
+          ${enableFeedFeedback
+            ? html`
+                <context-menu-item-group>
+                  <context-menu-item
+                    data-testid="menu-action-post-show-more"
+                    icon="emoji-smile-line"
+                    @click=${() => onClickShowMore(post, feedContext)}
+                  >
+                    Show more like this
+                  </context-menu-item>
+                  <context-menu-item
+                    data-testid="menu-action-post-show-less"
+                    icon="emoji-sad-line"
+                    @click=${() => onClickShowLess(post, feedContext)}
+                  >
+                    Show less like this
+                  </context-menu-item>
+                </context-menu-item-group>
+              `
+            : null}
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-mute-thread"
+              data-teststate=${post.viewer?.threadMuted ? "muted" : "unmuted"}
+              icon=${post.viewer?.threadMuted
+                ? "speaker-volume-line"
+                : "speaker-slash-line"}
+              @click=${() => onClickMuteThread(post, !post.viewer?.threadMuted)}
+            >
+              ${post.viewer?.threadMuted ? "Unmute thread" : "Mute thread"}
+            </context-menu-item>
+          </context-menu-item-group>
+          ${!isUserPost
+            ? html`
+                ${canHidePostForMe || ownQuoteEmbed || canHideReplyForEveryone
+                  ? html`
+                      <context-menu-item-group>
+                        ${canHidePostForMe
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-hide"
+                                icon="eye-off-line"
+                                @click=${() => onClickHidePost(post)}
+                              >
+                                Hide ${post.record?.reply ? "reply" : "post"}
+                                for me
+                              </context-menu-item>
+                            `
+                          : null}
+                        ${canHideReplyForEveryone
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-toggle-reply-hidden"
+                                data-teststate=${post.isHiddenByThreadgate
+                                  ? "hidden"
+                                  : "shown"}
+                                icon=${post.isHiddenByThreadgate
+                                  ? "eye-line"
+                                  : "eye-off-line"}
+                                @click=${() =>
+                                  onClickToggleReplyHiddenForEveryone(
+                                    post,
+                                    !post.isHiddenByThreadgate,
+                                  )}
+                              >
+                                ${post.isHiddenByThreadgate
+                                  ? "Show reply for everyone"
+                                  : "Hide reply for everyone"}
+                              </context-menu-item>
+                            `
+                          : null}
+                        ${ownQuoteEmbed
+                          ? html`
+                              <context-menu-item
+                                data-testid="menu-action-post-toggle-quote-detachment"
+                                data-teststate=${ownQuoteEmbed.isDetached
+                                  ? "detached"
+                                  : "attached"}
+                                icon=${ownQuoteEmbed.isDetached
+                                  ? "eye-line"
+                                  : "eye-off-line"}
+                                @click=${() =>
+                                  onClickToggleQuoteDetachment(
+                                    post,
+                                    ownQuoteEmbed.uri,
+                                    !ownQuoteEmbed.isDetached,
+                                  )}
+                              >
+                                ${ownQuoteEmbed.isDetached
+                                  ? "Re-attach quote"
+                                  : "Detach quote"}
+                              </context-menu-item>
+                            `
+                          : null}
+                      </context-menu-item-group>
+                    `
+                  : null}
+                <context-menu-item-group>
+                  <context-menu-item
+                    data-testid="menu-action-post-mute"
+                    data-teststate=${post.author.viewer?.muted
+                      ? "muted"
+                      : "unmuted"}
+                    icon=${post.author.viewer?.muted
+                      ? "speaker-volume-line"
+                      : "speaker-slash-line"}
+                    @click=${() =>
+                      onClickMute(post.author, !post.author.viewer?.muted)}
+                  >
+                    ${post.author.viewer?.muted
+                      ? "Unmute account"
+                      : "Mute account"}
+                  </context-menu-item>
+                  <!-- Posts from blocked authors are hidden so the
+                       "Unblock" option should never be reachable - left
+                       defensively in case this changes in the future. -->
+                  <context-menu-item
+                    data-testid="menu-action-post-block"
+                    data-teststate=${post.author.viewer?.blocking
+                      ? "blocking"
+                      : "not-blocking"}
+                    icon=${post.author.viewer?.blocking
+                      ? "user-check-line"
+                      : "user-x-line"}
+                    @click=${() =>
+                      onClickBlock(post.author, !post.author.viewer?.blocking)}
+                  >
+                    ${post.author.viewer?.blocking
+                      ? "Unblock account"
+                      : "Block account"}
+                  </context-menu-item>
+                  <context-menu-item
+                    data-testid="menu-action-post-report"
+                    icon="flag-line"
+                    @click=${() => onClickReport(post)}
+                  >
+                    Report post
+                  </context-menu-item>
+                </context-menu-item-group>
+              `
+            : null}
+          ${isUserPost
+            ? html`
+                <context-menu-item-group>
+                  <context-menu-item
+                    data-testid="menu-action-interaction-settings"
+                    icon="settings-cog-line"
+                    @click=${() => onClickEditInteractionSettings(post)}
+                  >
+                    Edit interaction settings
+                  </context-menu-item>
+                  <context-menu-item
+                    data-testid="menu-action-post-delete"
+                    icon="delete-bin-line"
+                    @click=${() => onClickDelete(post)}
+                  >
+                    Delete post
+                  </context-menu-item>
+                </context-menu-item-group>
+              `
+            : null}
+        `
+      : null}
+    ${pluginGroups.map(
+      (group) => html`
+        <context-menu-item-group>
+          ${group.map(
+            (item) => html`
+              <context-menu-item
+                .iconElement=${item.iconElement}
+                @click=${() => item.invoke()}
+              >
+                ${item.title}
+              </context-menu-item>
+            `,
+          )}
+        </context-menu-item-group>
+      `,
+    )}
+  `;
+}
+
+async function openPostContextMenu(event, props) {
+  const pluginItems = await props.pluginService.getPostContextMenuItems(
+    props.post,
+    {
+      feedGenerator: props.feedGenerator ?? null,
+      feedContext: props.feedContext ?? null,
+      feedProxyUrl: getFeedGeneratorProxyUrl(props.feedGenerator),
+    },
+  );
+  openContextMenu(event, postContextMenuTemplate({ ...props, pluginItems }), {
+    className: "post-context-menu",
+  });
+}
+
+export function postContextMenuButtonSkeletonTemplate() {
+  return html`<div
+    class="post-action-button post-context-menu-button is-skeleton"
+  >
+    <app-icon icon="more-menu-large"></app-icon>
+  </div>`;
+}
+
+export function postContextMenuButtonTemplate({
+  post,
+  isAuthenticated,
+  currentUser,
+  isUserPost,
+  feedContext = null,
+  feedGenerator = null,
+  onClickShowLess = noop,
+  onClickShowMore = noop,
+  onClickHidePost = noop,
+  onClickMute = noop,
+  onClickMuteThread = noop,
+  onClickBlock = noop,
+  onClickDelete = noop,
+  onClickReport = noop,
+  onClickPin = noop,
+  onClickEditInteractionSettings = noop,
+  onClickToggleQuoteDetachment = noop,
+  onClickToggleReplyHiddenForEveryone = noop,
+  enableFeedFeedback = false,
+  pluginService,
+}) {
+  const isPinnedToProfile =
+    !!currentUser?.pinnedPost && currentUser.pinnedPost.uri === post.uri;
+  const ownQuoteEmbed = currentUser
+    ? getOwnQuoteEmbed(post, currentUser.did)
+    : null;
+  const canHideReplyForEveryone =
+    !isUserPost &&
+    !!currentUser &&
+    !isNil(post.isHiddenByThreadgate) &&
+    isThreadRootAuthor(post, currentUser.did);
+  return html`<button
+    class="post-action-button post-context-menu-button"
+    data-testid="post-context-menu-button"
+    aria-label="More options"
+    @click=${(e) => {
+      e.stopPropagation();
+      haptics.impactLight();
+      openPostContextMenu(e, {
+        post,
+        isAuthenticated,
+        isUserPost,
+        isPinnedToProfile,
+        ownQuoteEmbed,
+        canHideReplyForEveryone,
+        enableFeedFeedback,
+        feedContext,
+        feedGenerator,
+        pluginService,
+        onClickShowMore,
+        onClickShowLess,
+        onClickHidePost,
+        onClickMute,
+        onClickMuteThread,
+        onClickBlock,
+        onClickReport,
+        onClickDelete,
+        onClickPin,
+        onClickEditInteractionSettings,
+        onClickToggleQuoteDetachment,
+        onClickToggleReplyHiddenForEveryone,
+      });
+    }}
+  >
+    <app-icon icon="more-menu-large"></app-icon>
+  </button>`;
+}

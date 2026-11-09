@@ -42,7 +42,7 @@ function trendingOptionsButtonTemplate({ onClick }) {
     aria-label="Trending options"
     @click=${onClick}
   >
-    <app-icon icon="more-menu-line"></app-icon>
+    <app-icon icon="more-menu-large"></app-icon>
   </button>`;
 }
 

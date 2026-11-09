@@ -1562,7 +1562,10 @@ test.describe("Post thread view", () => {
         "/profile/did:plc:top/post/top",
       );
 
-      await nestedRows.nth(0).locator(".text-button").click();
+      await nestedRows
+        .nth(0)
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await page.locator('[data-testid="menu-action-post-delete"]').click();
       await page.locator("button.confirm-button").click();
 
@@ -2385,7 +2388,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
 
       const translateItem = page.locator(
         '[data-testid="menu-action-post-translate"]',
@@ -2424,7 +2429,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
 
       await expect(
         page.locator('[data-testid="menu-action-post-translate"]'),
@@ -2448,7 +2455,9 @@ test.describe("Post thread view", () => {
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
       // Open context menu
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await expect(
         page.locator('[data-testid="menu-action-post-hide"]'),
       ).toBeVisible();
@@ -2468,7 +2477,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await expect(
         page.locator(
           '[data-testid="menu-action-post-mute"][data-teststate="unmuted"]',
@@ -2496,7 +2507,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await expect(
         page.locator(
           '[data-testid="menu-action-post-mute"][data-teststate="muted"]',
@@ -2518,7 +2531,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await expect(
         page.locator(
           '[data-testid="menu-action-post-block"][data-teststate="not-blocking"]',
@@ -2565,7 +2580,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
       await expect(
         page.locator('[data-testid="menu-action-post-report"]'),
       ).toBeVisible();
@@ -2592,7 +2609,9 @@ test.describe("Post thread view", () => {
       const largePost = view.locator('[data-testid="large-post"]');
       await expect(largePost).toBeVisible({ timeout: 10000 });
 
-      await largePost.locator('[data-testid="post-action-more"]').click();
+      await largePost
+        .locator('[data-testid="post-context-menu-button"]')
+        .click();
 
       // Moderation actions should not be present on own post
       await expect(

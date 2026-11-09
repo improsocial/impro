@@ -136,3 +136,16 @@ class ContextMenu extends Component {
 }
 
 ContextMenu.register();
+
+export function openContextMenu(event, contents, { className = null } = {}) {
+  const menu = document.createElement("context-menu");
+  if (className) menu.classList.add(className);
+  const itemHolder = document.createElement("div");
+  render(contents, itemHolder);
+  menu.append(...itemHolder.childNodes);
+  document.body.appendChild(menu);
+  menu.open(event.clientX, event.clientY);
+  menu
+    .querySelector("dialog")
+    .addEventListener("close", () => menu.remove(), { once: true });
+}
