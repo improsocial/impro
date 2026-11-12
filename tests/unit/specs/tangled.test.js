@@ -40,13 +40,18 @@ describe("TangledResolver", () => {
         },
       ],
     });
-    fetchMock.__intercept(/com\.atproto\.repo\.getRecord/, async () => {
+    fetchMock.__intercept(/com\.atproto\.repo\.getRecord/, async (url) => {
       recordFetches += 1;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ value: { knot, repoDid } }),
-      };
+      // Only the legacy collection answers here; a declaration lookup
+      // falls through to the 404 below unless a test overrides it.
+      if (String(url).includes("collection=sh.tangled.repo")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ value: { knot, repoDid } }),
+        };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
     });
     fetchMock.__intercept(/org\.tangled\.knot\.describeKnot/, async () => ({
       ok: knotDescribeStatus === 200,
@@ -209,6 +214,111 @@ describe("TangledResolver", () => {
     await assert.rejects(() => resolver.resolveRepoInfo(path));
 
     assert.deepEqual(identityResolutions, 2);
+  });
+
+  // Repos created after the org.tangled.* migration have no legacy
+  // sh.tangled.repo record at all - only a declaration pointing at the
+  // repo DID, whose own document names the knot.
+  describe("declaration-only repos (no legacy record)", () => {
+    // A fresh, complete stub (MockFetch is first-match-wins, so the
+    // beforeEach chain can't be selectively overridden).
+    function stubDeclarationChain({ declaration = true } = {}) {
+      const fetchMock = new MockFetch();
+      globalThis.fetch = fetchMock;
+      fetchMock.__intercept(/resolveHandle/, async () => {
+        identityResolutions += 1;
+        return { ok: true, status: 200, json: async () => ({ did: ownerDid }) };
+      });
+      // One PLC handler: the repo DID's document names the knot, the
+      // owner's names their PDS (MockFetch is first-match-wins, so a
+      // single URL-aware route avoids ordering traps).
+      fetchMock.__intercept(/plc\.directory/, async (url) => {
+        // resolveDid percent-encodes the DID in the path.
+        const isRepoDid = decodeURIComponent(String(url)).endsWith(repoDid);
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            isRepoDid
+              ? {
+                  id: repoDid,
+                  service: [
+                    {
+                      id: "#atproto_pds",
+                      type: "AtprotoPersonalDataServer",
+                      serviceEndpoint: `https://${knot}`,
+                    },
+                  ],
+                }
+              : {
+                  alsoKnownAs: ["at://owner.example"],
+                  service: [
+                    {
+                      id: "#atproto_pds",
+                      type: "AtprotoPersonalDataServer",
+                      serviceEndpoint: "https://pds.example",
+                    },
+                  ],
+                },
+        };
+      });
+      fetchMock.__intercept(/com\.atproto\.repo\.getRecord/, async (url) => {
+        recordFetches += 1;
+        const urlStr = String(url);
+        if (urlStr.includes("collection=org.tangled.repo.declaration")) {
+          if (!declaration) {
+            return { ok: false, status: 404, json: async () => ({}) };
+          }
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ value: { repo: repoDid } }),
+          };
+        }
+        // Legacy direct lookup misses.
+        return { ok: false, status: 404, json: async () => ({}) };
+      });
+      fetchMock.__intercept(/com\.atproto\.repo\.listRecords/, async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ records: [] }),
+      }));
+      fetchMock.__intercept(/org\.tangled\.knot\.describeKnot/, async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ did: `did:web:${knot}` }),
+      }));
+      return fetchMock;
+    }
+
+    it("resolves via the declaration and the repo DID's knot", async () => {
+      stubDeclarationChain();
+
+      const info = await resolver.resolveRepoInfo(nextPath());
+
+      assert.deepEqual(info, { knot, repoDid, api: "git" });
+    });
+
+    it("lowercases the declaration rkey", async () => {
+      const fetchMock = stubDeclarationChain();
+
+      await resolver.resolveRepoInfo("owner.example/Mixed-Case-Repo");
+
+      const declarationCalls = fetchMock.calls.filter((call) =>
+        String(call.url).includes("collection=org.tangled.repo.declaration"),
+      );
+      assert.equal(declarationCalls.length, 1);
+      assert.match(String(declarationCalls[0].url), /rkey=mixed-case-repo/);
+    });
+
+    it("still fails when neither record shape exists", async () => {
+      stubDeclarationChain({ declaration: false });
+
+      await assert.rejects(
+        () => resolver.resolveRepoInfo(nextPath()),
+        /Could not find a tangled repo record/,
+      );
+    });
   });
 });
 

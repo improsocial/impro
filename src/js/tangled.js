@@ -1,4 +1,8 @@
-import { IdentityResolver } from "/js/atproto.js";
+import {
+  IdentityResolver,
+  findServiceEndpointInDidDoc,
+  resolveDid,
+} from "/js/atproto.js";
 import { KVIndexedDB } from "/js/utils.js";
 
 export function decodeTangledBlobContent(data, file) {
@@ -49,6 +53,33 @@ async function findRepoRecord(pds, ownerDid, repoName) {
     cursor = data.cursor;
   }
   return null;
+}
+
+// Repos created since the org.tangled.* migration carry only an
+// org.tangled.repo.declaration on the owner's PDS ({repo: <repo DID>});
+// the knot is named by the repo DID's own document (#atproto_pds), not by
+// the record. Resolve that shape into the same {knot, repoDid} the legacy
+// record carries. Returns null when there is no declaration.
+async function findRepoDeclaration(pds, ownerDid, repoName) {
+  const url =
+    `${pds}/xrpc/com.atproto.repo.getRecord?` +
+    new URLSearchParams({
+      repo: ownerDid,
+      collection: "org.tangled.repo.declaration",
+      // Declarations are keyed by the lowercased name (th repo create,
+      // tangled.org itself).
+      rkey: repoName.toLowerCase(),
+    });
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  const record = await response.json();
+  const repoDid = record.value?.repo;
+  if (typeof repoDid !== "string" || !repoDid.startsWith("did:")) return null;
+  const didDoc = await resolveDid(repoDid);
+  const knotEndpoint = findServiceEndpointInDidDoc(didDoc);
+  if (!knotEndpoint) return null;
+  const knot = knotEndpoint.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return { knot, repoDid };
 }
 
 // Knots running knot2 serve blobs via org.tangled.git.getBlob; older Go knots
@@ -126,7 +157,10 @@ export class TangledResolver {
     }
     const pds = identity.pds;
 
-    const record = await findRepoRecord(pds, identity.did, repoName);
+    let record = await findRepoRecord(pds, identity.did, repoName);
+    if (!record) {
+      record = await findRepoDeclaration(pds, identity.did, repoName);
+    }
     if (!record) {
       throw new Error(
         `Could not find a tangled repo record named "${repoName}" for "${ownerHandle}"`,
