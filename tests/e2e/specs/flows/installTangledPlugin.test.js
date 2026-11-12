@@ -1,19 +1,3 @@
-// E2E: install a plugin from a Tangled repo through the host's
-// unregistered-install flow, fully offline. Every network hop (identity,
-// PDS records, knot detection, blob assets) is served by MockTangledProvider
-// - no real Tangled/PLC/PDS requests are made (the shared base fixture
-// fails any unmocked request, so a leak would fail the test).
-//
-// The cases pin each resolution path independently:
-//   - declaration-only repo on a git knot  (the shape `th repo create`
-//     produces today, and the fallback this PR adds)
-//   - legacy repo on a git knot            (the pre-migration shape)
-//   - declaration-only repo on a legacy knot (blob API fallback)
-//   - community-listing install from a tangled: repo
-//
-// Run from the impro checkout:
-//   npx playwright test tests/e2e/specs/flows/installTangledPlugin.test.js
-
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";

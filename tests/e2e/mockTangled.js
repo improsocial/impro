@@ -1,28 +1,3 @@
-// A fully offline mock of the Tangled infrastructure the host talks to
-// when installing a plugin from a `tangled:` repo. It serves every network
-// hop in the resolution + asset chain so e2e tests never touch the real
-// network (the shared base fixture already fails any unmocked request).
-//
-// The chain it mocks, mirroring src/js/tangled.js + sourceProvider.js:
-//
-//   1. Owner identity   resolveEndpoint(ownerHandle)
-//        -> Slingshot resolveMiniDoc, falling back to resolveHandle + the
-//           owner's PLC DID doc. Both paths are served.
-//   2. Repo record      findRepoRecord: legacy `sh.tangled.repo` on the
-//        owner's PDS (direct getRecord, then listRecords).
-//   3. Repo declaration findRepoDeclaration (the fallback this PR adds):
-//        `org.tangled.repo.declaration` on the owner's PDS names a repo
-//        DID, whose own PLC doc names the knot via #atproto_pds.
-//   4. Knot API         detectKnotApi: describeKnot 200 -> "git",
-//        404 -> "legacy".
-//   5. Plugin assets    git knot:    org.tangled.git.getBlob (raw bytes)
-//                       legacy knot: sh.tangled.repo.blob (raw=true bytes,
-//                                    or raw=false JSON-wrapped content)
-//
-// Repos can be seeded in either shape (legacy record, declaration, or
-// both) and served from either knot API, so tests can pin each resolution
-// path independently. Everything is in-memory; nothing is fetched.
-
 import { getPagesPluginSource } from "./testPlugins.js";
 
 const DEFAULT_PDS = "https://pds.tangled.mock";

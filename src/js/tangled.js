@@ -55,19 +55,14 @@ async function findRepoRecord(pds, ownerDid, repoName) {
   return null;
 }
 
-// Repos created since the org.tangled.* migration carry only an
-// org.tangled.repo.declaration on the owner's PDS ({repo: <repo DID>});
-// the knot is named by the repo DID's own document (#atproto_pds), not by
-// the record. Resolve that shape into the same {knot, repoDid} the legacy
-// record carries. Returns null when there is no declaration.
+// Handle the new org.tangled.* lexicon. With this pattern,
+// the knot info must be retrieved from the did doc
 async function findRepoDeclaration(pds, ownerDid, repoName) {
   const url =
     `${pds}/xrpc/com.atproto.repo.getRecord?` +
     new URLSearchParams({
       repo: ownerDid,
       collection: "org.tangled.repo.declaration",
-      // Declarations are keyed by the lowercased name (th repo create,
-      // tangled.org itself).
       rkey: repoName.toLowerCase(),
     });
   const response = await fetch(url);
@@ -157,6 +152,7 @@ export class TangledResolver {
     }
     const pds = identity.pds;
 
+    // Try legacy method first since it involves fewer lookups
     let record = await findRepoRecord(pds, identity.did, repoName);
     if (!record) {
       record = await findRepoDeclaration(pds, identity.did, repoName);
