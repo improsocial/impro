@@ -3,6 +3,11 @@
 # reject the import map, so suppress them for now
 /*
   ! Link
+  Content-Security-Policy: frame-ancestors 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), display-capture=(), browsing-topics=()
 
 # Revalidate html
 /
