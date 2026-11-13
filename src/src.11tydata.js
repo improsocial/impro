@@ -13,6 +13,7 @@ export default {
   oauthScopes: OAUTH_SCOPES,
   oauthOptionalScopes: OPTIONAL_OAUTH_SCOPES,
   oauthPublicJwk: process.env.OAUTH_PUBLIC_JWK ?? "",
-  useConfidentialOauth: process.env.OAUTH_PUBLIC_JWK ? "true" : "",
-  oauthAssertionUrl: process.env.OAUTH_ASSERTION_URL ?? "/oauth/assertion",
+  oauthAssertionUrl: process.env.OAUTH_PUBLIC_JWK
+    ? (process.env.OAUTH_ASSERTION_URL ?? "/oauth/assertion")
+    : "",
 };

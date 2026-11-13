@@ -73,6 +73,38 @@ describe("OAuthProvider.getClient", () => {
     await assert.rejects(provider.getClient(), /load failed/);
     assert.equal(await provider.getClient(), client);
   });
+
+  describe("assertion endpoints", () => {
+    const ORIGINAL_ENV = window.env;
+
+    afterEach(() => {
+      window.env = ORIGINAL_ENV;
+    });
+
+    async function loadOptions(t) {
+      const load = t.mock.method(OauthClient, "load", async () => ({}));
+      await new OAuthProvider({ identityResolver: null }).getClient();
+      return load.mock.calls[0].arguments[0];
+    }
+
+    it("passes the configured assertion endpoint to the client", async (t) => {
+      window.env = {
+        ...ORIGINAL_ENV,
+        oauthAssertionUrl: "https://auth.example/oauth/assertion",
+      };
+      const options = await loadOptions(t);
+      assert.equal(
+        options.assertionUrl,
+        "https://auth.example/oauth/assertion",
+      );
+    });
+
+    it("passes no endpoint for a public client", async (t) => {
+      window.env = { ...ORIGINAL_ENV, oauthAssertionUrl: "" };
+      const options = await loadOptions(t);
+      assert.equal(options.assertionUrl, null);
+    });
+  });
 });
 
 describe("Auth constructor", () => {

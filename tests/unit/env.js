@@ -33,8 +33,7 @@ globalThis.window.env = {
   oauthScopes: "atproto",
   oauthOptionalScopes: "",
   playwright: false,
-  useConfidentialOauth: false,
-  oauthAssertionUrl: "/oauth/assertion",
+  oauthAssertionUrl: "",
 };
 
 // Node has its own global navigator; alias JSDOM's so code under test and

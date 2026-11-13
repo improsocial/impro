@@ -6,6 +6,9 @@ export default {
   },
 
   render(data) {
+    const publicJwks = data.oauthPublicJwk
+      ? [JSON.parse(data.oauthPublicJwk)].flat()
+      : [];
     const output = {
       client_id: `https://${data.hostName}/oauth-client-metadata.json`,
       client_name: "Impro",
@@ -17,11 +20,11 @@ export default {
       response_types: ["code"],
       application_type: "web",
       dpop_bound_access_tokens: true,
-      ...(data.oauthPublicJwk
+      ...(publicJwks.length > 0
         ? {
             token_endpoint_auth_method: "private_key_jwt",
             token_endpoint_auth_signing_alg: "ES256",
-            jwks: { keys: [JSON.parse(data.oauthPublicJwk)] },
+            jwks: { keys: publicJwks },
           }
         : { token_endpoint_auth_method: "none" }),
     };

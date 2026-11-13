@@ -29,6 +29,7 @@ describe("oauth", () => {
     return await OauthClient.load({
       clientId: "https://app.example.com/client-metadata.json",
       redirectUri: "https://app.example.com/callback",
+      assertionUrl: null,
       ...options,
     });
   }
@@ -57,14 +58,16 @@ describe("oauth", () => {
     };
   }
 
-  async function buildClient() {
+  async function buildClient(options = {}) {
     const dpopKeypair = await generateTestKeypair();
     return new OauthClient({
       clientId: "https://app.example.com/client-metadata.json",
       redirectUri: "https://app.example.com/callback",
+      assertionUrl: null,
       dpopKeypair,
       // Own resolver per client, so no identity is cached across tests.
       identityResolver: new IdentityResolver(),
+      ...options,
     });
   }
 
@@ -81,6 +84,7 @@ describe("oauth", () => {
         token_endpoint: "https://auth.example.com/token",
       },
       clientId: "https://app.example.com/client-metadata.json",
+      assertionUrl: null,
       ...overrides,
     };
     localStorage.setItem(
@@ -240,6 +244,7 @@ describe("oauth", () => {
           token_endpoint: "https://auth.example.com/token",
         },
         redirectUri: "https://app.example.com/callback",
+        assertionUrl: null,
         createdAt: Date.now(),
         ...overrides,
       };
@@ -400,14 +405,10 @@ describe("oauth", () => {
       revocation_endpoint: "https://auth.example.com/revoke",
     };
     const REVOKE_URL = "https://auth.example.com/revoke";
-    const ORIGINAL_ENV = window.env;
-
-    afterEach(() => {
-      window.env = ORIGINAL_ENV;
-    });
+    const ASSERTION_URL = "/oauth/assertion";
 
     function interceptAssertion() {
-      globalThis.fetch.__interceptJson("/oauth/assertion", {
+      globalThis.fetch.__interceptJson(ASSERTION_URL, {
         assertion: "signed-assertion",
       });
     }
@@ -416,9 +417,16 @@ describe("oauth", () => {
       return new URLSearchParams(call.options.body);
     }
 
-    async function refreshSession() {
-      const client = await buildClient();
-      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+    function tokenParams() {
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      return bodyParams(tokenCall);
+    }
+
+    async function refreshSession(assertionUrl, clientOptions = {}) {
+      const client = await buildClient(clientOptions);
+      writeSession({ authServerMetadata: AUTH_SERVER_METADATA, assertionUrl });
       const session = await client.getSession();
       globalThis.fetch.__interceptJson(TOKEN_URL, {
         access_token: "new-at",
@@ -428,20 +436,16 @@ describe("oauth", () => {
       await session.refreshToken();
     }
 
-    it("attaches a fresh assertion to refresh requests in confidential mode", async () => {
-      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
+    it("attaches a fresh assertion to refresh requests", async () => {
       interceptAssertion();
-      await refreshSession();
+      await refreshSession(ASSERTION_URL);
       const assertionCall = globalThis.fetch.calls.find(
-        (call) => call.url === "/oauth/assertion",
+        (call) => call.url === ASSERTION_URL,
       );
       assert.deepEqual(JSON.parse(assertionCall.options.body), {
         aud: "https://auth.example.com",
       });
-      const tokenCall = globalThis.fetch.calls.find((call) =>
-        call.url.includes("/token"),
-      );
-      const params = bodyParams(tokenCall);
+      const params = tokenParams();
       assert.deepEqual(params.get("client_assertion"), "signed-assertion");
       assert.deepEqual(
         params.get("client_assertion_type"),
@@ -449,44 +453,42 @@ describe("oauth", () => {
       );
     });
 
-    it("requests the assertion from the configured endpoint", async () => {
-      const assertionUrl = "https://impro.social/oauth/assertion";
-      window.env = {
-        ...ORIGINAL_ENV,
-        useConfidentialOauth: true,
-        oauthAssertionUrl: assertionUrl,
-      };
-      globalThis.fetch.__interceptJson(assertionUrl, {
-        assertion: "signed-assertion",
+    it("refreshes with the session's endpoint rather than the client's", async () => {
+      const sessionUrl = "https://session.example/oauth/assertion";
+      globalThis.fetch.__interceptJson(sessionUrl, {
+        assertion: "session-assertion",
       });
-      await refreshSession();
-      assert(globalThis.fetch.calls.some((call) => call.url === assertionUrl));
-      const tokenCall = globalThis.fetch.calls.find((call) =>
-        call.url.includes("/token"),
+      await refreshSession(sessionUrl, {
+        assertionUrl: "https://client.example/oauth/assertion",
+      });
+      const assertionFetches = globalThis.fetch.calls.filter((call) =>
+        call.url.endsWith("/oauth/assertion"),
       );
       assert.deepEqual(
-        bodyParams(tokenCall).get("client_assertion"),
-        "signed-assertion",
+        assertionFetches.map((call) => call.url),
+        [sessionUrl],
+      );
+      assert.deepEqual(
+        tokenParams().get("client_assertion"),
+        "session-assertion",
       );
     });
 
-    it("sends no assertion in public mode", async () => {
-      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: false };
-      await refreshSession();
+    it("sends no assertion for a session without an assertion endpoint", async () => {
+      await refreshSession(null, { assertionUrl: ASSERTION_URL });
       assert(
-        !globalThis.fetch.calls.some((call) => call.url === "/oauth/assertion"),
+        !globalThis.fetch.calls.some((call) => call.url === ASSERTION_URL),
       );
-      const tokenCall = globalThis.fetch.calls.find((call) =>
-        call.url.includes("/token"),
-      );
-      assert.deepEqual(bodyParams(tokenCall).get("client_assertion"), null);
+      assert.deepEqual(tokenParams().get("client_assertion"), null);
     });
 
-    it("attaches an assertion to revocation requests in confidential mode", async () => {
-      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
+    it("attaches an assertion from the session's endpoint to revocation requests", async () => {
       interceptAssertion();
       const client = await buildClient();
-      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+      writeSession({
+        authServerMetadata: AUTH_SERVER_METADATA,
+        assertionUrl: ASSERTION_URL,
+      });
       globalThis.fetch.__interceptJson(REVOKE_URL, {});
       await client.revoke("did:plc:test");
       const revokeCall = globalThis.fetch.calls.find((call) =>
@@ -498,12 +500,11 @@ describe("oauth", () => {
     });
 
     it("fails refresh when the assertion endpoint errors", async () => {
-      window.env = { ...ORIGINAL_ENV, useConfidentialOauth: true };
-      globalThis.fetch.__intercept("/oauth/assertion", async () =>
+      globalThis.fetch.__intercept(ASSERTION_URL, async () =>
         mockResponse({ ok: false, status: 501 }),
       );
       await assert.rejects(
-        refreshSession(),
+        refreshSession(ASSERTION_URL),
         /Token refresh failed \(network\)/,
       );
     });
@@ -1190,6 +1191,55 @@ describe("oauth", () => {
       );
     });
 
+    describe("assertion endpoint in confidential mode", () => {
+      const CURRENT_URL = "https://current.example/oauth/assertion";
+
+      function assertionFetches() {
+        return globalThis.fetch.calls
+          .map((call) => String(call.url))
+          .filter((url) => url.endsWith("/oauth/assertion"));
+      }
+
+      // After mockAuthorizationFlow: its regex routes must see the URL-object
+      // metadata fetches before these string-prefix routes do
+      function mockAssertionsAndToken() {
+        globalThis.fetch.__interceptJson(CURRENT_URL, {
+          assertion: `from ${CURRENT_URL}`,
+        });
+        globalThis.fetch.__interceptJson(TOKEN_URL, {
+          access_token: "at",
+          refresh_token: "rt",
+          expires_in: 3600,
+          sub: "did:plc:test",
+          scope: "atproto",
+        });
+      }
+
+      it("signs PAR and the token exchange with the current endpoint and records it on the session", async () => {
+        const client = await buildClient({ assertionUrl: CURRENT_URL });
+        mockAuthorizationFlow();
+        mockAssertionsAndToken();
+        await client.getAuthorizationUrl("user.bsky.social");
+        const { requestId } = readInFlightEntry();
+
+        await client.handleCallback({
+          code: "code",
+          state: encodeURIComponent(JSON.stringify({ requestId })),
+          iss: AUTH_SERVER_URL,
+        });
+
+        assert.deepEqual(assertionFetches(), [CURRENT_URL, CURRENT_URL]);
+        assert.deepEqual(
+          readParParams().get("client_assertion"),
+          `from ${CURRENT_URL}`,
+        );
+        const stored = JSON.parse(
+          localStorage.getItem("oauth_session:did:plc:test"),
+        );
+        assert.deepEqual(stored.assertionUrl, CURRENT_URL);
+      });
+    });
+
     it("should send a PKCE challenge derived from the stored code verifier", async () => {
       const client = await buildClient();
       mockAuthorizationFlow();
@@ -1321,6 +1371,7 @@ describe("oauth", () => {
       authServerUrl,
       authServerMetadata: { token_endpoint: tokenUrl },
       redirectUri: "https://app.example.com/callback",
+      assertionUrl: null,
       createdAt,
     };
     localStorage.setItem(

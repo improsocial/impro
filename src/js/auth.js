@@ -3,6 +3,7 @@ import {
   OauthClient,
   HandleNotFoundError,
   InvalidAuthUrlError,
+  recordMissingAssertionUrls,
 } from "/js/oauth.js";
 import { isDev, isNative, TimeoutError, withTimeout } from "/js/utils.js";
 import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
@@ -219,6 +220,7 @@ export class OAuthProvider {
       this._loadingClient = OauthClient.load({
         clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
         redirectUri: `https://${window.env.hostName}/callback.html`,
+        assertionUrl: window.env.oauthAssertionUrl || null,
         identityResolver: this.identityResolver,
       }).finally(() => {
         this._loadingClient = null;
@@ -470,9 +472,9 @@ export class Auth {
 
 export function createAuth({ identityResolver }) {
   const providerOptions = { identityResolver };
-  return new Auth(
-    isNative()
-      ? new BasicAuthProvider(providerOptions)
-      : new OAuthProvider(providerOptions),
-  );
+  if (isNative()) {
+    return new Auth(new BasicAuthProvider(providerOptions));
+  }
+  recordMissingAssertionUrls(window.env.oauthAssertionUrl || null);
+  return new Auth(new OAuthProvider(providerOptions));
 }

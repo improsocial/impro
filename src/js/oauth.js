@@ -72,10 +72,11 @@ async function fetchAuthServerMetadata(authServerUrl) {
 const CLIENT_ASSERTION_TYPE =
   "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
 
-// If confidential oauth is enabled, include a server-signed client assertion
-async function clientAuthParams(authServerMetadata) {
-  if (!window.env?.useConfidentialOauth) return {};
-  const response = await fetch(window.env.oauthAssertionUrl, {
+// Confidential clients (those with an assertion endpoint) include a
+// server-signed client assertion
+async function clientAuthParams(authServerMetadata, assertionUrl) {
+  if (assertionUrl === null) return {};
+  const response = await fetch(assertionUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ aud: authServerMetadata.issuer }),
@@ -166,6 +167,26 @@ function removeStaleInFlightData() {
       stale = true;
     }
     if (stale) localStorage.removeItem(key);
+  }
+}
+
+export function recordMissingAssertionUrls(assertionUrl) {
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index);
+    if (
+      !key?.startsWith(SESSION_KEY_PREFIX) &&
+      !key?.startsWith(IN_FLIGHT_PREFIX)
+    ) {
+      continue;
+    }
+    let data;
+    try {
+      data = JSON.parse(localStorage.getItem(key));
+    } catch {
+      continue;
+    }
+    if (!data || "assertionUrl" in data) continue;
+    localStorage.setItem(key, JSON.stringify({ ...data, assertionUrl }));
   }
 }
 
@@ -346,6 +367,7 @@ export class Session {
   async refreshToken({ retryCount = 0 } = {}) {
     const authServer = new AuthServer(
       this.sessionData.authServerMetadata,
+      this.sessionData.assertionUrl,
       this.dpopRequests,
     );
 
@@ -497,14 +519,18 @@ export class Session {
 }
 
 class AuthServer {
-  constructor(authServerMetadata, dpopRequests) {
+  constructor(authServerMetadata, assertionUrl, dpopRequests) {
     this.authServerMetadata = authServerMetadata;
+    this.assertionUrl = assertionUrl;
     this.dpopRequests = dpopRequests;
   }
 
   async refresh(params, { signal = null } = {}) {
     const tokenEndpoint = this.authServerMetadata.token_endpoint;
-    const authParams = await clientAuthParams(this.authServerMetadata);
+    const authParams = await clientAuthParams(
+      this.authServerMetadata,
+      this.assertionUrl,
+    );
     return this.dpopRequests.fetch(tokenEndpoint, {
       method: "POST",
       headers: {
@@ -517,7 +543,10 @@ class AuthServer {
 
   async exchangeCodeForToken(clientId, code, codeVerifier, redirectUri) {
     const tokenEndpoint = this.authServerMetadata.token_endpoint;
-    const authParams = await clientAuthParams(this.authServerMetadata);
+    const authParams = await clientAuthParams(
+      this.authServerMetadata,
+      this.assertionUrl,
+    );
     const params = {
       grant_type: "authorization_code",
       code,
@@ -548,7 +577,10 @@ class AuthServer {
   async sendPAR(params) {
     const endpoint =
       this.authServerMetadata.pushed_authorization_request_endpoint;
-    const authParams = await clientAuthParams(this.authServerMetadata);
+    const authParams = await clientAuthParams(
+      this.authServerMetadata,
+      this.assertionUrl,
+    );
     const body = new URLSearchParams({ ...params, ...authParams });
     const response = await this.dpopRequests.fetch(endpoint, {
       method: "POST",
@@ -575,19 +607,27 @@ export class InvalidAuthUrlError extends Error {
 }
 
 export class OauthClient {
-  constructor({ clientId, redirectUri, dpopKeypair, identityResolver }) {
+  constructor({
+    clientId,
+    redirectUri,
+    assertionUrl,
+    dpopKeypair,
+    identityResolver,
+  }) {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
+    this.assertionUrl = assertionUrl;
     this.dpopRequests = new DPoPRequests(dpopKeypair);
     this.sessionsByDid = new Map();
     this.identityResolver = identityResolver;
   }
 
-  static async load({ clientId, redirectUri, identityResolver }) {
+  static async load({ clientId, redirectUri, assertionUrl, identityResolver }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
     return new OauthClient({
       clientId,
       redirectUri,
+      assertionUrl,
       dpopKeypair,
       identityResolver,
     });
@@ -621,6 +661,7 @@ export class OauthClient {
       authServerUrl,
       authServerMetadata,
       redirectUri: this.redirectUri,
+      assertionUrl: this.assertionUrl,
       createdAt: Date.now(),
     };
     localStorage.setItem(
@@ -628,7 +669,11 @@ export class OauthClient {
       JSON.stringify(inFlightData),
     );
 
-    const authServer = new AuthServer(authServerMetadata, this.dpopRequests);
+    const authServer = new AuthServer(
+      authServerMetadata,
+      inFlightData.assertionUrl,
+      this.dpopRequests,
+    );
     const parResponse = await authServer.sendPAR({
       client_id: this.clientId,
       response_type: "code",
@@ -673,8 +718,10 @@ export class OauthClient {
       throw new Error("Issuer mismatch");
     }
 
+    const { assertionUrl } = inFlightData;
     const authServer = new AuthServer(
       inFlightData.authServerMetadata,
+      assertionUrl,
       this.dpopRequests,
     );
     const tokenResponse = await authServer.exchangeCodeForToken(
@@ -698,6 +745,7 @@ export class OauthClient {
       authServerUrl: inFlightData.authServerUrl,
       authServerMetadata: inFlightData.authServerMetadata,
       clientId: this.clientId,
+      assertionUrl,
     };
 
     const session = new Session(sessionData, this.dpopRequests);
@@ -767,7 +815,10 @@ export class OauthClient {
     const refreshToken = sessionData?.refreshToken;
     if (!revocationEndpoint || !refreshToken) return;
     try {
-      const authParams = await clientAuthParams(sessionData.authServerMetadata);
+      const authParams = await clientAuthParams(
+        sessionData.authServerMetadata,
+        sessionData.assertionUrl,
+      );
       await this.dpopRequests.fetch(revocationEndpoint, {
         method: "POST",
         headers: {
