@@ -12,12 +12,14 @@ function facetOverlaps(facet1, facet2) {
 // feeds the plugin rich-text pipeline.
 export function tokenizeRichText({ text, facets = [] }) {
   const textByteLength = getByteLength(text);
-  const clampedFacets = facets.map((facet) =>
-    clampFacetIndex(facet, {
-      byteStart: 0,
-      byteEnd: textByteLength,
-    }),
-  );
+  const clampedFacets = facets
+    .map((facet) =>
+      clampFacetIndex(facet, {
+        byteStart: 0,
+        byteEnd: textByteLength,
+      }),
+    )
+    .filter((facet) => facet.index.byteStart < facet.index.byteEnd);
   const sortedFacets = sortBy(clampedFacets, (facet) => facet.index.byteStart);
   const distinctFacets = [];
   for (const facet of sortedFacets) {

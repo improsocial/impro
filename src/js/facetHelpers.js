@@ -23,7 +23,7 @@ function getLinkFacetsFromText(text) {
   const facets = [];
   for (const match of text.matchAll(urlRegex)) {
     const leading = match[1];
-    const isHttp = match[2].startsWith("http");
+    const isHttp = match[3] !== undefined;
 
     if (!isHttp) {
       const domain = match.groups?.domain;

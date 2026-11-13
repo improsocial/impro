@@ -100,6 +100,13 @@ describe("getUnresolvedFacetsFromText", () => {
     assert.deepEqual(links.length, 0);
   });
 
+  it("should treat bare domains starting with 'http' like any other bare domain", () => {
+    assert.deepEqual(getLinkUrlsFromText("try httpbin.org/get today"), [
+      "https://httpbin.org/get",
+    ]);
+    assert.deepEqual(getLinkUrlsFromText("visit http.invalidtld today"), []);
+  });
+
   it("should not detect a domain inside an email address", () => {
     const text = "Email me at user@example.com";
     const facets = getUnresolvedFacetsFromText(text);

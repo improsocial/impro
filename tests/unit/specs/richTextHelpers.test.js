@@ -42,6 +42,19 @@ describe("tokenizeRichText", () => {
       1,
     );
   });
+
+  it("ignores facets that are empty, inverted, or past the end of the text", () => {
+    const text = "plain text";
+    const feature = { $type: "app.bsky.richtext.facet#tag", tag: "a" };
+    const facets = [
+      { index: { byteStart: 3, byteEnd: 3 }, features: [feature] },
+      { index: { byteStart: 6, byteEnd: 2 }, features: [feature] },
+      { index: { byteStart: 40, byteEnd: 50 }, features: [feature] },
+    ];
+    assert.deepEqual(tokenizeRichText({ text, facets }), [
+      { type: "text", value: "plain text" },
+    ]);
+  });
 });
 
 describe("isEmojiOnlyTokens", () => {
