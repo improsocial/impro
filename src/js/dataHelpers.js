@@ -1291,12 +1291,16 @@ export function getDisplayDomain(url) {
 }
 
 export function isAllowedLiveHost(url) {
-  let hostname;
+  let parsedUrl;
   try {
-    hostname = new URL(url).hostname.toLowerCase();
+    parsedUrl = new URL(url);
   } catch {
     return false;
   }
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    return false;
+  }
+  const hostname = parsedUrl.hostname.toLowerCase();
   return LIVE_ALLOWED_SERVICES.some(
     ({ domain }) => hostname === domain || hostname.endsWith("." + domain),
   );

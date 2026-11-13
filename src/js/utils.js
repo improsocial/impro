@@ -917,14 +917,17 @@ export class KVIndexedDB {
   }
 }
 
-const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
-const NSID_PATTERN = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*){2,}$/;
+const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]*[a-zA-Z0-9._-]$/;
+const NSID_PATTERN =
+  /^[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+\.[a-zA-Z][a-zA-Z0-9]{0,62}$/;
 const HANDLE_PATTERN =
   /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
 const RKEY_PATTERN = /^[a-zA-Z0-9._~:-]{1,512}$/;
 
 export function isValidDid(value) {
-  return typeof value === "string" && DID_PATTERN.test(value);
+  return (
+    typeof value === "string" && value.length <= 2048 && DID_PATTERN.test(value)
+  );
 }
 
 export function isValidHandle(value) {
@@ -936,7 +939,9 @@ export function isValidHandle(value) {
 }
 
 export function isValidNsid(value) {
-  return typeof value === "string" && NSID_PATTERN.test(value);
+  return (
+    typeof value === "string" && value.length <= 317 && NSID_PATTERN.test(value)
+  );
 }
 
 export function isValidRkey(value) {

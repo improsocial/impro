@@ -1,6 +1,9 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import {
+  SourceProvider,
+  parsePluginManifest,
+} from "/js/plugins/sourceProvider.js";
 
 function jsonResponse(body, { ok = true, status = 200 } = {}) {
   return {
@@ -400,6 +403,23 @@ describe("parsePluginManifest fonts", () => {
     assert(caught?.message.includes("fonts must be an array"));
   });
 
+  it("rejects a manifest that is not an object", () => {
+    for (const manifest of [null, "nope", 42]) {
+      assert.throws(
+        () => parsePluginManifest("alpha", manifest),
+        /manifest must be an object/,
+      );
+    }
+  });
+
+  it("accepts font files with spaces and non-ASCII names", async () => {
+    const manifest = await parseViaLocal({
+      ...base,
+      fonts: [{ family: "F", file: "fonts/My Font é.woff2" }],
+    });
+    assert.deepEqual(manifest.fonts[0].file, "fonts/My Font é.woff2");
+  });
+
   const bad = [
     [{ file: "fonts/f.woff2" }, `missing required field "family"`],
     [{ family: "F" }, `missing required field "file"`],
@@ -410,6 +430,10 @@ describe("parsePluginManifest fonts", () => {
       "must be a relative path",
     ],
     [{ family: "F", file: "../escape.woff2" }, "must be a relative path"],
+    [{ family: "F", file: "..\\..\\escape.woff2" }, "must be a relative path"],
+    [{ family: "F", file: "%2e%2e/escape.woff2" }, "must be a relative path"],
+    [{ family: "F", file: ".\t./escape.woff2" }, "must be a relative path"],
+    [{ family: "F", file: "fonts/f?x.woff2" }, "must be a relative path"],
   ];
   for (const [entry, fragment] of bad) {
     it(`rejects ${JSON.stringify(entry)}`, async () => {

@@ -483,6 +483,17 @@ describe("validateReturnToParam", () => {
   it("rejects backslash tricks", () => {
     assert.deepEqual(validateReturnToParam("/\\evil.com"), null);
   });
+
+  it("rejects tab and newline tricks that URL parsing would strip", () => {
+    assert.deepEqual(validateReturnToParam("/\t/evil.com"), null);
+    assert.deepEqual(validateReturnToParam("/\n/evil.com"), null);
+    assert.deepEqual(validateReturnToParam("/\r\\evil.com"), null);
+  });
+
+  it("rejects dot segments that collapse into a protocol-relative URL", () => {
+    assert.deepEqual(validateReturnToParam("/..//evil.com"), null);
+    assert.deepEqual(validateReturnToParam("/.//evil.com"), null);
+  });
 });
 
 describe("linkToLogin", () => {

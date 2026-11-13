@@ -9,7 +9,15 @@ function isRelativePath(file) {
   for (const segment of file.split("/")) {
     if (segment === "" || segment === "." || segment === "..") return false;
   }
-  return true;
+  return resolvesToItself(file);
+}
+
+// Rejects anything a URL parser would reinterpret once the path is appended
+// to an asset URL: backslashes, encoded dot segments, stripped whitespace,
+// or a query/fragment.
+function resolvesToItself(file) {
+  const resolved = new URL(file, "https://plugin.invalid/root/");
+  return resolved.pathname === "/root/" + encodeURI(file);
 }
 
 function parseFontEntry(entry, index) {
@@ -33,6 +41,9 @@ function parseFontEntry(entry, index) {
 }
 
 export function parsePluginManifest(pluginId, manifest) {
+  if (!manifest || typeof manifest !== "object") {
+    throw new Error("manifest must be an object");
+  }
   for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (typeof manifest[field] !== "string") {
       throw new Error(`missing required field "${field}"`);

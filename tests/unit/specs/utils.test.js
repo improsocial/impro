@@ -45,6 +45,8 @@ import {
   Poller,
   graphemeCount,
   truncateGraphemes,
+  isValidDid,
+  isValidNsid,
 } from "/js/utils.js";
 import { flushMicrotasks, installFakeIndexedDB } from "../testHelpers.js";
 
@@ -2556,5 +2558,37 @@ describe("share sheet", () => {
       await shareUrl("https://bsky.app/profile/alice.test");
       assert.equal(warn.mock.callCount(), 1);
     });
+  });
+});
+
+describe("isValidDid", () => {
+  it("accepts plc and web DIDs", () => {
+    assert(isValidDid("did:plc:abc123"));
+    assert(isValidDid("did:web:example.com"));
+    assert(isValidDid("did:web:example.com%3A8080:path"));
+  });
+
+  it("rejects DIDs ending in a colon or percent sign, and overlong DIDs", () => {
+    assert.deepEqual(isValidDid("did:plc:abc:"), false);
+    assert.deepEqual(isValidDid("did:plc:%"), false);
+    assert.deepEqual(isValidDid("did:plc:"), false);
+    assert.deepEqual(isValidDid(`did:plc:${"a".repeat(2048)}`), false);
+  });
+});
+
+describe("isValidNsid", () => {
+  it("accepts well-formed NSIDs, including digit-leading middle segments", () => {
+    assert(isValidNsid("app.bsky.feed.post"));
+    assert(isValidNsid("com.4chan.post"));
+    assert(isValidNsid("com.my-site.record2"));
+  });
+
+  it("rejects malformed segments", () => {
+    assert.deepEqual(isValidNsid("app.bsky"), false);
+    assert.deepEqual(isValidNsid("4app.bsky.post"), false);
+    assert.deepEqual(isValidNsid("app.bsky-.post"), false);
+    assert.deepEqual(isValidNsid("app.bsky.my-post"), false);
+    assert.deepEqual(isValidNsid("app.bsky.2post"), false);
+    assert.deepEqual(isValidNsid(`app.${"a".repeat(64)}.post`), false);
   });
 });

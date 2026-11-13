@@ -112,6 +112,17 @@ describe("parseRecordLink", () => {
     );
   });
 
+  it("parses rkeys using the full record-key character set", () => {
+    assert.deepEqual(
+      parseRecordLink("https://bsky.app/profile/alice.test/feed/my_feed~v2:x"),
+      {
+        collection: "app.bsky.feed.generator",
+        didOrHandle: "alice.test",
+        rkey: "my_feed~v2:x",
+      },
+    );
+  });
+
   it("returns null for hosts outside the in-app link domains", () => {
     assert.deepEqual(
       parseRecordLink("https://example.com/profile/alice.test/post/3abc"),

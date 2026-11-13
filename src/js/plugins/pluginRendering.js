@@ -230,6 +230,17 @@ function createTextNode(value, state) {
   return { type: "text", value };
 }
 
+function isStringifiable(value) {
+  try {
+    String(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const ATTR_NAME_RE = /^[a-zA-Z_:][a-zA-Z0-9_:.-]*$/;
+
 function normalizeAttrs(rawAttrs, state) {
   if (!rawAttrs || typeof rawAttrs !== "object") return {};
   const entries = Object.entries(rawAttrs);
@@ -238,6 +249,14 @@ function normalizeAttrs(rawAttrs, state) {
   }
   const attrs = {};
   for (const [name, value] of entries.slice(0, TREE_LIMITS.maxAttrs)) {
+    if (!ATTR_NAME_RE.test(name)) {
+      state.recordIssue("attribute name is not a valid name");
+      continue;
+    }
+    if (!isStringifiable(value)) {
+      state.recordIssue("attribute value cannot be converted to a string");
+      continue;
+    }
     attrs[name] = value;
   }
   return attrs;
@@ -246,6 +265,7 @@ function normalizeAttrs(rawAttrs, state) {
 const IMPORTANT_SUFFIX_RE = /\s*!\s*important\s*$/i;
 
 function applyStyle(element, name, value) {
+  element.style.removeProperty(name);
   const match = IMPORTANT_SUFFIX_RE.exec(value);
   if (match) {
     element.style.setProperty(name, value.slice(0, match.index), "important");
@@ -322,8 +342,12 @@ function normalizeNode(raw, depth, state) {
 
   // Legacy leading text becomes an explicit leading text child.
   if (isLegacy && raw.text != null && raw.text !== "") {
-    const textNode = createTextNode(String(raw.text), state);
-    if (textNode) children.push(textNode);
+    if (isStringifiable(raw.text)) {
+      const textNode = createTextNode(String(raw.text), state);
+      if (textNode) children.push(textNode);
+    } else {
+      state.recordIssue("legacy text cannot be converted to a string");
+    }
   }
 
   const rawChildren = Array.isArray(raw.children) ? raw.children : [];
@@ -578,7 +602,9 @@ export class PluginRenderer {
     const tag = element.localName;
 
     for (const name of Object.keys(oldAttrs)) {
-      if (!(name in newAttrs)) element.removeAttribute(name);
+      if (!(name in newAttrs) && isAllowedAttr(name, tag)) {
+        element.removeAttribute(name);
+      }
     }
     for (const [name, value] of Object.entries(newAttrs)) {
       if (!isAllowedAttr(name, tag)) {
@@ -653,6 +679,7 @@ export class PluginRenderer {
     }
     for (const [name, value] of Object.entries(newAttrs)) {
       if (oldAttrs[name] === value) continue;
+      element.removeAttribute(name);
       this._setSvgAttr(element, tag, name, value);
     }
     const oldStyles = oldNode.styles ?? {};

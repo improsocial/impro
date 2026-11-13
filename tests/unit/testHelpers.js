@@ -142,6 +142,9 @@ export function mockWindowLocation(search = "") {
     get hash() {
       return "";
     },
+    get origin() {
+      return "http://localhost";
+    },
     get href() {
       return capturedHrefs.at(-1) ?? "http://localhost/";
     },

@@ -1295,3 +1295,63 @@ describe("PluginRenderer:svg", () => {
     assert.deepEqual(element.textContent, "hello");
   });
 });
+
+describe("PluginRenderer:forged payload hardening", () => {
+  it("drops attributes whose names are not valid attribute names", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "div",
+      attrs: { "data-<x>": "a", "aria-=": "b", "data- x": "c", "data-ok": "d" },
+    });
+    assert.deepEqual(
+      [...element.attributes].map((attribute) => attribute.name),
+      ["data-ok"],
+    );
+  });
+
+  it("drops attribute values and legacy text that cannot be stringified", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "div",
+      attrs: { class: { toString: false }, id: "kept" },
+      text: { toString: "" },
+    });
+    assert.deepEqual(element.hasAttribute("class"), false);
+    assert.deepEqual(element.getAttribute("id"), "kept");
+    assert.deepEqual(element.childNodes.length, 0);
+  });
+
+  it("keeps the forced target/rel on <a> when a plugin stops sending them", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    root.render({ tag: "a", attrs: { rel: "x", target: "_self" } });
+    const element = root.render({ tag: "a", attrs: {} });
+    assert.deepEqual(element.getAttribute("target"), "_blank");
+    assert.deepEqual(element.getAttribute("rel"), "noopener noreferrer");
+  });
+
+  it("clears a style when it is patched to a value the browser rejects", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    root.render({ tag: "div", styles: { width: "10px" } });
+    const element = root.render({ tag: "div", styles: { width: "1" } });
+    assert.deepEqual(element.style.getPropertyValue("width"), "");
+  });
+
+  it("clears an SVG attribute when it is patched to an unsafe value", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    root.render({ tag: "svg", attrs: { fill: "red" } });
+    const element = root.render({
+      tag: "svg",
+      attrs: { fill: "url(https://example.com/x.png)" },
+    });
+    assert.deepEqual(element.hasAttribute("fill"), false);
+  });
+});

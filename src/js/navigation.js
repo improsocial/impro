@@ -147,14 +147,22 @@ export function linkToLogin({ query = {} } = {}) {
 }
 
 export function validateReturnToParam(raw) {
-  if (typeof raw !== "string" || raw.length === 0) {
+  if (typeof raw !== "string" || !raw.startsWith("/")) {
     return null;
   }
-  if (!raw.startsWith("/")) {
+  const { origin } = window.location;
+  let parsed = null;
+  try {
+    parsed = new URL(raw, origin);
+  } catch {
     return null;
   }
-  if (raw.startsWith("//") || raw.startsWith("/\\")) {
+  if (parsed.origin !== origin) {
     return null;
   }
-  return raw;
+  const normalized = parsed.pathname + parsed.search + parsed.hash;
+  if (normalized.startsWith("//")) {
+    return null;
+  }
+  return normalized;
 }

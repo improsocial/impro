@@ -82,6 +82,11 @@ describe("live status", () => {
       assert(!isAllowedLiveHost("not a url"));
       assert(!isAllowedLiveHost(""));
     });
+
+    it("rejects non-http schemes on an allowed host", () => {
+      assert(!isAllowedLiveHost("javascript://twitch.tv/%0aalert(1)"));
+      assert(!isAllowedLiveHost("ftp://twitch.tv/somebody"));
+    });
   });
 
   describe("isStatusValid", () => {

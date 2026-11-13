@@ -53,23 +53,24 @@ export async function getLinkCardMeta(url, { timeoutMs = 15000 } = {}) {
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const RECORD_LINK_PATTERNS = [
   {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/post\/([a-zA-Z0-9.-]+)$/,
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/post\/([a-zA-Z0-9._~:-]+)$/,
     collection: "app.bsky.feed.post",
   },
   {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/feed\/([a-zA-Z0-9.-]+)$/,
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/feed\/([a-zA-Z0-9._~:-]+)$/,
     collection: "app.bsky.feed.generator",
   },
   {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/lists\/([a-zA-Z0-9.-]+)$/,
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/lists\/([a-zA-Z0-9._~:-]+)$/,
     collection: "app.bsky.graph.list",
   },
   {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/starter-pack\/([a-zA-Z0-9.-]+)$/,
+    pattern:
+      /^\/profile\/([a-zA-Z0-9:.-]+)\/starter-pack\/([a-zA-Z0-9._~:-]+)$/,
     collection: "app.bsky.graph.starterpack",
   },
   {
-    pattern: /^\/starter-pack\/([a-zA-Z0-9:.-]+)\/([a-zA-Z0-9.-]+)$/,
+    pattern: /^\/starter-pack\/([a-zA-Z0-9:.-]+)\/([a-zA-Z0-9._~:-]+)$/,
     collection: "app.bsky.graph.starterpack",
   },
 ];
