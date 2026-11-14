@@ -29,7 +29,7 @@
     "@capacitor/cli": "^7.0.0",
     "@import-maps/resolve": "^2.0.0",
     "@ipld/dag-cbor": "^10.0.2",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.65.1",
     "canvas": "^3.2.3",
     "dotenv": "^17.2.2",
     "es-module-lexer": "^1.4.1",
