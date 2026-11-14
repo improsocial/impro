@@ -1,0 +1,58 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "fast-check seed to replay (random when empty)"
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  property:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.x"
+      - run: npm ci
+      - name: Pick seed
+        id: seed
+        env:
+          SEED_INPUT: ${{ inputs.seed }}
+        run: echo "value=${SEED_INPUT:-$(shuf -i 0-2147483647 -n 1)}" >> "$GITHUB_OUTPUT"
+      - name: Run property tests
+        id: test
+        run: npm run test:property
+        env:
+          FC_SEED: ${{ steps.seed.outputs.value }}
+      - name: Report failure
+        if: ${{ failure() && steps.test.outcome == 'failure' && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEED: ${{ steps.seed.outputs.value }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly property tests failed"
+          body="Property tests failed on ${GITHUB_SHA} with seed \`${SEED}\`.
+
+          Run: ${RUN_URL}
+
+          Replay locally:
+
+              FC_SEED=${SEED} npm run test:property
+
+          Once fixed, pin the counterexample as an explicit unit test case."
+          existing=$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
