@@ -146,6 +146,39 @@ describe("constellation", () => {
       );
     });
 
+    it("should return null without paginating when total exceeds maxTotal", async () => {
+      globalThis.fetch.__interceptJson(BACKLINKS_URL, {
+        total: 501,
+        records: [{ uri: "a" }],
+        cursor: "cursor1",
+      });
+
+      const links = await getLinks({
+        subject: "subj",
+        source: "src",
+        maxTotal: 500,
+      });
+
+      assert.deepEqual(links, null);
+      assert.deepEqual(globalThis.fetch.calls.length, 1);
+    });
+
+    it("should return links when total is within maxTotal", async () => {
+      globalThis.fetch.__interceptJson(BACKLINKS_URL, {
+        total: 500,
+        records: [{ uri: "a" }],
+        cursor: null,
+      });
+
+      const links = await getLinks({
+        subject: "subj",
+        source: "src",
+        maxTotal: 500,
+      });
+
+      assert.deepEqual(links, [{ uri: "a" }]);
+    });
+
     it("should return an empty array when the first page has no records and no cursor", async () => {
       globalThis.fetch.__interceptJson(BACKLINKS_URL, {
         records: [],

@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
@@ -4085,6 +4085,146 @@ describe("loadPostThread with a blocked parent", () => {
 
     const thread = dataStore.$postThreads.get(postURI);
     assert.deepEqual(thread.parent.post.uri, parentUri);
+  });
+
+  describe("with a chain of alternating blocked parents", () => {
+    const grandparentUri = "at://did:plc:viewer/app.bsky.feed.post/grandparent";
+
+    function makeApiWithBlockedChain() {
+      const threadsByUri = new Map([
+        [
+          postURI,
+          { post: makeMainPost(), parent: makeBlockedParent(), replies: [] },
+        ],
+        [
+          parentUri,
+          {
+            post: { uri: parentUri, replyCount: 0 },
+            parent: {
+              $type: "app.bsky.feed.defs#blockedPost",
+              uri: grandparentUri,
+              blocked: true,
+              author: { did: "did:plc:viewer", viewer: {} },
+            },
+            replies: [],
+          },
+        ],
+        [
+          grandparentUri,
+          {
+            post: { uri: grandparentUri, replyCount: 0 },
+            parent: { post: rootPost, replies: [] },
+            replies: [],
+          },
+        ],
+      ]);
+      return {
+        getPostThread: async (uri) => threadsByUri.get(uri),
+        getPostThreadOther: async () => [],
+        getPosts: async () => [],
+      };
+    }
+
+    it("should fetch root backlinks only once after they time out", async () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const getLinks = mock.fn(async () => {
+        throw Object.assign(new Error("timed out"), { name: "AbortError" });
+      });
+      const requests = makeRequestsWithConstellation(
+        makeApiWithBlockedChain(),
+        dataStore,
+        { getLinks },
+      );
+
+      await requests.loadPostThread(postURI);
+
+      assert.deepEqual(getLinks.mock.callCount(), 1);
+      const thread = dataStore.$postThreads.get(postURI);
+      assert.deepEqual(thread.parent.post.uri, parentUri);
+      assert.deepEqual(thread.parent.parent.post.uri, grandparentUri);
+      assert.deepEqual(thread.parent.parent.parent.post.uri, rootUri);
+    });
+
+    it("should not load replies or cache threads for intermediate parents", async () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const getLinks = mock.fn(async () => null);
+      const api = makeApiWithBlockedChain();
+      const getPostThread = mock.fn(api.getPostThread);
+      const getPostThreadOther = mock.fn(api.getPostThreadOther);
+      const requests = makeRequestsWithConstellation(
+        { ...api, getPostThread, getPostThreadOther },
+        dataStore,
+        { getLinks },
+      );
+
+      await requests.loadPostThread(postURI);
+
+      assert.deepEqual(
+        getPostThread.mock.calls.map((call) => call.arguments),
+        [
+          [postURI, { depth: 6 }],
+          [parentUri, { depth: 0 }],
+          [grandparentUri, { depth: 0 }],
+        ],
+      );
+      assert.deepEqual(getPostThreadOther.mock.callCount(), 1);
+      assert.deepEqual(dataStore.$postThreads.get(parentUri), null);
+      assert.deepEqual(dataStore.$postThreads.get(grandparentUri), null);
+    });
+
+    it("should keep the blocked tombstone when loading a parent fails", async () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const api = makeApiWithBlockedChain();
+      const apiError = new ApiError({
+        status: 400,
+        statusText: "Bad Request",
+        data: { error: "NotFound" },
+        headers: {},
+        url: "https://example.com/x",
+      });
+      const requests = makeRequestsWithConstellation(
+        {
+          ...api,
+          getPostThread: async (uri, options) => {
+            if (uri === grandparentUri) throw apiError;
+            return api.getPostThread(uri, options);
+          },
+        },
+        dataStore,
+        { getLinks: async () => null },
+      );
+
+      await requests.loadPostThread(postURI);
+
+      const thread = dataStore.$postThreads.get(postURI);
+      assert.deepEqual(thread.parent.post.uri, parentUri);
+      assert.deepEqual(
+        thread.parent.parent.$type,
+        "app.bsky.feed.defs#blockedPost",
+      );
+      assert.deepEqual(thread.parent.parent.uri, grandparentUri);
+      assert.deepEqual(
+        requests.statusStore.$errors.get("loadPostThread-" + postURI),
+        null,
+      );
+    });
+
+    it("should fetch root backlinks only once when the thread is too large", async () => {
+      const dataStore = new DataStore(createSessionState(null));
+      const getLinks = mock.fn(async () => null);
+      const requests = makeRequestsWithConstellation(
+        makeApiWithBlockedChain(),
+        dataStore,
+        { getLinks },
+      );
+
+      await requests.loadPostThread(postURI);
+
+      assert.deepEqual(getLinks.mock.callCount(), 1);
+      assert.deepEqual(getLinks.mock.calls[0].arguments[0].maxTotal, 500);
+      const thread = dataStore.$postThreads.get(postURI);
+      assert.deepEqual(thread.parent.parent.parent.post.uri, rootUri);
+    });
   });
 
   it("should fall back to loading the blocked parent thread when backlinks yield no posts", async () => {

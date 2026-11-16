@@ -332,11 +332,27 @@ export class Requests {
     });
   }
 
-  async loadPostThread(postURI, { depth = 6 } = {}) {
-    let [postThread, postThreadOther] = await Promise.all([
-      this.api.getPostThread(postURI, { depth }),
+  async loadPostThread(postURI) {
+    const [postThread, postThreadOther] = await Promise.all([
+      this._loadThreadWithParents(postURI, {
+        depth: 6,
+        skipRootBacklinks: false,
+      }),
       this.api.getPostThreadOther(postURI),
     ]);
+    const totalNumReplies = postThread.post?.replyCount ?? 0;
+    const numAttachedReplies = postThread.replies?.length ?? 0;
+    if (numAttachedReplies !== totalNumReplies) {
+      postThread.replies = await this._loadBlockedReplies(postThread);
+    }
+
+    // Save post thread
+    this.dataStore.setPostThread(postURI, postThread);
+    this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
+  }
+
+  async _loadThreadWithParents(postURI, { depth, skipRootBacklinks }) {
+    let postThread = await this.api.getPostThread(postURI, { depth });
     // Save posts
     const postsToSave = getPostsFromPostThread(postThread);
     await this._loadPostDependencies(postsToSave);
@@ -350,20 +366,11 @@ export class Requests {
           postThread.post?.record?.reply?.root?.uri ?? postThread.post?.uri;
         const loadedParent = await this._loadParentChain(topParent, {
           rootUri,
+          skipRootBacklinks,
         });
         postThread = replaceTopParent(postThread, loadedParent);
       }
     }
-    const totalNumReplies = postThread.post?.replyCount ?? 0;
-    const numAttachedReplies = postThread.replies?.length ?? 0;
-    if (numAttachedReplies !== totalNumReplies) {
-      postThread.replies = await this._loadBlockedReplies(postThread);
-    }
-
-    // Save post thread
-    this.dataStore.setPostThread(postURI, postThread);
-    this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
-    // Note - this return value is used by loadParentChain
     return postThread;
   }
 
@@ -380,15 +387,26 @@ export class Requests {
     this.dataStore.setPosts(posts);
   }
 
-  async _loadParentChain(blockedParent, { rootUri } = {}) {
+  async _loadParentChain(blockedParent, { rootUri, skipRootBacklinks }) {
+    const loadParentThread = async ({ skipRootBacklinks }) => {
+      try {
+        return await this._loadThreadWithParents(blockedParent.uri, {
+          depth: 0,
+          skipRootBacklinks,
+        });
+      } catch (error) {
+        if (error instanceof ApiError) return blockedParent;
+        throw error;
+      }
+    };
+
     if (
+      skipRootBacklinks ||
       !rootUri ||
       isBlockingUser(blockedParent) ||
       isBlockedByViewer(blockedParent)
     ) {
-      return await this.loadPostThread(blockedParent.uri, {
-        depth: 0,
-      });
+      return await loadParentThread({ skipRootBacklinks });
     }
 
     let backlinks;
@@ -396,11 +414,12 @@ export class Requests {
       backlinks = await this._getPostsInThreadFromBacklinks(rootUri);
     } catch (error) {
       if (error.name === "AbortError") {
-        return await this.loadPostThread(blockedParent.uri, {
-          depth: 0,
-        });
+        return await loadParentThread({ skipRootBacklinks: true });
       }
       throw error;
+    }
+    if (!backlinks) {
+      return await loadParentThread({ skipRootBacklinks: true });
     }
 
     const loadedPostsByUri = new Map();
@@ -457,9 +476,7 @@ export class Requests {
     }
 
     if (loadedPostsByUri.size === 0) {
-      return await this.loadPostThread(blockedParent.uri, {
-        depth: 0,
-      });
+      return await loadParentThread({ skipRootBacklinks: false });
     }
 
     return this._buildThreadChain(blockedParent.uri, loadedPostsByUri);
@@ -595,7 +612,10 @@ export class Requests {
       subject: rootUri,
       source: "app.bsky.feed.post:reply.root.uri",
       timeout: 2000,
+      // Larger threads can't be paginated within the timeout
+      maxTotal: 500,
     });
+    if (!backlinks) return null;
     // Also add the root itself
     const { repo, collection, rkey } = parseUri(rootUri);
     backlinks.push({ did: repo, collection, rkey });
