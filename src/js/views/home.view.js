@@ -1,4 +1,4 @@
-import { html, render } from "/js/lib/lit-html.js";
+import { html, render, repeat } from "/js/lib/lit-html.js";
 import { haptics } from "/js/haptics.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
@@ -338,26 +338,28 @@ export default async function homeView({
                 `,
         })}
         <main>
-          ${pinnedItems
-            ? pinnedItems.map((item) => {
-                const isMaterialized =
-                  item.uri === currentFeedUri ||
-                  state.$materializedFeedUris.has(item.uri);
-                return html`<div
-                  class="feed-container"
-                  ?hidden=${currentFeedUri !== item.uri}
-                >
-                  ${isMaterialized
-                    ? feedContentsTemplate({ item, currentUser })
-                    : null}
-                </div>`;
-              })
-            : pinnedItemsRequestStatus.error
-              ? pinnedItemsErrorTemplate()
-              : // show feed skeleton while pinned items are loading
-                html`<div class="feed-container">
-                  ${postFeedTemplate({ feed: null })}
-                </div>`}
+          ${!pinnedItems && pinnedItemsRequestStatus.error
+            ? pinnedItemsErrorTemplate()
+            : // show the selected feed's skeleton while pinned items are loading
+              repeat(
+                pinnedItems ?? [{ uri: currentFeedUri }],
+                (item) => item.uri,
+                (item) => {
+                  const isMaterialized =
+                    item.uri === currentFeedUri ||
+                    state.$materializedFeedUris.has(item.uri);
+                  return html`<div
+                    class="feed-container"
+                    ?hidden=${currentFeedUri !== item.uri}
+                  >
+                    ${!pinnedItems
+                      ? postFeedTemplate({ feed: null })
+                      : isMaterialized
+                        ? feedContentsTemplate({ item, currentUser })
+                        : null}
+                  </div>`;
+                },
+              )}
         </main>
         ${isAuthenticated
           ? floatingComposeButtonTemplate({

@@ -158,7 +158,7 @@ export default async function chatRequestsView({
   }
 
   function requestSkeletonTemplate() {
-    return html`
+    return html`<div class="loading-block">
       ${Array.from({ length: 3 }).map(
         () => html`
           <div class="chat-request-item skeleton">
@@ -182,7 +182,7 @@ export default async function chatRequestsView({
           </div>
         `,
       )}
-    `;
+    </div>`;
   }
 
   function requestsTemplate({ requests, hasMore }) {

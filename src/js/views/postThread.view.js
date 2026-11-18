@@ -552,7 +552,9 @@ export default async function postThreadView({
 
   function repliesSkeletonTemplate({ numReplies }) {
     return html`
-      <div class="post-thread-replies-skeleton">
+      <div
+        class="post-thread-replies-skeleton loading-block loading-block-soon"
+      >
         ${Array.from({ length: Math.min(numReplies, 10) }).map((_, index) =>
           postSkeletonTemplate({ index }),
         )}
@@ -792,7 +794,7 @@ export default async function postThreadView({
   }
 
   function threadSkeletonTemplate() {
-    return html`<div class="post-thread">
+    return html`<div class="post-thread loading-block">
       ${Array.from({ length: 3 }).map((_, index) =>
         postSkeletonTemplate({ index }),
       )}

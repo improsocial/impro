@@ -47,7 +47,10 @@ export function paginatedListTemplate({
   containerTestId = "feeds-list",
 }) {
   if (!items) {
-    return html`<div class=${containerClass} data-testid=${containerTestId}>
+    return html`<div
+      class="${containerClass} loading-block"
+      data-testid=${containerTestId}
+    >
       ${Array.from({ length: skeletonCount }).map((_, index) =>
         renderSkeletonItem({ index }),
       )}

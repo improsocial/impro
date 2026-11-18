@@ -130,7 +130,7 @@ export default async function chatView({
   }
 
   function convoSkeletonTemplate() {
-    return html`
+    return html`<div class="loading-block">
       ${Array.from({ length: 8 }).map(
         () => html`
           <div class="convo-item skeleton">
@@ -147,7 +147,7 @@ export default async function chatView({
           </div>
         `,
       )}
-    `;
+    </div>`;
   }
 
   function inboxButtonTemplate({ hasUnreadRequests }) {

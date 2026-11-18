@@ -377,6 +377,12 @@ video {
   display: block;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .page.page-visible > * > :not(header) {
+    animation: fade-in 150ms ease-out;
+  }
+}
+
 #main-layout.layout-hidden {
   display: none;
 }
@@ -1153,6 +1159,14 @@ input[type="color"]::-moz-color-swatch {
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
+}
+
+.loading-block {
+  animation: fade-in 240ms ease-out 300ms both;
+}
+
+.loading-block.loading-block-soon {
+  animation: fade-in 200ms ease-out 120ms both;
 }
 
 @keyframes shimmer {

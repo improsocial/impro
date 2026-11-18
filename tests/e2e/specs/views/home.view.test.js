@@ -658,6 +658,43 @@ test.describe("Home view", () => {
     ).toHaveCount(0);
   });
 
+  test("should keep the same feed skeleton once pinned feeds load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/slow",
+      displayName: "Slow Feed",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.setGetFeedGeneratorsDelay(1000);
+    mockServer.setTimelineDelay(4000);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="tab-bar-skeleton"]')).toBeVisible({
+      timeout: 10000,
+    });
+    const skeletonList = await view
+      .locator('.feed-container [data-testid="feed"]')
+      .elementHandle();
+
+    await expect(view.locator('[data-testid="tab-following"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view
+        .locator('.feed-container:not([hidden]) [data-testid="post-skeleton"]')
+        .first(),
+    ).toBeVisible();
+    expect(await skeletonList.evaluate((el) => el.isConnected)).toBe(true);
+  });
+
   test("should show an error state when pinned feeds fail to load", async ({
     page,
   }) => {
