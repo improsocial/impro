@@ -353,12 +353,16 @@ export class Auth {
     });
   }
 
-  async switchAccount(did) {
+  async switchAccount(did, { redirectTo } = {}) {
     if (!this.provider.switchToAccount) {
       throw new Error("Account switching is not supported");
     }
     await this.provider.switchToAccount(did);
-    window.location.reload();
+    if (redirectTo) {
+      window.location.href = redirectTo;
+    } else {
+      window.location.reload();
+    }
     return new Promise(() => {});
   }
 

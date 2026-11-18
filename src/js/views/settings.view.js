@@ -266,8 +266,7 @@ export default async function settingsView({
                       try {
                         await auth.login({
                           handle: account.handle,
-                          returnTo:
-                            window.location.pathname + window.location.search,
+                          returnTo: "/",
                         });
                       } catch (error) {
                         $pendingAccountSwitcherAction.set(null);
@@ -278,7 +277,9 @@ export default async function settingsView({
                       return;
                     }
                     try {
-                      await auth.switchAccount(account.did);
+                      await auth.switchAccount(account.did, {
+                        redirectTo: "/",
+                      });
                     } catch {
                       $pendingAccountSwitcherAction.set(null);
                       showToast("Failed to switch account", {

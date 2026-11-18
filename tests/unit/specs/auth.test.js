@@ -656,6 +656,22 @@ describe("Auth account management", () => {
     assert.deepEqual(capturedHrefs.at(-1), "reload");
   });
 
+  it("switchAccount navigates to redirectTo instead of reloading", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test" },
+        { did: "did:plc:bob", handle: "bob.test" },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    manager.switchAccount("did:plc:bob", { redirectTo: "/" }); // never resolves
+    await flushMicrotasks();
+    assert.deepEqual(provider.switchToAccount.mock.callCount(), 1);
+    assert.deepEqual(capturedHrefs.at(-1), "/");
+  });
+
   it("switchAccount throws when the provider does not support it", async () => {
     const manager = new Auth(new BasicAuthProvider());
     let threw = null;

@@ -257,6 +257,36 @@ test.describe("Settings view", () => {
       ).toBeVisible();
     });
 
+    test("switching to another account navigates to home", async ({ page }) => {
+      const mockServer = new MockServer();
+      const otherProfile = createProfile({
+        did: "did:plc:otheruser456",
+        handle: "otheruser.bsky.social",
+        displayName: "Other User",
+      });
+      mockServer.addProfile(otherProfile);
+      await mockServer.setup(page);
+
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        { did: otherProfile.did, handle: otherProfile.handle },
+      ]);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      await view
+        .locator('[data-testid="settings-switch-account-toggle"]')
+        .click();
+      await view.locator('[data-testid="settings-account-row"]').click();
+
+      await expect(page).toHaveURL("/", { timeout: 10000 });
+      await expect
+        .poll(() =>
+          page.evaluate(() => localStorage.getItem("oauth_current_did")),
+        )
+        .toBe(otherProfile.did);
+    });
+
     test("shows a spinner in place of the ellipsis button while switching accounts", async ({
       page,
     }) => {
