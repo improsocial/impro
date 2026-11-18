@@ -1,4 +1,3 @@
-import { Capacitor, StatusBar } from "/js/lib/capacitor.js";
 import { Signal } from "/js/signals.js";
 
 function getRootStyle() {
@@ -93,10 +92,6 @@ export class Theme {
       document.head.appendChild(metaThemeColor);
     }
     metaThemeColor.content = backgroundColor;
-    // Status bar color for iOS native
-    if (Capacitor.isNativePlatform()) {
-      StatusBar.setBackgroundColor({ color: backgroundColor });
-    }
   }
 
   save() {

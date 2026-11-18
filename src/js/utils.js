@@ -1,4 +1,3 @@
-import { Capacitor } from "/js/lib/capacitor.js";
 import { POST_LANGUAGE_CODES, POST_LANGUAGE_NAMES } from "/js/languages.js";
 
 export function noop() {}
@@ -44,7 +43,6 @@ export function groupBy(array, keyOrFn) {
 }
 
 export const isDev = () => window.location.hostname === "localhost";
-export const isNative = () => Capacitor.isNativePlatform();
 export const isMobileViewport = () =>
   window.matchMedia("(max-width: 799px)").matches;
 export const isTouchDevice = () => navigator.maxTouchPoints > 0;

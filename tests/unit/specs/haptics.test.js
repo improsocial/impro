@@ -38,7 +38,10 @@ describe("haptics", () => {
       await haptics.impactLight();
       await haptics.impactMedium();
       await haptics.impactHeavy();
-      assert.equal(window.navigator.vibrate.mock.callCount(), 3);
+      assert.deepEqual(
+        window.navigator.vibrate.mock.calls.map((call) => call.arguments),
+        [[[20]], [[43]], [[61]]],
+      );
     });
 
     it("does not vibrate when haptics are disabled in settings", async () => {

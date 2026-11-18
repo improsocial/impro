@@ -1,13 +1,11 @@
 {
   "name": "impro",
-  "version": "0.20.181",
+  "version": "0.20.182",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
     "start:tunnel": "node scripts/dev-tunnel.js",
     "build": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=production eleventy",
-    "bundle:capacitor": "esbuild ./clientLibs/capacitor.js --bundle --format=esm --outfile=src/js/lib/capacitor.js",
-    "ios": "npm run build && cap sync && NODE_ENV=development cap run ios",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "format": "pretty-quick --staged",
     "format:all": "prettier --write .",
@@ -24,9 +22,11 @@
     "impro-plugin"
   ],
   "license": "0BSD",
+  "dependencies": {
+    "lit-html": "3.3.3"
+  },
   "devDependencies": {
     "@11ty/eleventy": "^3.1.2",
-    "@capacitor/cli": "^7.0.0",
     "@import-maps/resolve": "^2.0.0",
     "@ipld/dag-cbor": "^10.0.2",
     "@playwright/test": "^1.65.1",
@@ -43,15 +43,6 @@
     "prettier": "^3.8.1",
     "pretty-quick": "^4.2.2",
     "typescript": "^5.9.2"
-  },
-  "dependencies": {
-    "@capacitor/app": "^7.0.0",
-    "@capacitor/browser": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/haptics": "^7.0.0",
-    "@capacitor/ios": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0",
-    "lit-html": "3.3.3"
   },
   "allowScripts": {
     "canvas@3.2.3": true

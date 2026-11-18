@@ -5,7 +5,7 @@ import {
   getDisplayName,
   isLabelerProfile,
 } from "/js/dataHelpers.js";
-import { classnames, isNative, isTouchOnlyDevice } from "/js/utils.js";
+import { classnames, isTouchOnlyDevice } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 
@@ -65,7 +65,7 @@ function avatarWrapperTemplate({ author, clickAction, isLive, children }) {
       href="${linkToProfile(author)}"
       data-hover-did=${author.did}
       @click=${(event) => {
-        if (isLive && (isNative() || isTouchOnlyDevice())) {
+        if (isLive && isTouchOnlyDevice()) {
           event.preventDefault();
           dispatchLiveAvatarClick(event, author);
         }

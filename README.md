@@ -51,7 +51,6 @@ npm run start:tunnel
 External libraries are included as standalone files in `lib`. In cases where bundling is needed, the libraries are bundled with [esbuild](https://esbuild.github.io/). Changes to these bundles should be rare, but can be triggered manually with the following commands:
 
 ```bash
-npm run bundle:capacitor
 npm run bundle:lit-html
 ```
 

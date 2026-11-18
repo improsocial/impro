@@ -314,11 +314,6 @@ html {
   }
 }
 
-/* https://github.com/ionic-team/capacitor/issues/8121 */
-body.native {
-  --safe-area-inset-bottom: 1.75em;
-}
-
 /* Installed as a PWA (e.g. added to the iOS home screen) */
 @media (display-mode: standalone) {
   html {

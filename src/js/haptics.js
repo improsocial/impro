@@ -1,31 +1,24 @@
-import { Haptics, ImpactStyle } from "/js/lib/capacitor.js";
 import { untrack } from "/js/signals.js";
-import { isNative, isStandalonePWA } from "/js/utils.js";
+import { isStandalonePWA } from "/js/utils.js";
 import { deviceState } from "/js/deviceState.js";
 
 function hapticsSupported() {
-  return (
-    isNative() || (isStandalonePWA() && typeof navigator.vibrate === "function")
-  );
+  return isStandalonePWA() && typeof navigator.vibrate === "function";
 }
 
-async function impact(style) {
+async function impact(durationMs) {
   if (
     !hapticsSupported() ||
     untrack(() => deviceState.$hapticsDisabled.get())
   ) {
     return;
   }
-  try {
-    await Haptics.impact({ style });
-  } catch (error) {
-    // do nothing
-  }
+  navigator.vibrate([durationMs]);
 }
 
 export const haptics = {
   isSupported: hapticsSupported,
-  impactLight: () => impact(ImpactStyle.Light),
-  impactMedium: () => impact(ImpactStyle.Medium),
-  impactHeavy: () => impact(ImpactStyle.Heavy),
+  impactLight: () => impact(20),
+  impactMedium: () => impact(43),
+  impactHeavy: () => impact(61),
 };

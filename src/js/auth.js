@@ -5,7 +5,7 @@ import {
   InvalidAuthUrlError,
   recordMissingAssertionUrls,
 } from "/js/oauth.js";
-import { isDev, isNative, TimeoutError, withTimeout } from "/js/utils.js";
+import { isDev, TimeoutError, withTimeout } from "/js/utils.js";
 import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
 import { linkToLogin, validateReturnToParam } from "/js/navigation.js";
 
@@ -472,9 +472,6 @@ export class Auth {
 
 export function createAuth({ identityResolver }) {
   const providerOptions = { identityResolver };
-  if (isNative()) {
-    return new Auth(new BasicAuthProvider(providerOptions));
-  }
   recordMissingAssertionUrls(window.env.oauthAssertionUrl || null);
   return new Auth(new OAuthProvider(providerOptions));
 }

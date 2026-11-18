@@ -249,11 +249,14 @@ class TrendingPane extends Component {
   }
 
   async handleHide() {
-    await confirmModal("You can turn this back on in Appearance settings.", {
-      title: "Hide trending topics?",
-      confirmButtonText: "Hide",
-      onConfirm: () => this.dataLayer.mutations.setTrendingHidden(true),
-    });
+    await confirmModal(
+      "You can turn this back on in Content and Media settings.",
+      {
+        title: "Hide trending topics?",
+        confirmButtonText: "Hide",
+        onConfirm: () => this.dataLayer.mutations.setTrendingHidden(true),
+      },
+    );
   }
 }
 

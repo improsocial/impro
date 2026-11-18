@@ -58,10 +58,8 @@ import { GroupChatLinkService } from "/js/groupChatLinkService.js";
 import { LiveStatusService } from "/js/liveStatusService.js";
 import { ProfileHoverCardService } from "/js/profileHoverCardService.js";
 import { InteractionHandlers } from "/js/interactionHandlers.js";
-import { isNative } from "/js/utils.js";
 import { getStoredAuthKeys, logAuthEvent } from "/js/errorLogs.js";
 import { effect, untrack } from "/js/signals.js";
-import { dispatchNativeRefreshEnded } from "/js/nativeRefresh.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import { isInAppLinkHostname } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
@@ -79,11 +77,6 @@ import { Constellation } from "/js/constellation.js";
 import { MainLayout } from "/js/mainLayout.js";
 
 export async function main() {
-  // Body class for styling
-  if (isNative()) {
-    document.body.classList.add("native");
-  }
-
   handleAppViewResetQueryParam();
 
   const identityResolver = new IdentityResolver();
@@ -517,11 +510,4 @@ export async function main() {
   // Sometimes clicks get swallowed after swipe-back navigations on iOS safari
   // Adding a global touchstart listener fixes this for some reason
   document.addEventListener("touchstart", () => {}, { passive: true });
-
-  window.addEventListener("native-reload", () => {
-    window.location.reload();
-  });
-
-  // Page has loaded, let the native app know
-  dispatchNativeRefreshEnded();
 }
