@@ -104,6 +104,55 @@ describe("fetchPostVideoFile", () => {
     );
   });
 
+  function streamedResponse(chunks, headers) {
+    const body = new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(new TextEncoder().encode(chunk));
+        }
+        controller.close();
+      },
+    });
+    return new Response(body, { headers });
+  }
+
+  it("reports progress against Content-Length as the body streams", async () => {
+    stubFetch(
+      streamedResponse(["abcd", "efgh"], {
+        "content-type": "video/mp4",
+        "content-length": "8",
+      }),
+    );
+    const onProgress = mock.fn();
+    const file = await fetchPostVideoFile(createVideoPost(), identityResolver, {
+      signal: null,
+      onProgress,
+    });
+    assert.deepEqual(
+      onProgress.mock.calls.map((call) => call.arguments[0]),
+      [
+        { loaded: 4, total: 8 },
+        { loaded: 8, total: 8 },
+      ],
+    );
+    assert.deepEqual(await file.text(), "abcdefgh");
+    assert.deepEqual(file.type, "video/mp4");
+    assert.deepEqual(file.name, "alice.test-3kvideopost.mp4");
+  });
+
+  it("reports a null total when Content-Length is missing", async () => {
+    stubFetch(streamedResponse(["abcd"], { "content-type": "video/mp4" }));
+    const onProgress = mock.fn();
+    await fetchPostVideoFile(createVideoPost(), identityResolver, {
+      signal: null,
+      onProgress,
+    });
+    assert.deepEqual(onProgress.mock.calls[0].arguments[0], {
+      loaded: 4,
+      total: null,
+    });
+  });
+
   it("throws when the PDS responds with an error", async () => {
     stubFetch(new Response("", { status: 400 }));
     await assert.rejects(

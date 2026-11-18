@@ -8984,6 +8984,11 @@ context-menu-item-group > context-menu-item > button {
   animation: video-download-progress-indeterminate 1.2s ease-in-out infinite;
 }
 
+.video-download-progress-fill.is-determinate {
+  animation: none;
+  transition: width 0.2s ease-out;
+}
+
 @keyframes video-download-progress-indeterminate {
   from {
     transform: translateX(-100%);

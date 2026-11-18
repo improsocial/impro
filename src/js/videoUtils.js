@@ -144,7 +144,26 @@ const VIDEO_FILE_EXTENSIONS = {
 
 const OBJECT_URL_LIFETIME_MS = 40_000;
 
-export async function fetchPostVideoFile(post, identityResolver, { signal }) {
+function withProgress(response, onProgress) {
+  const total = Number(response.headers.get("content-length")) || null;
+  let loaded = 0;
+  const body = response.body.pipeThrough(
+    new TransformStream({
+      transform(chunk, controller) {
+        loaded += chunk.byteLength;
+        onProgress({ loaded, total });
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+  return new Response(body, { headers: response.headers });
+}
+
+export async function fetchPostVideoFile(
+  post,
+  identityResolver,
+  { signal, onProgress },
+) {
   const video = getVideoFromPost(post);
   const identity = await identityResolver.resolveEndpoint(post.author.did);
   if (!identity) {
@@ -157,7 +176,9 @@ export async function fetchPostVideoFile(post, identityResolver, { signal }) {
   if (!response.ok) {
     throw new Error(`getBlob failed: HTTP ${response.status}`);
   }
-  const blob = await response.blob();
+  const blob = await (
+    onProgress ? withProgress(response, onProgress) : response
+  ).blob();
   const extension = VIDEO_FILE_EXTENSIONS[blob.type] ?? blob.type.split("/")[1];
   const filename = `${post.author.handle}-${getRKey(post)}.${extension}`;
   return new File([blob], filename, { type: blob.type });

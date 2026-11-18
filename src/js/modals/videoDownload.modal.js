@@ -2,11 +2,38 @@ import { html } from "/js/lib/lit-html.js";
 import { Modal } from "/js/modals/modal.js";
 import { saveFileToDevice } from "/js/videoUtils.js";
 
+function progressBarTemplate({ progressPercent }) {
+  if (progressPercent === null) {
+    return html`<div
+      class="video-download-progress"
+      role="progressbar"
+      data-testid="video-download-progress"
+    >
+      <div class="video-download-progress-fill"></div>
+    </div>`;
+  }
+  return html`<div
+    class="video-download-progress"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow=${progressPercent}
+    data-testid="video-download-progress"
+    data-teststate="determinate"
+  >
+    <div
+      class="video-download-progress-fill is-determinate"
+      style="width: ${progressPercent}%"
+    ></div>
+  </div>`;
+}
+
 // Sharing and downloading both require transient user activation, which
 // expires while a large video downloads, so they run from a second tap on Save
 export class VideoDownloadModal extends Modal {
   #status = "preparing";
   #file = null;
+  #progressPercent = null;
   #abortController = new AbortController();
 
   get className() {
@@ -19,22 +46,38 @@ export class VideoDownloadModal extends Modal {
 
   open() {
     const closed = super.open();
-    this.options.loadFile(this.#abortController.signal).then(
-      (file) => {
-        this.#file = file;
-        this.#status = "ready";
-        this.update();
-      },
-      (error) => {
-        if (error.name === "AbortError") {
-          return;
-        }
-        console.warn("Failed to download video", error);
-        this.#status = "error";
-        this.update();
-      },
-    );
+    this.options
+      .loadFile({
+        signal: this.#abortController.signal,
+        onProgress: (progress) => this.#handleProgress(progress),
+      })
+      .then(
+        (file) => {
+          this.#file = file;
+          this.#status = "ready";
+          this.update();
+        },
+        (error) => {
+          if (error.name === "AbortError") {
+            return;
+          }
+          console.warn("Failed to download video", error);
+          this.#status = "error";
+          this.update();
+        },
+      );
     return closed.finally(() => this.#abortController.abort());
+  }
+
+  #handleProgress({ loaded, total }) {
+    if (total === null) {
+      return;
+    }
+    const percent = Math.min(100, Math.floor((loaded / total) * 100));
+    if (percent !== this.#progressPercent) {
+      this.#progressPercent = percent;
+      this.update();
+    }
   }
 
   #handleSave(dismiss) {
@@ -56,6 +99,7 @@ export class VideoDownloadModal extends Modal {
 
   render({ dismiss }) {
     const status = this.#status;
+    const progressPercent = this.#progressPercent;
     const mediaLabel = this.options.isGif ? "GIF" : "video";
     return html`
       <div class="modal-dialog-content" data-teststate=${status}>
@@ -67,13 +111,7 @@ export class VideoDownloadModal extends Modal {
         <div class="modal-dialog-message" data-testid="modal-message">
           ${status === "preparing"
             ? html`Preparing ${mediaLabel}…
-                <div
-                  class="video-download-progress"
-                  role="progressbar"
-                  data-testid="video-download-progress"
-                >
-                  <div class="video-download-progress-fill"></div>
-                </div>`
+              ${progressBarTemplate({ progressPercent })}`
             : status === "ready"
               ? `Your ${mediaLabel} is ready to save.`
               : "Something went wrong. Please try again later."}

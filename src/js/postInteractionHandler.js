@@ -403,8 +403,8 @@ export class PostInteractionHandler {
     if (isIOS()) {
       VideoDownloadModal.open({
         isGif: getVideoFromPost(post).presentation === "gif",
-        loadFile: (signal) =>
-          fetchPostVideoFile(post, identityResolver, { signal }),
+        loadFile: ({ signal, onProgress }) =>
+          fetchPostVideoFile(post, identityResolver, { signal, onProgress }),
       });
       return;
     }
@@ -417,6 +417,7 @@ export class PostInteractionHandler {
     try {
       const file = await fetchPostVideoFile(post, identityResolver, {
         signal: null,
+        onProgress: null,
       });
       saveFileToDevice(file);
     } catch (error) {

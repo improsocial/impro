@@ -65,6 +65,41 @@ describe("VideoDownloadModal", () => {
     );
   });
 
+  function getProgressBar() {
+    return document.querySelector('[data-testid="video-download-progress"]');
+  }
+
+  function reportProgress(progress) {
+    loadFile.mock.calls[0].arguments[0].onProgress(progress);
+  }
+
+  it("shows an indeterminate progress bar until progress is reported", () => {
+    VideoDownloadModal.open({ isGif: false, loadFile });
+    assert.deepEqual(getProgressBar().dataset.teststate, undefined);
+    assert(!getProgressBar().hasAttribute("aria-valuenow"));
+  });
+
+  it("tracks reported download progress", () => {
+    VideoDownloadModal.open({ isGif: false, loadFile });
+    reportProgress({ loaded: 250, total: 1000 });
+    assert.deepEqual(getProgressBar().dataset.teststate, "determinate");
+    assert.deepEqual(getProgressBar().getAttribute("aria-valuenow"), "25");
+    reportProgress({ loaded: 999, total: 1000 });
+    assert.deepEqual(getProgressBar().getAttribute("aria-valuenow"), "99");
+  });
+
+  it("caps progress at 100% when more bytes arrive than expected", () => {
+    VideoDownloadModal.open({ isGif: false, loadFile });
+    reportProgress({ loaded: 1500, total: 1000 });
+    assert.deepEqual(getProgressBar().getAttribute("aria-valuenow"), "100");
+  });
+
+  it("stays indeterminate when the total size is unknown", () => {
+    VideoDownloadModal.open({ isGif: false, loadFile });
+    reportProgress({ loaded: 250, total: null });
+    assert.deepEqual(getProgressBar().dataset.teststate, undefined);
+  });
+
   it("enables Save once the file has loaded", async () => {
     VideoDownloadModal.open({ isGif: false, loadFile });
     resolveFile(new File(["video"], "alice-abc.mp4", { type: "video/mp4" }));
@@ -152,7 +187,7 @@ describe("VideoDownloadModal", () => {
 
   it("aborts the download when cancelled while preparing", async () => {
     const result = VideoDownloadModal.open({ isGif: false, loadFile });
-    const signal = loadFile.mock.calls[0].arguments[0];
+    const { signal } = loadFile.mock.calls[0].arguments[0];
     document.querySelector('[data-testid="modal-cancel-button"]').click();
     await result;
     assert(signal.aborted);
