@@ -21,17 +21,6 @@ If you notice a bug or feature missing, please open [an issue](https://github.co
 
 Impro uses the [Bluesky API](https://docs.bsky.app/docs/category/http-reference) for authentication and data fetching. Additionally, it uses [Constellation](https://constellation.microcosm.blue/) to populate blocked replies.
 
-## Dependencies
-
-Impro uses the following libraries:
-
-- [lit-html](https://www.npmjs.com/package/lit-html) for declarative rendering
-- [HLS.js](https://github.com/video-dev/hls.js/) for streaming video
-- [emoji-picker-element](https://github.com/nolanlawson/emoji-picker-element) for emoji picker UI
-- [marked](https://github.com/markedjs/marked) and [DOMPurify](https://github.com/cure53/dompurify) for rendering plugin READMEs
-
-The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set (MIT license).
-
 ## Development
 
 _Interested in developing a plugin for Impro? See our [plugin development guide](/plugins.md)._
@@ -53,6 +42,8 @@ External libraries are included as standalone files in `lib`. In cases where bun
 ```bash
 npm run bundle:lit-html
 ```
+
+The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set (MIT license).
 
 ## AI Disclosure
 
