@@ -66,7 +66,7 @@ export function footerTemplate({
     },
     {
       id: "chat",
-      icon: "chat-dots",
+      icon: "chat-bubble",
       url: "/messages",
       badge:
         numChatNotifications > 0

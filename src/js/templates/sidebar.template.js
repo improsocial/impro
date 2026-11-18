@@ -229,7 +229,7 @@ export function sidebarTemplate({
     },
     {
       id: "chat",
-      icon: "chat-dots",
+      icon: "chat-bubble",
       label: "Chat",
       url: "/messages",
       badge:

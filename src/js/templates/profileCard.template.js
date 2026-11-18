@@ -437,7 +437,7 @@ export function profileCardTemplate({
                     onClickChat(profile);
                   }}
                 >
-                  <app-icon icon="chat-dots-line"></app-icon>
+                  <app-icon icon="chat-bubble-line"></app-icon>
                 </button>`
               : ""}`
           : null}
