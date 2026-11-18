@@ -54,19 +54,16 @@ import { showToast } from "/js/toasts.js";
 
 const SCROLLED_DOWN_LIMIT = 250;
 
-function refreshPillTemplate({ visible, isScrolledDown, onClick }) {
+function refreshPillTemplate({ visible, onClick }) {
   return html`<div class="refresh-pill-strip">
     <button
       class=${classnames("refresh-pill", { "is-visible": visible })}
       data-testid="refresh-pill"
-      data-teststate=${isScrolledDown ? "new" : "refresh"}
       aria-label="Load new notifications"
       ?inert=${!visible}
       @click=${() => onClick()}
     >
-      ${isScrolledDown
-        ? html`<app-icon icon="arrow-up-line"></app-icon><span>New</span>`
-        : html`<span>Refresh</span>`}
+      <app-icon icon="arrow-up-line"></app-icon><span>New</span>
     </button>
   </div>`;
 }
@@ -932,8 +929,7 @@ export default async function notificationsView({
           `,
           overlayTemplate: () =>
             refreshPillTemplate({
-              visible: hasNew,
-              isScrolledDown,
+              visible: hasNew && isScrolledDown,
               onClick: scrollAndReloadNotifications,
             }),
         })}

@@ -1885,7 +1885,6 @@ test.describe("Notifications view", () => {
 
       const pill = view.locator('[data-testid="refresh-pill"]');
       await expect(pill).toBeVisible({ timeout: 10000 });
-      await expect(pill).toHaveAttribute("data-teststate", "new");
 
       await pill.click();
 
@@ -1898,7 +1897,7 @@ test.describe("Notifications view", () => {
       await expect(pill).toBeHidden();
     });
 
-    test("should show when new notifications arrive and load them when clicked", async ({
+    test("should stay hidden at the top when new notifications arrive", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1926,42 +1925,39 @@ test.describe("Notifications view", () => {
         );
       });
 
-      const pill = view.locator('[data-testid="refresh-pill"]');
-      await expect(pill).toBeVisible({ timeout: 10000 });
-      await expect(pill).toHaveAttribute("data-teststate", "refresh");
-
-      await pill.click();
-
-      await expect(
-        view.locator(
-          '[data-testid="notification-item"][data-teststate="follow"]',
-        ),
-      ).toBeVisible({ timeout: 10000 });
-      await expect(pill).toBeHidden();
+      const badge = page.locator(
+        '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+      );
+      await expect(badge).toBeVisible({ timeout: 10000 });
+      await expect(view.locator('[data-testid="refresh-pill"]')).toBeHidden();
     });
 
     test("should clear the badge only once the reload finishes and keep loaded items unread", async ({
       page,
     }) => {
+      const { likedPosts, notifications } = createPagedLikeNotifications(30);
       const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
       await mockServer.setup(page);
 
       await login(page);
       await page.goto("/notifications");
 
       const view = page.locator("#notifications-view");
-      await expect(view.locator('[data-testid="empty-state"]')).toBeVisible({
+      await expect(view.locator(".notification-item").first()).toBeVisible({
         timeout: 10000,
       });
+      await page.evaluate(() => window.scrollTo(0, 1000));
 
-      mockServer.addNotifications([
+      mockServer.notifications.unshift(
         createNotification({
           reason: "follow",
           author: alice,
           isRead: false,
           indexedAt: new Date().toISOString(),
         }),
-      ]);
+      );
       await page.evaluate(() => {
         navigator.serviceWorker.dispatchEvent(
           new MessageEvent("message", { data: { type: "push-received" } }),
