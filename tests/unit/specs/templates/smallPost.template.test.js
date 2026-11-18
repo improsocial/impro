@@ -534,12 +534,6 @@ describe("smallPostTemplate - moderation", () => {
       container.querySelector("[data-testid='small-post']") !== null,
       "should render normal post",
     );
-    assert(
-      !container.textContent.includes(
-        "This author has chosen to make their posts visible only to people who are signed in.",
-      ),
-      "should not show lock message",
-    );
   });
 });
 

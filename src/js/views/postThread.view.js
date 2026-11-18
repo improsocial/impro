@@ -562,8 +562,7 @@ export default async function postThreadView({
     `;
   }
 
-  const NO_UNAUTHENTICATED_MESSAGE =
-    "This author has chosen to make their posts visible only to people who are signed in.";
+  const NO_UNAUTHENTICATED_MESSAGE = "You must be signed in to view this post.";
 
   function noUnauthenticatedSmallPostTemplate({ replyContext = null } = {}) {
     return html`<div class="post small-post">
