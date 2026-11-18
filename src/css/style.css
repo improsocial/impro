@@ -7175,25 +7175,6 @@ sidebar-search {
   color: var(--text-color-muted);
 }
 
-.feeds-list-item-chevron {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-color-muted);
-}
-
-.feeds-list-item-chevron app-icon {
-  width: 32px;
-  height: 32px;
-}
-
-.feeds-list-item-chevron svg path {
-  stroke-width: 1.2px;
-}
-
 .feeds-list-item-drag-handle {
   flex-shrink: 0;
   width: 40px;

@@ -262,11 +262,7 @@ export default async function feedsView({
               const value = valueForPinnedItem(item);
               const rightItem = isEditing
                 ? editControlsTemplate({ value, isSaving, showUnpin })
-                : item.type === "timeline"
-                  ? ""
-                  : html`<div class="feeds-list-item-chevron">
-                      <app-icon icon="chevron-right-line"></app-icon>
-                    </div>`;
+                : "";
               return rowTemplate({ item, currentUser, rightItem });
             },
           })}
