@@ -192,7 +192,10 @@ export default async function homeView({
   }
 
   function tabBarSkeletonTemplate() {
-    return html`<div class="tab-bar-skeleton" data-testid="tab-bar-skeleton">
+    return html`<div
+      class="tab-bar-skeleton loading-block"
+      data-testid="tab-bar-skeleton"
+    >
       ${Array.from(
         { length: 4 },
         () =>
@@ -307,6 +310,8 @@ export default async function homeView({
           showLoadingSpinner: isLoading,
           leftButton: "menu",
           onClickMenuButton: () => handleMenuClick(),
+          showMenuButtonAvatar: isAuthenticated,
+          menuButtonUser: currentUser,
           rightItemTemplate: () => html`
             <a
               class="icon-button feeds-button"

@@ -40,11 +40,13 @@ test.describe("Footer navigation flow", () => {
     await expect(page).toHaveURL(/\/notifications/);
   });
 
-  test("should navigate to Profile when clicking Profile", async ({ page }) => {
-    await page.locator('[data-testid="footer-nav-profile"]').click();
+  test("should navigate to Plugins when clicking Plugins", async ({ page }) => {
+    await page.locator('[data-testid="footer-nav-plugins"]').click();
 
-    await expect(page.locator("#profile-view")).toBeVisible({ timeout: 10000 });
-    await expect(page).toHaveURL(/\/profile\//);
+    await expect(page.locator("#installed-plugins-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL(/\/plugins\/installed/);
   });
 
   test("should navigate back to Home when clicking Home from another view", async ({

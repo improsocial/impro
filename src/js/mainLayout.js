@@ -127,13 +127,11 @@ export function mainLayoutTemplate({
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
       ${footerTemplate({
         isAuthenticated,
-        currentUser,
         activeNavItem,
         isNavItemPage,
         numNotifications,
         numChatNotifications,
         onClickActiveItem: onClickActiveNavItem,
-        onLongPressProfile,
       })}
     </div>
   `;

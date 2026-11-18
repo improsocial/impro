@@ -548,13 +548,17 @@ test.describe("Drag-to-dismiss", () => {
         { did: otherProfile.did, handle: otherProfile.handle },
       ]);
       await page.goto("/");
-      await expect(
-        page.locator('[data-testid="footer-nav-profile"]'),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible(
+        { timeout: 10000 },
+      );
     });
 
     async function openAccountSwitcher(page) {
-      await longPress(page, page.locator('[data-testid="footer-nav-profile"]'));
+      await page.locator('[data-testid="menu-button"]').click();
+      await longPress(
+        page,
+        page.locator('[data-testid="sidebar-profile"] .sidebar-profile-avatar'),
+      );
       const dialog = page.locator('[data-testid="account-switcher-dialog"]');
       await expect(dialog).toBeVisible();
       return dialog;

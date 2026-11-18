@@ -55,9 +55,9 @@ test.describe("Session expiry flow", () => {
 
     await page.goto("/");
 
-    await expect(
-      page.locator('[data-testid="footer-nav-profile"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect
       .poll(() =>
         page.evaluate(

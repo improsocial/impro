@@ -1,10 +1,6 @@
-import { html, ref } from "/js/lib/lit-html.js";
-import { classnames, enableLongPress } from "/js/utils.js";
+import { html } from "/js/lib/lit-html.js";
+import { classnames } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import {
-  avatarPlaceholderTemplate,
-  avatarTemplate,
-} from "/js/templates/avatar.template.js";
 import { formatNumNotifications } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 
@@ -36,13 +32,11 @@ function loggedOutFooterTemplate() {
 
 export function footerTemplate({
   isAuthenticated,
-  currentUser,
   activeNavItem = null,
   isNavItemPage = false,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
-  onLongPressProfile = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutFooterTemplate();
@@ -59,13 +53,9 @@ export function footerTemplate({
       url: "/search",
     },
     {
-      id: "chat",
-      icon: "chat-dots",
-      url: "/messages",
-      badge:
-        numChatNotifications > 0
-          ? formatNumNotifications(numChatNotifications)
-          : null,
+      id: "plugins",
+      icon: "widgets",
+      url: "/plugins/installed",
     },
     {
       id: "notifications",
@@ -75,13 +65,13 @@ export function footerTemplate({
         numNotifications > 0 ? formatNumNotifications(numNotifications) : null,
     },
     {
-      id: "profile",
-      url: currentUser ? `/profile/${currentUser.handle}` : "",
-      disabled: !currentUser,
-      template: () =>
-        html`${currentUser
-          ? avatarTemplate({ author: currentUser, clickAction: "none" })
-          : avatarPlaceholderTemplate()}`,
+      id: "chat",
+      icon: "chat-dots",
+      url: "/messages",
+      badge:
+        numChatNotifications > 0
+          ? formatNumNotifications(numChatNotifications)
+          : null,
     },
   ];
 
@@ -90,22 +80,10 @@ export function footerTemplate({
       <nav>
         ${menuItems.map((item) => {
           const active = activeNavItem === item.id;
-          const longPressEnabled =
-            item.id === "profile" && onLongPressProfile !== null;
           return html`<a
-            ${ref((el) => {
-              if (el && longPressEnabled) {
-                enableLongPress(el);
-              }
-            })}
-            class=${classnames("footer-nav-item", {
-              active,
-              "long-press-enabled": longPressEnabled,
-            })}
+            class=${classnames("footer-nav-item", { active })}
             href=${item.url}
             data-testid="footer-nav-${item.id}"
-            ?disabled=${item.disabled}
-            @long-press=${longPressEnabled ? () => onLongPressProfile() : null}
             @click=${(e) => {
               // tap the item for the page you're on to scroll to top; deeper
               // pages in the section just follow the link
@@ -115,9 +93,7 @@ export function footerTemplate({
                 onClickActiveItem?.(item.id);
               }
             }}
-            >${item.template
-              ? item.template({ item, active })
-              : footerNavItemTemplate({ item, active })}
+            >${footerNavItemTemplate({ item, active })}
           </a>`;
         })}
       </nav>

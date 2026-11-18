@@ -168,22 +168,22 @@ describe("MainLayout", () => {
       {
         layoutOptions: {
           activeNavItem: (params) =>
-            params.handleOrDid === mockUser.did ? "profile" : null,
+            params.handleOrDid === mockUser.did ? "notifications" : null,
         },
       },
       { handleOrDid: mockUser.did },
     );
     await flushRender();
-    const profileItem = harness.appRoot.querySelector(
-      "[data-testid='footer-nav-profile']",
+    const notificationsItem = harness.appRoot.querySelector(
+      "[data-testid='footer-nav-notifications']",
     );
-    assert(profileItem.classList.contains("active"));
+    assert(notificationsItem.classList.contains("active"));
 
     setRoute(
       {
         layoutOptions: {
           activeNavItem: (params) =>
-            params.handleOrDid === mockUser.did ? "profile" : null,
+            params.handleOrDid === mockUser.did ? "notifications" : null,
         },
       },
       { handleOrDid: "did:plc:someoneelse" },
@@ -191,7 +191,7 @@ describe("MainLayout", () => {
     await flushRender();
     assert(
       !harness.appRoot
-        .querySelector("[data-testid='footer-nav-profile']")
+        .querySelector("[data-testid='footer-nav-notifications']")
         .classList.contains("active"),
     );
   });

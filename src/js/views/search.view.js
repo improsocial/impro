@@ -738,6 +738,8 @@ export default async function searchView({
           title: "Search",
           leftButton: "menu",
           onClickMenuButton: () => layout.openSidebar(),
+          showMenuButtonAvatar: isAuthenticated,
+          menuButtonUser: currentUser,
           bottomItemTemplate: () => html`
             <div class="search-input-container">
               <app-icon icon="search-line"></app-icon>

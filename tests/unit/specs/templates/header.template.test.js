@@ -112,6 +112,52 @@ describe("headerTemplate - left button", () => {
   });
 });
 
+describe("headerTemplate - menu button avatar", () => {
+  it("shows the user's avatar in the menu button when a user is given", () => {
+    const container = document.createElement("div");
+    render(
+      headerTemplate({
+        leftButton: "menu",
+        showMenuButtonAvatar: true,
+        menuButtonUser: {
+          did: "did:plc:testuser",
+          handle: "testuser.bsky.social",
+          avatar: "https://example.com/avatar.jpg",
+        },
+      }),
+      container,
+    );
+    const menuButton = container.querySelector("[data-testid='menu-button']");
+    assert(menuButton.querySelector("[data-testid='avatar']") !== null);
+    assert.deepEqual(menuButton.querySelector("app-icon"), null);
+  });
+
+  it("shows an avatar placeholder while the user hasn't loaded", () => {
+    const container = document.createElement("div");
+    render(
+      headerTemplate({
+        leftButton: "menu",
+        showMenuButtonAvatar: true,
+        menuButtonUser: null,
+      }),
+      container,
+    );
+    const menuButton = container.querySelector("[data-testid='menu-button']");
+    assert(
+      menuButton.querySelector("[data-testid='avatar-placeholder']") !== null,
+    );
+    assert.deepEqual(menuButton.querySelector("app-icon"), null);
+  });
+
+  it("shows the menu icon when the avatar is not requested", () => {
+    const container = document.createElement("div");
+    render(headerTemplate({ leftButton: "menu" }), container);
+    const menuButton = container.querySelector("[data-testid='menu-button']");
+    assert.deepEqual(menuButton.querySelector("[data-testid='avatar']"), null);
+    assert(menuButton.querySelector("app-icon") !== null);
+  });
+});
+
 describe("headerTemplate - loading spinner", () => {
   it("should not render loading spinner by default", () => {
     const result = headerTemplate({

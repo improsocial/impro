@@ -257,6 +257,8 @@ export default async function chatView({
           showLoadingSpinner: convosRequestStatus.loading && !!convos,
           leftButton: "menu",
           onClickMenuButton: () => handleMenuClick(),
+          showMenuButtonAvatar: true,
+          menuButtonUser: currentUser,
           rightItemTemplate: () => html`
             <div class="chat-header-buttons">
               ${inboxButtonTemplate({ hasUnreadRequests })}

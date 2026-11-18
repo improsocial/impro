@@ -7,11 +7,14 @@ import {
   createProfile,
 } from "../../../shared/factories.js";
 
-// The footer (the long-press trigger) only renders on small viewports.
 test.use({ viewport: { width: 375, height: 667 } });
 
 async function openSwitcherDialog(page) {
-  await longPress(page, page.locator('[data-testid="footer-nav-profile"]'));
+  await page.locator('[data-testid="menu-button"]').click();
+  await longPress(
+    page,
+    page.locator('[data-testid="sidebar-profile"] .sidebar-profile-avatar'),
+  );
   const dialog = page.locator('[data-testid="account-switcher-dialog"]');
   await expect(dialog).toBeVisible();
   return dialog;
@@ -50,12 +53,12 @@ test.describe("Account switch flow", () => {
       { did: otherProfile.did, handle: otherProfile.handle },
     ]);
     await page.goto("/");
-    await expect(
-      page.locator('[data-testid="footer-nav-profile"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
-  test("long-press on the profile tab opens the dialog without navigating", async ({
+  test("long-press on the sidebar avatar opens the dialog without navigating", async ({
     page,
   }) => {
     const dialog = await openSwitcherDialog(page);
@@ -82,17 +85,6 @@ test.describe("Account switch flow", () => {
     );
     await expect(otherRow).toContainText(otherProfile.displayName);
     await expect(otherRow).toContainText(`@${otherProfile.handle}`);
-  });
-
-  test("short press still navigates to the profile", async ({ page }) => {
-    await page.locator('[data-testid="footer-nav-profile"]').click();
-
-    await expect(page).toHaveURL(`/profile/${userProfile.handle}`, {
-      timeout: 10000,
-    });
-    await expect(
-      page.locator('[data-testid="account-switcher-dialog"]'),
-    ).toHaveCount(0);
   });
 
   test("hides the close button on mobile and dismisses with Escape", async ({
@@ -136,9 +128,9 @@ test.describe("Account switch flow", () => {
         { timeout: 10000 },
       )
       .toBe(otherProfile.did);
-    await expect(
-      page.locator('[data-testid="footer-nav-profile"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       page.locator('[data-testid="account-switcher-dialog"]'),
     ).toHaveCount(0);
@@ -318,9 +310,9 @@ test.describe("Account switch flow with an account needing re-auth", () => {
       { did: otherProfile.did, handle: otherProfile.handle, needsReauth: true },
     ]);
     await page.goto("/");
-    await expect(
-      page.locator('[data-testid="footer-nav-profile"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("shows the re-auth state on the account without a session", async ({

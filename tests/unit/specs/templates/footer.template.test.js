@@ -3,18 +3,10 @@ import assert from "node:assert/strict";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const mockUser = {
-  did: "did:plc:testuser",
-  handle: "testuser.bsky.social",
-  displayName: "Test User",
-  avatar: "https://example.com/avatar.jpg",
-};
-
 describe("footerTemplate - logged out state", () => {
   it("should render logged out footer when not authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: false,
-      currentUser: null,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -26,7 +18,6 @@ describe("footerTemplate - logged out state", () => {
   it("should render sign in button when not authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: false,
-      currentUser: null,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -37,7 +28,6 @@ describe("footerTemplate - logged out state", () => {
   it("should render brand title when not authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: false,
-      currentUser: null,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -50,7 +40,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render footer nav when authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -64,7 +53,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render nav element when authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -74,7 +62,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render home nav item", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -85,7 +72,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render search nav item", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -98,7 +84,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render messages nav item", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -109,7 +94,6 @@ describe("footerTemplate - logged in state", () => {
   it("should render notifications nav item", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -119,23 +103,45 @@ describe("footerTemplate - logged in state", () => {
     assert(notificationsLink !== null);
   });
 
-  it("should render profile nav item with user handle", () => {
-    const result = footerTemplate({
-      isAuthenticated: true,
-      currentUser: mockUser,
-    });
+  it("should render plugins nav item", () => {
+    const result = footerTemplate({ isAuthenticated: true });
     const container = document.createElement("div");
     render(result, container);
-    const profileLink = container.querySelector(
-      "[data-testid='footer-nav-profile']",
+    const pluginsLink = container.querySelector(
+      "[data-testid='footer-nav-plugins']",
     );
-    assert(profileLink !== null);
+    assert.deepEqual(pluginsLink.getAttribute("href"), "/plugins/installed");
+  });
+
+  it("should not render a profile nav item", () => {
+    const result = footerTemplate({ isAuthenticated: true });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='footer-nav-profile']"),
+      null,
+    );
+  });
+
+  it("should order nav items home, search, plugins, notifications, chat", () => {
+    const result = footerTemplate({ isAuthenticated: true });
+    const container = document.createElement("div");
+    render(result, container);
+    const ids = [...container.querySelectorAll(".footer-nav-item")].map(
+      (item) => item.dataset.testid,
+    );
+    assert.deepEqual(ids, [
+      "footer-nav-home",
+      "footer-nav-search",
+      "footer-nav-plugins",
+      "footer-nav-notifications",
+      "footer-nav-chat",
+    ]);
   });
 
   it("should mark active nav item", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
       activeNavItem: "home",
     });
     const container = document.createElement("div");
@@ -152,7 +158,6 @@ describe("footerTemplate - notification badges", () => {
   it("should show notification badge when numNotifications > 0", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
       numNotifications: 5,
     });
     const container = document.createElement("div");
@@ -164,7 +169,6 @@ describe("footerTemplate - notification badges", () => {
   it("should show chat notification badge when numChatNotifications > 0", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
       numChatNotifications: 3,
     });
     const container = document.createElement("div");
@@ -176,7 +180,6 @@ describe("footerTemplate - notification badges", () => {
   it("should not show badges when notification counts are 0", () => {
     const result = footerTemplate({
       isAuthenticated: true,
-      currentUser: mockUser,
       numNotifications: 0,
       numChatNotifications: 0,
     });
@@ -184,37 +187,5 @@ describe("footerTemplate - notification badges", () => {
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='status-badge']");
     assert.deepEqual(badges.length, 0);
-  });
-});
-
-describe("footerTemplate - profile long-press", () => {
-  function renderFooter({ onLongPressProfile = null } = {}) {
-    const container = document.createElement("div");
-    render(
-      footerTemplate({
-        isAuthenticated: true,
-        currentUser: mockUser,
-        onLongPressProfile,
-      }),
-      container,
-    );
-    return container.querySelector("[data-testid='footer-nav-profile']");
-  }
-
-  it("marks the profile item long-press-enabled when a handler is provided", () => {
-    const profileLink = renderFooter({ onLongPressProfile: () => {} });
-    assert(profileLink.classList.contains("long-press-enabled"));
-  });
-
-  it("does not mark the profile item when no handler is provided", () => {
-    const profileLink = renderFooter();
-    assert(!profileLink.classList.contains("long-press-enabled"));
-  });
-
-  it("invokes the handler when a long-press fires on the profile item", () => {
-    let fired = 0;
-    const profileLink = renderFooter({ onLongPressProfile: () => fired++ });
-    profileLink.dispatchEvent(new CustomEvent("long-press"));
-    assert.deepEqual(fired, 1);
   });
 });

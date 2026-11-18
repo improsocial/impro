@@ -178,8 +178,8 @@ html {
 
   /* avatar sizes */
   --avatar-size-quoted-post: 16px;
-  --avatar-size-footer-nav: 24px;
   --avatar-size-thread-tree: 24px;
+  --avatar-size-menu-button: 30px;
   --avatar-size-followed-by: 24px;
   --avatar-size-reply-prompt: 28px;
   --avatar-size-message: 32px;
@@ -1006,6 +1006,19 @@ plugin-slot {
   font-size: 24px;
   height: 30px;
   width: 30px;
+}
+
+.menu-button:has(.avatar) {
+  margin: 4px;
+}
+
+.menu-button .avatar {
+  display: flex;
+}
+
+.menu-button .avatar-image-frame {
+  width: var(--avatar-size-menu-button);
+  height: var(--avatar-size-menu-button);
 }
 
 @media (min-width: 800px) {
@@ -2028,15 +2041,9 @@ button.sidebar-plugin-nav-item {
   position: relative;
 }
 
-.footer-nav-item .avatar {
-  height: 24px;
-  width: 24px;
-}
-
 /* Long-press to open the account switcher: stop iOS link previews / text
    selection from hijacking the hold gesture */
-.sidebar-profile-avatar.long-press-enabled,
-.footer-nav-item.long-press-enabled {
+.sidebar-profile-avatar.long-press-enabled {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -2054,17 +2061,6 @@ button.sidebar-plugin-nav-item {
 .footer-nav-item .status-badge {
   top: 10px;
   left: calc(50% - 1px);
-}
-
-.footer-nav-item .avatar-image-frame {
-  width: var(--avatar-size-footer-nav);
-  height: var(--avatar-size-footer-nav);
-}
-
-.footer-nav-item[disabled] {
-  pointer-events: none;
-  cursor: default;
-  opacity: 0.5;
 }
 
 .footer-nav-item.active {

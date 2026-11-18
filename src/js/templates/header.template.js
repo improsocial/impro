@@ -2,6 +2,10 @@ import { html } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
 import "/js/components/app-icon.js";
+import {
+  avatarPlaceholderTemplate,
+  avatarTemplate as profileAvatarTemplate,
+} from "/js/templates/avatar.template.js";
 
 function avatarAndTitleTemplate({
   title,
@@ -41,6 +45,8 @@ export function headerTemplate({
   backButtonFallbackRoute = null,
   onClickBackButton = null,
   onClickMenuButton = null,
+  showMenuButtonAvatar = false,
+  menuButtonUser = null,
   rightItemTemplate = null,
   bottomItemTemplate = null,
 } = {}) {
@@ -56,7 +62,15 @@ export function headerTemplate({
             data-testid="menu-button"
             @click=${onClickMenuButton}
           >
-            <app-icon icon="hamburger-menu"></app-icon>
+            ${!showMenuButtonAvatar
+              ? html`<app-icon icon="hamburger-menu"></app-icon>`
+              : menuButtonUser
+                ? profileAvatarTemplate({
+                    author: menuButtonUser,
+                    clickAction: "none",
+                    showLiveBadge: false,
+                  })
+                : avatarPlaceholderTemplate()}
           </button>`
         : html`<button
             class="icon-button back-button"

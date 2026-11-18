@@ -912,6 +912,8 @@ export default async function notificationsView({
           showLoadingSpinner: isLoading,
           leftButton: "menu",
           onClickMenuButton: handleMenuClick,
+          showMenuButtonAvatar: isAuthenticated,
+          menuButtonUser: currentUser,
           bottomItemTemplate: () => html`
             <tab-bar
               .tabs=${[
