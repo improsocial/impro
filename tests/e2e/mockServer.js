@@ -103,6 +103,7 @@ export class MockServer {
     this.searchFeedGenerators = [];
     this.searchStarterPacks = [];
     this.trends = [];
+    this.suggestedFeeds = [];
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
@@ -518,6 +519,10 @@ export class MockServer {
 
   addTrends(trends) {
     this.trends.push(...trends);
+  }
+
+  addSuggestedFeeds(feeds) {
+    this.suggestedFeeds.push(...feeds);
   }
 
   addTypeaheadProfiles(profiles) {
@@ -2300,6 +2305,24 @@ export class MockServer {
         body: JSON.stringify({ trends }),
       });
     });
+
+    // Like trends, the suggested feeds pane renders on nearly every
+    // authenticated desktop page.
+    await page.route(
+      "**/xrpc/app.bsky.unspecced.getSuggestedFeeds*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+        const feeds = limit
+          ? this.suggestedFeeds.slice(0, limit)
+          : this.suggestedFeeds;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ feeds }),
+        });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.feed.getActorFeeds*", (route) => {
       const url = new URL(route.request().url());

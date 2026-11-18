@@ -305,6 +305,14 @@ export class Preferences {
     return this.getPinnedFeeds().some((feed) => feed.value === feedUri);
   }
 
+  isFeedSaved(feedUri) {
+    const savedFeedsPreference = Preferences.getSavedFeedsPreference(this.obj);
+    if (!savedFeedsPreference) {
+      return false;
+    }
+    return savedFeedsPreference.items.some((item) => item.value === feedUri);
+  }
+
   getLabelerDids() {
     return Preferences.getLabelerDidsFromPreferences(this.obj);
   }

@@ -9,7 +9,7 @@ import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/trending-pane.js";
 import "/js/components/sidebar-search.js";
-import "/js/components/pinned-feeds-pane.js";
+import "/js/components/suggested-feeds-pane.js";
 import "/js/components/app-icon.js";
 
 function exitPluginPreview() {
@@ -73,6 +73,7 @@ export function mainLayoutTemplate({
   onLongPressProfile = null,
   groupChatLinkService,
   liveStatusService,
+  feedInteractionHandler,
   dataLayer,
 }) {
   return html`
@@ -111,17 +112,16 @@ export function mainLayoutTemplate({
                 .dataLayer=${dataLayer}
                 .isAuthenticated=${isAuthenticated}
               ></sidebar-search>`}
-          ${isAuthenticated
-            ? html`<pinned-feeds-pane
-                .dataLayer=${dataLayer}
-                ?show-selected=${activeNavItem === "home"}
-                ?more-feeds-active=${activeNavItem === "feeds"}
-              ></pinned-feeds-pane>`
-            : ""}
           <trending-pane
             .dataLayer=${dataLayer}
             .isAuthenticated=${isAuthenticated}
           ></trending-pane>
+          ${isAuthenticated
+            ? html`<suggested-feeds-pane
+                .dataLayer=${dataLayer}
+                .feedInteractionHandler=${feedInteractionHandler}
+              ></suggested-feeds-pane>`
+            : ""}
         </div>
       </div>
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
@@ -167,6 +167,7 @@ export class MainLayout extends Layout {
       groupChatLinkService,
       liveStatusService,
       profileHoverCardService,
+      interactionHandlers,
       auth,
     } = this.context;
     const { router, slot } = this;
@@ -226,6 +227,7 @@ export class MainLayout extends Layout {
           onLongPressProfile,
           groupChatLinkService,
           liveStatusService,
+          feedInteractionHandler: interactionHandlers.feedInteractionHandler,
           dataLayer,
         }),
         container,

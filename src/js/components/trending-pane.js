@@ -3,15 +3,12 @@ import { Component } from "/js/components/component.js";
 import { Signal, effect } from "/js/signals.js";
 import { formatRelativeTime, whenElementVisible } from "/js/utils.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
+import { sidebarPaneTemplate } from "/js/templates/sidebarPane.template.js";
 import {
   avatarPlaceholderTemplate,
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
 import "/js/components/container-link.js";
-import "/js/components/app-icon.js";
-import "/js/components/context-menu.js";
-import "/js/components/context-menu-item.js";
-import "/js/components/context-menu-item-group.js";
 
 const TREND_LIMIT = 4;
 const TREND_AVATAR_LIMIT = 3;
@@ -115,48 +112,20 @@ function trendingSkeletonTemplate() {
   </div>`;
 }
 
-function trendingOptionsButtonTemplate({ onClick }) {
-  return html`<button
-    class="trending-options-button"
-    data-testid="trending-options-button"
-    aria-label="Trending options"
-    @click=${onClick}
-  >
-    <app-icon icon="more-menu-large"></app-icon>
-  </button>`;
-}
-
-function trendingContextMenuTemplate({ onHide }) {
-  return html`<context-menu-item-group>
-    <context-menu-item
-      data-testid="menu-action-hide-trending"
-      icon="eye-off-line"
-      @click=${onHide}
-    >
-      Hide trending topics
-    </context-menu-item>
-  </context-menu-item-group>`;
-}
-
-function trendingPaneTemplate({
-  rows,
-  isLoading,
-  isAuthenticated,
-  onClickOptions,
-}) {
-  return html`<section class="trending-pane" data-testid="trending-pane">
-    <header class="trending-pane-header">
-      <h2 class="trending-pane-title">Trending</h2>
-      ${isAuthenticated
-        ? trendingOptionsButtonTemplate({ onClick: onClickOptions })
-        : ""}
-    </header>
-    <div class="trending-list">
+function trendingPaneTemplate({ rows, isLoading, isAuthenticated, onDismiss }) {
+  return sidebarPaneTemplate({
+    className: "trending-pane",
+    testId: "trending-pane",
+    title: "Trending",
+    dismissLabel: "Hide trending topics",
+    dismissTestId: "trending-dismiss-button",
+    onDismiss: isAuthenticated ? onDismiss : null,
+    children: html`<div class="trending-list">
       ${isLoading
         ? Array.from({ length: TREND_LIMIT }, () => trendingSkeletonTemplate())
         : rows.map((row) => trendingRowTemplate(row))}
-    </div>
-  </section>`;
+    </div>`,
+  });
 }
 
 function toRows(trends) {
@@ -205,7 +174,7 @@ class TrendingPane extends Component {
             rows,
             isLoading,
             isAuthenticated: this.isAuthenticated,
-            onClickOptions: (event) => this.openContextMenu(event),
+            onDismiss: () => this.handleHide(),
           }),
           this,
         );
@@ -230,22 +199,6 @@ class TrendingPane extends Component {
     if (this.dataLayer.derived.$trends.get() === null) {
       this.$failed?.set(true);
     }
-  }
-
-  openContextMenu(event) {
-    const menu = document.createElement("context-menu");
-    menu.classList.add("trending-context-menu");
-    const itemHolder = document.createElement("div");
-    render(
-      trendingContextMenuTemplate({ onHide: () => this.handleHide() }),
-      itemHolder,
-    );
-    menu.append(...itemHolder.childNodes);
-    document.body.appendChild(menu);
-    menu.open(event.clientX, event.clientY);
-    menu
-      .querySelector("dialog")
-      .addEventListener("close", () => menu.remove(), { once: true });
   }
 
   async handleHide() {

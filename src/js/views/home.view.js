@@ -215,12 +215,6 @@ export default async function homeView({
     scrollAndReloadFeed();
   });
 
-  // Dispatched by the pinned feeds pane in the right column
-  bindToPage(root, window, "home-feed-select", (event) => {
-    const feedUri = event.detail;
-    handleTabClick(feedUri);
-  });
-
   const $currentPinnedItem = new Signal.Computed(() => {
     const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();

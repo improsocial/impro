@@ -112,8 +112,7 @@ test.describe("Trending pane", () => {
       timeout: 10000,
     });
 
-    await page.locator('[data-testid="trending-options-button"]').click();
-    await page.locator('[data-testid="menu-action-hide-trending"]').click();
+    await page.locator('[data-testid="trending-dismiss-button"]').click();
     await page.locator('[data-testid="modal-confirm-button"]').click();
 
     await expect(page.locator('[data-testid="trending-pane"]')).toHaveCount(0);

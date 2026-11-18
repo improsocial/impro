@@ -293,6 +293,7 @@ export class Requests {
       (did) => "loadActorStarterPacks-" + did,
     );
     this.enableStatus(this.loadPopularFeeds, "loadPopularFeeds");
+    this.enableStatus(this.loadSuggestedFeeds, "loadSuggestedFeeds");
     this.enableStatus(
       this.loadAllListMembers,
       (listUri) => "loadAllListMembers-" + listUri,
@@ -1501,6 +1502,18 @@ export class Requests {
     const feeds = data.feeds ?? [];
     this.dataStore.setFeedGenerators(feeds);
     this.dataStore.$popularFeeds.set(feeds);
+  }
+
+  // Saved feeds are excluded once, at load time, so a feed pinned from the
+  // suggestions stays listed (as pinned) until the next load
+  async loadSuggestedFeeds({ limit }) {
+    const data = await this.api.getSuggestedFeeds({ limit });
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const feeds = data.feeds ?? [];
+    this.dataStore.setFeedGenerators(feeds);
+    this.dataStore.$suggestedFeeds.set(
+      feeds.filter((feed) => !preferences.isFeedSaved(feed.uri)),
+    );
   }
 
   async loadCurrentUserLists({ reload = false } = {}) {

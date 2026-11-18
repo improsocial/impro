@@ -44,6 +44,11 @@ test.describe("Feed Detail view", () => {
     await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
       "@creator1.bsky.social",
     );
+    await expect(
+      view.locator(
+        '[data-testid="header-subtitle"] [data-testid="feed-like-count"]',
+      ),
+    ).toHaveText("10");
 
     await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(2, {
       timeout: 10000,

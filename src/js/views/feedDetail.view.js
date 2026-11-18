@@ -6,6 +6,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
+import { feedLikeCountTemplate } from "/js/templates/feedLikeCount.template.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
@@ -39,6 +40,12 @@ function feedHeaderSubtitleSkeletonTemplate() {
   return html`&#8203;<span
       class="skeleton-line-shorter skeleton-animate feed-detail-header-skeleton-line"
     ></span>`;
+}
+
+function feedSubtitleTemplate({ handle, likeCount }) {
+  return html`${handle ? `@${handle}` : ""}${handle && likeCount
+    ? " · "
+    : ""}${likeCount ? feedLikeCountTemplate({ likeCount }) : ""}`;
 }
 
 export default async function feedDetailView({
@@ -87,7 +94,10 @@ export default async function feedDetailView({
           ...(feedGenerator
             ? {
                 title: feedName,
-                subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
+                subtitle: feedSubtitleTemplate({
+                  handle: feedAuthorHandle,
+                  likeCount: feedGenerator.likeCount,
+                }),
                 avatarTemplate: () => feedAvatarTemplate({ feedGenerator }),
               }
             : {

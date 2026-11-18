@@ -571,6 +571,9 @@ export class Derived extends ReactiveStore {
     this.$trendingHidden = new Signal.Computed(() =>
       this.sessionState.$trendingHidden.get(),
     );
+    this.$suggestedFeedsHidden = new Signal.Computed(() =>
+      this.sessionState.$suggestedFeedsHidden.get(),
+    );
     this.$postLanguageHistory = new Signal.Computed(() =>
       this.sessionState.$postLanguageHistory.get(),
     );
@@ -732,6 +735,21 @@ export class Derived extends ReactiveStore {
             feed.creator.did === currentUserDid ||
             (!feed.creator.viewer?.muted &&
               !shouldHideCreatedItem(feed, labeling)),
+        );
+    });
+    this.$suggestedFeeds = new Signal.Computed(() => {
+      const feeds = this.dataStore.$suggestedFeeds.get();
+      if (!feeds) return null;
+      const labeling = this.$labeling.get();
+      return feeds
+        .map(
+          (feed) =>
+            this.$feedGenerators.get(feed.uri) ?? this.hydrateCreator(feed),
+        )
+        .filter(
+          (feed) =>
+            !feed.creator.viewer?.muted &&
+            !shouldHideCreatedItem(feed, labeling),
         );
     });
     this.$listsWithMembershipByActor = new ComputedMap((did) =>

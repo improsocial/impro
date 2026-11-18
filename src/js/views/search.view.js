@@ -548,8 +548,8 @@ export default async function searchView({
         feedInteractionHandler.handlePinFeed(feedGenerator.uri, !isPinned);
       }}
     >
-      ${isPinned ? "" : fillableIconTemplate({ icon: "pin" })}
-      ${isPinned ? "Unpin feed" : "Pin feed"}
+      ${fillableIconTemplate({ icon: "pin", filled: isPinned })}
+      ${isPinned ? "Unpin" : "Pin"}
     </button>`;
   }
 

@@ -46,6 +46,10 @@ export default async function settingsContentAndMediaView({
     dataLayer.mutations.setTrendingHidden(!shown);
   }
 
+  function handleSuggestedFeedsChange(shown) {
+    dataLayer.mutations.setSuggestedFeedsHidden(!shown);
+  }
+
   async function handleThreadViewChange(isTree) {
     try {
       await dataLayer.mutations.setThreadView(isTree ? "tree" : "linear");
@@ -65,6 +69,7 @@ export default async function settingsContentAndMediaView({
   pageEffect(root, () => {
     const autoplayDisabled = deviceState.$autoplayDisabled.get();
     const trendingHidden = dataLayer.derived.$trendingHidden.get();
+    const suggestedFeedsHidden = dataLayer.derived.$suggestedFeedsHidden.get();
     const threadView = dataLayer.derived.$threadView.get();
     const hapticsDisabled = deviceState.$hapticsDisabled.get();
     render(
@@ -124,6 +129,26 @@ export default async function settingsContentAndMediaView({
                 label="Show trending topics"
                 ?checked=${!trendingHidden}
                 @change=${(event) => handleTrendingChange(event.detail.checked)}
+              ></toggle-switch>
+            </div>
+          </section>
+          <section
+            class="setting-item"
+            data-testid="settings-section-suggested-feeds"
+          >
+            <div class="setting-item-info">
+              <h2 class="setting-item-name">Show suggested feeds</h2>
+              <p class="setting-item-desc">
+                Show suggested feeds in the sidebar.
+              </p>
+            </div>
+            <div class="setting-item-control">
+              <toggle-switch
+                data-testid="suggested-feeds-toggle"
+                label="Show suggested feeds"
+                ?checked=${!suggestedFeedsHidden}
+                @change=${(event) =>
+                  handleSuggestedFeedsChange(event.detail.checked)}
               ></toggle-switch>
             </div>
           </section>

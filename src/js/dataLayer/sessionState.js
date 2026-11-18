@@ -10,9 +10,10 @@ export function createSessionState(session) {
   } else {
     sessionState = new ReactiveStore("sessionState");
   }
-  // The home view's selected feed, shared with the pinned feeds pane
+  // The home view's selected feed
   sessionState.$selectedFeedUri = new Signal.State(null);
   sessionState.$trendingHidden = new Signal.State(false);
+  sessionState.$suggestedFeedsHidden = new Signal.State(false);
   sessionState.$postLanguageHistory = new Signal.State(
     getDefaultPostLanguageHistory(),
   );

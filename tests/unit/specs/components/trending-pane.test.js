@@ -293,7 +293,7 @@ describe("trending-pane", () => {
     );
   });
 
-  it("omits the options button when logged out", async () => {
+  it("omits the dismiss button when logged out", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: [createTrend({ topic: "gardening" })],
     }));
@@ -302,25 +302,24 @@ describe("trending-pane", () => {
 
     assert(element.querySelector("[data-testid='trending-pane']"));
     assert.deepEqual(
-      element.querySelector("[data-testid='trending-options-button']"),
+      element.querySelector("[data-testid='trending-dismiss-button']"),
       null,
     );
   });
 
-  it("opens a context menu with a hide action from the options button", async () => {
+  it("keeps the pane when the hide prompt is cancelled", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: [createTrend({ topic: "gardening" })],
     }));
     const element = mount(dataLayer);
     await flushMicrotasks();
 
-    element.querySelector("[data-testid='trending-options-button']").click();
+    element.querySelector("[data-testid='trending-dismiss-button']").click();
+    await respondToConfirm(false);
+    await flushMicrotasks();
 
-    const menu = document.querySelector(".trending-context-menu");
-    assert(menu);
-    assert.deepEqual(menu.querySelectorAll("context-menu-item").length, 1);
-    assert(menu.querySelector("[data-testid='menu-action-hide-trending']"));
     assert.deepEqual(dataLayer.derived.$trendingHidden.get(), false);
+    assert(element.querySelector("[data-testid='trending-pane']"));
   });
 
   it("hides the pane after confirming the hide prompt", async () => {
@@ -330,10 +329,7 @@ describe("trending-pane", () => {
     const element = mount(dataLayer);
     await flushMicrotasks();
 
-    element.querySelector("[data-testid='trending-options-button']").click();
-    document
-      .querySelector("[data-testid='menu-action-hide-trending'] button")
-      .click();
+    element.querySelector("[data-testid='trending-dismiss-button']").click();
     await respondToConfirm(true);
     await flushMicrotasks();
 

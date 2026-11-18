@@ -20,6 +20,9 @@ test.describe("Settings Content and media view", () => {
     await expect(
       view.locator('[data-testid="settings-section-trending"]'),
     ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="settings-section-suggested-feeds"]'),
+    ).toBeVisible();
   });
 
   test("should enable autoplay by default", async ({ page }) => {
@@ -75,6 +78,29 @@ test.describe("Settings Content and media view", () => {
     await expect(
       page.locator(
         '#settings-content-and-media-view [data-testid="trending-toggle"]',
+      ),
+    ).not.toHaveAttribute("checked", { timeout: 10000 });
+  });
+
+  test("should keep suggested feeds hidden after a reload", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const view = page.locator("#settings-content-and-media-view");
+    const toggle = view.locator('[data-testid="suggested-feeds-toggle"]');
+    await expect(toggle).toHaveAttribute("checked", "", { timeout: 10000 });
+    await toggle.click();
+    await expect(toggle).not.toHaveAttribute("checked");
+
+    await page.reload();
+    await expect(
+      page.locator(
+        '#settings-content-and-media-view [data-testid="suggested-feeds-toggle"]',
       ),
     ).not.toHaveAttribute("checked", { timeout: 10000 });
   });

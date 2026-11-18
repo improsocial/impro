@@ -32,20 +32,14 @@ describe("MainLayout", () => {
     const composePost = mock.fn();
     const $trends = new Signal.State(null);
     const loadTrends = mock.fn(async () => {});
-    const $hydratedPinnedItems = new Signal.State(null);
-    const $selectedFeedUri = new Signal.State(null);
-    const ensurePinnedItems = mock.fn(async () => []);
     const context = {
       isAuthenticated: true,
       dataLayer: {
         derived: {
           $currentUser,
           $trends,
-          $hydratedPinnedItems,
-          $selectedFeedUri,
         },
         requests: { loadTrends },
-        declarative: { ensurePinnedItems },
       },
       notificationService: { $numNotifications },
       chatNotificationService: { $numNotifications: $numChatNotifications },
@@ -144,14 +138,9 @@ describe("MainLayout", () => {
     );
     assert.deepEqual(elements, [
       "sidebar-search",
-      "pinned-feeds-pane",
       "trending-pane",
+      "suggested-feeds-pane",
     ]);
-    assert(
-      rightColumn
-        .querySelector("pinned-feeds-pane")
-        .hasAttribute("show-selected"),
-    );
 
     setRoute({ layoutOptions: { activeNavItem: "search" } });
     await flushRender();
@@ -316,8 +305,8 @@ describe("mainLayoutTemplate", () => {
   });
 });
 
-describe("mainLayoutTemplate - pinned feeds pane", () => {
-  it("renders the pinned feeds pane only when authenticated", () => {
+describe("mainLayoutTemplate - suggested feeds pane", () => {
+  it("renders the suggested feeds pane only when authenticated", () => {
     const container = document.createElement("div");
     render(
       mainLayoutTemplate({
@@ -328,7 +317,7 @@ describe("mainLayoutTemplate - pinned feeds pane", () => {
       }),
       container,
     );
-    assert(container.querySelector("pinned-feeds-pane") !== null);
+    assert(container.querySelector("suggested-feeds-pane") !== null);
 
     const loggedOutContainer = document.createElement("div");
     render(
@@ -341,7 +330,7 @@ describe("mainLayoutTemplate - pinned feeds pane", () => {
       loggedOutContainer,
     );
     assert.deepEqual(
-      loggedOutContainer.querySelector("pinned-feeds-pane"),
+      loggedOutContainer.querySelector("suggested-feeds-pane"),
       null,
     );
   });

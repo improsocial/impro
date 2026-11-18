@@ -621,6 +621,17 @@ export class Api {
     return res.data;
   }
 
+  async getSuggestedFeeds({ limit }) {
+    const res = await this.appViewRequest(
+      `app.bsky.unspecced.getSuggestedFeeds`,
+      {
+        query: { limit },
+        headers: { "Accept-Language": buildAcceptLanguageHeader() },
+      },
+    );
+    return res.data;
+  }
+
   async getTrends({ limit = 5 } = {}) {
     const res = await this.appViewRequest(`app.bsky.unspecced.getTrends`, {
       query: { limit },

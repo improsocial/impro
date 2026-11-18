@@ -258,8 +258,7 @@ html {
   --post-thread-reply-prompt-height: 50px;
   --message-input-min-height: 70px;
   --sidebar-max-width: 300px;
-  --right-column-width: 350px;
-  --right-column-width-compact: 290px;
+  --right-column-width: 377px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
 
   /* overlays */
@@ -413,8 +412,9 @@ video {
   }
 
   .view-column-left {
-    flex: 1 1 var(--sidebar-max-width);
-    min-width: 0;
+    /* Gives up its spare width before the right column shrinks at all */
+    flex: 1 100 var(--sidebar-max-width);
+    min-width: min-content;
     max-width: var(--sidebar-max-width);
     display: flex;
     flex-direction: row;
@@ -450,40 +450,37 @@ video {
 
 @media (min-width: 1000px) {
   .view-column-right {
-    flex: 0 0 var(--right-column-width-compact);
+    flex: 0 1 var(--right-column-width);
     max-width: none;
   }
 }
 
-@media (min-width: 1100px) {
-  .view-column-right {
-    flex-basis: var(--right-column-width);
-  }
-}
-
-trending-pane {
+trending-pane,
+suggested-feeds-pane {
   display: none;
 }
 
 @media (min-width: 1000px) {
-  trending-pane {
+  trending-pane,
+  suggested-feeds-pane {
     display: block;
     flex-shrink: 0;
   }
 
-  trending-pane:empty {
+  trending-pane:empty,
+  suggested-feeds-pane:empty {
     display: none;
   }
 }
 
-.trending-pane {
+.sidebar-pane {
   display: block;
   padding: 16px;
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--card-border-radius);
 }
 
-.trending-pane-header {
+.sidebar-pane-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -491,14 +488,14 @@ trending-pane {
   border-bottom: none;
 }
 
-.trending-pane-title {
+.sidebar-pane-title {
   flex: 1;
   margin: 0;
   font-size: 18px;
   font-weight: 700;
 }
 
-.trending-options-button {
+.sidebar-pane-dismiss-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -513,122 +510,147 @@ trending-pane {
   color: var(--text-color-muted);
 }
 
-.trending-options-button app-icon {
+.sidebar-pane-dismiss-button app-icon {
   width: 16px;
   height: 16px;
   display: block;
 }
 
-pinned-feeds-pane {
-  display: none;
-}
-
-@media (min-width: 1000px) {
-  pinned-feeds-pane {
-    display: block;
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-  }
-
-  pinned-feeds-pane:empty {
-    display: none;
+@media (hover: hover) {
+  .sidebar-pane-dismiss-button:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--text-color-muted) 15%,
+      transparent
+    );
   }
 }
 
-.pinned-feeds-pane {
+.suggested-feeds-list {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  gap: 20px;
 }
 
-.pinned-feeds-item {
+.suggested-feed-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  border: none;
-  border-radius: var(--sidebar-nav-item-border-radius);
-  background: none;
-  color: var(--text-color-muted);
-  font-family: inherit;
-  font-size: 15px;
-  text-align: left;
-  text-decoration: none;
+  gap: 10px;
   cursor: pointer;
 }
 
-.pinned-feeds-item app-icon {
-  width: 15px;
-  height: 15px;
+.suggested-feed-row-skeleton {
+  cursor: default;
 }
 
-@media (hover: hover) {
-  .pinned-feeds-item:hover {
-    color: var(--text-color);
-  }
+.suggested-feed-avatar {
+  display: block;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--feed-avatar-border-radius);
+  object-fit: cover;
 }
 
-.pinned-feeds-item.active {
-  background: var(--highlight-color-tint);
-  color: var(--text-color);
-  font-weight: 600;
+.suggested-feed-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
-.pinned-feeds-item-label {
+.suggested-feed-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.pinned-feeds-item-avatar {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--feed-avatar-border-radius);
-  object-fit: cover;
-}
-
-.pinned-feeds-item-icon {
+.suggested-feed-meta {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--text-color-muted);
+  white-space: nowrap;
+}
+
+.suggested-feed-meta-item {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--feed-avatar-border-radius);
 }
 
-.pinned-feeds-timeline-icon {
-  background: var(--highlight-color);
-  color: var(--white);
+.suggested-feed-meta-item:first-child {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.pinned-feeds-more-icon {
-  background: var(--post-hover-color);
+.suggested-feed-meta-item + .suggested-feed-meta-item::before {
+  content: " · ";
+  white-space: pre;
 }
 
-.pinned-feeds-item-skeleton {
-  align-self: stretch;
-  max-width: none;
+.feed-like-count {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: bottom;
 }
 
-.pinned-feeds-item-skeleton {
-  cursor: default;
+@container (max-width: 280px) {
+  .suggested-feed-meta-item:not(.feed-like-count) {
+    display: none;
+  }
+
+  .suggested-feed-meta-item.feed-like-count::before {
+    display: none;
+  }
 }
 
-.pinned-feeds-skeleton-label {
-  flex: 1;
+.feed-like-count app-icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 2px;
 }
 
-.pinned-feeds-skeleton-bar {
+.rounded-button.suggested-feed-pin-button {
+  flex-shrink: 0;
+  gap: 4px;
+  min-width: 58px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--text-color);
+}
+
+.suggested-feed-pin-button app-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.suggested-feed-skeleton-bar {
   display: inline-block;
+  width: 70%;
   height: 14px;
   vertical-align: middle;
   border-radius: var(--skeleton-border-radius);
+}
+
+.suggested-feed-skeleton-bar-meta {
+  width: 45%;
+  height: 12px;
+}
+
+@media (hover: hover) {
+  .suggested-feed-row:not(.suggested-feed-row-skeleton):not(
+      :has(.suggested-feed-pin-button:hover)
+    ):hover
+    .suggested-feed-title {
+    text-decoration: underline;
+  }
 }
 
 .trending-list {
@@ -726,14 +748,6 @@ pinned-feeds-pane {
 @media (hover: hover) {
   .trending-row:not(.trending-row-skeleton):hover .trending-title {
     text-decoration: underline;
-  }
-
-  .trending-options-button:hover {
-    background-color: color-mix(
-      in srgb,
-      var(--text-color-muted) 15%,
-      transparent
-    );
   }
 }
 

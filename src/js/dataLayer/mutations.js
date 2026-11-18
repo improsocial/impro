@@ -625,6 +625,10 @@ export class Mutations {
     this.sessionState.$trendingHidden.set(hidden);
   }
 
+  setSuggestedFeedsHidden(hidden) {
+    this.sessionState.$suggestedFeedsHidden.set(hidden);
+  }
+
   updatePostLanguageHistory(languages) {
     const history = untrack(() => this.sessionState.$postLanguageHistory.get());
     this.sessionState.$postLanguageHistory.set(
