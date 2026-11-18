@@ -54,16 +54,21 @@ import { showToast } from "/js/toasts.js";
 
 const SCROLLED_DOWN_LIMIT = 250;
 
-function loadLatestButtonTemplate({ hasNew, onClick }) {
-  return html`<button
-    class=${classnames("load-latest-button", { "has-new": hasNew })}
-    data-testid="load-latest-button"
-    data-teststate=${hasNew ? "has-new" : "default"}
-    aria-label="Load new notifications"
-    @click=${() => onClick()}
-  >
-    <app-icon icon="arrow-up-line"></app-icon>
-  </button>`;
+function refreshPillTemplate({ visible, isScrolledDown, onClick }) {
+  return html`<div class="refresh-pill-strip">
+    <button
+      class=${classnames("refresh-pill", { "is-visible": visible })}
+      data-testid="refresh-pill"
+      data-teststate=${isScrolledDown ? "new" : "refresh"}
+      aria-label="Load new notifications"
+      ?inert=${!visible}
+      @click=${() => onClick()}
+    >
+      ${isScrolledDown
+        ? html`<app-icon icon="arrow-up-line"></app-icon><span>New</span>`
+        : html`<span>Refresh</span>`}
+    </button>
+  </div>`;
 }
 
 function notificationItemTemplate({ type, href, isUnread, children }) {
@@ -894,7 +899,7 @@ export default async function notificationsView({
       activeTab === "all" &&
       notificationService.$numNotifications.get() > 0 &&
       !notificationsRequestStatus.loading;
-    const showLoadLatestButton = state.$isScrolledDown.get() || hasNew;
+    const isScrolledDown = state.$isScrolledDown.get();
 
     const isLoading =
       activeTab === "all"
@@ -925,6 +930,12 @@ export default async function notificationsView({
               @tab-click=${(event) => handleTabClick(event.detail)}
             ></tab-bar>
           `,
+          overlayTemplate: () =>
+            refreshPillTemplate({
+              visible: hasNew,
+              isScrolledDown,
+              onClick: scrollAndReloadNotifications,
+            }),
         })}
         <main>
           <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
@@ -966,12 +977,6 @@ export default async function notificationsView({
             })()}
           </div>
         </main>
-        ${showLoadLatestButton
-          ? loadLatestButtonTemplate({
-              hasNew,
-              onClick: scrollAndReloadNotifications,
-            })
-          : ""}
         ${isAuthenticated
           ? floatingComposeButtonTemplate({
               disabled: !currentUser,

@@ -8237,55 +8237,61 @@ sidebar-search {
   height: 24px;
 }
 
-.load-latest-button {
+.refresh-pill-strip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   display: flex;
-  position: fixed;
-  bottom: calc(79px + var(--safe-area-inset-bottom));
-  left: 20px;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  border-radius: var(--circular-button-border-radius);
-  background-color: var(--background-color);
-  color: var(--text-color-muted);
-  border: var(--hair) solid var(--post-border-color);
-  box-shadow: var(--shadow-color-light);
-  cursor: pointer;
-  z-index: var(--fab-z-index);
-  align-items: center;
   justify-content: center;
-  transition: transform 0.2s;
+  padding: 12px 0 20px;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.load-latest-button.has-new {
-  background-color: color-mix(
-    in srgb,
-    var(--highlight-color) 12%,
-    var(--background-color)
-  );
-  color: var(--highlight-color);
+.refresh-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--highlight-color);
+  color: var(--highlight-button-text-color);
+  box-shadow: var(--shadow-color-light);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-56px);
+  visibility: hidden;
+  transition:
+    transform 0.2s ease-in,
+    visibility 0s 0.2s;
 }
 
-@media (hover: hover) {
-  .load-latest-button:hover {
-    transform: scale(1.05);
-  }
+.refresh-pill.is-visible {
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0s;
 }
 
-.load-latest-button:active {
+.refresh-pill.is-visible:active {
   transform: scale(0.95);
 }
 
-.load-latest-button app-icon {
-  width: 22px;
-  height: 22px;
+.refresh-pill app-icon {
+  width: 16px;
+  height: 16px;
 }
 
-@media (min-width: 800px) {
-  .load-latest-button {
-    bottom: 20px;
-    left: calc(50vw - 300px + 16px);
-    box-shadow: none;
+@media (prefers-reduced-motion: reduce) {
+  .refresh-pill,
+  .refresh-pill.is-visible {
+    transition: none;
   }
 }
 

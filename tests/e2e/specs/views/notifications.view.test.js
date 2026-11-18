@@ -1824,8 +1824,8 @@ test.describe("Notifications view", () => {
     await expect(view.locator(".error-state")).toHaveCount(0);
   });
 
-  test.describe("Load latest button", () => {
-    test("should show when scrolled down and reload from the top when clicked", async ({
+  test.describe("Refresh pill", () => {
+    test("should stay hidden when scrolled down without new notifications", async ({
       page,
     }) => {
       const { likedPosts, notifications } = createPagedLikeNotifications(30);
@@ -1841,24 +1841,64 @@ test.describe("Notifications view", () => {
       await expect(view.locator(".notification-item").first()).toBeVisible({
         timeout: 10000,
       });
-      const button = view.locator('[data-testid="load-latest-button"]');
-      await expect(button).toHaveCount(0);
+      const pill = view.locator('[data-testid="refresh-pill"]');
+      await expect(pill).toBeHidden();
 
       await page.evaluate(() => window.scrollTo(0, 1000));
-      await expect(button).toBeVisible();
-      await expect(button).toHaveAttribute("data-teststate", "default");
-
-      const reloadRequest = page.waitForRequest((request) =>
-        request.url().includes("/xrpc/app.bsky.notification.listNotifications"),
-      );
-      await button.click();
-      await reloadRequest;
-
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-      await expect(button).toHaveCount(0);
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBeGreaterThan(250);
+      await expect(pill).toBeHidden();
     });
 
-    test("should highlight when new notifications arrive and load them when clicked", async ({
+    test("should say New when scrolled down and reload from the top when clicked", async ({
+      page,
+    }) => {
+      const { likedPosts, notifications } = createPagedLikeNotifications(30);
+      const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await page.evaluate(() => window.scrollTo(0, 1000));
+
+      mockServer.notifications.unshift(
+        createNotification({
+          reason: "follow",
+          author: alice,
+          isRead: false,
+          indexedAt: new Date().toISOString(),
+        }),
+      );
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "push-received" } }),
+        );
+      });
+
+      const pill = view.locator('[data-testid="refresh-pill"]');
+      await expect(pill).toBeVisible({ timeout: 10000 });
+      await expect(pill).toHaveAttribute("data-teststate", "new");
+
+      await pill.click();
+
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+      await expect(
+        view.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(pill).toBeHidden();
+    });
+
+    test("should show when new notifications arrive and load them when clicked", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1886,19 +1926,18 @@ test.describe("Notifications view", () => {
         );
       });
 
-      const button = view.locator('[data-testid="load-latest-button"]');
-      await expect(button).toHaveAttribute("data-teststate", "has-new", {
-        timeout: 10000,
-      });
+      const pill = view.locator('[data-testid="refresh-pill"]');
+      await expect(pill).toBeVisible({ timeout: 10000 });
+      await expect(pill).toHaveAttribute("data-teststate", "refresh");
 
-      await button.click();
+      await pill.click();
 
       await expect(
         view.locator(
           '[data-testid="notification-item"][data-teststate="follow"]',
         ),
       ).toBeVisible({ timeout: 10000 });
-      await expect(button).toHaveCount(0);
+      await expect(pill).toBeHidden();
     });
 
     test("should clear the badge only once the reload finishes and keep loaded items unread", async ({
@@ -1931,12 +1970,12 @@ test.describe("Notifications view", () => {
       const badge = page.locator(
         '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
       );
-      const button = view.locator('[data-testid="load-latest-button"]');
+      const pill = view.locator('[data-testid="refresh-pill"]');
       await expect(badge).toBeVisible({ timeout: 10000 });
-      await expect(button).toHaveAttribute("data-teststate", "has-new");
+      await expect(pill).toBeVisible();
 
       mockServer.setNotificationsDelay(2000);
-      await button.click();
+      await pill.click();
 
       const followItem = view.locator(
         '[data-testid="notification-item"][data-teststate="follow"]',

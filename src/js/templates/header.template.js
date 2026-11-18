@@ -49,6 +49,7 @@ export function headerTemplate({
   menuButtonUser = null,
   rightItemTemplate = null,
   bottomItemTemplate = null,
+  overlayTemplate = null,
 } = {}) {
   return html`<header class="header" data-testid="header">
     <div
@@ -112,5 +113,6 @@ export function headerTemplate({
           <div class="bottom-item">${bottomItemTemplate()}</div>
         </div>`
       : ""}
+    ${overlayTemplate ? overlayTemplate() : ""}
   </header>`;
 }
