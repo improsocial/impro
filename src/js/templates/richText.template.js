@@ -7,6 +7,7 @@ const KNOWN_UNSUPPORTED_FACET_TYPES = [
   "blue.poll.post.facet#option",
   "blue.poll.post.facet#question",
   "blue.moji.richtext.facet",
+  "com.example.richtext.facet#markup",
 ];
 
 // Matches social-app behavior
