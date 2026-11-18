@@ -6370,7 +6370,7 @@ emoji-picker-dialog emoji-picker,
   font-size: 13px;
   color: var(--text-color);
   background: var(--secondary-button-color);
-  padding: 2px 4px;
+  padding: 3px 6px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
   width: fit-content;
