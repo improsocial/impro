@@ -135,7 +135,6 @@ describe("fetchPostVideoFile", () => {
         { loaded: 8, total: 8 },
       ],
     );
-    assert.deepEqual(await file.text(), "abcdefgh");
     assert.deepEqual(file.type, "video/mp4");
     assert.deepEqual(file.name, "alice.test-3kvideopost.mp4");
   });

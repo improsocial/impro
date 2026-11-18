@@ -73,6 +73,7 @@ export class MockServer {
     this.notificationsSeenAt = null;
     this.pinnedFeedUris = [];
     this.pinnedListUris = [];
+    this.timelinePinned = true;
     this.lists = [];
     this.starterPacks = [];
     this.listMembers = new Map();
@@ -442,6 +443,10 @@ export class MockServer {
 
   setPinnedLists(listUris) {
     this.pinnedListUris = listUris;
+  }
+
+  setTimelinePinned(pinned) {
+    this.timelinePinned = pinned;
   }
 
   setSavedFeeds(feedUris) {
@@ -1224,7 +1229,7 @@ export class MockServer {
                   {
                     type: "timeline",
                     value: "following",
-                    pinned: true,
+                    pinned: this.timelinePinned,
                     id: "timeline-following",
                   },
                   ...this.pinnedFeedUris.map((uri) => ({

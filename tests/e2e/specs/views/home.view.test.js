@@ -135,6 +135,38 @@ test.describe("Home view", () => {
     await expect(tabs.nth(2)).toContainText("Science");
   });
 
+  test("should default to the first pinned feed when Following isn't pinned", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/science",
+      displayName: "Science",
+      creatorHandle: "creator1.bsky.social",
+    });
+    const feedPost = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/sciencepost1",
+      text: "Post from the science feed",
+      authorHandle: "author1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setTimelinePinned(false);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.addFeedItems(feed.uri, [feedPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const tabs = view.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(1, { timeout: 10000 });
+    await expect(tabs.nth(0)).toHaveAttribute("data-teststate", "active");
+    await expect(view).toContainText("Post from the science feed", {
+      timeout: 10000,
+    });
+  });
+
   test("should display pinned list tabs and load list feed posts", async ({
     page,
   }) => {

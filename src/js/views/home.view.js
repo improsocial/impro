@@ -54,10 +54,8 @@ export default async function homeView({
   state.$isReloadingFeed = new Signal.State(false);
   state.$materializedFeedUris = new SignalSet();
 
-  if (!dataLayer.derived.$selectedFeedUri.get()) {
-    dataLayer.mutations.setSelectedFeedUri(
-      isAuthenticated ? FOLLOWING_FEED_URI : LOGGED_OUT_FEED_URI,
-    );
+  if (!isAuthenticated && !dataLayer.derived.$selectedFeedUri.get()) {
+    dataLayer.mutations.setSelectedFeedUri(LOGGED_OUT_FEED_URI);
   }
 
   if (
@@ -457,6 +455,11 @@ export default async function homeView({
   async function loadInitialFeed() {
     const preferences =
       await dataLayer.preferencesProvider.requirePreferences();
+    if (!dataLayer.derived.$selectedFeedUri.get()) {
+      dataLayer.mutations.setSelectedFeedUri(
+        preferences.getPinnedFeeds()[0]?.value ?? FOLLOWING_FEED_URI,
+      );
+    }
     const selectedFeedUri = dataLayer.derived.$selectedFeedUri.get();
     if (!preferences.isFeedPinned(selectedFeedUri)) {
       return null;
