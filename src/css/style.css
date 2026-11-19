@@ -1687,10 +1687,22 @@ tab-bar.is-scroll-frozen {
   padding: 20px 20px 16px 20px;
 }
 
+.sidebar-profile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  --profile-action-button-size: 34px;
+}
+
+.sidebar-profile-top .rounded-button {
+  height: var(--profile-action-button-size);
+}
+
 .sidebar-profile-avatar {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 10px;
 }
 
 @media (min-width: 800px) {
@@ -2166,14 +2178,6 @@ button.sidebar-plugin-nav-item {
   height: 100%;
   cursor: pointer;
   position: relative;
-}
-
-/* Long-press to open the account switcher: stop iOS link previews / text
-   selection from hijacking the hold gesture */
-.sidebar-profile-avatar.long-press-enabled {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 .footer-nav.logged-out-footer {

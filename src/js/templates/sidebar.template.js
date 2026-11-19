@@ -1,10 +1,9 @@
-import { html, ref } from "/js/lib/lit-html.js";
+import { html } from "/js/lib/lit-html.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import {
   classnames,
   formatLargeNumber,
   formatNumNotifications,
-  enableLongPress,
   raf,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
@@ -349,27 +348,26 @@ export function sidebarTemplate({
   const followsCount = currentUser?.followsCount ?? null;
   // A partial profile has no counts to show
   const showStats = !currentUser?.isPartial;
-  const longPressEnabled = !!onOpenAccountSwitcher;
   return html`
     <animated-sidebar>
       <!-- Profile Section -->
       <div class="sidebar-profile" data-testid="sidebar-profile">
-        <div
-          class=${classnames("sidebar-profile-avatar", {
-            "long-press-enabled": longPressEnabled,
-          })}
-          ${ref((el) => {
-            if (el && longPressEnabled) {
-              enableLongPress(el);
-            }
-          })}
-          @long-press=${onOpenAccountSwitcher
-            ? () => onOpenAccountSwitcher()
+        <div class="sidebar-profile-top">
+          <div class="sidebar-profile-avatar">
+            ${currentUser
+              ? html`${avatarTemplate({ author: currentUser })}`
+              : avatarPlaceholderTemplate()}
+          </div>
+          ${onOpenAccountSwitcher
+            ? html`<button
+                class="rounded-button ellipsis-button"
+                data-testid="sidebar-profile-account-switcher-button"
+                aria-label="Switch accounts"
+                @click=${() => onOpenAccountSwitcher()}
+              >
+                <span>...</span>
+              </button>`
             : null}
-        >
-          ${currentUser
-            ? html`${avatarTemplate({ author: currentUser })}`
-            : avatarPlaceholderTemplate()}
         </div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name" data-testid="sidebar-profile-name">

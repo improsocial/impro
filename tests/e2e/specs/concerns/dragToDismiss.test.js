@@ -1,5 +1,5 @@
 import { test, expect } from "../../base.js";
-import { login, loginWithAccounts, longPress } from "../../helpers.js";
+import { login, loginWithAccounts } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createPost, createProfile } from "../../../shared/factories.js";
 import { userProfile } from "../../testData.js";
@@ -555,12 +555,14 @@ test.describe("Drag-to-dismiss", () => {
 
     async function openAccountSwitcher(page) {
       await page.locator('[data-testid="menu-button"]').click();
-      await longPress(
-        page,
-        page.locator('[data-testid="sidebar-profile"] .sidebar-profile-avatar'),
-      );
+      await page
+        .locator('[data-testid="sidebar-profile-account-switcher-button"]')
+        .click();
       const dialog = page.locator('[data-testid="account-switcher-dialog"]');
       await expect(dialog).toBeVisible();
+      await expect(
+        dialog.locator('[data-testid="account-switcher-item"]'),
+      ).toHaveCount(2);
       return dialog;
     }
 

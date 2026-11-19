@@ -477,7 +477,7 @@ describe("sidebarTemplate - compose button", () => {
   });
 });
 
-describe("sidebarTemplate - profile long-press", () => {
+describe("sidebarTemplate - profile account switcher button", () => {
   function renderSidebar({ onOpenAccountSwitcher = null } = {}) {
     const container = document.createElement("div");
     render(
@@ -488,19 +488,20 @@ describe("sidebarTemplate - profile long-press", () => {
       }),
       container,
     );
-    return container.querySelector(".sidebar-profile-avatar");
+    return container.querySelector(
+      "[data-testid='sidebar-profile-account-switcher-button']",
+    );
   }
 
-  it("invokes the handler when a long-press fires on the profile avatar", () => {
+  it("invokes the handler when the button is clicked", () => {
     let fired = 0;
-    const avatar = renderSidebar({ onOpenAccountSwitcher: () => fired++ });
-    avatar.dispatchEvent(new CustomEvent("long-press"));
+    const button = renderSidebar({ onOpenAccountSwitcher: () => fired++ });
+    button.click();
     assert.deepEqual(fired, 1);
   });
 
-  it("does not throw when a long-press fires and no handler is provided", () => {
-    const avatar = renderSidebar();
-    avatar.dispatchEvent(new CustomEvent("long-press"));
+  it("is not rendered when no handler is provided", () => {
+    assert.deepEqual(renderSidebar(), null);
   });
 });
 

@@ -1,15 +1,6 @@
 import { OAUTH_SCOPES } from "../../src/oauthScopes.js";
 import { userProfile } from "./testData.js";
 
-// Hold the pointer down on an element long enough to trigger a long-press
-// (the app uses a 500ms threshold).
-export async function longPress(page, locator) {
-  await locator.hover();
-  await page.mouse.down();
-  await page.waitForTimeout(700);
-  await page.mouse.up();
-}
-
 export async function login(page, { scope = OAUTH_SCOPES } = {}) {
   const oauthSession = {
     did: userProfile.did,

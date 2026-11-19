@@ -1,5 +1,5 @@
 import { test, expect } from "../../base.js";
-import { loginWithAccounts, longPress } from "../../helpers.js";
+import { loginWithAccounts } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { userProfile } from "../../testData.js";
 import {
@@ -11,10 +11,9 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 async function openSwitcherDialog(page) {
   await page.locator('[data-testid="menu-button"]').click();
-  await longPress(
-    page,
-    page.locator('[data-testid="sidebar-profile"] .sidebar-profile-avatar'),
-  );
+  await page
+    .locator('[data-testid="sidebar-profile-account-switcher-button"]')
+    .click();
   const dialog = page.locator('[data-testid="account-switcher-dialog"]');
   await expect(dialog).toBeVisible();
   return dialog;
@@ -58,7 +57,7 @@ test.describe("Account switch flow", () => {
     });
   });
 
-  test("long-press on the sidebar avatar opens the dialog without navigating", async ({
+  test("the sidebar ellipsis button opens the dialog without navigating", async ({
     page,
   }) => {
     const dialog = await openSwitcherDialog(page);
