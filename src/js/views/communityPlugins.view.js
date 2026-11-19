@@ -67,8 +67,8 @@ export default async function communityPluginsView({
             <app-icon icon="info-circle-line"></app-icon>
             <span
               >Plugins cannot access your data or take actions on your behalf
-              unless you grant permissions to do so. You can disable or
-              uninstall them at any time.</span
+              unless you grant them permissions. You can disable or uninstall
+              them at any time.</span
             >
           </div>
           ${error
