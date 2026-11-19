@@ -123,7 +123,7 @@ function headerMenuTemplate({
 function loadingTemplate() {
   return html`<main>
     <div
-      class="starter-pack-detail-loading"
+      class="starter-pack-detail-loading loading-block"
       data-testid="starter-pack-detail-loading"
     >
       <div class="loading-spinner"></div>

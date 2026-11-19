@@ -140,7 +140,7 @@ class AddToListsDialog extends Component {
                   </div>`
                 : isLoading
                   ? html`<div
-                      class="add-to-lists-dialog-loading"
+                      class="add-to-lists-dialog-loading loading-block loading-block-soon"
                       data-testid="add-to-lists-loading"
                     >
                       <div class="loading-spinner"></div>

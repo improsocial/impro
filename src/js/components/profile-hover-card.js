@@ -171,7 +171,9 @@ function liveHoverCardTemplate({ profile, liveStatus, onOpenProfile }) {
 }
 
 function loadingBodyTemplate() {
-  return html`<div class="profile-hover-card-loading">
+  return html`<div
+    class="profile-hover-card-loading loading-block loading-block-soon"
+  >
     <span class="loading-spinner"></span>
   </div>`;
 }
@@ -311,9 +313,7 @@ function hoverCardTemplate({
           ${pronounBadgeTemplate({ profile })}
         </div>
         <div class="profile-hover-card-handle-row">
-          <a
-            class="profile-hover-card-handle"
-            href="${linkToProfile(profile)}"
+          <a class="profile-hover-card-handle" href="${linkToProfile(profile)}"
             >${hasValidHandle(profile) ? `@${profile.handle}` : ""}</a
           >
           ${followedBy && !isBlocking && !isBlockedBy

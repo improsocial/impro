@@ -34,7 +34,7 @@ class PluginCustomContent extends Component {
         }
         if (!result) {
           render(
-            html`<div class="plugins-loading-state">
+            html`<div class="plugins-loading-state loading-block">
               <div class="loading-spinner"></div>
             </div>`,
             this,

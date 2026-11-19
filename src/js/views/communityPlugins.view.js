@@ -81,7 +81,7 @@ export default async function communityPluginsView({
               </div>`
             : !listings
               ? html`<div
-                  class="plugins-loading-state"
+                  class="plugins-loading-state loading-block"
                   data-testid="plugins-loading-state"
                 >
                   <div

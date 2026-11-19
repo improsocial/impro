@@ -275,7 +275,9 @@ class DraftsDialog extends Component {
                     Failed to load drafts
                   </div>`
                 : draftViews === null
-                  ? html`<div class="drafts-dialog-message">
+                  ? html`<div
+                      class="drafts-dialog-message loading-block loading-block-soon"
+                    >
                       <div class="loading-spinner"></div>
                     </div>`
                   : draftViews.length === 0

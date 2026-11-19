@@ -82,6 +82,7 @@ export default async function chatDetailView({
 
   const state = new ReactiveStore("chatDetailView");
   state.$loadingEnabled = new Signal.State(false);
+  state.$messagesRevealed = new Signal.State(false);
   state.$isSendingMessage = new Signal.State(false);
   state.$isMuteSaving = new Signal.State(false);
   state.$activeMessageId = new Signal.State(null);
@@ -1241,6 +1242,7 @@ export default async function chatDetailView({
 
   function messagesTemplate({
     loadingEnabled,
+    revealed,
     messages,
     currentUserDid,
     convo,
@@ -1256,6 +1258,7 @@ export default async function chatDetailView({
     const days = groupMessageGroupsByDay(messageGroups);
     return html`
       <infinite-scroll-container
+        class=${revealed ? "is-revealed" : "is-unrevealed"}
         ${ref((el) => {
           if (el) {
             attachScrollListener();
@@ -1504,6 +1507,7 @@ export default async function chatDetailView({
             : messages
               ? messagesTemplate({
                   loadingEnabled: state.$loadingEnabled.get(),
+                  revealed: state.$messagesRevealed.get(),
                   messages,
                   currentUserDid: currentUser?.did,
                   convo,
@@ -1512,7 +1516,7 @@ export default async function chatDetailView({
                   canReactNow,
                 })
               : html`<div
-                  class="loading-spinner-container"
+                  class="loading-spinner-container loading-block"
                   style="padding-top: 16px;"
                 >
                   <div class="loading-spinner"></div>
@@ -1576,6 +1580,7 @@ export default async function chatDetailView({
       newestMessageId = latestMessageId;
       requestAnimationFrame(() => {
         pinScrollToBottom();
+        state.$messagesRevealed.set(true);
         // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
         state.$loadingEnabled.set(true);
       });

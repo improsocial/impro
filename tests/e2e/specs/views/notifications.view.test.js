@@ -65,6 +65,34 @@ test.describe("Notifications view", () => {
     await expect(item).toHaveAttribute("data-teststate", "follow");
   });
 
+  test("should show notification skeletons while notifications load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    mockServer.setNotificationsDelay(1500);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const skeletons = view.locator('[data-testid="notification-skeleton"]');
+    await expect(skeletons.first()).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="post-skeleton"]')).toHaveCount(0);
+
+    await expect(view.locator(".notification-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(skeletons).toHaveCount(0);
+  });
+
   test("should show a header loading spinner while notifications reload", async ({
     page,
   }) => {

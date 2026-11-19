@@ -301,7 +301,7 @@ export default async function listDetailView({
         ${!list
           ? html`<main>
               <div
-                class="list-detail-loading"
+                class="list-detail-loading loading-block"
                 data-testid="list-detail-loading"
               >
                 <div class="loading-spinner"></div>

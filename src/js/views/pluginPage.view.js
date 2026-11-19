@@ -75,7 +75,7 @@ export default async function pluginPageView({
             }
             if (!page) {
               if (pluginLoading) {
-                return html`<div class="plugins-loading-state">
+                return html`<div class="plugins-loading-state loading-block">
                   <div class="loading-spinner"></div>
                 </div>`;
               }

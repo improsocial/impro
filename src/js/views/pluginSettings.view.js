@@ -127,7 +127,7 @@ export default async function pluginSettingsView({
               );
             if (!settingTab) {
               if (pluginLoading) {
-                return html`<div class="plugins-loading-state">
+                return html`<div class="plugins-loading-state loading-block">
                   <div class="loading-spinner"></div>
                 </div>`;
               }

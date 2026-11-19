@@ -4246,7 +4246,8 @@ image-carousel {
   padding: 0;
 }
 
-.notification-item {
+.notification-item,
+.notification-skeleton {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -4312,6 +4313,20 @@ image-carousel {
 .notification-content {
   flex: 1;
   min-width: 0;
+}
+
+.notification-skeleton .skeleton-text {
+  padding: calc(1.5em * 0.15) 0;
+}
+
+.notification-skeleton .skeleton-text-bar {
+  height: calc(1.5em * 0.7);
+}
+
+.notification-skeleton-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .notification-avatars {
@@ -4873,6 +4888,16 @@ image-carousel {
 
 .chat-detail-main .message-list {
   padding: 16px 16px 8px;
+}
+
+.chat-detail-main > infinite-scroll-container.is-unrevealed {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chat-detail-main > infinite-scroll-container.is-revealed {
+    animation: fade-in 150ms ease-out;
+  }
 }
 
 @media (min-width: 800px) {

@@ -68,6 +68,59 @@ function refreshPillTemplate({ visible, onClick }) {
   </div>`;
 }
 
+const NOTIFICATION_SKELETON_VARIANTS = [
+  { avatars: 1, text: "70%", preview: ["95%", "45%"] },
+  { avatars: 3, text: "55%", preview: [] },
+  { avatars: 1, text: "65%", preview: ["80%"] },
+  { avatars: 2, text: "75%", preview: ["100%", "60%"] },
+  { avatars: 1, text: "50%", preview: [] },
+];
+
+function notificationSkeletonTextTemplate({ width, blend }) {
+  return html`<div class="skeleton-text" style="max-width: ${width}">
+    <div
+      class="skeleton-text-bar skeleton-animate ${blend
+        ? "skeleton-blend"
+        : ""}"
+    ></div>
+  </div>`;
+}
+
+function notificationSkeletonTemplate({ index }) {
+  const { avatars, text, preview } =
+    NOTIFICATION_SKELETON_VARIANTS[
+      index % NOTIFICATION_SKELETON_VARIANTS.length
+    ];
+  return html`<div
+    class="notification-skeleton"
+    data-testid="notification-skeleton"
+  >
+    <div class="notification-icon">
+      <div
+        class="notification-skeleton-icon skeleton-animate skeleton-blend"
+      ></div>
+    </div>
+    <div class="notification-content">
+      <div class="notification-avatars">
+        ${Array.from(
+          { length: avatars },
+          () => html`<div class="skeleton-avatar skeleton-animate"></div>`,
+        )}
+      </div>
+      <div class="notification-text">
+        ${notificationSkeletonTextTemplate({ width: text, blend: false })}
+      </div>
+      ${preview.length > 0
+        ? html`<div class="notification-preview">
+            ${preview.map((width) =>
+              notificationSkeletonTextTemplate({ width, blend: true }),
+            )}
+          </div>`
+        : null}
+    </div>
+  </div>`;
+}
+
 function notificationItemTemplate({ type, href, isUnread, children }) {
   const unreadClass = isUnread ? "unread" : "";
   if (href) {
@@ -800,13 +853,14 @@ export default async function notificationsView({
     currentUser,
     loadMore,
     loadMoreError,
+    renderSkeletonItem,
   }) {
     try {
       return paginatedListTemplate({
         items: groupedNotifications,
         renderItem: (notificationGroup) =>
           notificationGroupTemplate({ notificationGroup, currentUser }),
-        renderSkeletonItem: postSkeletonTemplate,
+        renderSkeletonItem,
         hasMore,
         onLoadMore: loadMore,
         emptyMessage: "No notifications yet!",
@@ -947,6 +1001,7 @@ export default async function notificationsView({
                 hasMore,
                 loadMore: loadMoreNotifications,
                 loadMoreError: state.$loadMoreError.get(),
+                renderSkeletonItem: notificationSkeletonTemplate,
               });
             })()}
           </div>
@@ -969,6 +1024,7 @@ export default async function notificationsView({
                 hasMore: mentionHasMore,
                 loadMore: loadMoreMentionNotifications,
                 loadMoreError: state.$mentionLoadMoreError.get(),
+                renderSkeletonItem: postSkeletonTemplate,
               });
             })()}
           </div>

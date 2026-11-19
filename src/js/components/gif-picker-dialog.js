@@ -202,7 +202,7 @@ function gifResultsBodyTemplate({
   const gifs = gifResults ?? [];
   if (loading && gifs.length === 0) {
     return html`<div
-      class="gif-picker-placeholder"
+      class="gif-picker-placeholder loading-block loading-block-soon"
       data-testid="gif-picker-loading"
     >
       <div class="loading-spinner"></div>

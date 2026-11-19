@@ -489,7 +489,9 @@ function feedsStepTemplate({
         We're having network issues, try again
       </div>`;
     } else if (!searchResults) {
-      results = html`<div class="feed-loading-indicator">
+      results = html`<div
+        class="feed-loading-indicator loading-block loading-block-soon"
+      >
         <div class="loading-spinner"></div>
       </div>`;
     } else if (searchResults.length === 0) {
@@ -502,7 +504,9 @@ function feedsStepTemplate({
       </div>`;
     }
   } else if (!suggestedFeeds) {
-    results = html`<div class="feed-loading-indicator">
+    results = html`<div
+      class="feed-loading-indicator loading-block loading-block-soon"
+    >
       <div class="loading-spinner"></div>
     </div>`;
   } else {
