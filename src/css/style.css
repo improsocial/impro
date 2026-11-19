@@ -13200,6 +13200,28 @@ image-cropper {
   color: var(--text-color-muted);
 }
 
+.plugins-intro-message:last-child {
+  margin-bottom: 0;
+}
+
+.plugins-permissions-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 16px 16px;
+  padding: 0 4px;
+  color: var(--text-color-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.plugins-permissions-callout > app-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
 .plugin-list {
   list-style: none;
   padding: 0;

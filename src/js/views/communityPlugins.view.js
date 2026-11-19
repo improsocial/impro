@@ -40,32 +40,37 @@ export default async function communityPluginsView({
           title: "Community plugins",
         })}
         <main>
-          ${!isAuthenticated
-            ? html`<div
-                class="plugins-intro"
-                data-testid="community-plugins-intro"
-              >
-                <div class="plugins-intro-header">
-                  <span class="plugins-intro-icon"
-                    ><app-icon icon="globe-grid-line"></app-icon
-                  ></span>
-                  <div class="plugins-intro-title">
-                    Extend Impro with plugins
-                  </div>
-                </div>
-                <p class="plugins-intro-message">
-                  Community plugins are built by other people using Impro. They
-                  can add new themes, display options, and functionality to the
-                  app.
-                </p>
-                <a
+          <div class="plugins-intro" data-testid="community-plugins-intro">
+            <div class="plugins-intro-header">
+              <span class="plugins-intro-icon"
+                ><app-icon icon="globe-grid-line"></app-icon
+              ></span>
+              <div class="plugins-intro-title">Extend Impro with plugins</div>
+            </div>
+            <p class="plugins-intro-message">
+              Community plugins are built by other people using Impro. They can
+              add new themes, display options, and functionality to the app.
+            </p>
+            ${!isAuthenticated
+              ? html`<a
                   class="rounded-button rounded-button-primary"
                   data-testid="plugins-intro-login-button"
                   href=${linkToLogin()}
                   >Sign in to install</a
-                >
-              </div>`
-            : ""}
+                >`
+              : ""}
+          </div>
+          <div
+            class="plugins-permissions-callout"
+            data-testid="plugins-permissions-callout"
+          >
+            <app-icon icon="info-circle-line"></app-icon>
+            <span
+              >Plugins cannot access your data or take actions on your behalf
+              unless you grant permissions to do so. You can disable or
+              uninstall them at any time.</span
+            >
+          </div>
           ${error
             ? html`<div
                 class="error-state"

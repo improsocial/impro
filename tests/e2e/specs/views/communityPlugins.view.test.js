@@ -148,7 +148,7 @@ test.describe("Community plugins view", () => {
     ).toHaveCount(0);
   });
 
-  test("shows an intro with a sign-in CTA only when logged out", async ({
+  test("shows the intro in both states, with a sign-in CTA only when logged out", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -170,6 +170,9 @@ test.describe("Community plugins view", () => {
     ).toBeVisible({ timeout: 10000 });
     await expect(
       view.locator('[data-testid="community-plugins-intro"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="plugins-intro-login-button"]'),
     ).toHaveCount(0);
   });
 
