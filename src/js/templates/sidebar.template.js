@@ -140,14 +140,6 @@ function loggedOutSidebarTemplate({
       class="logged-out-sidebar"
       data-testid="logged-out-sidebar"
     >
-      <div class="sidebar-header">
-        <a
-          href="/"
-          class="sidebar-title"
-          @click=${(event) => navigateFromSidebar(event, "/")}
-          ><h1>IMPRO</h1></a
-        >
-      </div>
       ${sidebarNavTemplate({
         menuItems,
         activeNavItem,

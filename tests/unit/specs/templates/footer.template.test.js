@@ -24,16 +24,6 @@ describe("footerTemplate - logged out state", () => {
     const loginButton = container.querySelector("[data-testid='login-button']");
     assert(loginButton !== null);
   });
-
-  it("should render brand title when not authenticated", () => {
-    const result = footerTemplate({
-      isAuthenticated: false,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const title = container.querySelector("[data-testid='brand-title']");
-    assert(title !== null);
-  });
 });
 
 describe("footerTemplate - logged in state", () => {

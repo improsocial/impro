@@ -26,17 +26,6 @@ describe("sidebarTemplate - logged out state", () => {
     );
   });
 
-  it("should render the title when logged out", () => {
-    const result = sidebarTemplate({
-      isAuthenticated: false,
-      currentUser: null,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const title = container.querySelector("h1");
-    assert(title !== null);
-  });
-
   it("should render sign in button when logged out", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,

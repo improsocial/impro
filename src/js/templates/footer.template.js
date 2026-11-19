@@ -19,7 +19,6 @@ function loggedOutFooterTemplate() {
       class="footer-nav logged-out-footer"
       data-testid="logged-out-footer"
     >
-      <a href="/"><h2 data-testid="brand-title">IMPRO</h2></a>
       <a
         href=${linkToLogin()}
         class="rounded-button rounded-button-highlight login-button"

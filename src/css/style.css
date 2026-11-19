@@ -2092,18 +2092,7 @@ button.sidebar-plugin-nav-item {
   padding: 0 20px 0 20px;
 }
 
-.sidebar-header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 20px;
-}
-
 @media (min-width: 800px) {
-  .logged-out-sidebar .sidebar-header {
-    align-items: center;
-  }
-
   .logged-out-sidebar .sidebar-nav-item {
     justify-content: center;
   }
@@ -2118,27 +2107,8 @@ button.sidebar-plugin-nav-item {
   cursor: pointer;
 }
 
-.logged-out-sidebar .sidebar-title {
-  font-weight: 600;
-  width: 100%;
-  padding-top: 10px;
-  padding-left: 20px;
-  padding-bottom: 6px;
-}
-
-@media (min-width: 800px) {
-  .logged-out-sidebar .sidebar-title {
-    padding-left: 0;
-    text-align: center;
-  }
-
-  .logged-out-sidebar .sidebar-title h1 {
-    margin: 0;
-  }
-}
-
-.logged-out-sidebar .sidebar-header {
-  gap: 10px;
+.logged-out-sidebar {
+  --sidebar-item-width: 200px;
 }
 
 .logged-out-sidebar p {
@@ -2195,7 +2165,7 @@ button.sidebar-plugin-nav-item {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding-right: 20px;
   padding-left: 20px;
 }
@@ -13804,8 +13774,7 @@ h2.setting-item-name {
 
 @media (min-width: 800px) and (max-width: 1199.98px) {
   .logged-out-sidebar .sidebar-footer,
-  .logged-out-sidebar .sidebar-action-items,
-  .logged-out-sidebar .sidebar-title {
+  .logged-out-sidebar .sidebar-action-items {
     display: none;
   }
 
