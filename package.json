@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.20.201",
+  "version": "0.20.202",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",

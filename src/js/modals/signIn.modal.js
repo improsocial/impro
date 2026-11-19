@@ -25,7 +25,7 @@ export class SignInModal extends Modal {
         </p>
         <a
           href=${linkToLogin()}
-          class="modal-dialog-button primary-button full-width"
+          class="modal-dialog-button highlight-button full-width"
           data-testid="modal-primary-button"
           @click=${() => dismiss()}
         >

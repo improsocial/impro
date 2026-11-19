@@ -1808,8 +1808,16 @@ test.describe("Search view", () => {
       });
       const profile2 = createProfile({
         did: "did:plc:recent2",
-        handle: "bob.bsky.social",
-        displayName: "Bob",
+        handle: "bobbot.bsky.social",
+        displayName: "Bob Bot",
+        labels: [
+          {
+            src: "did:plc:recent2",
+            uri: "at://did:plc:recent2/app.bsky.actor.profile/self",
+            val: "bot",
+            cts: "2025-01-01T00:00:00.000Z",
+          },
+        ],
       });
       mockServer.addProfile(profile1);
       mockServer.addProfile(profile2);
@@ -1832,9 +1840,40 @@ test.describe("Search view", () => {
       const tiles = view.locator('[data-testid="search-recent-profile"]');
       await expect(tiles).toHaveCount(2, { timeout: 10000 });
       await expect(skeletons).toHaveCount(0);
+      await expect(tiles.first().locator(".profile-badges")).toBeVisible();
       const tileBox = await tiles.first().boundingBox();
       expect(tileBox.height).toBe(skeletonBox.height);
       expect(tileBox.width).toBe(skeletonBox.width);
+    });
+
+    test("does not flash the placeholder while preferences load", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({
+        searches: [{ q: "dogs", ts: 1 }],
+      });
+      mockServer.getPreferencesDelayMs = 1500;
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.addInitScript(() => {
+        window.sawSearchPlaceholder = false;
+        new MutationObserver(() => {
+          if (document.querySelector('[data-testid="search-placeholder"]')) {
+            window.sawSearchPlaceholder = true;
+          }
+        }).observe(document, { childList: true, subtree: true });
+      });
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator('[data-testid="search-recent"]')).toBeVisible({
+        timeout: 10000,
+      });
+      expect(await page.evaluate(() => window.sawSearchPlaceholder)).toBe(
+        false,
+      );
     });
 
     test("removing a recent profile does not navigate", async ({ page }) => {

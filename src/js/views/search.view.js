@@ -709,7 +709,13 @@ export default async function searchView({
           pending: !entry.profile && recentProfilesLoading,
         }))
         .filter((item) => item.profile || item.pending);
-      if (recentTerms.length > 0 || recentProfileItems.length > 0) {
+      const awaitingPreferences =
+        isAuthenticated &&
+        recentProfilesLoading &&
+        dataLayer.derived.$preferences.get() === null;
+      if (awaitingPreferences) {
+        bodyTemplate = null;
+      } else if (recentTerms.length > 0 || recentProfileItems.length > 0) {
         bodyTemplate = recentSearchesTemplate({
           terms: recentTerms,
           profileItems: recentProfileItems,

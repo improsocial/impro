@@ -39,7 +39,7 @@ export class WelcomeModal extends Modal {
           </button>
           <a
             href=${linkToLogin()}
-            class="modal-dialog-button primary-button"
+            class="modal-dialog-button highlight-button"
             data-testid="modal-primary-button"
             autofocus
             @click=${() => dismiss()}

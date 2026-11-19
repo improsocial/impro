@@ -2125,8 +2125,7 @@ button.sidebar-plugin-nav-item {
   min-width: 100px;
 }
 
-.logged-out-sidebar .login-button,
-.logged-out-sidebar .sidebar-about-link {
+.logged-out-sidebar .login-button {
   align-self: stretch;
   margin-top: 8px;
   margin-right: 20px;
@@ -7108,7 +7107,9 @@ button.profile-list-item-button.is-disabled {
 
 .search-recent-profile-name {
   max-width: 100%;
+  height: 15px;
   font-size: 11px;
+  line-height: 15px;
   color: var(--text-color);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -9234,6 +9235,7 @@ context-menu-item-group > context-menu-item > button {
 }
 
 .modal-dialog-button.primary-button,
+.modal-dialog-button.highlight-button,
 .modal-dialog-button.danger-button {
   border-color: transparent;
 }
@@ -9241,6 +9243,11 @@ context-menu-item-group > context-menu-item > button {
 .modal-dialog-button.primary-button {
   background-color: var(--primary-button-color);
   color: var(--primary-button-text-color);
+}
+
+.modal-dialog-button.highlight-button {
+  background-color: var(--highlight-button-color);
+  color: var(--highlight-button-text-color);
 }
 
 .modal-dialog-button.danger-button {
@@ -9251,6 +9258,10 @@ context-menu-item-group > context-menu-item > button {
 @media (hover: hover) {
   .modal-dialog-button.primary-button:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
+  }
+
+  .modal-dialog-button.highlight-button:not(:disabled):hover {
+    background-color: var(--highlight-button-hover-color);
   }
 }
 
@@ -9286,6 +9297,10 @@ context-menu-item-group > context-menu-item > button {
 
 .modal-dialog-button.primary-button .loading-spinner {
   border-top-color: var(--primary-button-text-color);
+}
+
+.modal-dialog-button.highlight-button .loading-spinner {
+  border-top-color: var(--highlight-button-text-color);
 }
 
 .modal-dialog-button.danger-button .loading-spinner {

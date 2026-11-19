@@ -87,38 +87,6 @@ describe("sidebarTemplate - logged out state", () => {
     assert(pluginsLink !== null);
     assert.equal(pluginsLink.getAttribute("href"), "/plugins/community");
   });
-
-  it("should render about link when logged out", () => {
-    const result = sidebarTemplate({
-      isAuthenticated: false,
-      currentUser: null,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const aboutLink = container.querySelector(
-      "[data-testid='sidebar-about-link']",
-    );
-    assert(aboutLink !== null);
-  });
-});
-
-describe("sidebarTemplate - welcome modal", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  it("should open the welcome modal when the about link is clicked", () => {
-    const container = document.createElement("div");
-    render(
-      sidebarTemplate({ isAuthenticated: false, currentUser: null }),
-      container,
-    );
-    document.body.appendChild(container);
-    container.querySelector("[data-testid='sidebar-about-link']").click();
-    const dialog = document.querySelector('[data-testid="welcome-modal"]');
-    assert(dialog !== null);
-    assert(dialog.hasAttribute("open"));
-  });
 });
 
 describe("sidebarTemplate - logged in state", () => {

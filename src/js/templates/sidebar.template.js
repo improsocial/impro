@@ -20,7 +20,6 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/app-icon.js";
-import { WelcomeModal } from "/js/modals/welcome.modal.js";
 
 async function navigateFromSidebar(event, url) {
   if (
@@ -159,20 +158,11 @@ function loggedOutSidebarTemplate({
       <div class="sidebar-action-items">
         <a
           href=${linkToLogin()}
-          class="rounded-button rounded-button-primary login-button"
+          class="rounded-button rounded-button-highlight login-button"
           data-testid="login-button"
           @click=${(event) => navigateFromSidebar(event, linkToLogin())}
           >Sign in</a
         >
-        <button
-          class="rounded-button sidebar-about-link"
-          data-testid="sidebar-about-link"
-          @click=${() => {
-            WelcomeModal.open();
-          }}
-        >
-          About
-        </button>
       </div>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-footer" data-testid="sidebar-footer">
