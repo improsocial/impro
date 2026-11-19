@@ -3114,7 +3114,6 @@ container-link {
   transition:
     background-color 0.2s,
     color 0.2s;
-  min-width: 30px;
   padding: 5px;
   border-radius: var(--pill-button-border-radius);
   --post-action-hover-color: var(--highlight-color);
