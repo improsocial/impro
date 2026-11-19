@@ -1151,6 +1151,28 @@ export function buildPostgateEmbeddingRules(quotesEnabled) {
   return quotesEnabled ? null : [{ $type: DISABLE_EMBEDDING_RULE_TYPE }];
 }
 
+export const ADULT_SELF_LABELS = ["sexual", "nudity", "porn"];
+export const OTHER_SELF_LABELS = ["graphic-media"];
+
+export function getSelfLabelValues(labels) {
+  return labels ? labels.values.map((label) => label.val) : [];
+}
+
+export function buildSelfLabels(values) {
+  if (values.length === 0) {
+    return null;
+  }
+  return {
+    $type: "com.atproto.label.defs#selfLabels",
+    values: values.map((val) => ({ val })),
+  };
+}
+
+export function toggleSelfLabelInGroup(values, group, value) {
+  const remaining = values.filter((existing) => !group.includes(existing));
+  return values.includes(value) ? remaining : [...remaining, value];
+}
+
 export const MAX_DETACHED_EMBEDDING_URIS = 50;
 
 export const MAX_HIDDEN_REPLIES = 300;
