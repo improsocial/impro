@@ -19,7 +19,9 @@ function createMockApi({
     markNotificationsAsRead: markAsReadFn || (async () => {}),
     getNotifications:
       getNotificationsFn ||
-      (async () => ({ notifications: topUri ? [{ uri: topUri }] : [] })),
+      (async () => ({
+        notifications: topUri ? [{ uri: topUri, isRead: false }] : [],
+      })),
   };
 }
 
@@ -79,10 +81,54 @@ describe("NotificationService", () => {
       assert.equal(service.$numNotifications.get(), null);
     });
 
+    it("keeps the count null when the list's top item is already read", async () => {
+      const api = createMockApi({
+        numNotifications: 3,
+        getNotificationsFn: async () => ({
+          notifications: [
+            { uri: "at://did:example/app.bsky.feed.post/old", isRead: true },
+          ],
+        }),
+      });
+      const service = new NotificationService(api);
+
+      await service.fetchNumNotifications();
+
+      assert.equal(service.$numNotifications.get(), null);
+    });
+
+    it("ignores a read top item that changed since the last verification", async () => {
+      let top = {
+        uri: "at://did:example/app.bsky.feed.post/first",
+        isRead: false,
+      };
+      const api = createMockApi({
+        numNotifications: 1,
+        getNotificationsFn: async () => ({ notifications: [top] }),
+      });
+      const service = new NotificationService(api);
+      await service.fetchNumNotifications();
+      assert.deepEqual(service.$numNotifications.get(), 1);
+
+      // A second notification was seen on the notifications page without
+      // the poller verifying it.
+      await service.markNotificationsAsRead("2026-01-01T00:00:00.000Z");
+      top = { uri: "at://did:example/app.bsky.feed.post/seen", isRead: true };
+
+      // A third notification bumps the count, but the list hasn't caught up.
+      api.getNumNotifications = async () => 1;
+      await service.fetchNumNotifications();
+      assert.deepEqual(service.$numNotifications.get(), 0);
+
+      top = { uri: "at://did:example/app.bsky.feed.post/new", isRead: false };
+      await service.fetchNumNotifications();
+      assert.deepEqual(service.$numNotifications.get(), 1);
+    });
+
     it("commits the increased count once the list reflects a new top item", async () => {
       let topUri = "at://did:example/app.bsky.feed.post/first";
       const getNotificationsFn = mock.fn(async () => ({
-        notifications: [{ uri: topUri }],
+        notifications: [{ uri: topUri, isRead: false }],
       }));
       const api = createMockApi({
         numNotifications: 1,
@@ -112,7 +158,7 @@ describe("NotificationService", () => {
     it("retries the list probe when the top URI hasn't changed yet", async () => {
       let topUri = "at://did:example/app.bsky.feed.post/first";
       const getNotificationsFn = mock.fn(async () => ({
-        notifications: [{ uri: topUri }],
+        notifications: [{ uri: topUri, isRead: false }],
       }));
       const api = createMockApi({
         numNotifications: 1,
@@ -136,6 +182,7 @@ describe("NotificationService", () => {
                 probe < 3
                   ? topUri
                   : "at://did:example/app.bsky.feed.post/second",
+              isRead: false,
             },
           ],
         };
@@ -157,7 +204,9 @@ describe("NotificationService", () => {
       api.getNumNotifications = async () => 5;
       // Top URI never changes.
       const probe = mock.fn(async () => ({
-        notifications: [{ uri: "at://did:example/app.bsky.feed.post/first" }],
+        notifications: [
+          { uri: "at://did:example/app.bsky.feed.post/first", isRead: false },
+        ],
       }));
       api.getNotifications = probe;
 

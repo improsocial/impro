@@ -46,9 +46,9 @@ export class NotificationService {
     for (let attempt = 0; attempt < VERIFY_MAX_TRIES; attempt++) {
       try {
         const res = await this.api.getNotifications({ limit: 1 });
-        const topUri = res.notifications[0]?.uri ?? null;
-        if (topUri && topUri !== this._lastVerifiedTopUri) {
-          this._lastVerifiedTopUri = topUri;
+        const top = res.notifications[0];
+        if (top && !top.isRead && top.uri !== this._lastVerifiedTopUri) {
+          this._lastVerifiedTopUri = top.uri;
           return true;
         }
       } catch (error) {
