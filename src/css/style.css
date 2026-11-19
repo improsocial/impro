@@ -10397,7 +10397,7 @@ context-menu-item-group > context-menu-item > button {
   text-align: left;
   font-size: 15px;
   font-weight: 600;
-  color: var(--error-color);
+  color: var(--text-color);
   cursor: pointer;
 }
 
@@ -10413,6 +10413,7 @@ context-menu-item-group > context-menu-item > button {
   justify-content: center;
   flex-shrink: 0;
   width: 40px;
+  height: 40px;
 }
 
 .account-switcher-sign-out-icon app-icon {
