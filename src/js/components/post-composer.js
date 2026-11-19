@@ -51,6 +51,8 @@ import {
   getInviteCodeFromUrl,
   isInviteLinkUrl,
   isAvailableJoinLinkPreview,
+  getSelfLabelValues,
+  buildSelfLabels,
 } from "/js/dataHelpers.js";
 import {
   DraftMediaStore,
@@ -59,6 +61,7 @@ import {
 } from "/js/drafts.js";
 import { ApiError } from "/js/api.js";
 import "/js/components/post-interaction-settings-dialog.js";
+import "/js/components/post-labels-dialog.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -188,6 +191,30 @@ function postLanguageMenuTemplate({
       </context-menu-item>
     </context-menu-item-group>
   </context-menu>`;
+}
+
+function canSelfLabelPost(postState) {
+  return (
+    postState.images.length > 0 ||
+    !!postState.video ||
+    !!postState.gif ||
+    !!postState.external ||
+    postState.unrestoredImages !== null ||
+    postState.unrestoredVideo !== null
+  );
+}
+
+function labelsButtonTemplate({ hasLabels, onClick }) {
+  return html`<button
+    type="button"
+    class="composer-interaction-settings-button rounded-button"
+    data-testid="composer-labels-button"
+    data-teststate=${hasLabels ? "labeled" : "unlabeled"}
+    @click=${onClick}
+  >
+    <app-icon icon=${hasLabels ? "check" : "shield-line"}></app-icon>
+    <span>${hasLabels ? "Labels added" : "Labels"}</span>
+  </button>`;
 }
 
 function isVideoUploadPending(video) {
@@ -745,6 +772,13 @@ class PostComposer extends Component {
     return updated;
   }
 
+  _removeEmbed(postId, patch) {
+    const updated = this._updatePost(postId, patch);
+    if (updated && updated.labels !== null && !canSelfLabelPost(updated)) {
+      this._updatePost(postId, { labels: null });
+    }
+  }
+
   _getInputForPost(postId) {
     return this.querySelector(`[data-post-id="${postId}"] rich-text-input`);
   }
@@ -792,6 +826,7 @@ class PostComposer extends Component {
     const postgateEmbeddingRules = this.state.$postgateEmbeddingRules.get();
     const isInteractionLimited =
       threadgateAllow !== null || postgateEmbeddingRules?.length > 0;
+    const showLabelsButton = canSelfLabelPost(activePost);
     const currentPostLanguages = this._getCurrentPostLanguages();
     const postLanguageHistory =
       this.dataLayer.derived.$postLanguageHistory.get();
@@ -963,23 +998,33 @@ class PostComposer extends Component {
                 )}
               </div>
               <div class="post-composer-bottom-bar">
-                ${!this.replyTo
+                ${!this.replyTo || showLabelsButton
                   ? html`<div class="post-composer-interaction-settings-row">
-                      <button
-                        type="button"
-                        class="composer-interaction-settings-button rounded-button"
-                        data-testid="composer-interaction-settings"
-                        data-teststate=${isInteractionLimited
-                          ? "limited"
-                          : "open"}
-                        @click=${() => this.openInteractionSettingsDialog()}
-                      >
-                        ${isInteractionLimited
-                          ? html`<app-icon icon="users-line"></app-icon>
-                              <span>Interaction limited</span>`
-                          : html`<app-icon icon="globe-grid-line"></app-icon>
-                              <span>Anyone can interact</span>`}
-                      </button>
+                      ${!this.replyTo
+                        ? html`<button
+                            type="button"
+                            class="composer-interaction-settings-button rounded-button"
+                            data-testid="composer-interaction-settings"
+                            data-teststate=${isInteractionLimited
+                              ? "limited"
+                              : "open"}
+                            @click=${() => this.openInteractionSettingsDialog()}
+                          >
+                            ${isInteractionLimited
+                              ? html`<app-icon icon="users-line"></app-icon>
+                                  <span>Interaction limited</span>`
+                              : html`<app-icon
+                                    icon="globe-grid-line"
+                                  ></app-icon>
+                                  <span>Anyone can interact</span>`}
+                          </button>`
+                        : ""}
+                      ${showLabelsButton
+                        ? labelsButtonTemplate({
+                            hasLabels: activePost.labels !== null,
+                            onClick: () => this.openLabelsDialog(activePost.id),
+                          })
+                        : ""}
                     </div>`
                   : ""}
                 <div class="post-composer-bottom-bar-main">
@@ -1227,7 +1272,7 @@ class PostComposer extends Component {
   }
 
   handleRemoveGif(postId) {
-    this._updatePost(postId, { gif: null });
+    this._removeEmbed(postId, { gif: null });
     this._isDirty = true;
   }
 
@@ -1273,7 +1318,7 @@ class PostComposer extends Component {
     const postState = this._getPost(postId);
     if (!postState) return;
     postState.rejectedLinkEmbeds.add(postState.externalLinkUrl);
-    this._updatePost(postId, {
+    this._removeEmbed(postId, {
       externalLinkUrl: null,
       external: null,
       joinLinkStatus: null,
@@ -1442,7 +1487,7 @@ class PostComposer extends Component {
   handleRemoveImage(postId, imageId) {
     const postState = this._getPost(postId);
     if (!postState) return;
-    this._updatePost(postId, {
+    this._removeEmbed(postId, {
       images: postState.images.filter((image) => image.id !== imageId),
     });
     this._isDirty = true;
@@ -1585,7 +1630,7 @@ class PostComposer extends Component {
     if (postState.video?.previewUrl) {
       URL.revokeObjectURL(postState.video.previewUrl);
     }
-    this._updatePost(postId, {
+    this._removeEmbed(postId, {
       videoToken: null,
       video: null,
       draftVideoCaptions: null,
@@ -2163,6 +2208,23 @@ class PostComposer extends Component {
         }
       }
       e.detail.successCallback();
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  openLabelsDialog(postId) {
+    const dialog = document.createElement("post-labels-dialog");
+    dialog.stacked = true;
+    dialog.labelValues = getSelfLabelValues(this._getPost(postId).labels);
+    dialog.addEventListener("labels-change", (e) => {
+      this._updatePost(postId, {
+        labels: buildSelfLabels(e.detail.labelValues),
+      });
+      this._isDirty = true;
     });
     dialog.addEventListener("dialog-closed", () => {
       dialog.remove();

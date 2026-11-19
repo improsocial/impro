@@ -4019,6 +4019,220 @@ describe("post-composer", () => {
     });
   });
 
+  describe("PostComposer - self labels", () => {
+    const REPLY_TO = {
+      uri: "at://did:plc:other/app.bsky.feed.post/xyz",
+      cid: "cid-xyz",
+      author: { did: "did:plc:other", handle: "other.test" },
+      record: { text: "parent" },
+    };
+
+    function getLabelsButton(element) {
+      return element.querySelector('[data-testid="composer-labels-button"]');
+    }
+
+    function openLabelsDialog(element) {
+      getLabelsButton(element).click();
+      return document.querySelector("post-labels-dialog");
+    }
+
+    function toggleLabel(dialog, value) {
+      const input = dialog.querySelector(
+        `[data-testid="post-labels-option-${value}"] input`,
+      );
+      input.click();
+    }
+
+    afterEach(() => {
+      document.querySelector("post-labels-dialog")?.remove();
+    });
+
+    it("only renders the labels button when the post has media or a link", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await nextFrame();
+      assert.deepEqual(getLabelsButton(element), null);
+
+      patchFirstPost(element, { images: makeSelectedImages(1) });
+      await nextFrame();
+      assert(getLabelsButton(element) !== null);
+
+      patchFirstPost(element, {
+        images: [],
+        external: { uri: "https://example.com", title: "", description: "" },
+      });
+      await nextFrame();
+      assert(getLabelsButton(element) !== null);
+    });
+
+    it("renders the labels button for replies with media", async () => {
+      const element = createPostComposer();
+      element.replyTo = REPLY_TO;
+      connectElement(element);
+      patchFirstPost(element, { images: makeSelectedImages(1) });
+      await nextFrame();
+      assert(getLabelsButton(element) !== null);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-interaction-settings"]'),
+        null,
+      );
+    });
+
+    it("sets self labels on the post from the dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: makeSelectedImages(1) });
+      await nextFrame();
+      assert.deepEqual(
+        getLabelsButton(element).getAttribute("data-teststate"),
+        "unlabeled",
+      );
+
+      const dialog = openLabelsDialog(element);
+      toggleLabel(dialog, "nudity");
+      toggleLabel(dialog, "graphic-media");
+      await nextFrame();
+
+      assert.deepEqual(getFirstPost(element).labels, {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "nudity" }, { val: "graphic-media" }],
+      });
+      assert.deepEqual(
+        getLabelsButton(element).getAttribute("data-teststate"),
+        "labeled",
+      );
+    });
+
+    it("allows only one adult content label at a time", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: makeSelectedImages(1) });
+      await nextFrame();
+
+      const dialog = openLabelsDialog(element);
+      toggleLabel(dialog, "sexual");
+      await nextFrame();
+      toggleLabel(dialog, "porn");
+      await nextFrame();
+
+      assert.deepEqual(getFirstPost(element).labels.values, [{ val: "porn" }]);
+      assert.deepEqual(
+        dialog
+          .querySelector('[data-testid="post-labels-option-sexual"]')
+          .getAttribute("data-teststate"),
+        "unchecked",
+      );
+    });
+
+    it("clears labels when the last label is unchecked", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: makeSelectedImages(1) });
+      await nextFrame();
+
+      const dialog = openLabelsDialog(element);
+      toggleLabel(dialog, "porn");
+      await nextFrame();
+      toggleLabel(dialog, "porn");
+      await nextFrame();
+
+      assert.deepEqual(getFirstPost(element).labels, null);
+    });
+
+    it("seeds the dialog with the post's existing labels", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        images: makeSelectedImages(1),
+        labels: {
+          $type: "com.atproto.label.defs#selfLabels",
+          values: [{ val: "sexual" }],
+        },
+      });
+      await nextFrame();
+
+      const dialog = openLabelsDialog(element);
+      assert.deepEqual(
+        dialog
+          .querySelector('[data-testid="post-labels-option-sexual"]')
+          .getAttribute("data-teststate"),
+        "checked",
+      );
+    });
+
+    it("clears labels when the last media is removed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const images = makeSelectedImages(2);
+      const labels = {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "porn" }],
+      };
+      patchFirstPost(element, { images, labels });
+      const postId = getFirstPost(element).id;
+
+      element.handleRemoveImage(postId, images[0].id);
+      assert.deepEqual(getFirstPost(element).labels, labels);
+
+      element.handleRemoveImage(postId, images[1].id);
+      assert.deepEqual(getFirstPost(element).labels, null);
+    });
+
+    it("keeps labels when unrestored draft images remain after removing media", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const labels = {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "porn" }],
+      };
+      patchFirstPost(element, {
+        gif: { gif: createGif(), alt: "" },
+        unrestoredImages: [{ alt: "", localRef: { path: "missing" } }],
+        labels,
+      });
+
+      element.handleRemoveGif(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).labels, labels);
+    });
+
+    it("keeps labels when an unrestored draft video remains after removing media", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const labels = {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "graphic-media" }],
+      };
+      patchFirstPost(element, {
+        gif: { gif: createGif(), alt: "" },
+        unrestoredVideo: { alt: "", localRef: { path: "missing" } },
+        labels,
+      });
+
+      element.handleRemoveGif(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).labels, labels);
+    });
+
+    it("keeps labels when a link remains after removing media", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const labels = {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "graphic-media" }],
+      };
+      patchFirstPost(element, {
+        gif: { gif: createGif(), alt: "" },
+        external: { uri: "https://example.com", title: "", description: "" },
+        labels,
+      });
+
+      element.handleRemoveGif(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).labels, labels);
+
+      element.handleExternalLinkEmbedPreviewClose(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).labels, null);
+    });
+  });
+
   describe("PostComposer - drafts button", () => {
     function createWithDialogSpy({ dataLayer = null } = {}) {
       const element = createPostComposer();

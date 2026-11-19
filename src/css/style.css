@@ -1853,7 +1853,7 @@ plugin-blob-image .blob-image-fallback {
 }
 
 .sidebar-nav-icon .status-badge {
-  top: calc(50% - 19px);
+  top: calc(50% - 18px);
   left: 12px;
 }
 
@@ -8139,6 +8139,7 @@ sidebar-search {
 
 .post-composer-interaction-settings-row {
   display: flex;
+  gap: 8px;
   padding-bottom: 8px;
   padding-right: 12px;
   padding-left: 12px;
@@ -11763,6 +11764,85 @@ label:has(toggle-switch[disabled]) {
 
 .interaction-settings-save:disabled {
   cursor: not-allowed;
+}
+
+/* Post Labels Dialog */
+
+.post-labels-dialog::before {
+  z-index: 1;
+}
+
+.post-labels-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 799px) {
+  .post-labels-dialog {
+    max-height: calc(100dvh - var(--sheet-top));
+  }
+}
+
+@media (min-width: 800px) {
+  .post-labels-dialog {
+    max-width: 440px;
+  }
+}
+
+.post-labels-dialog-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 28px 20px 24px;
+  position: relative;
+}
+
+@media (min-width: 800px) {
+  .post-labels-dialog-content {
+    padding-top: 24px;
+  }
+}
+
+.post-labels-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-labels-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.post-labels-dialog-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.post-labels-dialog-subtitle,
+.post-labels-description {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.95rem;
+}
+
+.post-labels-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.post-labels-row {
+  margin-bottom: 8px;
+}
+
+.post-labels-done {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: center;
 }
 
 .chat-header-buttons {
