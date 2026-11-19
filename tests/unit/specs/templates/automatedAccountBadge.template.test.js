@@ -35,7 +35,7 @@ describe("automatedAccountBadgeTemplate", () => {
     render(result, container);
     assert(
       container.querySelector(
-        ".automated-account-badge app-icon[icon='robot-line']",
+        ".automated-account-badge app-icon[icon='bot-line']",
       ) !== null,
     );
   });

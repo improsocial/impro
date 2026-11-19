@@ -19,6 +19,6 @@ export function automatedAccountBadgeTemplate({ profile }) {
       });
     }}
   >
-    <app-icon icon="robot-line"></app-icon>
+    <app-icon icon="bot-line"></app-icon>
   </button>`;
 }
