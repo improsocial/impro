@@ -91,7 +91,9 @@ function suggestedFeedsPaneTemplate({
     dismissLabel: "Hide suggested feeds",
     dismissTestId: "suggested-feeds-dismiss-button",
     onDismiss,
-    children: html`<div class="suggested-feeds-list">
+    children: html`<div
+      class="suggested-feeds-list ${isLoading ? "loading-block" : ""}"
+    >
       ${isLoading
         ? Array.from({ length: SUGGESTED_FEED_LIMIT }, () =>
             suggestedFeedSkeletonTemplate(),

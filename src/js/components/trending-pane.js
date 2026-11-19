@@ -120,7 +120,9 @@ function trendingPaneTemplate({ rows, isLoading, isAuthenticated, onDismiss }) {
     dismissLabel: "Hide trending topics",
     dismissTestId: "trending-dismiss-button",
     onDismiss: isAuthenticated ? onDismiss : null,
-    children: html`<div class="trending-list">
+    children: html`<div
+      class="trending-list ${isLoading ? "loading-block" : ""}"
+    >
       ${isLoading
         ? Array.from({ length: TREND_LIMIT }, () => trendingSkeletonTemplate())
         : rows.map((row) => trendingRowTemplate(row))}
