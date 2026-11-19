@@ -13796,30 +13796,6 @@ h2.setting-item-name {
   }
 }
 
-.bottom-sheet.welcome-modal {
-  width: 90%;
-  max-width: 410px;
-  padding-bottom: 0;
-  top: 50%;
-  left: 50%;
-  right: auto;
-  bottom: auto;
-  max-height: 80vh;
-  border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--dialog-border-radius);
-  box-shadow: none;
-  animation: none;
-  transform: translate(-50%, -50%);
-}
-
-.bottom-sheet.welcome-modal::before {
-  display: none;
-}
-
-.bottom-sheet.welcome-modal .modal-dialog-content {
-  padding-top: 24px;
-}
-
 .sidebar-action-items {
   display: flex;
   flex-direction: column;

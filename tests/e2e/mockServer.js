@@ -928,15 +928,7 @@ export class MockServer {
     );
   }
 
-  async setup(page, { welcomeModalSeen = true } = {}) {
-    // Mark the welcome modal as already seen so it doesn't open over
-    // logged-out tests; pass welcomeModalSeen: false to test the modal itself.
-    if (welcomeModalSeen) {
-      await page.addInitScript(() => {
-        sessionStorage.setItem("welcome-modal-seen", "true");
-      });
-    }
-
+  async setup(page) {
     if (this.notificationServiceDid) {
       await page.addInitScript((did) => {
         localStorage.setItem("push-notification-service", did);

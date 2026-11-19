@@ -42,6 +42,7 @@ test.describe("Home view", () => {
     });
     await expect(view).toContainText("Hello from the timeline");
     await expect(view).toContainText("Another timeline post");
+    await expect(view.locator('[data-testid="welcome-card"]')).toHaveCount(0);
   });
 
   // The home header row (and its spinner) is only visible on mobile widths;
@@ -818,56 +819,25 @@ test.describe("Home view", () => {
       });
     });
 
-    // Welcome modal popup temporarily disabled
-    // test("should show the welcome modal on first visit only", async ({
-    //   page,
-    // }) => {
-    //   const mockServer = new MockServer();
-    //   const discoverFeed = createFeedGenerator({
-    //     uri: discoverFeedUri,
-    //     displayName: "Discover",
-    //     creatorHandle: "bsky.app",
-    //   });
-    //   mockServer.addFeedGenerators([discoverFeed]);
-    //   await mockServer.setup(page, { welcomeModalSeen: false });
+    test("should show a welcome card linking to community plugins", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+      mockServer.addFeedGenerators([discoverFeed]);
+      await mockServer.setup(page);
 
-    //   await page.goto("/");
+      await page.goto("/");
 
-    //   const modal = page.locator('[data-testid="welcome-modal"]');
-    //   await expect(modal).toBeVisible({ timeout: 10000 });
-    //   await modal.locator('[data-testid="modal-secondary-button"]').click();
-    //   await expect(modal).not.toBeVisible();
-
-    //   await page.goto("/");
-    //   const view = page.locator("#home-view");
-    //   await expect(view.locator(".tab-bar-button")).toHaveCount(1, {
-    //     timeout: 10000,
-    //   });
-    //   await expect(modal).not.toBeVisible();
-    // });
-
-    // test("should not show the welcome modal when already seen", async ({
-    //   page,
-    // }) => {
-    //   const mockServer = new MockServer();
-    //   const discoverFeed = createFeedGenerator({
-    //     uri: discoverFeedUri,
-    //     displayName: "Discover",
-    //     creatorHandle: "bsky.app",
-    //   });
-    //   mockServer.addFeedGenerators([discoverFeed]);
-    //   await mockServer.setup(page);
-
-    //   await page.goto("/");
-
-    //   const view = page.locator("#home-view");
-    //   await expect(view.locator(".tab-bar-button")).toHaveCount(1, {
-    //     timeout: 10000,
-    //   });
-    //   await expect(
-    //     page.locator('[data-testid="welcome-modal"]'),
-    //   ).not.toBeVisible();
-    // });
+      const card = page.locator('#home-view [data-testid="welcome-card"]');
+      await expect(card).toBeVisible({ timeout: 10000 });
+      await card.click();
+      await expect(page).toHaveURL("/plugins/community");
+    });
 
     test("should hide logged-in-only UI (compose button, feed switcher)", async ({
       page,

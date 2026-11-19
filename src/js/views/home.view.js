@@ -21,7 +21,6 @@ import {
 } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
-import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import {
   getFeedGeneratorProxyUrl,
   getFeedTypeFromUri,
@@ -48,23 +47,12 @@ export default async function homeView({
     interactionHandlers,
   },
 }) {
-  const WELCOME_MODAL_SEEN_STORAGE_KEY = "welcome-modal-seen";
-
   const state = new ReactiveStore("homeView");
   state.$isReloadingFeed = new Signal.State(false);
   state.$materializedFeedUris = new SignalSet();
 
   if (!isAuthenticated && !dataLayer.derived.$selectedFeedUri.get()) {
     dataLayer.mutations.setSelectedFeedUri(LOGGED_OUT_FEED_URI);
-  }
-
-  if (
-    !isAuthenticated &&
-    !pluginService.isPreviewMode &&
-    !sessionStorage.getItem(WELCOME_MODAL_SEEN_STORAGE_KEY)
-  ) {
-    sessionStorage.setItem(WELCOME_MODAL_SEEN_STORAGE_KEY, "true");
-    WelcomeModal.open();
   }
 
   const postSeenObservers = new Map();
@@ -187,6 +175,27 @@ export default async function homeView({
         : ""}
       ${tryAgainButtonTemplate()}
     </div>`;
+  }
+
+  function welcomeCardTemplate() {
+    return html`<a
+      class="community-plugins-link"
+      href="/plugins/community"
+      data-testid="welcome-card"
+    >
+      <span class="community-plugins-link-icon"
+        ><app-icon icon="puzzle-line"></app-icon
+      ></span>
+      <span class="community-plugins-link-text">
+        <span class="community-plugins-link-title">Welcome to Impro!</span>
+        <span class="community-plugins-link-subtitle"
+          >Bluesky + Community Plugins</span
+        >
+      </span>
+      <span class="community-plugins-link-arrow"
+        ><app-icon icon="chevron-right-line"></app-icon
+      ></span>
+    </a>`;
   }
 
   function tabBarSkeletonTemplate() {
@@ -335,6 +344,7 @@ export default async function homeView({
                 `,
         })}
         <main>
+          ${!isAuthenticated ? welcomeCardTemplate() : ""}
           ${!pinnedItems && pinnedItemsRequestStatus.error
             ? pinnedItemsErrorTemplate()
             : // show the selected feed's skeleton while pinned items are loading
