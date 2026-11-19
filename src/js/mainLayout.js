@@ -4,6 +4,7 @@ import { effect } from "/js/signals.js";
 import { linkToLogin } from "/js/navigation.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
+import { siteLinksTemplate } from "/js/templates/siteLinks.template.js";
 import { PLUGIN_PREVIEW_QUERY_PARAM } from "/js/plugins/pluginService.js";
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
@@ -122,6 +123,11 @@ export function mainLayoutTemplate({
                 .feedInteractionHandler=${feedInteractionHandler}
               ></suggested-feeds-pane>`
             : ""}
+          ${siteLinksTemplate({
+            className: isAuthenticated
+              ? "right-column-site-links is-authenticated"
+              : "right-column-site-links",
+          })}
         </div>
       </div>
       ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}

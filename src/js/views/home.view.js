@@ -184,7 +184,7 @@ export default async function homeView({
       data-testid="welcome-card"
     >
       <span class="community-plugins-link-icon"
-        ><app-icon icon="puzzle-line"></app-icon
+        ><app-icon icon="widgets-line"></app-icon
       ></span>
       <span class="community-plugins-link-text">
         <span class="community-plugins-link-title">Welcome to Impro!</span>

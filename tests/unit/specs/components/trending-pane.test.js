@@ -54,7 +54,7 @@ describe("trending-pane", () => {
     const element = mount(makeDataLayer(() => new Promise(() => {})));
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-skeleton']").length,
-      4,
+      3,
     );
   });
 
@@ -226,7 +226,7 @@ describe("trending-pane", () => {
     );
   });
 
-  it("renders at most four rows", async () => {
+  it("renders at most three rows", async () => {
     const dataLayer = makeDataLayer(async () => ({
       trends: Array.from({ length: 14 }, (_, index) =>
         createTrend({ topic: `topic-${index}` }),
@@ -237,7 +237,7 @@ describe("trending-pane", () => {
 
     assert.deepEqual(
       element.querySelectorAll("[data-testid='trending-row']").length,
-      4,
+      3,
     );
   });
 

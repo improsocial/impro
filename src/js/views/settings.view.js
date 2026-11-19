@@ -20,6 +20,7 @@ import {
 } from "/js/templates/avatar.template.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
+import { siteLinksTemplate } from "/js/templates/siteLinks.template.js";
 
 export default async function settingsView({
   root,
@@ -349,27 +350,7 @@ export default async function settingsView({
           <div class="version-info" data-testid="version-info">
             Impro v${window.env.version} - ${window.env.gitCommit}
           </div>
-          <div class="settings-footer-links">
-            <a
-              href="/tos.html"
-              data-testid="footer-link-terms"
-              data-external="true"
-              >Terms</a
-            >
-            <span class="settings-footer-separator">·</span>
-            <a
-              href="/privacy.html"
-              data-testid="footer-link-privacy"
-              data-external="true"
-              >Privacy Policy</a
-            >
-            <span class="settings-footer-separator">·</span>
-            <a
-              href="https://github.com/improsocial/impro"
-              data-testid="footer-link-github"
-              >GitHub</a
-            >
-          </div>
+          ${siteLinksTemplate({ className: "settings-site-links" })}
         </main>
       </div>`,
       root,

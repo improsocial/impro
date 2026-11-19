@@ -12,6 +12,7 @@ import {
   avatarTemplate,
 } from "/js/templates/avatar.template.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
+import { siteLinksTemplate } from "/js/templates/siteLinks.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
@@ -156,14 +157,7 @@ function loggedOutSidebarTemplate({
         >
       </div>
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-footer" data-testid="sidebar-footer">
-        <a href="/tos.html" class="sidebar-text-link" data-external="true"
-          >Terms</a
-        >
-        <a href="/privacy.html" class="sidebar-text-link" data-external="true"
-          >Privacy Policy</a
-        >
-      </div>
+      ${siteLinksTemplate({ className: "sidebar-site-links" })}
     </animated-sidebar>
   `;
 }

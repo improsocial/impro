@@ -12,6 +12,10 @@ export const LOGGED_OUT_FEED_URI =
 export const FOLLOWING_FEED_URI = "following";
 export const CHAT_MESSAGES_PAGE_SIZE = 100;
 
+// Project links
+export const SOURCE_CODE_URL = "https://github.com/improsocial/impro";
+export const SUPPORT_URL = "https://github.com/sponsors/improsocial";
+
 // Plugins
 export const PLUGIN_REGISTRY_URL =
   "https://raw.githubusercontent.com/improsocial/impro-releases/main/community-plugins.json";

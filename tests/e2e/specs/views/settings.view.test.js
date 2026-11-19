@@ -125,23 +125,28 @@ test.describe("Settings view", () => {
     });
   });
 
-  test("should display footer links", async ({ page }) => {
-    const mockServer = new MockServer();
-    await mockServer.setup(page);
+  test.describe("site links on mobile", () => {
+    test.use({ viewport: { width: 375, height: 667 } });
 
-    await login(page);
-    await page.goto("/settings");
+    test("should display the site links", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
 
-    const view = page.locator("#settings-view");
-    await expect(view.locator('[data-testid="footer-link-terms"]')).toBeVisible(
-      { timeout: 10000 },
-    );
-    await expect(
-      view.locator('[data-testid="footer-link-privacy"]'),
-    ).toBeVisible();
-    await expect(
-      view.locator('[data-testid="footer-link-github"]'),
-    ).toBeVisible();
+      await login(page);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      for (const testId of [
+        "footer-link-terms",
+        "footer-link-privacy",
+        "footer-link-source",
+        "footer-link-support",
+      ]) {
+        await expect(view.locator(`[data-testid="${testId}"]`)).toBeVisible({
+          timeout: 10000,
+        });
+      }
+    });
   });
 
   test.describe("Accounts section", () => {

@@ -773,3 +773,37 @@ describe("sidebarTemplate - active nav item clicks", () => {
     assert.equal(onClickActiveItem.mock.calls.length, 1);
   });
 });
+
+describe("sidebarTemplate - site links", () => {
+  const siteLinkTestIds = [
+    "footer-link-terms",
+    "footer-link-privacy",
+    "footer-link-source",
+    "footer-link-support",
+  ];
+
+  it("should render the site links when logged out", () => {
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({ isAuthenticated: false, currentUser: null }),
+      container,
+    );
+    for (const testId of siteLinkTestIds) {
+      assert(container.querySelector(`[data-testid="${testId}"]`) !== null);
+    }
+  });
+
+  it("should not render the site links when logged in", () => {
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({ isAuthenticated: true, currentUser: mockUser }),
+      container,
+    );
+    for (const testId of siteLinkTestIds) {
+      assert.deepEqual(
+        container.querySelector(`[data-testid="${testId}"]`),
+        null,
+      );
+    }
+  });
+});

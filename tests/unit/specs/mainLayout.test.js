@@ -140,6 +140,7 @@ describe("MainLayout", () => {
       "sidebar-search",
       "trending-pane",
       "suggested-feeds-pane",
+      "div",
     ]);
 
     setRoute({ layoutOptions: { activeNavItem: "search" } });
@@ -151,6 +152,21 @@ describe("MainLayout", () => {
         .querySelector("sidebar-search"),
       null,
     );
+  });
+
+  it("renders the footer links in the right column", async () => {
+    setRoute({ layoutOptions: { activeNavItem: "home" } });
+    await flushRender();
+
+    const rightColumn = harness.appRoot.querySelector(".view-column-right");
+    for (const testId of [
+      "footer-link-terms",
+      "footer-link-privacy",
+      "footer-link-source",
+      "footer-link-support",
+    ]) {
+      assert(rightColumn.querySelector(`[data-testid="${testId}"]`) !== null);
+    }
   });
 
   it("derives the active nav item from the current route options", async () => {

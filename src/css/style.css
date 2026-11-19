@@ -477,6 +477,53 @@ suggested-feeds-pane {
   }
 }
 
+.site-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 5px;
+  font-size: 13px;
+}
+
+.site-links a {
+  color: var(--text-color-muted);
+}
+
+.site-links a:not(:last-child)::after {
+  content: "·";
+  margin-left: 5px;
+}
+
+.right-column-site-links {
+  padding: 0 4px;
+}
+
+.sidebar-site-links {
+  padding: 16px 0;
+}
+
+.settings-site-links {
+  justify-content: center;
+  padding-top: 12px;
+}
+
+@media (min-width: 800px) {
+  .sidebar-site-links {
+    display: none;
+  }
+}
+
+@media (max-width: 999.98px) {
+  .right-column-site-links.is-authenticated {
+    display: none;
+  }
+}
+
+@media (min-width: 1000px) {
+  .settings-site-links {
+    display: none;
+  }
+}
+
 .sidebar-pane {
   display: block;
   padding: 16px;
@@ -2074,16 +2121,6 @@ button.sidebar-plugin-nav-item {
   flex: 1;
 }
 
-.sidebar-footer {
-  margin-top: auto;
-  padding: 16px 20px;
-}
-
-.sidebar-footer .sidebar-text-link {
-  display: block;
-  margin-bottom: 8px;
-}
-
 .sidebar-content {
   display: flex;
   flex-direction: column;
@@ -2096,15 +2133,6 @@ button.sidebar-plugin-nav-item {
   .logged-out-sidebar .sidebar-nav-item {
     justify-content: center;
   }
-}
-
-.sidebar-text-link {
-  font-size: 14px;
-  color: var(--text-link-color);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
 }
 
 .logged-out-sidebar {
@@ -9770,28 +9798,6 @@ context-menu-item-group > context-menu-item > button {
   background: none;
 }
 
-.settings-footer-links {
-  padding-top: 12px;
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  gap: 8px;
-}
-
-.settings-footer-links a {
-  font-size: 14px;
-  color: var(--text-link-color);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.settings-footer-separator {
-  color: var(--text-color-muted);
-  font-size: 14px;
-}
-
 .muted-word-form {
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
@@ -13795,7 +13801,6 @@ h2.setting-item-name {
 }
 
 @media (min-width: 800px) and (max-width: 1199.98px) {
-  .logged-out-sidebar .sidebar-footer,
   .logged-out-sidebar .sidebar-action-items {
     display: none;
   }

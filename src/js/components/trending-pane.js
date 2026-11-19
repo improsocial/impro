@@ -10,7 +10,7 @@ import {
 } from "/js/templates/avatar.template.js";
 import "/js/components/container-link.js";
 
-const TREND_LIMIT = 4;
+const TREND_LIMIT = 3;
 const TREND_AVATAR_LIMIT = 3;
 const ACTIVE_STATUSES = ["hot", "trending"];
 const CATEGORY_LABELS = {
