@@ -103,6 +103,29 @@ test.describe("Account switch flow", () => {
     await expect(otherRow).toContainText(`@${otherProfile.handle}`);
   });
 
+  test("falls back to stored account info when profiles are slow to load", async ({
+    page,
+  }) => {
+    mockServer.getProfilesDelayMs = 5000;
+    const dialog = await openSwitcherDialog(page);
+
+    const otherRow = dialog.locator(
+      `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
+    );
+    await expect(
+      otherRow.locator('[data-testid="account-switcher-skeleton"]'),
+    ).toBeVisible();
+    await expect(
+      otherRow.locator('[data-testid="account-switcher-skeleton"]'),
+    ).toHaveCount(0, { timeout: 4500 });
+    await expect(otherRow).toContainText(`@${otherProfile.handle}`);
+    await expect(otherRow).not.toContainText(otherProfile.displayName);
+
+    await expect(otherRow).toContainText(otherProfile.displayName, {
+      timeout: 10000,
+    });
+  });
+
   test("dismisses with Escape", async ({ page }) => {
     const dialog = await openSwitcherDialog(page);
 

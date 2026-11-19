@@ -7,8 +7,11 @@ import { getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
+import { wait } from "/js/utils.js";
 import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
 import "/js/components/app-icon.js";
+
+const PROFILE_LOAD_TIMEOUT_MS = 3000;
 
 function signOutButtonTemplate({ handle, disabled, onClick }) {
   return html`
@@ -70,9 +73,12 @@ class AccountSwitcherDialog extends Component {
     const accounts = await this.auth.listAccounts();
     this.state.$accounts.set(accounts);
     try {
-      await this.dataLayer.declarative.ensureDetailedProfiles(
-        accounts.map((account) => account.did),
-      );
+      await Promise.race([
+        this.dataLayer.declarative.ensureDetailedProfiles(
+          accounts.map((account) => account.did),
+        ),
+        wait(PROFILE_LOAD_TIMEOUT_MS),
+      ]);
     } catch {
       // pass
     } finally {
