@@ -10,6 +10,23 @@ import { linkToLogin } from "/js/navigation.js";
 import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
 import "/js/components/app-icon.js";
 
+function signOutButtonTemplate({ handle, disabled, onClick }) {
+  return html`
+    <button
+      type="button"
+      class="account-switcher-sign-out"
+      data-testid="account-switcher-sign-out"
+      ?disabled=${disabled}
+      @click=${() => onClick()}
+    >
+      <span class="account-switcher-sign-out-icon">
+        <app-icon icon="logout-line"></app-icon>
+      </span>
+      <span class="account-switcher-sign-out-label">Sign out @${handle}</span>
+    </button>
+  `;
+}
+
 class AccountSwitcherDialog extends Component {
   connectedCallback() {
     if (this.initialized) {
@@ -68,6 +85,8 @@ class AccountSwitcherDialog extends Component {
     const pendingAction = this.state.$pendingAction.get();
     const profilesLoading = this.state.$profilesLoading.get();
     const currentDid = this.state.$currentDid.get();
+    const currentAccount =
+      accounts.find((account) => account.did === currentDid) ?? null;
     // Put current account at the top of the list
     const orderedAccounts = [
       ...accounts.filter((account) => account.did === currentDid),
@@ -87,6 +106,8 @@ class AccountSwitcherDialog extends Component {
         <dialog
           class="bottom-sheet account-switcher-dialog"
           data-testid="account-switcher-dialog"
+          aria-label="Switch account"
+          autofocus
           @click=${(event) => {
             if (
               event.target === event.currentTarget &&
@@ -108,20 +129,6 @@ class AccountSwitcherDialog extends Component {
           }}
         >
           <div class="account-switcher-content">
-            <div class="account-switcher-header">
-              <h2 class="account-switcher-title" data-testid="modal-title">
-                Switch account
-              </h2>
-              <button
-                class="dialog-close-button"
-                data-testid="account-switcher-close"
-                aria-label="Close"
-                ?disabled=${pendingAction !== null}
-                @click=${() => this.close()}
-              >
-                <app-icon icon="close-line"></app-icon>
-              </button>
-            </div>
             ${accountSwitcherListTemplate({
               accounts: orderedAccounts,
               profilesByDid,
@@ -134,6 +141,15 @@ class AccountSwitcherDialog extends Component {
               addLabel: "Add account",
               addPending: pendingAction?.type === "add",
             })}
+            ${currentAccount
+              ? signOutButtonTemplate({
+                  handle:
+                    profilesByDid[currentAccount.did]?.handle ??
+                    currentAccount.handle,
+                  disabled: pendingAction !== null,
+                  onClick: () => this._onSignOut(),
+                })
+              : null}
           </div>
         </dialog>
       `,
@@ -179,6 +195,14 @@ class AccountSwitcherDialog extends Component {
     window.location.href = linkToLogin({ query: { addAccount: 1 } });
   }
 
+  async _onSignOut() {
+    if (this.state.$pendingAction.get() !== null) {
+      return;
+    }
+    await this.close();
+    this.onSignOut();
+  }
+
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
@@ -188,6 +212,7 @@ class AccountSwitcherDialog extends Component {
       onDismiss: () => this.close(),
       confirmDismiss: () => this.state.$pendingAction.get() === null,
       allowOppositeStretch: true,
+      scrollContainer: this.querySelector(".account-switcher-list"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }

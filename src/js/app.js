@@ -158,7 +158,7 @@ export async function main() {
     : null;
   const newChatService = session ? new NewChatService(dataLayer) : null;
   const accountSwitcherService = session
-    ? new AccountSwitcherService(dataLayer, auth)
+    ? new AccountSwitcherService(dataLayer, auth, pushNotificationService)
     : null;
   const reportService = session ? new ReportService(dataLayer) : null;
   const groupChatLinkService = new GroupChatLinkService(dataLayer, router);

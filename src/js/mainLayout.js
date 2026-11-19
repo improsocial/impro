@@ -70,7 +70,7 @@ export function mainLayoutTemplate({
   onClickComposeButton,
   pluginService,
   previewingPlugins = [],
-  onLongPressProfile = null,
+  onOpenAccountSwitcher = null,
   groupChatLinkService,
   liveStatusService,
   feedInteractionHandler,
@@ -99,7 +99,7 @@ export function mainLayoutTemplate({
             onClickActiveItem: onClickActiveNavItem,
             onClickComposeButton,
             pluginSidebarItems: pluginService.getSidebarItems(),
-            onLongPressProfile,
+            onOpenAccountSwitcher,
           })}
         </div>
         <div class="view-column-center" data-testid="view-column-center">
@@ -175,7 +175,7 @@ export class MainLayout extends Layout {
 
     profileHoverCardService?.install(container);
 
-    const onLongPressProfile =
+    const onOpenAccountSwitcher =
       accountSwitcherService && auth.supportsMultipleAccounts()
         ? () => accountSwitcherService.openAccountSwitcherDialog()
         : null;
@@ -222,7 +222,7 @@ export class MainLayout extends Layout {
           },
           pluginService,
           previewingPlugins,
-          onLongPressProfile,
+          onOpenAccountSwitcher,
           groupChatLinkService,
           liveStatusService,
           feedInteractionHandler: interactionHandlers.feedInteractionHandler,

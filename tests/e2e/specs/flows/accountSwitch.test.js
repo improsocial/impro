@@ -77,6 +77,23 @@ test.describe("Account switch flow", () => {
     ).toBeVisible();
   });
 
+  test("shows a sign out button for the current account", async ({ page }) => {
+    const dialog = await openSwitcherDialog(page);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-sign-out"]'),
+    ).toContainText(`@${userProfile.handle}`);
+  });
+
+  test("signing out from the switcher goes to the login page", async ({
+    page,
+  }) => {
+    const dialog = await openSwitcherDialog(page);
+    await dialog.locator('[data-testid="account-switcher-sign-out"]').click();
+    await expect(dialog).toHaveCount(0);
+    await page.locator('[data-testid="modal-confirm-button"]').click();
+    await expect(page).toHaveURL(/\/login$/, { timeout: 10000 });
+  });
+
   test("hydrates account rows with profile data", async ({ page }) => {
     const dialog = await openSwitcherDialog(page);
 
@@ -87,14 +104,9 @@ test.describe("Account switch flow", () => {
     await expect(otherRow).toContainText(`@${otherProfile.handle}`);
   });
 
-  test("hides the close button on mobile and dismisses with Escape", async ({
-    page,
-  }) => {
+  test("dismisses with Escape", async ({ page }) => {
     const dialog = await openSwitcherDialog(page);
 
-    await expect(
-      dialog.locator('[data-testid="account-switcher-close"]'),
-    ).toBeHidden();
     await page.keyboard.press("Escape");
 
     await expect(dialog).toHaveCount(0);
@@ -356,5 +368,94 @@ test.describe("Account switch flow with an account needing re-auth", () => {
     expect(accounts.some((account) => account.did === otherProfile.did)).toBe(
       true,
     );
+  });
+});
+
+test.describe("Account switch flow on desktop", () => {
+  test.use({ viewport: { width: 1300, height: 800 } });
+
+  test.beforeEach(async ({ page }) => {
+    const mockServer = new MockServer();
+    const otherProfile = createProfile({
+      did: "did:plc:otheruser456",
+      handle: "otheruser.bsky.social",
+      displayName: "Other User",
+    });
+    mockServer.addProfile(userProfile);
+    mockServer.addProfile(otherProfile);
+    await mockServer.setup(page);
+
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+      { did: otherProfile.did, handle: otherProfile.handle },
+    ]);
+    await page.goto("/");
+    await expect(page.locator('[data-testid="sidebar-account"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("clicking the sidebar account row opens the switcher", async ({
+    page,
+  }) => {
+    await page
+      .locator('[data-testid="sidebar-account-switcher-button"]')
+      .click();
+    await expect(
+      page.locator('[data-testid="account-switcher-dialog"]'),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  test("clicking the sidebar account avatar opens the profile", async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="sidebar-account-avatar"]').click();
+    await expect(page).toHaveURL(`/profile/${userProfile.did}`);
+    await expect(
+      page.locator('[data-testid="account-switcher-dialog"]'),
+    ).toHaveCount(0);
+  });
+});
+
+test.describe("Account switch flow with many accounts", () => {
+  test.beforeEach(async ({ page }) => {
+    const mockServer = new MockServer();
+    const otherProfiles = Array.from({ length: 11 }, (_, i) =>
+      createProfile({
+        did: `did:plc:otheruser${i}`,
+        handle: `otheruser${i}.bsky.social`,
+        displayName: `Other User ${i}`,
+      }),
+    );
+    mockServer.addProfile(userProfile);
+    for (const profile of otherProfiles) {
+      mockServer.addProfile(profile);
+    }
+    await mockServer.setup(page);
+
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+      ...otherProfiles.map((profile) => ({
+        did: profile.did,
+        handle: profile.handle,
+      })),
+    ]);
+    await page.goto("/");
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("keeps the sign out button visible and scrolls the account list", async ({
+    page,
+  }) => {
+    const dialog = await openSwitcherDialog(page);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-sign-out"]'),
+    ).toBeInViewport();
+    const addRow = dialog.locator('[data-testid="account-switcher-add"]');
+    await addRow.scrollIntoViewIfNeeded();
+    await expect(addRow).toBeInViewport();
   });
 });

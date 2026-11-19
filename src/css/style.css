@@ -190,6 +190,7 @@ html {
   --avatar-size-sidebar-compact: 48px;
   --avatar-size-convo: 50px;
   --avatar-size-sidebar: 52px;
+  --avatar-size-sidebar-account: 40px;
   --avatar-size-chat-info-panel: 88px;
   --avatar-size-profile: 100px;
 
@@ -260,6 +261,7 @@ html {
   --post-thread-reply-prompt-height: 50px;
   --message-input-min-height: 70px;
   --sidebar-max-width: 300px;
+  --sidebar-item-width: 250px;
   --right-column-width: 377px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
 
@@ -1637,6 +1639,15 @@ tab-bar.is-scroll-frozen {
 }
 
 @media (min-width: 1200px) {
+  .sidebar {
+    width: calc(20px + var(--sidebar-item-width) + 8px);
+  }
+
+  .sidebar > .sidebar-content {
+    flex: 1;
+    min-width: 0;
+  }
+
   .sidebar-nav-item {
     justify-content: flex-start;
     padding-right: 2em !important;
@@ -1830,7 +1841,7 @@ plugin-blob-image .blob-image-fallback {
 }
 
 .sidebar-nav-icon .status-badge {
-  top: 0;
+  top: calc(50% - 19px);
   left: 12px;
 }
 
@@ -1872,6 +1883,8 @@ plugin-blob-image .blob-image-fallback {
     width: 44px;
     height: 44px;
     padding: 0;
+    margin-top: 3px;
+    margin-bottom: 3px;
   }
 
   .sidebar-compose-button {
@@ -1886,6 +1899,129 @@ plugin-blob-image .blob-image-fallback {
 
   .sidebar-compose-button span {
     display: none;
+  }
+}
+
+@media (min-width: 1200px) {
+  .sidebar-nav-icon {
+    height: 44px;
+  }
+
+  .sidebar-compose-button {
+    align-self: stretch;
+    width: auto;
+    margin-left: 0;
+    margin-right: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+}
+
+.sidebar-account {
+  display: none;
+  position: relative;
+  margin: 12px 8px 12px 0;
+}
+
+.sidebar-account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px 10px calc(24px + var(--avatar-size-sidebar-account));
+  border: none;
+  border-radius: var(--sidebar-nav-item-border-radius);
+  background: transparent;
+  color: var(--text-color);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+@media (hover: hover) {
+  .sidebar-account-row:hover {
+    background: var(--post-hover-color);
+  }
+}
+
+.sidebar-account-row app-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-account-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-account-name,
+.sidebar-account-handle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sidebar-account-handle {
+  font-size: 15px;
+  color: var(--text-color-muted);
+}
+
+.sidebar-account-avatar {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  display: flex;
+  border-radius: var(--avatar-border-radius);
+}
+
+.sidebar-account-avatar .avatar {
+  display: flex;
+}
+
+.sidebar-account-avatar .avatar-image-frame {
+  width: var(--avatar-size-sidebar-account);
+  height: var(--avatar-size-sidebar-account);
+  border-radius: var(--avatar-border-radius);
+  border: var(--hair) solid var(--post-border-color);
+}
+
+@media (min-width: 800px) {
+  .sidebar .sidebar-profile {
+    display: none;
+  }
+
+  .sidebar .sidebar-nav {
+    padding-top: 9px;
+  }
+
+  .sidebar-account {
+    display: block;
+  }
+}
+
+@media (min-width: 800px) and (max-width: 1199px) {
+  .sidebar-account {
+    align-self: center;
+  }
+
+  .sidebar-account-row {
+    display: none;
+  }
+
+  .sidebar-account-avatar {
+    position: static;
+    transform: none;
   }
 }
 
@@ -10069,6 +10205,9 @@ context-menu-item-group > context-menu-item > button {
 
 /* @chunk views-misc */
 .account-switcher-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
   padding: 16px;
   /* Extra top padding leaves room for the sheet drag handle on mobile */
   padding-top: 20px;
@@ -10080,25 +10219,21 @@ context-menu-item-group > context-menu-item > button {
   }
 }
 
-.account-switcher-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.account-switcher-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
 .account-switcher-list {
   display: flex;
   flex-direction: column;
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--card-border-radius);
   overflow: hidden;
+}
+
+.account-switcher-dialog .account-switcher-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.account-switcher-list > .account-switcher-item {
+  flex-shrink: 0;
 }
 
 .account-switcher-item {
@@ -10205,6 +10340,50 @@ context-menu-item-group > context-menu-item > button {
 .account-switcher-chevron app-icon {
   width: 24px;
   height: 24px;
+}
+
+.account-switcher-sign-out {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  background: none;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--card-border-radius);
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--error-color);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .account-switcher-sign-out:hover {
+    background-color: var(--post-hover-color);
+  }
+}
+
+.account-switcher-sign-out-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.account-switcher-sign-out-icon app-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.account-switcher-sign-out-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 moderation-warning {

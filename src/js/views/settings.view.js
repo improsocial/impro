@@ -13,7 +13,6 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
-import { logAuthEvent } from "/js/errorLogs.js";
 import { Signal } from "/js/signals.js";
 import {
   avatarPlaceholderTemplate,
@@ -25,7 +24,7 @@ import { getDisplayName } from "/js/dataHelpers.js";
 export default async function settingsView({
   root,
   layout,
-  context: { auth, dataLayer, pushNotificationService },
+  context: { auth, dataLayer, pushNotificationService, accountSwitcherService },
 }) {
   const currentSession = await auth.requireAuth();
   const supportsMultipleAccounts = auth.supportsMultipleAccounts();
@@ -342,23 +341,7 @@ export default async function settingsView({
             <button
               class="vertical-nav-item danger-button"
               data-testid="settings-sign-out"
-              @click=${async () => {
-                if (
-                  !(await confirmModal("Are you sure you want to sign out?", {
-                    title: "Sign out?",
-                    confirmButtonStyle: "danger",
-                    confirmButtonText: "Sign out",
-                  }))
-                ) {
-                  return;
-                }
-                logAuthEvent("user-sign-out", {});
-                if (pushNotificationService?.isEnabled) {
-                  await pushNotificationService.disable();
-                }
-                await auth.logout();
-                window.location.href = "/login";
-              }}
+              @click=${() => accountSwitcherService.signOut()}
             >
               Sign out
             </button>

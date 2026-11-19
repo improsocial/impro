@@ -186,6 +186,53 @@ function loggedOutSidebarTemplate({
   `;
 }
 
+function sidebarAccountTemplate({
+  currentUser,
+  displayName,
+  handle,
+  onOpenAccountSwitcher,
+}) {
+  if (!currentUser) {
+    return null;
+  }
+  const profileUrl = `/profile/${currentUser.did}`;
+  const info = html`<span class="sidebar-account-info">
+    <span class="sidebar-account-name">${displayName}</span>
+    <span class="sidebar-account-handle">${handle}</span>
+  </span>`;
+  return html`
+    <div class="sidebar-account" data-testid="sidebar-account">
+      ${onOpenAccountSwitcher
+        ? html`<button
+            class="sidebar-account-row"
+            data-testid="sidebar-account-switcher-button"
+            aria-label="Switch accounts"
+            @click=${() => onOpenAccountSwitcher()}
+          >
+            ${info}
+            <app-icon icon="more-menu-large"></app-icon>
+          </button>`
+        : html`<a
+            class="sidebar-account-row"
+            href=${profileUrl}
+            tabindex="-1"
+            @click=${(event) => navigateFromSidebar(event, profileUrl)}
+          >
+            ${info}
+          </a>`}
+      <a
+        class="sidebar-account-avatar"
+        href=${profileUrl}
+        data-testid="sidebar-account-avatar"
+        aria-label="Profile"
+        @click=${(event) => navigateFromSidebar(event, profileUrl)}
+      >
+        ${avatarTemplate({ author: currentUser, clickAction: "none" })}
+      </a>
+    </div>
+  `;
+}
+
 export function sidebarTemplate({
   isAuthenticated,
   currentUser,
@@ -196,7 +243,7 @@ export function sidebarTemplate({
   onClickActiveItem,
   onClickComposeButton,
   pluginSidebarItems = [],
-  onLongPressProfile = null,
+  onOpenAccountSwitcher = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
@@ -282,7 +329,7 @@ export function sidebarTemplate({
   const followsCount = currentUser?.followsCount ?? null;
   // A partial profile has no counts to show
   const showStats = !currentUser?.isPartial;
-  const longPressEnabled = !!onLongPressProfile;
+  const longPressEnabled = !!onOpenAccountSwitcher;
   return html`
     <animated-sidebar>
       <!-- Profile Section -->
@@ -296,7 +343,9 @@ export function sidebarTemplate({
               enableLongPress(el);
             }
           })}
-          @long-press=${onLongPressProfile ? () => onLongPressProfile() : null}
+          @long-press=${onOpenAccountSwitcher
+            ? () => onOpenAccountSwitcher()
+            : null}
         >
           ${currentUser
             ? html`${avatarTemplate({ author: currentUser })}`
@@ -384,6 +433,12 @@ export function sidebarTemplate({
         <span>New Post</span>
       </button>
       <div class="sidebar-spacer"></div>
+      ${sidebarAccountTemplate({
+        currentUser,
+        displayName,
+        handle,
+        onOpenAccountSwitcher,
+      })}
     </animated-sidebar>
   `;
 }

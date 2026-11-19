@@ -510,13 +510,13 @@ describe("sidebarTemplate - compose button", () => {
 });
 
 describe("sidebarTemplate - profile long-press", () => {
-  function renderSidebar({ onLongPressProfile = null } = {}) {
+  function renderSidebar({ onOpenAccountSwitcher = null } = {}) {
     const container = document.createElement("div");
     render(
       sidebarTemplate({
         isAuthenticated: true,
         currentUser: mockUser,
-        onLongPressProfile,
+        onOpenAccountSwitcher,
       }),
       container,
     );
@@ -525,7 +525,7 @@ describe("sidebarTemplate - profile long-press", () => {
 
   it("invokes the handler when a long-press fires on the profile avatar", () => {
     let fired = 0;
-    const avatar = renderSidebar({ onLongPressProfile: () => fired++ });
+    const avatar = renderSidebar({ onOpenAccountSwitcher: () => fired++ });
     avatar.dispatchEvent(new CustomEvent("long-press"));
     assert.deepEqual(fired, 1);
   });
@@ -533,6 +533,87 @@ describe("sidebarTemplate - profile long-press", () => {
   it("does not throw when a long-press fires and no handler is provided", () => {
     const avatar = renderSidebar();
     avatar.dispatchEvent(new CustomEvent("long-press"));
+  });
+});
+
+describe("sidebarTemplate - account row", () => {
+  let originalRouter;
+  let go;
+
+  beforeEach(() => {
+    originalRouter = window.router;
+    go = mock.fn();
+    window.router = { go };
+  });
+
+  afterEach(() => {
+    window.router = originalRouter;
+  });
+
+  function renderSidebar({ currentUser = mockUser, onOpenAccountSwitcher }) {
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({
+        isAuthenticated: true,
+        currentUser,
+        onOpenAccountSwitcher,
+      }),
+      container,
+    );
+    return container;
+  }
+
+  it("renders the current user's name and handle", () => {
+    const container = renderSidebar({ onOpenAccountSwitcher: () => {} });
+    const account = container.querySelector("[data-testid='sidebar-account']");
+    assert(account.textContent.includes("Test User"));
+    assert(account.textContent.includes("@testuser.bsky.social"));
+  });
+
+  it("does not render without a current user", () => {
+    const container = renderSidebar({
+      currentUser: null,
+      onOpenAccountSwitcher: () => {},
+    });
+    assert.equal(
+      container.querySelector("[data-testid='sidebar-account']"),
+      null,
+    );
+  });
+
+  it("opens the account switcher when the row is clicked", () => {
+    const onOpenAccountSwitcher = mock.fn();
+    const container = renderSidebar({ onOpenAccountSwitcher });
+    container
+      .querySelector("[data-testid='sidebar-account-switcher-button']")
+      .click();
+    assert.equal(onOpenAccountSwitcher.mock.callCount(), 1);
+    assert.equal(go.mock.callCount(), 0);
+  });
+
+  it("navigates to the profile when the avatar is clicked", async () => {
+    const onOpenAccountSwitcher = mock.fn();
+    const container = renderSidebar({ onOpenAccountSwitcher });
+    container.querySelector("[data-testid='sidebar-account-avatar']").click();
+    await raf();
+    await raf();
+    await Promise.resolve();
+    assert.equal(onOpenAccountSwitcher.mock.callCount(), 0);
+    assert.deepEqual(go.mock.calls[0].arguments, [`/profile/${mockUser.did}`]);
+  });
+
+  it("omits the switcher button when account switching is unavailable", () => {
+    const container = renderSidebar({ onOpenAccountSwitcher: null });
+    assert.equal(
+      container.querySelector(
+        "[data-testid='sidebar-account-switcher-button']",
+      ),
+      null,
+    );
+    assert(
+      container.querySelector("[data-testid='sidebar-account-avatar']") !==
+        null,
+    );
   });
 });
 
