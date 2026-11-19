@@ -527,7 +527,6 @@ suggested-feeds-pane {
 }
 
 .suggested-feeds-list {
-  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -571,43 +570,18 @@ suggested-feeds-pane {
 }
 
 .suggested-feed-meta {
-  display: flex;
   font-size: 13px;
   line-height: 16px;
   color: var(--text-color-muted);
-  white-space: nowrap;
-}
-
-.suggested-feed-meta-item {
-  flex-shrink: 0;
-}
-
-.suggested-feed-meta-item:first-child {
-  flex-shrink: 1;
-  min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.suggested-feed-meta-item + .suggested-feed-meta-item::before {
-  content: " · ";
-  white-space: pre;
 }
 
 .feed-like-count {
   display: inline-flex;
   align-items: center;
   vertical-align: bottom;
-}
-
-@container (max-width: 280px) {
-  .suggested-feed-meta-item:not(.feed-like-count) {
-    display: none;
-  }
-
-  .suggested-feed-meta-item.feed-like-count::before {
-    display: none;
-  }
 }
 
 .feed-like-count app-icon {

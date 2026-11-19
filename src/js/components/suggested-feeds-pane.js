@@ -7,7 +7,6 @@ import { linkToFeed } from "/js/navigation.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { sidebarPaneTemplate } from "/js/templates/sidebarPane.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import { feedLikeCountTemplate } from "/js/templates/feedLikeCount.template.js";
 import "/js/components/app-icon.js";
 import "/js/components/container-link.js";
 
@@ -29,17 +28,8 @@ function suggestedFeedRowTemplate({ feed, isPinned, onTogglePin }) {
       <div class="suggested-feed-title" data-testid="suggested-feed-title">
         ${feed.displayName}
       </div>
-      <div class="suggested-feed-meta">
-        <span
-          class="suggested-feed-meta-item"
-          data-testid="suggested-feed-creator"
-          >@${feed.creator.handle}</span
-        >${feed.likeCount
-          ? feedLikeCountTemplate({
-              likeCount: feed.likeCount,
-              className: "suggested-feed-meta-item",
-            })
-          : ""}
+      <div class="suggested-feed-meta" data-testid="suggested-feed-creator">
+        @${feed.creator.handle}
       </div>
     </div>
     <button

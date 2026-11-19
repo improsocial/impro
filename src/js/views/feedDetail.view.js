@@ -1,12 +1,17 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
-import { classnames, canShareUrl, shareUrl } from "/js/utils.js";
+import {
+  classnames,
+  canShareUrl,
+  shareUrl,
+  formatLargeNumber,
+} from "/js/utils.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
-import { feedLikeCountTemplate } from "/js/templates/feedLikeCount.template.js";
+import "/js/components/app-icon.js";
 import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
@@ -40,6 +45,15 @@ function feedHeaderSubtitleSkeletonTemplate() {
   return html`&#8203;<span
       class="skeleton-line-shorter skeleton-animate feed-detail-header-skeleton-line"
     ></span>`;
+}
+
+function feedLikeCountTemplate({ likeCount }) {
+  return html`<span
+    class="feed-like-count"
+    data-testid="feed-like-count"
+    aria-label="${likeCount} ${likeCount === 1 ? "like" : "likes"}"
+    ><app-icon icon="heart"></app-icon>${formatLargeNumber(likeCount)}</span
+  >`;
 }
 
 function feedSubtitleTemplate({ handle, likeCount }) {

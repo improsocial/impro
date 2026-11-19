@@ -111,7 +111,7 @@ describe("suggested-feeds-pane", () => {
     );
   });
 
-  it("shows the creator handle and like count", async () => {
+  it("shows the creator handle without a like count", async () => {
     const feed = createFeed("cats");
     feed.likeCount = 1234;
     const dataLayer = await makeDataLayer(async () => ({ feeds: [feed] }));
@@ -124,11 +124,9 @@ describe("suggested-feeds-pane", () => {
         .textContent.trim(),
       "@creator.test",
     );
-    assert.deepEqual(
-      element
-        .querySelector("[data-testid='feed-like-count']")
-        .textContent.trim(),
-      "1.2K",
+    assert.equal(
+      element.querySelector("[data-testid='feed-like-count']"),
+      null,
     );
   });
 
