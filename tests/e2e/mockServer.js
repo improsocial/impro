@@ -155,6 +155,8 @@ export class MockServer {
     this.getBlobCalls = [];
     // did -> { cid, value } for app.bsky.actor.status/self
     this.statusRecords = new Map();
+    this.profileLinkRecords = new Map();
+    this.deletedProfileLinkUris = [];
     this.putStatusCalls = [];
     this.deleteStatusCalls = [];
     // Remaining InvalidSwap failures the next putStatusRecord calls will emit
@@ -227,6 +229,24 @@ export class MockServer {
 
   // Start with a notification service already chosen on this device, as if a
   // previous launch had left it there. Call before setup().
+  _getProfileLinkRecord(uri) {
+    const stored = this.profileLinkRecords.get(uri);
+    if (stored) return stored;
+    const profile = this.profiles.get(userProfile.did) || userProfile;
+    const linkView = (profile.links || []).find((link) => link.uri === uri);
+    if (!linkView) return null;
+    return {
+      uri,
+      cid: linkView.cid,
+      value: {
+        $type: "app.bsky.actor.link",
+        url: linkView.url,
+        ...(linkView.title ? { title: linkView.title } : {}),
+        createdAt: "2025-01-01T00:00:00.000Z",
+      },
+    };
+  }
+
   setNotificationServiceDid(did) {
     this.notificationServiceDid = did;
   }
@@ -2937,6 +2957,17 @@ export class MockServer {
       const collection = body?.collection;
       const rkey = body?.rkey;
 
+      if (collection === "app.bsky.actor.link") {
+        const uri = `at://${body.repo}/${collection}/${rkey}`;
+        this.profileLinkRecords.delete(uri);
+        this.deletedProfileLinkUris.push(uri);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "{}",
+        });
+      }
+
       if (collection === "app.bsky.actor.status") {
         const repo = body?.repo;
         this.deleteStatusCalls.push(body);
@@ -3207,6 +3238,15 @@ export class MockServer {
         this._ingestListItemRecord(body?.record || {}, uri);
       }
 
+      if (collection === "app.bsky.actor.link") {
+        this.profileLinkRecords.set(uri, { uri, cid, value: body.record });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ uri, cid }),
+        });
+      }
+
       if (collection === "app.bsky.feed.post") {
         this._ingestPostRecord(body?.record, uri);
       }
@@ -3413,6 +3453,9 @@ export class MockServer {
         if (profile.pinnedPost) {
           value.pinnedPost = profile.pinnedPost;
         }
+        if (profile.links) {
+          value.links = profile.links.map(({ uri, cid }) => ({ uri, cid }));
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -3421,6 +3464,24 @@ export class MockServer {
             cid: "bafyreiprofilerecord",
             value,
           }),
+        });
+      }
+      if (collection === "app.bsky.actor.link") {
+        const repo = url.searchParams.get("repo");
+        const record = this._getProfileLinkRecord(
+          `at://${repo}/${collection}/${rkey}`,
+        );
+        if (!record) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "RecordNotFound" }),
+          });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(record),
         });
       }
       if (collection === "app.bsky.actor.status" && rkey === "self") {
@@ -3551,8 +3612,22 @@ export class MockServer {
         } else {
           delete profile.pinnedPost;
         }
+        if (record.links) {
+          profile.links = record.links.map((ref) => {
+            const { value } = this._getProfileLinkRecord(ref.uri);
+            return {
+              uri: ref.uri,
+              cid: ref.cid,
+              url: value.url,
+              ...(value.title ? { title: value.title } : {}),
+            };
+          });
+        } else {
+          delete profile.links;
+        }
         this.profiles.set(userProfile.did, profile);
       }
+
       if (
         collection === "app.bsky.feed.threadgate" ||
         collection === "app.bsky.feed.postgate"
@@ -3772,6 +3847,11 @@ export class MockServer {
         }),
       });
     });
+
+    await page.route(
+      (url) => url.toString().includes("cardyb.bsky.app/v1/favicon"),
+      (route) => route.fulfill({ status: 404, body: "" }),
+    );
 
     await page.route(
       (url) => url.toString().includes("cardyb.bsky.app/v1/extract"),

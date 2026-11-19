@@ -2,7 +2,11 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../../shared/factories.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
+import {
+  createProfile,
+  createProfileLinkView,
+} from "../../../shared/factories.js";
 
 test.describe("Edit profile flow", () => {
   test("should open edit dialog, update display name and description, and save", async ({
@@ -510,5 +514,186 @@ test.describe("Edit profile flow", () => {
     await expect(
       dialog.locator('[data-testid="form-dialog-error"]'),
     ).toBeVisible({ timeout: 5000 });
+  });
+
+  test.describe("Profile links", () => {
+    function createUserWithLinks() {
+      return createProfile({
+        did: userProfile.did,
+        handle: userProfile.handle,
+        displayName: "Test User",
+        description: "My description",
+        links: [
+          createProfileLinkView({
+            did: userProfile.did,
+            rkey: "link1",
+            url: "https://example.com/first",
+            title: "First",
+          }),
+          createProfileLinkView({
+            did: userProfile.did,
+            rkey: "link2",
+            url: "https://example.com/second",
+            title: "Second",
+          }),
+        ],
+      });
+    }
+
+    async function openEditor(page) {
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+      const profileView = page.locator("#profile-view");
+      await expect(
+        profileView.locator('[data-testid="profile-link"]'),
+      ).toHaveCount(2, { timeout: 10000 });
+      await profileView.locator('[data-testid="edit-profile-button"]').click();
+      const dialog = page.locator("edit-profile-dialog");
+      await expect(
+        dialog.locator('[data-testid="edit-profile-link"]'),
+      ).toHaveCount(2, { timeout: 5000 });
+      return { profileView, dialog };
+    }
+
+    test("should add a link and show it on the profile", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(createUserWithLinks());
+      mockServer.externalLinkCards.set("https://example.net/shop", {
+        title: "Example Shop | The best shop",
+        description: "",
+      });
+      await mockServer.setup(page);
+      const { profileView, dialog } = await openEditor(page);
+
+      await dialog
+        .locator('[data-testid="edit-profile-add-link-button"]')
+        .click();
+      const urlInput = dialog.locator('[data-testid="edit-profile-link-url"]');
+      await expect(urlInput).toBeFocused();
+
+      await urlInput.fill("bit.ly/abc");
+      await dialog
+        .locator('[data-testid="edit-profile-link-done-button"]')
+        .click();
+      await expect(
+        dialog.locator('[data-testid="edit-profile-link-error"]'),
+      ).toHaveAttribute("data-teststate", "shortener");
+
+      await urlInput.fill("example.net/shop");
+      await expect(
+        dialog.locator('[data-testid="edit-profile-link-title"]'),
+      ).toHaveValue("Example Shop");
+      await dialog
+        .locator('[data-testid="edit-profile-link-done-button"]')
+        .click();
+
+      const editorLinks = dialog.locator('[data-testid="edit-profile-link"]');
+      await expect(editorLinks).toHaveCount(3);
+      await expect(editorLinks.nth(2)).toContainText("Example Shop");
+
+      await dialog.locator('[data-testid="edit-profile-save-button"]').click();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 5000,
+      });
+
+      const profileLinks = profileView.locator('[data-testid="profile-link"]');
+      await expect(profileLinks).toHaveCount(3);
+      await expect(profileLinks.nth(2)).toHaveAttribute(
+        "href",
+        "https://example.net/shop",
+      );
+      await expect(profileLinks.nth(2)).toContainText("Example Shop");
+    });
+
+    test("should remove a link and delete its record", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(createUserWithLinks());
+      await mockServer.setup(page);
+      const { profileView, dialog } = await openEditor(page);
+
+      await dialog
+        .locator('[data-testid="edit-profile-link-edit-button"]')
+        .first()
+        .click();
+      await dialog
+        .locator('[data-testid="edit-profile-link-remove-button"]')
+        .click();
+      await expect(
+        dialog.locator('[data-testid="edit-profile-link"]'),
+      ).toHaveCount(1);
+
+      await dialog.locator('[data-testid="edit-profile-save-button"]').click();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 5000,
+      });
+
+      const profileLinks = profileView.locator('[data-testid="profile-link"]');
+      await expect(profileLinks).toHaveCount(1);
+      await expect(profileLinks.first()).toContainText("Second");
+      expect(mockServer.deletedProfileLinkUris).toEqual([
+        `at://${userProfile.did}/app.bsky.actor.link/link1`,
+      ]);
+    });
+
+    test("should hide the links editor when the session lacks the link scope", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(createUserWithLinks());
+      await mockServer.setup(page);
+      await login(page, {
+        scope: OAUTH_SCOPES.split(" ")
+          .filter((scope) => !scope.startsWith("repo:app.bsky.actor.link"))
+          .join(" "),
+      });
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const profileView = page.locator("#profile-view");
+      await expect(
+        profileView.locator('[data-testid="profile-link"]'),
+      ).toHaveCount(2, { timeout: 10000 });
+      await profileView.locator('[data-testid="edit-profile-button"]').click();
+      const dialog = page.locator("edit-profile-dialog");
+      await expect(
+        dialog.locator('[data-testid="edit-profile-display-name"]'),
+      ).toBeVisible({ timeout: 5000 });
+      await expect(
+        dialog.locator('[data-testid="edit-profile-links"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should reorder links by dragging", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(createUserWithLinks());
+      await mockServer.setup(page);
+      const { profileView, dialog } = await openEditor(page);
+
+      const handles = dialog.locator(
+        '[data-testid="edit-profile-link-drag-handle"]',
+      );
+      await handles.nth(0).hover();
+      const firstBox = await handles.nth(0).boundingBox();
+      const secondBox = await handles.nth(1).boundingBox();
+      await page.mouse.down();
+      await page.mouse.move(
+        firstBox.x + firstBox.width / 2,
+        secondBox.y + secondBox.height,
+        { steps: 10 },
+      );
+      await page.mouse.up();
+
+      const editorLinks = dialog.locator('[data-testid="edit-profile-link"]');
+      await expect(editorLinks.nth(0)).toContainText("Second");
+
+      await dialog.locator('[data-testid="edit-profile-save-button"]').click();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 5000,
+      });
+
+      const profileLinks = profileView.locator('[data-testid="profile-link"]');
+      await expect(profileLinks.nth(0)).toContainText("Second");
+      await expect(profileLinks.nth(1)).toContainText("First");
+      expect(mockServer.deletedProfileLinkUris).toEqual([]);
+    });
   });
 });

@@ -176,6 +176,7 @@ export function createProfile({
   status,
   verification,
   pronouns,
+  links,
 }) {
   return {
     did,
@@ -194,6 +195,19 @@ export function createProfile({
     ...(status ? { status } : {}),
     ...(verification ? { verification } : {}),
     ...(pronouns ? { pronouns } : {}),
+    ...(links ? { links } : {}),
+  };
+}
+
+// An app.bsky.actor.defs#profileLinkView, as it arrives on profile views
+export function createProfileLinkView({ did, rkey, url, title, icon, labels }) {
+  return {
+    uri: `at://${did}/app.bsky.actor.link/${rkey}`,
+    cid: `bafyrei${rkey}`,
+    url,
+    ...(title ? { title } : {}),
+    ...(icon ? { icon } : {}),
+    ...(labels ? { labels } : {}),
   };
 }
 

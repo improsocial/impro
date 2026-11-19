@@ -9,6 +9,7 @@ import {
   createLabelerView,
   createList,
   createLiveStatusView,
+  createProfileLinkView,
 } from "../../../shared/factories.js";
 
 const otherUser = createProfile({
@@ -176,6 +177,103 @@ test.describe("Profile view", () => {
       "Hello, I'm a test user!",
       { timeout: 10000 },
     );
+  });
+
+  test.describe("Profile links", () => {
+    const profileWithLinks = createProfile({
+      did: "did:plc:linksuser1",
+      handle: "linksuser.bsky.social",
+      displayName: "Links User",
+      description: "I have links",
+      links: [
+        createProfileLinkView({
+          did: "did:plc:linksuser1",
+          rkey: "link1",
+          url: "https://example.com/portfolio",
+          title: "My Portfolio",
+        }),
+        createProfileLinkView({
+          did: "did:plc:linksuser1",
+          rkey: "link2",
+          url: "https://www.example.org/",
+        }),
+        createProfileLinkView({
+          did: "did:plc:linksuser1",
+          rkey: "link3",
+          url: "https://bit.ly/abc123",
+          title: "Shortened",
+        }),
+        createProfileLinkView({
+          did: "did:plc:linksuser1",
+          rkey: "link4",
+          url: "http://insecure.example.com",
+          title: "Insecure",
+        }),
+        createProfileLinkView({
+          did: "did:plc:linksuser1",
+          rkey: "link5",
+          url: "https://example.com/portfolio",
+          title: "Duplicate",
+        }),
+      ],
+    });
+
+    test("should show showable links under the bio", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(profileWithLinks);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${profileWithLinks.did}`);
+
+      const view = page.locator("#profile-view");
+      const links = view.locator('[data-testid="profile-link"]');
+      await expect(links).toHaveCount(2, { timeout: 10000 });
+      await expect(links.nth(0)).toHaveAttribute(
+        "href",
+        "https://example.com/portfolio",
+      );
+      await expect(links.nth(0)).toHaveAttribute("target", "_blank");
+      await expect(links.nth(0)).toContainText("My Portfolio");
+      await expect(links.nth(1)).toContainText("example.org");
+    });
+
+    test("should show a link's full destination on hover", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(profileWithLinks);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${profileWithLinks.did}`);
+
+      const view = page.locator("#profile-view");
+      const firstLink = view.locator('[data-testid="profile-link"]').first();
+      await expect(firstLink).toBeVisible({ timeout: 10000 });
+      await firstLink.hover();
+
+      const tooltip = page.locator('[data-testid="profile-link-tooltip"]');
+      await expect(
+        tooltip.locator('[data-testid="profile-link-destination"]'),
+      ).toHaveText("example.com/portfolio");
+
+      await page.mouse.move(0, 0);
+      await expect(tooltip).toBeHidden();
+    });
+
+    test("should not show links on a blocked profile", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile({
+        ...profileWithLinks,
+        viewer: { ...profileWithLinks.viewer, blocking: "at://block" },
+      });
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${profileWithLinks.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view.locator('[data-testid="profile-link"]')).toHaveCount(0);
+    });
   });
 
   test("should display known followers summary when present", async ({

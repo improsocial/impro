@@ -1,4 +1,4 @@
-import { html, render } from "/js/lib/lit-html.js";
+import { html, render, repeat } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
@@ -6,9 +6,22 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import {
   avatarThumbnailUrl,
   cdnImageUrl,
+  formatProfileLinkUrl,
+  getProfileLinkLabel,
   isLabelerProfile,
+  isSameProfileLinkList,
+  MAX_PROFILE_LINK_TITLE_LENGTH,
+  MAX_PROFILE_LINKS,
+  validateProfileLinkInput,
 } from "/js/dataHelpers.js";
-import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
+import { getLinkCardMeta } from "/js/embedHelpers.js";
+import {
+  classnames,
+  enableReorder,
+  graphemeCount,
+  readFileAsDataUrl,
+} from "/js/utils.js";
+import { profileLinkIconTemplate } from "/js/templates/profileLinkIcon.template.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/app-icon.js";
 import "/js/components/image-cropper.js";
@@ -20,6 +33,202 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 const MAX_DISPLAY_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 256;
 const MAX_PRONOUNS_LENGTH = 20;
+const LINK_TITLE_SUGGESTION_DEBOUNCE_MS = 500;
+
+const LINK_ERROR_MESSAGES = {
+  invalid: "That doesn’t look like a link. Try something like yoursite.com.",
+  insecure:
+    "Only secure links can be added. Use a link that starts with https://.",
+  shortener: "Short links can’t be added. Use the full link instead.",
+  duplicate: "You’ve already added this link.",
+};
+
+function suggestLinkTitle(pageTitle) {
+  const first = pageTitle.split(/\s+[|\-\u2013\u2014\u00b7]\s+|:\s+/)[0];
+  const trimmed = first.trim();
+  if (trimmed.length <= MAX_PROFILE_LINK_TITLE_LENGTH) return trimmed;
+  const cut = trimmed.slice(0, MAX_PROFILE_LINK_TITLE_LENGTH);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim();
+}
+
+function profileLinksFieldTemplate({
+  links,
+  linksFailed,
+  disabled,
+  onEditLink,
+  onAddLink,
+}) {
+  let content;
+  if (links) {
+    content = html`${links.length > 0
+      ? html`<ul class="edit-profile-links-list">
+          ${repeat(
+            links,
+            (link) => link.url,
+            (link, index) =>
+              html`<li
+                class="edit-profile-link-item"
+                data-link-url=${link.url}
+                data-testid="edit-profile-link"
+              >
+                <button
+                  class="edit-profile-link-edit-button"
+                  data-testid="edit-profile-link-edit-button"
+                  .disabled=${disabled}
+                  @click=${() => onEditLink(index)}
+                >
+                  ${profileLinkIconTemplate({ iconUrl: link.iconUrl })}
+                  <span class="edit-profile-link-text">
+                    <span class="edit-profile-link-label"
+                      >${getProfileLinkLabel(link)}</span
+                    >
+                    <span class="edit-profile-link-url"
+                      >${formatProfileLinkUrl(link.url)}</span
+                    >
+                  </span>
+                </button>
+                <button
+                  class="edit-profile-link-drag-handle"
+                  data-testid="edit-profile-link-drag-handle"
+                  aria-label="Drag to reorder"
+                  .disabled=${disabled}
+                >
+                  <app-icon icon="hamburger-menu"></app-icon>
+                </button>
+              </li>`,
+          )}
+        </ul>`
+      : ""}
+    ${links.length < MAX_PROFILE_LINKS
+      ? html`<button
+          class="edit-profile-add-link-button"
+          data-testid="edit-profile-add-link-button"
+          .disabled=${disabled}
+          @click=${() => onAddLink()}
+        >
+          <app-icon icon="plus-line"></app-icon>
+          Add link
+        </button>`
+      : ""}`;
+  } else if (linksFailed) {
+    content = html`<div
+      class="field-caption"
+      data-testid="edit-profile-links-error"
+    >
+      Couldn’t load your links. Close and reopen to try again.
+    </div>`;
+  } else {
+    content = html`<div class="edit-profile-links-loading">
+      <div class="loading-spinner"></div>
+    </div>`;
+  }
+  return html`<div
+    class="form-dialog-field edit-profile-links-field"
+    data-testid="edit-profile-links"
+  >
+    <label>Links</label>
+    ${content}
+  </div>`;
+}
+
+function linkFormTemplate({
+  linkForm,
+  canApply,
+  onCancel,
+  onApply,
+  onRemove,
+  onUrlInput,
+  onTitleInput,
+}) {
+  const isEditing = linkForm.index !== null;
+  const titleCount = graphemeCount(linkForm.titleInput.trim());
+  const onEnter = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onApply();
+    }
+  };
+  return html`<div
+    class="form-dialog-content sheet-scroll-region"
+    data-testid="edit-profile-link-form"
+  >
+    <div class="form-dialog-header">
+      <button
+        class="form-dialog-header-button"
+        data-testid="edit-profile-link-cancel-button"
+        @click=${() => onCancel()}
+      >
+        Cancel
+      </button>
+      <h2>${isEditing ? "Edit link" : "Add link"}</h2>
+      <button
+        class="form-dialog-header-button form-dialog-save-button"
+        data-testid="edit-profile-link-done-button"
+        .disabled=${!canApply}
+        @click=${() => onApply()}
+      >
+        Done
+      </button>
+    </div>
+    <div class="form-dialog-body">
+      <div class="form-dialog-field">
+        <label for="edit-profile-link-url">Link</label>
+        <input
+          id="edit-profile-link-url"
+          type="url"
+          class="form-dialog-input"
+          placeholder="yoursite.com"
+          autocapitalize="none"
+          autocomplete="url"
+          spellcheck="false"
+          .value=${linkForm.urlInput}
+          @input=${(event) => onUrlInput(event.target.value)}
+          @keydown=${onEnter}
+          data-testid="edit-profile-link-url"
+        />
+        ${linkForm.error
+          ? html`<div
+              class="edit-profile-link-error"
+              data-testid="edit-profile-link-error"
+              data-teststate=${linkForm.error}
+            >
+              ${LINK_ERROR_MESSAGES[linkForm.error]}
+            </div>`
+          : ""}
+      </div>
+      <div class="form-dialog-field">
+        <label for="edit-profile-link-title">Title (optional)</label>
+        <input
+          id="edit-profile-link-title"
+          type="text"
+          class="form-dialog-input"
+          placeholder="e.g. Portfolio"
+          .value=${linkForm.titleInput}
+          @input=${(event) => onTitleInput(event.target.value)}
+          @keydown=${onEnter}
+          data-testid="edit-profile-link-title"
+        />
+        <div
+          class=${classnames("form-dialog-char-count", {
+            overflow: titleCount > MAX_PROFILE_LINK_TITLE_LENGTH,
+          })}
+        >
+          ${titleCount}/${MAX_PROFILE_LINK_TITLE_LENGTH}
+        </div>
+      </div>
+      ${isEditing
+        ? html`<button
+            class="rounded-button danger-button edit-profile-link-remove-button"
+            data-testid="edit-profile-link-remove-button"
+            @click=${() => onRemove()}
+          >
+            Remove link
+          </button>`
+        : ""}
+    </div>
+  </div>`;
+}
 
 class EditProfileDialog extends Component {
   connectedCallback() {
@@ -43,6 +252,12 @@ class EditProfileDialog extends Component {
     this._croppingImageSrc = null;
     this._isOpen = false;
     this._profile = null;
+    this._linksEnabled = false;
+    this._storedLinks = null;
+    this._links = null;
+    this._linksFailed = false;
+    this._linkForm = null;
+    this._linkTitleTimer = null;
     this.innerHTML = "";
     this.render();
     this.initialized = true;
@@ -65,7 +280,35 @@ class EditProfileDialog extends Component {
     this._error = null;
     this._croppingTarget = null;
     this._croppingImageSrc = null;
+    this._storedLinks = null;
+    this._links = null;
+    this._linksFailed = false;
+    this._closeLinkForm();
     this.render();
+  }
+
+  enableProfileLinks() {
+    this._linksEnabled = true;
+    this.render();
+  }
+
+  setProfileLinks(links) {
+    this._storedLinks = links;
+    this._links = links;
+    this._linksFailed = false;
+    this.render();
+  }
+
+  setProfileLinksFailed() {
+    this._linksFailed = true;
+    this.render();
+  }
+
+  get _areLinksDirty() {
+    return (
+      this._storedLinks !== null &&
+      !isSameProfileLinkList(this._links, this._storedLinks)
+    );
   }
 
   get _isDirty() {
@@ -77,7 +320,8 @@ class EditProfileDialog extends Component {
       this._newAvatarDataUrl !== null ||
       this._newBannerDataUrl !== null ||
       this._removeAvatar ||
-      this._removeBanner
+      this._removeBanner ||
+      this._areLinksDirty
     );
   }
 
@@ -103,8 +347,17 @@ class EditProfileDialog extends Component {
     );
   }
 
+  get _canApplyLinkForm() {
+    const { urlInput, titleInput } = this._linkForm;
+    return (
+      urlInput.trim().length > 0 &&
+      graphemeCount(titleInput.trim()) <= MAX_PROFILE_LINK_TITLE_LENGTH
+    );
+  }
+
   render() {
     const isCropping = !!this._croppingTarget;
+    const isEditingLink = !!this._linkForm;
     const isLabeler = !!this._profile && isLabelerProfile(this._profile);
 
     const displayNameCount = graphemeCount(this._displayName);
@@ -121,7 +374,11 @@ class EditProfileDialog extends Component {
       html`<dialog
         class="bottom-sheet bottom-sheet-fullscreen no-handle form-dialog"
         @click=${async (event) => {
-          if (!isCropping && event.target === event.currentTarget) {
+          if (
+            !isCropping &&
+            !isEditingLink &&
+            event.target === event.currentTarget
+          ) {
             if (await this.confirmClose()) {
               this.close();
             }
@@ -132,6 +389,9 @@ class EditProfileDialog extends Component {
           if (isCropping) {
             this._croppingTarget = null;
             this._croppingImageSrc = null;
+            this.render();
+          } else if (isEditingLink) {
+            this._closeLinkForm();
             this.render();
           } else if (await this.confirmClose()) {
             this.close();
@@ -179,215 +439,243 @@ class EditProfileDialog extends Component {
                 ></image-cropper>
               </div>
             </div>`
-          : html`<div class="form-dialog-content sheet-scroll-region">
-              <div class="form-dialog-header">
-                <button
-                  class="form-dialog-header-button"
-                  data-testid="edit-profile-cancel-button"
-                  @click=${async () => {
-                    if (await this.confirmClose()) {
-                      this.close();
-                    }
-                  }}
-                  .disabled=${this._saving}
-                >
-                  Cancel
-                </button>
-                <h2>Edit profile</h2>
-                <button
-                  class=${classnames(
-                    "form-dialog-header-button form-dialog-save-button",
-                    { saving: this._saving },
-                  )}
-                  @click=${() => this._save()}
-                  .disabled=${!this._canSave}
-                  data-testid="edit-profile-save-button"
-                >
-                  <span>Save</span>
-                  ${this._saving
-                    ? html`<div class="loading-spinner"></div>`
-                    : ""}
-                </button>
-              </div>
-
-              <div class="form-dialog-body">
-                <div class="form-dialog-images-section">
-                  <div
-                    class="edit-profile-banner-preview"
-                    @click=${(event) => this._openImageMenu(event, "banner")}
+          : isEditingLink
+            ? linkFormTemplate({
+                linkForm: this._linkForm,
+                canApply: this._canApplyLinkForm,
+                onCancel: () => {
+                  this._closeLinkForm();
+                  this.render();
+                },
+                onApply: () => this._applyLinkForm(),
+                onRemove: () => this._removeEditingLink(),
+                onUrlInput: (value) => this._handleLinkUrlInput(value),
+                onTitleInput: (value) => {
+                  this._linkForm.titleInput = value;
+                  this.render();
+                },
+              })
+            : html`<div class="form-dialog-content sheet-scroll-region">
+                <div class="form-dialog-header">
+                  <button
+                    class="form-dialog-header-button"
+                    data-testid="edit-profile-cancel-button"
+                    @click=${async () => {
+                      if (await this.confirmClose()) {
+                        this.close();
+                      }
+                    }}
+                    .disabled=${this._saving}
                   >
-                    ${bannerSrc
-                      ? html`<img src="${bannerSrc}" alt="Banner preview" />`
-                      : html`<div
-                          class="edit-profile-banner-placeholder"
-                        ></div>`}
-                    <div class="form-dialog-image-overlay"></div>
+                    Cancel
+                  </button>
+                  <h2>Edit profile</h2>
+                  <button
+                    class=${classnames(
+                      "form-dialog-header-button form-dialog-save-button",
+                      { saving: this._saving },
+                    )}
+                    @click=${() => this._save()}
+                    .disabled=${!this._canSave}
+                    data-testid="edit-profile-save-button"
+                  >
+                    <span>Save</span>
+                    ${this._saving
+                      ? html`<div class="loading-spinner"></div>`
+                      : ""}
+                  </button>
+                </div>
+
+                <div class="form-dialog-body">
+                  <div class="form-dialog-images-section">
                     <div
-                      class="form-dialog-camera-button form-dialog-camera-button-banner"
+                      class="edit-profile-banner-preview"
+                      @click=${(event) => this._openImageMenu(event, "banner")}
                     >
-                      <app-icon icon="camera"></app-icon>
+                      ${bannerSrc
+                        ? html`<img src="${bannerSrc}" alt="Banner preview" />`
+                        : html`<div
+                            class="edit-profile-banner-placeholder"
+                          ></div>`}
+                      <div class="form-dialog-image-overlay"></div>
+                      <div
+                        class="form-dialog-camera-button form-dialog-camera-button-banner"
+                      >
+                        <app-icon icon="camera"></app-icon>
+                      </div>
+                    </div>
+
+                    <div
+                      class="form-dialog-avatar-wrapper"
+                      @click=${(event) => this._openImageMenu(event, "avatar")}
+                    >
+                      <div
+                        class=${classnames("form-dialog-avatar-preview", {
+                          "labeler-avatar": isLabeler,
+                        })}
+                      >
+                        ${avatarSrc
+                          ? html`<img
+                              src="${avatarSrc}"
+                              alt="Avatar preview"
+                            />`
+                          : html`<img
+                              class="form-dialog-avatar-placeholder"
+                              src=${isLabeler
+                                ? "/img/labeler-avatar-fallback.svg"
+                                : "/img/avatar-fallback.svg"}
+                              alt=""
+                            />`}
+                        <div class="form-dialog-image-overlay"></div>
+                      </div>
+                      <div
+                        class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      >
+                        <app-icon icon="camera"></app-icon>
+                      </div>
                     </div>
                   </div>
 
-                  <div
-                    class="form-dialog-avatar-wrapper"
-                    @click=${(event) => this._openImageMenu(event, "avatar")}
-                  >
+                  <context-menu class="edit-profile-banner-menu">
+                    <context-menu-item-group>
+                      <context-menu-item
+                        data-testid="menu-action-banner-upload"
+                        icon="image-line"
+                        @click=${() => this._pickImage("banner")}
+                      >
+                        Upload from Files
+                      </context-menu-item>
+                    </context-menu-item-group>
+                    ${bannerSrc
+                      ? html`<context-menu-item-group>
+                          <context-menu-item
+                            data-testid="menu-action-banner-remove"
+                            icon="delete-bin-line"
+                            @click=${() => {
+                              this._newBannerDataUrl = null;
+                              this._removeBanner = true;
+                              this.render();
+                            }}
+                          >
+                            Remove Banner
+                          </context-menu-item>
+                        </context-menu-item-group>`
+                      : ""}
+                  </context-menu>
+
+                  <context-menu class="edit-profile-avatar-menu">
+                    <context-menu-item-group>
+                      <context-menu-item
+                        data-testid="menu-action-avatar-upload"
+                        icon="image-line"
+                        @click=${() => this._pickImage("avatar")}
+                      >
+                        Upload from Files
+                      </context-menu-item>
+                    </context-menu-item-group>
+                    ${avatarSrc
+                      ? html`<context-menu-item-group>
+                          <context-menu-item
+                            data-testid="menu-action-avatar-remove"
+                            icon="delete-bin-line"
+                            @click=${() => {
+                              this._newAvatarDataUrl = null;
+                              this._removeAvatar = true;
+                              this.render();
+                            }}
+                          >
+                            Remove Avatar
+                          </context-menu-item>
+                        </context-menu-item-group>`
+                      : ""}
+                  </context-menu>
+
+                  <div class="form-dialog-field">
+                    <label for="edit-profile-display-name">Display Name</label>
+                    <input
+                      id="edit-profile-display-name"
+                      type="text"
+                      class="form-dialog-input"
+                      .value=${this._displayName}
+                      @input=${(event) => {
+                        this._displayName = event.target.value;
+                        this.render();
+                      }}
+                      data-testid="edit-profile-display-name"
+                    />
                     <div
-                      class=${classnames("form-dialog-avatar-preview", {
-                        "labeler-avatar": isLabeler,
+                      class=${classnames("form-dialog-char-count", {
+                        overflow: this._isDisplayNameTooLong,
                       })}
                     >
-                      ${avatarSrc
-                        ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
-                        : html`<img
-                            class="form-dialog-avatar-placeholder"
-                            src=${isLabeler
-                              ? "/img/labeler-avatar-fallback.svg"
-                              : "/img/avatar-fallback.svg"}
-                            alt=""
-                          />`}
-                      <div class="form-dialog-image-overlay"></div>
+                      ${displayNameCount}/${MAX_DISPLAY_NAME_LENGTH}
                     </div>
+                  </div>
+
+                  <div class="form-dialog-field">
+                    <label for="edit-profile-pronouns">Pronouns</label>
+                    <input
+                      id="edit-profile-pronouns"
+                      type="text"
+                      class="form-dialog-input"
+                      placeholder="e.g. she/her"
+                      .value=${this._pronouns}
+                      @input=${(event) => {
+                        this._pronouns = event.target.value;
+                        this.render();
+                      }}
+                      data-testid="edit-profile-pronouns"
+                    />
                     <div
-                      class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      class=${classnames("form-dialog-char-count", {
+                        overflow: this._isPronounsTooLong,
+                      })}
                     >
-                      <app-icon icon="camera"></app-icon>
+                      ${pronounsCount}/${MAX_PRONOUNS_LENGTH}
                     </div>
                   </div>
-                </div>
 
-                <context-menu class="edit-profile-banner-menu">
-                  <context-menu-item-group>
-                    <context-menu-item
-                      data-testid="menu-action-banner-upload"
-                      icon="image-line"
-                      @click=${() => this._pickImage("banner")}
+                  <div class="form-dialog-field">
+                    <label for="edit-profile-description">Description</label>
+                    <textarea
+                      id="edit-profile-description"
+                      class="form-dialog-textarea"
+                      .value=${this._description}
+                      @input=${(event) => {
+                        this._description = event.target.value;
+                        this.render();
+                      }}
+                      rows="4"
+                      data-testid="edit-profile-description"
+                    ></textarea>
+                    <div
+                      class=${classnames("form-dialog-char-count", {
+                        overflow: this._isDescriptionTooLong,
+                      })}
                     >
-                      Upload from Files
-                    </context-menu-item>
-                  </context-menu-item-group>
-                  ${bannerSrc
-                    ? html`<context-menu-item-group>
-                        <context-menu-item
-                          data-testid="menu-action-banner-remove"
-                          icon="delete-bin-line"
-                          @click=${() => {
-                            this._newBannerDataUrl = null;
-                            this._removeBanner = true;
-                            this.render();
-                          }}
-                        >
-                          Remove Banner
-                        </context-menu-item>
-                      </context-menu-item-group>`
+                      ${descriptionCount}/${MAX_DESCRIPTION_LENGTH}
+                    </div>
+                  </div>
+
+                  ${this._linksEnabled
+                    ? profileLinksFieldTemplate({
+                        links: this._links,
+                        linksFailed: this._linksFailed,
+                        disabled: this._saving,
+                        onEditLink: (index) => this._openLinkForm(index),
+                        onAddLink: () => this._openLinkForm(null),
+                      })
                     : ""}
-                </context-menu>
-
-                <context-menu class="edit-profile-avatar-menu">
-                  <context-menu-item-group>
-                    <context-menu-item
-                      data-testid="menu-action-avatar-upload"
-                      icon="image-line"
-                      @click=${() => this._pickImage("avatar")}
-                    >
-                      Upload from Files
-                    </context-menu-item>
-                  </context-menu-item-group>
-                  ${avatarSrc
-                    ? html`<context-menu-item-group>
-                        <context-menu-item
-                          data-testid="menu-action-avatar-remove"
-                          icon="delete-bin-line"
-                          @click=${() => {
-                            this._newAvatarDataUrl = null;
-                            this._removeAvatar = true;
-                            this.render();
-                          }}
-                        >
-                          Remove Avatar
-                        </context-menu-item>
-                      </context-menu-item-group>`
+                  ${this._error
+                    ? html`<div
+                        class="form-dialog-error"
+                        data-testid="form-dialog-error"
+                      >
+                        ${this._error}
+                      </div>`
                     : ""}
-                </context-menu>
-
-                <div class="form-dialog-field">
-                  <label for="edit-profile-display-name">Display Name</label>
-                  <input
-                    id="edit-profile-display-name"
-                    type="text"
-                    class="form-dialog-input"
-                    .value=${this._displayName}
-                    @input=${(event) => {
-                      this._displayName = event.target.value;
-                      this.render();
-                    }}
-                    data-testid="edit-profile-display-name"
-                  />
-                  <div
-                    class=${classnames("form-dialog-char-count", {
-                      overflow: this._isDisplayNameTooLong,
-                    })}
-                  >
-                    ${displayNameCount}/${MAX_DISPLAY_NAME_LENGTH}
-                  </div>
                 </div>
-
-                <div class="form-dialog-field">
-                  <label for="edit-profile-pronouns">Pronouns</label>
-                  <input
-                    id="edit-profile-pronouns"
-                    type="text"
-                    class="form-dialog-input"
-                    placeholder="e.g. she/her"
-                    .value=${this._pronouns}
-                    @input=${(event) => {
-                      this._pronouns = event.target.value;
-                      this.render();
-                    }}
-                    data-testid="edit-profile-pronouns"
-                  />
-                  <div
-                    class=${classnames("form-dialog-char-count", {
-                      overflow: this._isPronounsTooLong,
-                    })}
-                  >
-                    ${pronounsCount}/${MAX_PRONOUNS_LENGTH}
-                  </div>
-                </div>
-
-                <div class="form-dialog-field">
-                  <label for="edit-profile-description">Description</label>
-                  <textarea
-                    id="edit-profile-description"
-                    class="form-dialog-textarea"
-                    .value=${this._description}
-                    @input=${(event) => {
-                      this._description = event.target.value;
-                      this.render();
-                    }}
-                    rows="4"
-                    data-testid="edit-profile-description"
-                  ></textarea>
-                  <div
-                    class=${classnames("form-dialog-char-count", {
-                      overflow: this._isDescriptionTooLong,
-                    })}
-                  >
-                    ${descriptionCount}/${MAX_DESCRIPTION_LENGTH}
-                  </div>
-                </div>
-
-                ${this._error
-                  ? html`<div
-                      class="form-dialog-error"
-                      data-testid="form-dialog-error"
-                    >
-                      ${this._error}
-                    </div>`
-                  : ""}
-              </div>
-            </div>`}
+              </div>`}
 
         <input
           type="file"
@@ -409,6 +697,124 @@ class EditProfileDialog extends Component {
         dialog.showModal();
       }
     }
+
+    const linksList = this.querySelector(".edit-profile-links-list");
+    if (linksList && !this._saving) {
+      enableReorder(linksList, {
+        itemSelector: ".edit-profile-link-item",
+        handleSelector: ".edit-profile-link-drag-handle",
+        onReorder: (elements) => {
+          const linksByUrl = new Map(
+            this._links.map((link) => [link.url, link]),
+          );
+          this._links = elements.map((element) =>
+            linksByUrl.get(element.dataset.linkUrl),
+          );
+          this.render();
+        },
+      });
+    } else if (linksList?.__reorderEnabled) {
+      linksList.__reorderEnabled.cleanup();
+    }
+  }
+
+  _openLinkForm(index) {
+    const link = index === null ? null : this._links[index];
+    this._linkForm = {
+      index,
+      urlInput: link ? formatProfileLinkUrl(link.url) : "",
+      titleInput: link?.title ?? "",
+      error: null,
+      autoTitle: "",
+    };
+    this.render();
+    this.querySelector("#edit-profile-link-url")?.focus({
+      preventScroll: true,
+    });
+  }
+
+  _closeLinkForm() {
+    clearTimeout(this._linkTitleTimer);
+    this._linkTitleTimer = null;
+    this._linkForm = null;
+  }
+
+  _otherLinkUrls() {
+    return this._links
+      .filter((_, i) => i !== this._linkForm.index)
+      .map((link) => link.url);
+  }
+
+  _linkFormTargetUrl() {
+    const { index, urlInput } = this._linkForm;
+    const link = index === null ? null : this._links[index];
+    if (link && urlInput.trim() === formatProfileLinkUrl(link.url)) {
+      return { url: link.url, error: null };
+    }
+    return validateProfileLinkInput(urlInput, this._otherLinkUrls());
+  }
+
+  _handleLinkUrlInput(value) {
+    const linkForm = this._linkForm;
+    linkForm.urlInput = value;
+    const { url, error } = this._linkFormTargetUrl();
+    linkForm.error = error === "insecure" ? error : null;
+    this.render();
+
+    clearTimeout(this._linkTitleTimer);
+    if (!url || error) return;
+    this._linkTitleTimer = setTimeout(
+      () => this._suggestLinkTitle(linkForm, url),
+      LINK_TITLE_SUGGESTION_DEBOUNCE_MS,
+    );
+  }
+
+  async _suggestLinkTitle(linkForm, url) {
+    const meta = await getLinkCardMeta(url, { timeoutMs: 8000 });
+    if (this._linkForm !== linkForm || this._linkFormTargetUrl().url !== url) {
+      return;
+    }
+    const suggestion = meta?.title ? suggestLinkTitle(meta.title) : "";
+    if (!suggestion) return;
+    const currentTitle = linkForm.titleInput.trim();
+    if (currentTitle && linkForm.titleInput !== linkForm.autoTitle) return;
+    linkForm.autoTitle = suggestion;
+    linkForm.titleInput = suggestion;
+    this.render();
+  }
+
+  _applyLinkForm() {
+    if (!this._canApplyLinkForm) return;
+    const { index, titleInput } = this._linkForm;
+    const { url, error } = this._linkFormTargetUrl();
+    if (error) {
+      this._linkForm.error = error;
+      this.render();
+      return;
+    }
+    const previous = index === null ? null : this._links[index];
+    const isSameUrl = previous?.url === url;
+    const link = {
+      url,
+      title: titleInput.trim() || null,
+      icon: isSameUrl ? previous.icon : null,
+      iconUrl: isSameUrl ? previous.iconUrl : null,
+      uri: previous?.uri ?? null,
+      cid: previous?.cid ?? null,
+    };
+    this._links =
+      index === null
+        ? [...this._links, link]
+        : this._links.map((existing, i) => (i === index ? link : existing));
+    this._closeLinkForm();
+    this.render();
+  }
+
+  _removeEditingLink() {
+    const { index } = this._linkForm;
+    this._links = this._links.filter((_, i) => i !== index);
+    this._closeLinkForm();
+    this.render();
   }
 
   _openImageMenu(event, target) {
@@ -518,6 +924,10 @@ class EditProfileDialog extends Component {
               bannerBlob,
               removeAvatar: this._removeAvatar,
               removeBanner: this._removeBanner,
+              ...(this._areLinksDirty && {
+                links: this._links,
+                previousLinks: this._storedLinks,
+              }),
             },
             successCallback,
             errorCallback,
@@ -573,6 +983,7 @@ class EditProfileDialog extends Component {
   disconnectedCallback() {
     this.scrollLock?.release();
     this.scrollLock = null;
+    clearTimeout(this._linkTitleTimer);
   }
 }
 
