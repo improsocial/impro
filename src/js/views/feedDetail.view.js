@@ -207,8 +207,12 @@ export default async function feedDetailView({
   }
 
   async function loadPageData() {
-    dataLayer.requests.loadFeedGenerator(feedUri);
-    await loadFeed({ reload: true });
+    if (!dataLayer.derived.$feedGenerators.get(feedUri)) {
+      dataLayer.requests.loadFeedGenerator(feedUri);
+    }
+    if (!dataLayer.hasCachedFeed(feedUri)) {
+      await loadFeed({ reload: true });
+    }
   }
 
   onPageShow(root, ({ action }) => {
