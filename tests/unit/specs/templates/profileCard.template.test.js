@@ -58,7 +58,7 @@ describe("profileCardTemplate", () => {
     );
   });
 
-  it("should not render badge label pills on the current user's profile", () => {
+  it("should render badge label pills on the current user's profile", () => {
     const profile = { ...mockProfile, badgeLabels: mockBadgeLabels };
     const result = profileCardTemplate({
       profile,
@@ -67,10 +67,7 @@ describe("profileCardTemplate", () => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert.deepEqual(
-      container.querySelector("[data-testid='label-badge']"),
-      null,
-    );
+    assert(container.querySelector("[data-testid='label-badge']"));
   });
 
   it("should not render a label pill row for an unlabeled profile", () => {

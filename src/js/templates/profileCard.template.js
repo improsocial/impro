@@ -93,7 +93,7 @@ function profileDescriptionTemplate({
       ? knownFollowersSummaryTemplate({ profile })
       : null}
     ${authorBadgesTemplate({
-      badgeLabels: isCurrentUser ? null : profile.badgeLabels,
+      badgeLabels: profile.badgeLabels,
       did: profile.did,
       pluginService,
     })}

@@ -291,17 +291,14 @@ describe("profileListItemTemplate - label badges", () => {
     );
   });
 
-  it("should not render label badges on the current user's own row", () => {
+  it("should render label badges on the current user's own row", () => {
     const result = profileListItemTemplate({
       actor: { ...mockActor, badgeLabels },
       currentUserDid: mockActor.did,
     });
     const container = document.createElement("div");
     render(result, container);
-    assert.deepEqual(
-      container.querySelector("[data-testid='label-badges']"),
-      null,
-    );
+    assert(container.querySelector("[data-testid='label-badges']") !== null);
   });
 });
 

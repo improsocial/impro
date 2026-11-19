@@ -119,8 +119,6 @@ export function profileListItemTemplate({
   const isBlocking = !!actor.viewer?.blocking;
   const isBlockedBy = !!actor.viewer?.blockedBy;
   const showsFollowsYou = isFollowedBy && !isBlocking && !isBlockedBy;
-  const showsLabelBadges =
-    actor.did !== currentUserDid && !!actor.badgeLabels?.length;
   const description = actor.description?.trim();
   // Render follow button by default
   const rightItem =
@@ -167,7 +165,7 @@ export function profileListItemTemplate({
       ${!compact
         ? html`<div class="profile-list-item-badges">
             ${authorBadgesTemplate({
-              badgeLabels: showsLabelBadges ? actor.badgeLabels : null,
+              badgeLabels: actor.badgeLabels,
               did: actor.did,
               pluginService,
             })}
