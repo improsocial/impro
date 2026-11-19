@@ -417,6 +417,44 @@ test.describe("Account switch flow on desktop", () => {
   });
 });
 
+test.describe("Account switch flow on tablet", () => {
+  test.use({ viewport: { width: 1000, height: 800 } });
+
+  test.beforeEach(async ({ page }) => {
+    const mockServer = new MockServer();
+    const otherProfile = createProfile({
+      did: "did:plc:otheruser456",
+      handle: "otheruser.bsky.social",
+      displayName: "Other User",
+    });
+    mockServer.addProfile(userProfile);
+    mockServer.addProfile(otherProfile);
+    await mockServer.setup(page);
+
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+      { did: otherProfile.did, handle: otherProfile.handle },
+    ]);
+    await page.goto("/");
+    await expect(
+      page.locator('[data-testid="sidebar-account-avatar"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("clicking the sidebar account avatar opens the switcher", async ({
+    page,
+  }) => {
+    const box = await page
+      .locator('[data-testid="sidebar-account-avatar"]')
+      .boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(
+      page.locator('[data-testid="account-switcher-dialog"]'),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+  });
+});
+
 test.describe("Account switch flow with many accounts", () => {
   test.beforeEach(async ({ page }) => {
     const mockServer = new MockServer();

@@ -2044,12 +2044,23 @@ plugin-blob-image .blob-image-fallback {
   }
 
   .sidebar-account-row {
+    position: absolute;
+    inset: -4px;
+    width: auto;
+    padding: 0;
+    border-radius: var(--avatar-border-radius);
+  }
+
+  .sidebar-account-row > * {
     display: none;
   }
 
   .sidebar-account-avatar {
-    position: static;
+    position: relative;
+    inset: auto;
+    z-index: 1;
     transform: none;
+    pointer-events: none;
   }
 }
 
