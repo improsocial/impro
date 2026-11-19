@@ -45,8 +45,12 @@ export default async function profileView({
     isAuthenticated,
     pluginService,
     interactionHandlers,
+    auth,
   },
 }) {
+  const canEditProfileLinks =
+    isAuthenticated && (await auth.hasScope("repo:app.bsky.actor.link"));
+
   function getAuthorFeeds({ isCurrentUser, isLabeler }) {
     return [
       { feedType: "posts", name: "Posts" },
@@ -121,6 +125,14 @@ export default async function profileView({
     root.querySelector("main").appendChild(dialog);
     dialog.setProfile(profile);
     dialog.open();
+    if (!canEditProfileLinks) return;
+    dialog.enableProfileLinks();
+    try {
+      dialog.setProfileLinks(await dataLayer.requests.loadOwnProfileLinks());
+    } catch (error) {
+      console.warn("Failed to load profile links", error);
+      dialog.setProfileLinksFailed();
+    }
   }
 
   async function handleSaveProfile(

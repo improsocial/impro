@@ -23,6 +23,7 @@ import {
   replaceQuotedPost,
   MAX_HIDDEN_REPLIES,
   sanitizePronouns,
+  isSameProfileLink,
 } from "/js/dataHelpers.js";
 import {
   addPostLanguagesToHistory,
@@ -32,7 +33,10 @@ import {
   truncateGraphemes,
   wait,
 } from "/js/utils.js";
-import { fetchAndCompressLinkCardImage } from "/js/embedHelpers.js";
+import {
+  fetchAndCompressLinkCardImage,
+  fetchLinkFavicon,
+} from "/js/embedHelpers.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
@@ -1103,13 +1107,102 @@ export class Mutations {
       bannerBlob,
       removeAvatar,
       removeBanner,
+      links,
+      previousLinks,
     },
   ) {
     const [avatarRef, bannerRef] = await Promise.all([
       avatarBlob ? this.api.uploadBlob(avatarBlob) : null,
       bannerBlob ? this.api.uploadBlob(bannerBlob) : null,
     ]);
+    const writtenLinks = links
+      ? await this._writeProfileLinks(links, previousLinks)
+      : null;
+    const createdLinks =
+      writtenLinks?.filter(
+        (link) => !previousLinks.some((previous) => previous.uri === link.uri),
+      ) ?? [];
+    try {
+      await this._putProfileRecord(writtenLinks, {
+        displayName,
+        description,
+        pronouns,
+        avatarRef,
+        bannerRef,
+        removeAvatar,
+        removeBanner,
+      });
+    } catch (error) {
+      await this._deleteProfileLinkRecords(createdLinks);
+      throw error;
+    }
 
+    if (writtenLinks) {
+      const keptUris = new Set(writtenLinks.map((link) => link.uri));
+      await this._deleteProfileLinkRecords(
+        previousLinks.filter((link) => link.uri && !keptUris.has(link.uri)),
+      );
+    }
+
+    const sanitizedPronouns =
+      pronouns !== undefined ? sanitizePronouns(pronouns) : undefined;
+    const patch = { displayName, description };
+    if (writtenLinks) {
+      const labelsByRecord = new Map(
+        (profile.links ?? []).map((linkView) => [
+          `${linkView.uri} ${linkView.cid}`,
+          linkView.labels,
+        ]),
+      );
+      patch.links = writtenLinks.map((link) => {
+        const labels = labelsByRecord.get(`${link.uri} ${link.cid}`);
+        return {
+          uri: link.uri,
+          cid: link.cid,
+          url: link.url,
+          ...(link.title && { title: link.title }),
+          ...(link.icon && {
+            icon: buildCdnUrl(
+              "avatar_thumbnail",
+              profile.did,
+              link.icon.ref.$link,
+              "png",
+            ),
+          }),
+          ...(labels && { labels }),
+        };
+      });
+    }
+
+    if (sanitizedPronouns !== undefined) {
+      patch.pronouns = sanitizedPronouns || null;
+    }
+    if (avatarRef) {
+      patch.avatar = buildCdnUrl("avatar", profile.did, avatarRef.ref.$link);
+    } else if (removeAvatar) {
+      patch.avatar = "";
+    }
+    if (bannerRef) {
+      patch.banner = buildCdnUrl("banner", profile.did, bannerRef.ref.$link);
+    } else if (removeBanner) {
+      patch.banner = "";
+    }
+
+    this._updateCurrentUserProfile((existing) => ({ ...existing, ...patch }));
+  }
+
+  async _putProfileRecord(
+    writtenLinks,
+    {
+      displayName,
+      description,
+      pronouns,
+      avatarRef,
+      bannerRef,
+      removeAvatar,
+      removeBanner,
+    },
+  ) {
     let existingRecord = {};
     let swapCid = null;
     try {
@@ -1150,25 +1243,71 @@ export class Mutations {
       delete updatedRecord.banner;
     }
 
+    if (writtenLinks?.length) {
+      updatedRecord.links = writtenLinks.map(({ uri, cid }) => ({ uri, cid }));
+    } else if (writtenLinks) {
+      delete updatedRecord.links;
+    }
+
     await this.api.putProfileRecord(updatedRecord, swapCid);
+  }
 
-    // Update in memory
-    const patch = { displayName, description };
-    if (sanitizedPronouns !== undefined) {
-      patch.pronouns = sanitizedPronouns || null;
+  async _writeProfileLinks(links, previousLinks) {
+    const previousByUri = new Map(
+      previousLinks.filter((link) => link.uri).map((link) => [link.uri, link]),
+    );
+    const results = await Promise.allSettled(
+      links.map(async (link) => {
+        const previous = link.uri ? previousByUri.get(link.uri) : null;
+        if (previous && isSameProfileLink(previous, link)) {
+          return previous;
+        }
+        const uploadedIcon = await this._uploadProfileLinkIcon(link.url);
+        const icon =
+          uploadedIcon ?? (previous?.url === link.url ? previous.icon : null);
+        const res = await this.api.createProfileLinkRecord({
+          url: link.url,
+          ...(link.title && { title: link.title }),
+          ...(icon && { icon }),
+          createdAt: getCurrentTimestamp(),
+        });
+        return { ...link, icon, uri: res.uri, cid: res.cid };
+      }),
+    );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) {
+      await this._deleteProfileLinkRecords(
+        results
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value)
+          .filter((link) => !previousByUri.has(link.uri)),
+      );
+      throw failure.reason;
     }
-    if (avatarRef) {
-      patch.avatar = buildCdnUrl("avatar", profile.did, avatarRef.ref.$link);
-    } else if (removeAvatar) {
-      patch.avatar = "";
-    }
-    if (bannerRef) {
-      patch.banner = buildCdnUrl("banner", profile.did, bannerRef.ref.$link);
-    } else if (removeBanner) {
-      patch.banner = "";
-    }
+    return results.map((result) => result.value);
+  }
 
-    this._updateCurrentUserProfile((existing) => ({ ...existing, ...patch }));
+  async _uploadProfileLinkIcon(url) {
+    const favicon = await fetchLinkFavicon(url);
+    if (!favicon) return null;
+    try {
+      return await this.api.uploadBlob(favicon);
+    } catch (error) {
+      console.warn("Failed to upload profile link icon", error);
+      return null;
+    }
+  }
+
+  async _deleteProfileLinkRecords(links) {
+    try {
+      await Promise.all(
+        links.map((link) =>
+          this.api.deleteProfileLinkRecord(parseUri(link.uri).rkey),
+        ),
+      );
+    } catch (error) {
+      console.warn("Failed to delete profile link records", error);
+    }
   }
 
   async setLiveStatus({

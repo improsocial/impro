@@ -18,7 +18,10 @@ import {
   getRepostersFromFeed,
   buildProfileFromRecord,
 } from "/js/dataHelpers.js";
-import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
+import {
+  getLocalRefsFromDraft,
+  profileLinksFromRecords,
+} from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError, isRecordNotFoundError } from "/js/api.js";
@@ -331,6 +334,33 @@ export class Requests {
       handle: session.handle,
       record,
     });
+  }
+
+  async loadOwnProfileLinks() {
+    const did = this.api.session.did;
+    let refs = [];
+    try {
+      const profileRecord = await this.api.getProfileRecord();
+      refs = profileRecord.value?.links ?? [];
+    } catch (error) {
+      if (isRecordNotFoundError(error)) return [];
+      throw error;
+    }
+    const records = await Promise.all(
+      refs.map(async (ref) => {
+        try {
+          return await this.api.getRecord(ref.uri);
+        } catch (error) {
+          if (isRecordNotFoundError(error)) return null;
+          throw error;
+        }
+      }),
+    );
+    return profileLinksFromRecords(
+      did,
+      refs,
+      records.filter((record) => record !== null),
+    );
   }
 
   async loadPostThread(postURI) {

@@ -1651,6 +1651,299 @@ describe("updateProfile", () => {
     assert.deepEqual(currentUser.displayName, "Updated User");
     assert.deepEqual(currentUser.description, "Updated bio");
   });
+
+  describe("links", () => {
+    const linkUri = (rkey) =>
+      `at://${testProfile.did}/app.bsky.actor.link/${rkey}`;
+    const storedLink = (rkey, overrides = {}) => ({
+      url: `https://example.com/${rkey}`,
+      title: rkey,
+      icon: null,
+      iconUrl: null,
+      uri: linkUri(rkey),
+      cid: `cid-${rkey}`,
+      ...overrides,
+    });
+
+    const originalFetch = globalThis.fetch;
+    let calls;
+    let mockApi;
+
+    beforeEach(() => {
+      calls = [];
+      let counter = 0;
+      globalThis.fetch = async () => ({ ok: false, headers: new Headers() });
+      mockApi = makeMockApi({
+        putProfileRecord: async (record) => {
+          calls.push(["putProfile", record]);
+          return {};
+        },
+        createProfileLinkRecord: async (record) => {
+          calls.push(["create", record]);
+          const rkey = `new${++counter}`;
+          return { uri: linkUri(rkey), cid: `cid-${rkey}` };
+        },
+        deleteProfileLinkRecord: async (rkey) => {
+          calls.push(["delete", rkey]);
+        },
+      });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      mock.restoreAll();
+    });
+
+    const newLink = (url) => ({
+      url,
+      title: null,
+      icon: null,
+      iconUrl: null,
+      uri: null,
+      cid: null,
+    });
+
+    it("keeps unchanged records and only deletes replaced or removed ones after the profile write", async () => {
+      const kept = storedLink("kept");
+      const edited = storedLink("edited");
+      const removed = storedLink("removed");
+      const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+
+      await mutations.updateProfile(testProfile, {
+        displayName: "Name",
+        description: "Bio",
+        links: [
+          { ...edited, title: "Renamed" },
+          kept,
+          newLink("https://example.com/added"),
+        ],
+        previousLinks: [kept, edited, removed],
+      });
+
+      assert.deepEqual(
+        calls.map(([type, arg]) =>
+          type === "putProfile"
+            ? [type, arg.links]
+            : type === "create"
+              ? [type, arg.url, arg.title]
+              : [type, arg],
+        ),
+        [
+          ["create", "https://example.com/edited", "Renamed"],
+          ["create", "https://example.com/added", undefined],
+          [
+            "putProfile",
+            [
+              { uri: linkUri("new1"), cid: "cid-new1" },
+              { uri: linkUri("kept"), cid: "cid-kept" },
+              { uri: linkUri("new2"), cid: "cid-new2" },
+            ],
+          ],
+          ["delete", "edited"],
+          ["delete", "removed"],
+        ],
+      );
+      assert.deepEqual(
+        dataStore.$profiles.get(testProfile.did).links.map((link) => link.url),
+        [
+          "https://example.com/edited",
+          "https://example.com/kept",
+          "https://example.com/added",
+        ],
+      );
+    });
+
+    it("deletes the new records and leaves the old ones when the profile write fails", async () => {
+      const edited = storedLink("edited");
+      const { mutations } = createMutationsWithMockApi(
+        makeMockApi({
+          ...mockApi,
+          putProfileRecord: async () => {
+            throw new Error("InvalidSwap");
+          },
+        }),
+      );
+
+      await assert.rejects(
+        mutations.updateProfile(testProfile, {
+          displayName: "Name",
+          description: "Bio",
+          links: [{ ...edited, title: "Renamed" }],
+          previousLinks: [edited],
+        }),
+        /InvalidSwap/,
+      );
+
+      assert.deepEqual(
+        calls.filter(([type]) => type === "delete"),
+        [["delete", "new1"]],
+      );
+    });
+
+    it("deletes the records it created when another link write fails", async () => {
+      let counter = 0;
+      const { mutations } = createMutationsWithMockApi(
+        makeMockApi({
+          ...mockApi,
+          createProfileLinkRecord: async (record) => {
+            if (record.url.endsWith("/bad")) throw new Error("write failed");
+            const rkey = `new${++counter}`;
+            return { uri: linkUri(rkey), cid: `cid-${rkey}` };
+          },
+        }),
+      );
+
+      await assert.rejects(
+        mutations.updateProfile(testProfile, {
+          displayName: "Name",
+          description: "Bio",
+          links: [
+            storedLink("kept"),
+            newLink("https://example.com/good"),
+            newLink("https://example.com/bad"),
+          ],
+          previousLinks: [storedLink("kept")],
+        }),
+        /write failed/,
+      );
+
+      assert.deepEqual(calls, [["delete", "new1"]]);
+    });
+
+    it("keeps the labels of unchanged records in the local profile", async () => {
+      const labels = [{ val: "!hide", src: "did:plc:labeler" }];
+      const kept = storedLink("kept");
+      const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+
+      await mutations.updateProfile(
+        {
+          ...testProfile,
+          links: [
+            {
+              uri: kept.uri,
+              cid: kept.cid,
+              url: kept.url,
+              title: kept.title,
+              labels,
+            },
+          ],
+        },
+        {
+          displayName: "Name",
+          description: "Bio",
+          links: [kept, newLink("https://example.com/added")],
+          previousLinks: [kept],
+        },
+      );
+
+      const patchedLinks = dataStore.$profiles.get(testProfile.did).links;
+      assert.deepEqual(patchedLinks[0].labels, labels);
+      assert.equal("labels" in patchedLinks[1], false);
+    });
+
+    it("removes the links field when every link is removed", async () => {
+      const { mutations } = createMutationsWithMockApi(
+        makeMockApi({
+          ...mockApi,
+          getProfileRecord: async () => ({
+            value: { links: [{ uri: linkUri("only"), cid: "cid-only" }] },
+            cid: "cid123",
+          }),
+        }),
+      );
+
+      await mutations.updateProfile(testProfile, {
+        displayName: "Name",
+        description: "Bio",
+        links: [],
+        previousLinks: [storedLink("only")],
+      });
+
+      const [, profileRecord] = calls.find(([type]) => type === "putProfile");
+      assert.equal("links" in profileRecord, false);
+      assert.deepEqual(calls.at(-1), ["delete", "only"]);
+    });
+
+    it("doesn't fail the save when deleting a removed link record fails", async () => {
+      const { mutations } = createMutationsWithMockApi(
+        makeMockApi({
+          ...mockApi,
+          deleteProfileLinkRecord: async () => {
+            throw new Error("network");
+          },
+        }),
+      );
+      mock.method(console, "warn", () => {});
+
+      await mutations.updateProfile(testProfile, {
+        displayName: "Name",
+        description: "Bio",
+        links: [],
+        previousLinks: [storedLink("only")],
+      });
+    });
+
+    it("leaves the links field untouched when links aren't passed", async () => {
+      const refs = [{ uri: linkUri("a"), cid: "cid-a" }];
+      const { mutations } = createMutationsWithMockApi(
+        makeMockApi({
+          ...mockApi,
+          getProfileRecord: async () => ({
+            value: { links: refs },
+            cid: "cid123",
+          }),
+        }),
+      );
+
+      await mutations.updateProfile(testProfile, {
+        displayName: "Name",
+        description: "Bio",
+      });
+
+      const [, profileRecord] = calls.find(([type]) => type === "putProfile");
+      assert.deepEqual(profileRecord.links, refs);
+    });
+
+    it("uploads the site's favicon as the link icon", async () => {
+      globalThis.fetch = async () => ({
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        blob: async () => new Blob(["png"], { type: "image/png" }),
+      });
+      const iconBlob = {
+        $type: "blob",
+        ref: { $link: "icon-cid" },
+        mimeType: "image/png",
+        size: 3,
+      };
+      const { mutations, dataStore } = createMutationsWithMockApi(
+        makeMockApi({ ...mockApi, uploadBlob: async () => iconBlob }),
+      );
+
+      await mutations.updateProfile(testProfile, {
+        displayName: "Name",
+        description: "Bio",
+        links: [
+          {
+            url: "https://example.com/added",
+            title: null,
+            icon: null,
+            iconUrl: null,
+            uri: null,
+            cid: null,
+          },
+        ],
+        previousLinks: [],
+      });
+
+      const [, createdRecord] = calls.find(([type]) => type === "create");
+      assert.deepEqual(createdRecord.icon, iconBlob);
+      assert.equal(
+        dataStore.$profiles.get(testProfile.did).links[0].icon,
+        `${CDN_URL}/img/avatar_thumbnail/plain/${testProfile.did}/icon-cid@png`,
+      );
+    });
+  });
 });
 
 describe("pinPost", () => {

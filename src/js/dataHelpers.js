@@ -1,4 +1,10 @@
-import { isNil, unique, minBy } from "/js/utils.js";
+import {
+  isNil,
+  unique,
+  minBy,
+  normalizeUrl,
+  truncateGraphemes,
+} from "/js/utils.js";
 import {
   CDN_URL,
   FOLLOWING_FEED_URI,
@@ -37,11 +43,11 @@ const CDN_PREFIXES = new Set([
   "feed_fullsize",
 ]);
 
-export function buildCdnUrl(prefix, did, cid) {
+export function buildCdnUrl(prefix, did, cid, format = "jpeg") {
   if (!CDN_PREFIXES.has(prefix)) {
     throw new Error(`Invalid CDN prefix: ${prefix}`);
   }
-  return `${CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
+  return `${CDN_URL}/img/${prefix}/plain/${did}/${cid}@${format}`;
 }
 
 const BSKY_CDN_URL = "https://cdn.bsky.app";
@@ -1480,4 +1486,195 @@ export function getLocalRefsFromDraft(draft) {
     }
   }
   return refs;
+}
+
+export const MAX_PROFILE_LINKS = 10;
+export const MAX_PROFILE_LINK_TITLE_LENGTH = 30;
+
+// Same list as social-app
+const LINK_SHORTENER_DOMAINS = [
+  "aceimg.in",
+  "acel.me",
+  "adf.ly",
+  "bit.ly",
+  "bitly.com",
+  "bl.ink",
+  "buff.ly",
+  "clck.ru",
+  "cutt.ly",
+  "fc-lc.xyz",
+  "goo.gl",
+  "goto.now",
+  "is.gd",
+  "link2.fm",
+  "ln.run",
+  "lnk.ua",
+  "lnkd.in",
+  "n9.cl",
+  "onlylinks.cc",
+  "ow.ly",
+  "psee.io",
+  "rb.gy",
+  "rebrand.ly",
+  "rg.by",
+  "s.id",
+  "short.do",
+  "short.gy",
+  "shorten.as",
+  "shorten.ee",
+  "shorten.is",
+  "shorten.so",
+  "shorten.tv",
+  "shorten.world",
+  "shorter.me",
+  "shortn.icu",
+  "shorturl.at",
+  "shorturl.lt",
+  "shorturl.ly",
+  "slicedrve.in",
+  "slnt.to",
+  "smarturl.lt",
+  "smarturl.my",
+  "sprl.me",
+  "sw.run",
+  "t.co",
+  "t.ly",
+  "tiny.cc",
+  "tinyurl.com",
+  "urlr.me",
+  "v.gd",
+  "vdey.in",
+  "videy.at",
+  "videy.lt",
+  "videy.my",
+  "x.gd",
+  "zig.ht",
+];
+
+function parseWebUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  return parsed.protocol === "https:" || parsed.protocol === "http:"
+    ? parsed
+    : null;
+}
+
+function isShortenerLink(url) {
+  const host = parseWebUrl(url)?.hostname.toLowerCase();
+  if (!host) return false;
+  return LINK_SHORTENER_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
+}
+
+function isInsecureLink(url) {
+  return parseWebUrl(url)?.protocol === "http:";
+}
+
+function isShowableProfileLink(url, seenUrls) {
+  const normalized = normalizeUrl(url);
+  if (
+    !normalized ||
+    seenUrls.has(normalized) ||
+    isShortenerLink(normalized) ||
+    isInsecureLink(normalized)
+  ) {
+    return false;
+  }
+  seenUrls.add(normalized);
+  return true;
+}
+
+function profileLinkTitle(title) {
+  const trimmed = title?.trim();
+  if (!trimmed) return null;
+  return truncateGraphemes(trimmed, MAX_PROFILE_LINK_TITLE_LENGTH).trim();
+}
+
+export function profileLinksFromViews(linkViews) {
+  const links = [];
+  const seenUrls = new Set();
+  for (const linkView of linkViews) {
+    if (links.length >= MAX_PROFILE_LINKS) break;
+    if (!isShowableProfileLink(linkView.url, seenUrls)) continue;
+    links.push({
+      url: linkView.url,
+      title: profileLinkTitle(linkView.title),
+      icon: null,
+      iconUrl: linkView.icon ?? null,
+      uri: linkView.uri,
+      cid: linkView.cid,
+    });
+  }
+  return links;
+}
+
+export function profileLinksFromRecords(did, refs, records) {
+  const recordsByUri = new Map(records.map((record) => [record.uri, record]));
+  const links = [];
+  const seenUrls = new Set();
+  for (const ref of refs) {
+    if (links.length >= MAX_PROFILE_LINKS) break;
+    const record = recordsByUri.get(ref.uri);
+    if (!record || !isShowableProfileLink(record.value.url, seenUrls)) {
+      continue;
+    }
+    const icon = record.value.icon ?? null;
+    links.push({
+      url: record.value.url,
+      title: profileLinkTitle(record.value.title),
+      icon,
+      iconUrl: icon
+        ? buildCdnUrl("avatar_thumbnail", did, icon.ref.$link, "png")
+        : null,
+      uri: record.uri,
+      cid: record.cid,
+    });
+  }
+  return links;
+}
+
+function blobCid(blob) {
+  return blob?.ref?.$link ?? null;
+}
+
+export function isSameProfileLink(a, b) {
+  return (
+    a.url === b.url &&
+    a.title === b.title &&
+    a.uri === b.uri &&
+    blobCid(a.icon) === blobCid(b.icon)
+  );
+}
+
+export function isSameProfileLinkList(a, b) {
+  return (
+    a.length === b.length && a.every((link, i) => isSameProfileLink(link, b[i]))
+  );
+}
+
+export function getProfileLinkLabel(link) {
+  return link.title || getDisplayDomain(link.url);
+}
+
+export function formatProfileLinkUrl(url) {
+  return url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+}
+
+export function validateProfileLinkInput(input, otherUrls) {
+  const trimmed = input.trim();
+  if (!trimmed) return { url: null, error: "empty" };
+  if (/^http:/i.test(trimmed)) return { url: null, error: "insecure" };
+  const url = normalizeUrl(trimmed);
+  if (!url) return { url: null, error: "invalid" };
+  if (isInsecureLink(url)) return { url, error: "insecure" };
+  if (isShortenerLink(url)) return { url, error: "shortener" };
+  if (otherUrls.some((otherUrl) => normalizeUrl(otherUrl) === url)) {
+    return { url, error: "duplicate" };
+  }
+  return { url, error: null };
 }

@@ -157,7 +157,7 @@ const ATPROTO_OAUTH_RPC_SCOPES = [
 
 const OPTIONAL_OAUTH_RPC_SCOPES = [];
 
-const OPTIONAL_OAUTH_REPO_SCOPES = [];
+const OPTIONAL_OAUTH_REPO_SCOPES = ["repo:app.bsky.actor.link"];
 
 function expandScope(scope) {
   if (scope.startsWith("rpc:")) {

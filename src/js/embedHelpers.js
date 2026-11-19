@@ -50,6 +50,25 @@ export async function getLinkCardMeta(url, { timeoutMs = 15000 } = {}) {
   }
 }
 
+const PROFILE_LINK_ICON_MAX_SIZE = 100000;
+
+export async function fetchLinkFavicon(url, { timeoutMs = 8000 } = {}) {
+  try {
+    const res = await fetchWithTimeout(
+      `${LINK_CARD_SERVICE_URL}/v1/favicon?url=${encodeURIComponent(url)}&fresh=true`,
+      { timeoutMs, label: "fetchLinkFavicon" },
+    );
+    if (!res.ok || res.headers.get("content-type") !== "image/png") {
+      return null;
+    }
+    const blob = await res.blob();
+    return blob.size <= PROFILE_LINK_ICON_MAX_SIZE ? blob : null;
+  } catch (error) {
+    console.warn("fetchLinkFavicon failed", error);
+    return null;
+  }
+}
+
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const RECORD_LINK_PATTERNS = [
   {

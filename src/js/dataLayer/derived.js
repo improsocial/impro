@@ -26,6 +26,7 @@ import {
   isFollowingFeedUri,
   isStatusValid,
   getReplyRootFromPost,
+  profileLinksFromViews,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { Labeling } from "/js/labeling.js";
@@ -162,6 +163,13 @@ function filterBlockedReactions(reactions, memberProfiles) {
     );
     return !profile?.viewer?.blocking && !profile?.viewer?.blockedBy;
   });
+}
+
+function isProfileLinkModerated(labeling, linkView) {
+  const labels = linkView.labels ?? [];
+  return (
+    !!labeling.getProfileBlurLabel(linkView) || labeling.hasHideLabel(labels)
+  );
 }
 
 export class Derived extends ReactiveStore {
@@ -1065,6 +1073,19 @@ export class Derived extends ReactiveStore {
       if (badgeLabels.length > 0) {
         result = { ...result, badgeLabels };
       }
+    }
+    if (result?.links) {
+      // NOTE: LEXICON DEVIATION
+      result = {
+        ...result,
+        visibleLinks: labeling
+          ? profileLinksFromViews(
+              result.links.filter(
+                (linkView) => !isProfileLinkModerated(labeling, linkView),
+              ),
+            )
+          : [],
+      };
     }
     if (result?.did && this.$isActorLive.get(result.did)) {
       // NOTE: LEXICON DEVIATION

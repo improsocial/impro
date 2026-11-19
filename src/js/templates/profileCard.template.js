@@ -28,6 +28,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/lightbox-image-group.js";
+import "/js/components/profile-links.js";
 
 function getBlueskyLinkForProfile(profile) {
   return `https://bsky.app/profile/${profile.handle}`;
@@ -84,6 +85,9 @@ function profileDescriptionTemplate({
             ?truncate-urls=${true}
           ></detected-rich-text>
         </div>`
+      : ""}
+    ${profile.visibleLinks?.length > 0 && !profile.blurLabel
+      ? html`<profile-links .links=${profile.visibleLinks}></profile-links>`
       : ""}
     ${!isLabeler && !isCurrentUser
       ? knownFollowersSummaryTemplate({ profile })

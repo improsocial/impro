@@ -1511,6 +1511,29 @@ export class Api {
     return res.data;
   }
 
+  async createProfileLinkRecord(record) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.link",
+        record: { $type: "app.bsky.actor.link", ...record },
+      },
+    });
+    return res.data;
+  }
+
+  async deleteProfileLinkRecord(rkey) {
+    await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.link",
+        rkey,
+      },
+    });
+  }
+
   async getStatusRecord() {
     const res = await this.request("com.atproto.repo.getRecord", {
       query: {

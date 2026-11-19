@@ -18,6 +18,7 @@ import {
   createFeedItem,
   createThreadViewPost,
   createLabelerView,
+  createProfileLinkView,
 } from "../../../shared/factories.js";
 import { trackDisposable } from "../../testHelpers.js";
 
@@ -3299,6 +3300,41 @@ describe("$hydratedProfiles (labels)", () => {
     dataStore.setProfiles([createProfile({ did, handle: "user.test" })]);
     const result = derived.$hydratedProfiles.get(did);
     assert.deepEqual(result.badgeLabels, ["verified"]);
+  });
+
+  it("should drop links whose labels would blur or hide them", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getProfileBlurLabel: (subject) =>
+          subject.labels?.some((label) => label.val === "blur") ? "blur" : null,
+        hasHideLabel: (labels) => labels.some((label) => label.val === "hide"),
+      }),
+    });
+    const link = (rkey, labels) =>
+      createProfileLinkView({
+        did,
+        rkey,
+        url: `https://example.com/${rkey}`,
+        labels,
+      });
+    dataStore.setProfiles([
+      createProfile({
+        did,
+        handle: "user.test",
+        links: [
+          link("shown"),
+          link("blurred", [{ val: "blur" }]),
+          link("hidden", [{ val: "hide" }]),
+        ],
+      }),
+    ]);
+    const result = derived.$hydratedProfiles.get(did);
+    assert.deepEqual(
+      result.visibleLinks.map((visibleLink) => visibleLink.url),
+      ["https://example.com/shown"],
+    );
+    assert.equal(result.links.length, 3);
   });
 
   it("should return the profile unchanged when no labels apply", () => {

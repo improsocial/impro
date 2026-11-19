@@ -2,6 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { CDN_URL } from "/js/config.js";
 import {
+  isSameProfileLinkList,
+  profileLinksFromRecords,
+  profileLinksFromViews,
+  validateProfileLinkInput,
   avatarThumbnailUrl,
   buildProfileFromRecord,
   cdnImageUrl,
@@ -2926,5 +2930,149 @@ describe("insertReplyIntoThread", () => {
       ),
       thread,
     );
+  });
+});
+
+describe("profile links", () => {
+  const did = "did:plc:linkowner";
+  const linkView = (rkey, url, extra = {}) => ({
+    uri: `at://${did}/app.bsky.actor.link/${rkey}`,
+    cid: `cid-${rkey}`,
+    url,
+    ...extra,
+  });
+
+  describe("profileLinksFromViews", () => {
+    it("drops insecure, shortened, duplicate and malformed links", () => {
+      const links = profileLinksFromViews([
+        linkView("a", "https://example.com/a", { title: "  A  ", icon: "i" }),
+        linkView("b", "http://example.com/b"),
+        linkView("c", "https://sub.bit.ly/c"),
+        linkView("d", "https://example.com/a"),
+        linkView("e", "not a url"),
+        linkView("f", "https://example.org"),
+      ]);
+      assert.deepEqual(links, [
+        {
+          url: "https://example.com/a",
+          title: "A",
+          icon: null,
+          iconUrl: "i",
+          uri: `at://${did}/app.bsky.actor.link/a`,
+          cid: "cid-a",
+        },
+        {
+          url: "https://example.org",
+          title: null,
+          icon: null,
+          iconUrl: null,
+          uri: `at://${did}/app.bsky.actor.link/f`,
+          cid: "cid-f",
+        },
+      ]);
+    });
+
+    it("keeps lookalike domains that aren't shorteners", () => {
+      const links = profileLinksFromViews([
+        linkView("a", "https://notbit.ly/x"),
+      ]);
+      assert.equal(links.length, 1);
+    });
+
+    it("caps the count and truncates long titles by grapheme", () => {
+      const views = Array.from({ length: 12 }, (_, i) =>
+        linkView(`r${i}`, `https://example.com/${i}`, {
+          title: "👍🏽".repeat(40),
+        }),
+      );
+      const links = profileLinksFromViews(views);
+      assert.equal(links.length, 10);
+      assert.equal(links[0].title, "👍🏽".repeat(30));
+    });
+  });
+
+  describe("profileLinksFromRecords", () => {
+    it("follows the ref order, skips missing records and builds icon URLs", () => {
+      const record = (rkey, value) => ({
+        uri: `at://${did}/app.bsky.actor.link/${rkey}`,
+        cid: `cid-${rkey}`,
+        value,
+      });
+      const icon = { $type: "blob", ref: { $link: "iconcid" } };
+      const refs = ["b", "missing", "a"].map((rkey) => ({
+        uri: `at://${did}/app.bsky.actor.link/${rkey}`,
+        cid: `cid-${rkey}`,
+      }));
+      const links = profileLinksFromRecords(did, refs, [
+        record("a", { url: "https://a.example.com" }),
+        record("b", { url: "https://b.example.com", title: "B", icon }),
+      ]);
+      assert.deepEqual(
+        links.map((link) => [link.url, link.title, link.iconUrl]),
+        [
+          [
+            "https://b.example.com",
+            "B",
+            `${CDN_URL}/img/avatar_thumbnail/plain/${did}/iconcid@png`,
+          ],
+          ["https://a.example.com", null, null],
+        ],
+      );
+      assert.equal(links[0].icon, icon);
+    });
+  });
+
+  describe("validateProfileLinkInput", () => {
+    it("normalizes a bare domain to https", () => {
+      assert.deepEqual(validateProfileLinkInput(" ko-fi.com/me ", []), {
+        url: "https://ko-fi.com/me",
+        error: null,
+      });
+    });
+
+    for (const [input, error] of [
+      ["", "empty"],
+      ["ko-fi", "invalid"],
+      ["http://example.com", "insecure"],
+      ["bit.ly/abc", "shortener"],
+      ["example.com/me", "duplicate"],
+    ]) {
+      it(`flags "${input}" as ${error}`, () => {
+        assert.equal(
+          validateProfileLinkInput(input, ["https://example.com/me"]).error,
+          error,
+        );
+      });
+    }
+  });
+
+  describe("isSameProfileLinkList", () => {
+    const link = {
+      url: "https://example.com",
+      title: "T",
+      icon: { ref: { $link: "c1" } },
+      iconUrl: "x",
+      uri: "at://u",
+      cid: "c",
+    };
+
+    it("ignores icon URLs and compares icons by blob CID", () => {
+      assert.equal(
+        isSameProfileLinkList(
+          [link],
+          [{ ...link, iconUrl: "y", icon: { ref: { $link: "c1" } } }],
+        ),
+        true,
+      );
+    });
+
+    it("detects reorders and edits", () => {
+      const other = { ...link, url: "https://example.org", uri: "at://v" };
+      assert.equal(isSameProfileLinkList([link, other], [other, link]), false);
+      assert.equal(
+        isSameProfileLinkList([link], [{ ...link, title: "U" }]),
+        false,
+      );
+    });
   });
 });
