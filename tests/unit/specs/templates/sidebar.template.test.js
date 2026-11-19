@@ -570,13 +570,25 @@ describe("sidebarTemplate - account row", () => {
     assert(account.textContent.includes("@testuser.bsky.social"));
   });
 
-  it("does not render without a current user", () => {
+  it("renders a skeleton instead of the account row without a current user", () => {
     const container = renderSidebar({
       currentUser: null,
       onOpenAccountSwitcher: () => {},
     });
     assert.equal(
       container.querySelector("[data-testid='sidebar-account']"),
+      null,
+    );
+    assert(
+      container.querySelector("[data-testid='sidebar-account-skeleton']") !==
+        null,
+    );
+  });
+
+  it("does not render the skeleton once the current user is loaded", () => {
+    const container = renderSidebar({ onOpenAccountSwitcher: () => {} });
+    assert.equal(
+      container.querySelector("[data-testid='sidebar-account-skeleton']"),
       null,
     );
   });

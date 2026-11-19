@@ -1780,7 +1780,7 @@ tab-bar.is-scroll-frozen {
   text-decoration: none;
   transition: background-color 0.2s;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 18px;
   border-radius: var(--sidebar-nav-item-border-radius);
 }
 
@@ -1911,7 +1911,7 @@ plugin-blob-image .blob-image-fallback {
     align-self: stretch;
     width: auto;
     margin-left: 0;
-    margin-right: 44px;
+    margin-right: 50px;
     padding: 12px 20px;
     font-size: 16px;
     font-weight: 700;
@@ -1941,7 +1941,7 @@ plugin-blob-image .blob-image-fallback {
 }
 
 @media (hover: hover) {
-  .sidebar-account-row:hover {
+  .sidebar-account:not(.sidebar-account-skeleton) .sidebar-account-row:hover {
     background: var(--post-hover-color);
   }
 }
@@ -1974,6 +1974,22 @@ plugin-blob-image .blob-image-fallback {
 .sidebar-account-handle {
   font-size: 15px;
   color: var(--text-color-muted);
+}
+
+.sidebar-account-skeleton .sidebar-account-row {
+  cursor: default;
+}
+
+.sidebar-account-skeleton-bar {
+  display: inline-block;
+  width: 60%;
+  height: 12px;
+  vertical-align: middle;
+  border-radius: var(--skeleton-border-radius);
+}
+
+.sidebar-account-skeleton-bar-handle {
+  width: 80%;
 }
 
 .sidebar-account-avatar {
@@ -4121,8 +4137,18 @@ image-carousel {
 }
 
 .load-more-link a {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
   color: var(--text-link-color);
   font-size: 13px;
+}
+
+@media (hover: hover) {
+  .load-more-link:has(> a:hover) {
+    background-color: var(--post-hover-color);
+  }
 }
 
 .hidden-replies-button-icon {

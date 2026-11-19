@@ -76,6 +76,7 @@ function sidebarNavTemplate({
             href="${item.url}"
             class=${classnames("sidebar-nav-item", {
               disabled: item.disabled,
+              active: activeNavItem === item.id,
             })}
             data-testid="sidebar-nav-${item.id}"
             @click=${function (e) {
@@ -186,6 +187,35 @@ function loggedOutSidebarTemplate({
   `;
 }
 
+function sidebarAccountSkeletonTemplate() {
+  return html`
+    <div
+      class="sidebar-account sidebar-account-skeleton loading-block"
+      data-testid="sidebar-account-skeleton"
+    >
+      <div class="sidebar-account-row">
+        <span class="sidebar-account-info">
+          <span class="sidebar-account-name"
+            >&#8203;<span
+              class="sidebar-account-skeleton-bar skeleton-animate"
+            ></span
+          ></span>
+          <span class="sidebar-account-handle"
+            >&#8203;<span
+              class="sidebar-account-skeleton-bar sidebar-account-skeleton-bar-handle skeleton-animate"
+            ></span
+          ></span>
+        </span>
+      </div>
+      <div class="sidebar-account-avatar">
+        <div class="avatar">
+          <div class="avatar-image-frame skeleton-animate"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function sidebarAccountTemplate({
   currentUser,
   displayName,
@@ -193,7 +223,7 @@ function sidebarAccountTemplate({
   onOpenAccountSwitcher,
 }) {
   if (!currentUser) {
-    return null;
+    return sidebarAccountSkeletonTemplate();
   }
   const profileUrl = `/profile/${currentUser.did}`;
   const info = html`<span class="sidebar-account-info">
@@ -424,7 +454,7 @@ export function sidebarTemplate({
         pluginSidebarItems,
       })}
       <button
-        class="rounded-button rounded-button-primary sidebar-compose-button"
+        class="rounded-button rounded-button-highlight sidebar-compose-button"
         data-testid="sidebar-compose-button"
         ?disabled=${!currentUser}
         @click=${() => onClickComposeButton()}
