@@ -189,7 +189,7 @@ export default async function homeView({
       <span class="community-plugins-link-text">
         <span class="community-plugins-link-title">Welcome to Impro!</span>
         <span class="community-plugins-link-subtitle"
-          >A flexible Bluesky client with community plugins</span
+          >Customize your experience with community plugins</span
         >
       </span>
       <span class="community-plugins-link-arrow"
