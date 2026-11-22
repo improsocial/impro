@@ -1899,11 +1899,6 @@ plugin-blob-image .blob-image-fallback {
   color: var(--text-color);
 }
 
-.sidebar-nav-icon .status-badge {
-  top: calc(50% - 18px);
-  left: 12px;
-}
-
 .sidebar-nav-label {
   flex: 1;
   text-overflow: ellipsis;
@@ -2198,11 +2193,6 @@ button.sidebar-plugin-nav-item {
   padding-left: 20px;
 }
 
-.footer-nav-item .status-badge {
-  top: 10px;
-  left: calc(50% - 1px);
-}
-
 .footer-nav-item.active {
   cursor: default;
 }
@@ -2213,8 +2203,15 @@ button.sidebar-plugin-nav-item {
   color: var(--text-color);
 }
 
+.nav-icon-anchor {
+  position: relative;
+  display: flex;
+}
+
 .status-badge {
   position: absolute;
+  top: -5px;
+  left: 11px;
   background: var(--highlight-color);
   color: var(--white);
   border-radius: var(--label-badge-border-radius);

@@ -5,12 +5,14 @@ import { formatNumNotifications } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 
 function footerNavItemTemplate({ item, active }) {
-  return html`${fillableIconTemplate({ icon: item.icon, filled: active })}
-  ${item.badge
-    ? html`<div class="status-badge" data-testid="status-badge">
-        <div class="status-badge-text">${item.badge}</div>
-      </div>`
-    : null} `;
+  return html`<span class="nav-icon-anchor"
+    >${fillableIconTemplate({ icon: item.icon, filled: active })}
+    ${item.badge
+      ? html`<div class="status-badge" data-testid="status-badge">
+          <div class="status-badge-text">${item.badge}</div>
+        </div>`
+      : null}</span
+  >`;
 }
 
 function loggedOutFooterTemplate() {

@@ -92,16 +92,18 @@ function sidebarNavTemplate({
             }}
           >
             <span class="sidebar-nav-icon"
-              >${fillableIconTemplate({
-                icon: item.icon,
-                filled: activeNavItem === item.id,
-              })}
-              ${item.badge
-                ? html`<div class="status-badge" data-testid="status-badge">
-                    <div class="status-badge-text">${item.badge}</div>
-                  </div>`
-                : ""}
-            </span>
+              ><span class="nav-icon-anchor"
+                >${fillableIconTemplate({
+                  icon: item.icon,
+                  filled: activeNavItem === item.id,
+                })}
+                ${item.badge
+                  ? html`<div class="status-badge" data-testid="status-badge">
+                      <div class="status-badge-text">${item.badge}</div>
+                    </div>`
+                  : ""}</span
+              ></span
+            >
             <span class="sidebar-nav-label">${item.label}</span>
           </a>
         `,
