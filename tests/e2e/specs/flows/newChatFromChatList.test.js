@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../../shared/factories.js";
+import { createConvo, createProfile } from "../../../shared/factories.js";
 import { userProfile } from "../../testData.js";
 
 test.describe("New chat from chat list flow", () => {
@@ -149,6 +149,41 @@ test.describe("New chat from chat list flow", () => {
     await expect(
       results.nth(1).locator('[data-testid="not-messageable-hint"]'),
     ).toBeVisible();
+  });
+
+  test("should enable a non-messageable user who has an existing chat and open it", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+      associated: { chat: { allowIncoming: "following" } },
+    });
+    mockServer.addProfile(bob);
+    mockServer.addConvos([createConvo({ id: "convo-bob", otherMember: bob })]);
+    mockServer.addTypeaheadProfiles([bob]);
+    await mockServer.setup(page);
+
+    await login(page);
+    const dialog = await openNewChatDialog(page);
+
+    await dialog.locator('[data-testid="new-chat-search-input"]').fill("bob");
+
+    const result = dialog.locator('[data-testid="profile-list-item-button"]');
+    await expect(result).toHaveCount(1, { timeout: 10000 });
+    await expect(result).toHaveAttribute("data-teststate", "enabled", {
+      timeout: 10000,
+    });
+    await expect(
+      result.locator('[data-testid="not-messageable-hint"]'),
+    ).toHaveCount(0);
+    await result.click();
+
+    await expect(page).toHaveURL(/\/messages\/convo-bob$/, {
+      timeout: 10000,
+    });
   });
 
   test("should show an error toast and stay on the chat list when the server rejects the chat", async ({

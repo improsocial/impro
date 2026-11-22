@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { Signal, ReactiveStore, effect } from "/js/signals.js";
+import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import "/js/components/app-icon.js";
 import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -13,6 +13,7 @@ import { showToast } from "/js/toasts.js";
 import { alertModal } from "/js/modals/alert.modal.js";
 
 const MAX_GROUP_NAME_GRAPHEME_LENGTH = 50;
+const CHAT_AVAILABILITY_DEBOUNCE_MS = 300;
 
 const CREATE_CHAT_ERROR_TOASTS = {
   AccountSuspended: "Suspended accounts cannot participate in chat.",
@@ -100,8 +101,7 @@ function partitionRows(profiles, currentUserDid, canJoin = canBeMessaged) {
   ];
 }
 
-function notMessageableRightItem(profile) {
-  if (canBeMessaged(profile)) return null;
+function notMessageableRightItemTemplate() {
   return html`<div
     class="new-chat-not-messageable-hint"
     data-testid="not-messageable-hint"
@@ -133,6 +133,7 @@ function memberToggleTemplate({ isSelected }) {
 
 function compactProfileListTemplate({
   profiles,
+  canMessage,
   onSelect,
   emptyMessage = null,
 }) {
@@ -142,9 +143,10 @@ function compactProfileListTemplate({
     skeletonCount: 6,
     compact: true,
     clickAction: onSelect,
-    rightItemTemplate: notMessageableRightItem,
+    rightItemTemplate: (profile) =>
+      canMessage(profile) ? null : notMessageableRightItemTemplate(),
     disabledProfiles: (profiles ?? [])
-      .filter((profile) => !canBeMessaged(profile))
+      .filter((profile) => !canMessage(profile))
       .map((profile) => profile.did),
     emptyMessage,
   });
@@ -281,6 +283,7 @@ function chatStepResultsTemplate({
   profileFollows,
   profileFollowsStatus,
   canCreateGroups,
+  canMessage,
   onSelect,
   onNewGroupClick,
 }) {
@@ -289,7 +292,8 @@ function chatStepResultsTemplate({
       return searchErrorTemplate();
     }
     return compactProfileListTemplate({
-      profiles: results ? partitionRows(results, currentUserDid) : null,
+      profiles: results,
+      canMessage,
       onSelect,
       emptyMessage: "No results",
     });
@@ -311,6 +315,7 @@ function chatStepResultsTemplate({
     return html`${groupEntry}
     ${compactProfileListTemplate({
       profiles: suggestedProfiles,
+      canMessage,
       emptyMessage: "Search for someone to message",
     })}`;
   }
@@ -324,6 +329,7 @@ function chatStepResultsTemplate({
     </div>
     ${compactProfileListTemplate({
       profiles: suggestedProfiles,
+      canMessage,
       onSelect,
     })}
   `;
@@ -338,6 +344,7 @@ function chatStepTemplate({
   profileFollows,
   profileFollowsStatus,
   canCreateGroups,
+  canMessage,
   onSearchInput,
   onClearSearch,
   onSelect,
@@ -374,6 +381,7 @@ function chatStepTemplate({
         profileFollows,
         profileFollowsStatus,
         canCreateGroups,
+        canMessage,
         onSelect,
         onNewGroupClick,
       })}
@@ -586,6 +594,13 @@ class NewChatDialog extends Component {
     this._disposeEffect = effect(() => {
       this.render();
     });
+    this._sortedChatResultsSource = null;
+    this._sortedChatResults = null;
+    this._chatAvailabilityRequestedDids = new Set();
+    this._chatAvailabilityTimeout = null;
+    this._disposeChatAvailabilityEffect = effect(() => {
+      this._scheduleChatAvailabilityChecks();
+    });
     this._loadSuggestions();
     this._loadChatActorStatus();
     this.initialized = true;
@@ -606,9 +621,47 @@ class NewChatDialog extends Component {
     });
   }
 
+  _scheduleChatAvailabilityChecks() {
+    const step = this.state.$step.get();
+    const results = this.dataLayer.derived.$chatRecipientSearchResults.get();
+    clearTimeout(this._chatAvailabilityTimeout);
+    if (step !== 1 || !results?.length) return;
+    const dids = untrack(() => {
+      const currentUserDid = this.dataLayer.derived.$currentUser.get()?.did;
+      return results
+        .filter(
+          (profile) =>
+            profile.did !== currentUserDid &&
+            !canBeMessaged(profile) &&
+            !this._chatAvailabilityRequestedDids.has(profile.did) &&
+            !this.dataLayer.derived.$profileChatStatus.get(profile.did),
+        )
+        .map((profile) => profile.did);
+    });
+    if (!dids.length) return;
+    this._chatAvailabilityTimeout = setTimeout(() => {
+      for (const did of dids) {
+        this._loadChatAvailability(did);
+      }
+    }, CHAT_AVAILABILITY_DEBOUNCE_MS);
+  }
+
+  async _loadChatAvailability(did) {
+    this._chatAvailabilityRequestedDids.add(did);
+    try {
+      await this.dataLayer.requests.loadProfileChatStatus(did);
+    } catch (error) {
+      this._chatAvailabilityRequestedDids.delete(did);
+      console.warn("Failed to load chat availability", error);
+    }
+  }
+
   disconnectedCallback() {
     this._disposeEffect?.();
     this._disposeEffect = null;
+    this._disposeChatAvailabilityEffect?.();
+    this._disposeChatAvailabilityEffect = null;
+    clearTimeout(this._chatAvailabilityTimeout);
   }
 
   _onSearchInput(value) {
@@ -744,6 +797,8 @@ class NewChatDialog extends Component {
       profileFollows,
       profileFollowsStatus,
       canCreateGroups,
+      canMessage,
+      sortedChatResults,
       atCap,
       selectedProfiles,
     },
@@ -753,11 +808,12 @@ class NewChatDialog extends Component {
         rawQuery,
         query,
         currentUserDid,
-        results,
+        results: sortedChatResults,
         searchStatus,
         profileFollows,
         profileFollowsStatus,
         canCreateGroups,
+        canMessage,
         onSearchInput: (value) => this._onSearchInput(value),
         onClearSearch: () => this._onClearSearch(),
         onSelect: (profile) => this._onSelect(profile),
@@ -818,6 +874,24 @@ class NewChatDialog extends Component {
       : null;
     const chatActorStatus = this.dataLayer.derived.$chatActorStatus.get();
     const canCreateGroups = chatActorStatus?.canCreateGroups ?? true;
+    const chatStatuses = new Map(
+      (results ?? []).map((profile) => [
+        profile.did,
+        this.dataLayer.derived.$profileChatStatus.get(profile.did),
+      ]),
+    );
+    const canMessage = (profile) => {
+      const chatStatus = chatStatuses.get(profile.did);
+      if (chatStatus) return chatStatus.canChat || Boolean(chatStatus.convo);
+      return canBeMessaged(profile);
+    };
+    if (results !== this._sortedChatResultsSource) {
+      this._sortedChatResultsSource = results;
+      this._sortedChatResults = results
+        ? partitionRows(results, currentUserDid, canMessage)
+        : null;
+    }
+    const sortedChatResults = this._sortedChatResults;
     const atCap = this._selectedDids.length >= this._maxSelectableMembers();
     const selectedProfiles = this._selectedDids
       .map((did) => this._selectedProfiles.get(did))
@@ -853,6 +927,8 @@ class NewChatDialog extends Component {
               profileFollows,
               profileFollowsStatus,
               canCreateGroups,
+              canMessage,
+              sortedChatResults,
               atCap,
               selectedProfiles,
             })}

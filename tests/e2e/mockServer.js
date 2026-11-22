@@ -1862,10 +1862,16 @@ export class MockServer {
         const members = url.searchParams.getAll("members");
         const otherDid = members.find((m) => m !== userProfile.did);
         const profile = this.profiles.get(otherDid);
+        const existingConvo = this.convos.find((c) =>
+          c.members.some((m) => m.did === otherDid),
+        );
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ canChat: profile?.canChat ?? false }),
+          body: JSON.stringify({
+            canChat: profile?.canChat ?? false,
+            ...(existingConvo ? { convo: existingConvo } : {}),
+          }),
         });
       },
     );

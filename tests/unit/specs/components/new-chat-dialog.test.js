@@ -16,6 +16,7 @@ describe("new-chat-dialog", () => {
   });
 
   afterEach(() => {
+    mock.timers.reset();
     globalThis.setTimeout = originalSetTimeout;
     window.router = originalRouter;
   });
@@ -37,6 +38,7 @@ describe("new-chat-dialog", () => {
     createGroupChat,
     searchFailure = null,
     followsFailure = null,
+    chatAvailability = {},
   } = {}) {
     const dataLayer = makeTestDataLayer();
     const currentUser = { did: "did:plc:me", handle: "me.test" };
@@ -90,10 +92,22 @@ describe("new-chat-dialog", () => {
       },
     );
 
+    const chatAvailabilitySpy = mock.method(
+      dataLayer.requests,
+      "loadProfileChatStatus",
+      async (did) => {
+        dataLayer.dataStore.$profileChatStatus.set(
+          did,
+          chatAvailability[did] ?? { canChat: false },
+        );
+      },
+    );
+
     return {
       dataLayer,
       failures,
       searchSpy,
+      chatAvailabilitySpy,
       followsSpy,
       ensureSpy,
       createGroupSpy,
@@ -538,6 +552,225 @@ describe("new-chat-dialog", () => {
       assert.deepEqual(rows[0].dataset.teststate, "enabled");
       assert(rows[0].textContent.includes("@follower.test"));
       assert.deepEqual(rows[1].dataset.teststate, "disabled");
+    });
+  });
+
+  describe("NewChatDialog - chat availability", () => {
+    function resultRow(element, handle) {
+      return [
+        ...element.querySelectorAll('[data-testid="profile-list-item-button"]'),
+      ].find((row) => row.textContent.includes(`@${handle}`));
+    }
+
+    it("should check availability only for results the profile marks unmessageable", async () => {
+      const { dataLayer, chatAvailabilitySpy } = makeDataLayer();
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "following",
+        }),
+        createProfile({ did: "did:plc:me", handle: "me.test" }),
+      ]);
+      await typeQuery(element, "test");
+      assert.deepEqual(
+        chatAvailabilitySpy.mock.calls.map((call) => call.arguments[0]),
+        ["did:plc:carol"],
+      );
+    });
+
+    it("should enable a result that has an existing convo", async () => {
+      const { dataLayer } = makeDataLayer({
+        chatAvailability: {
+          "did:plc:carol": { canChat: false, convo: { id: "convo-carol" } },
+        },
+      });
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      await nextFrame();
+      const row = resultRow(element, "carol.test");
+      assert.deepEqual(row.dataset.teststate, "enabled");
+      assert.deepEqual(
+        row.querySelector('[data-testid="not-messageable-hint"]'),
+        null,
+      );
+    });
+
+    it("should enable a result the server reports as chattable", async () => {
+      const { dataLayer } = makeDataLayer({
+        chatAvailability: { "did:plc:carol": { canChat: true } },
+      });
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "following",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      await nextFrame();
+      assert.deepEqual(
+        resultRow(element, "carol.test").dataset.teststate,
+        "enabled",
+      );
+    });
+
+    it("should keep the row order when availability resolves", async () => {
+      const { dataLayer } = makeDataLayer({
+        chatAvailability: {
+          "did:plc:carol": { canChat: false, convo: { id: "convo-carol" } },
+        },
+      });
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:dave",
+          handle: "dave.test",
+          allowIncoming: "none",
+        }),
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      await nextFrame();
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
+      assert(rows[0].textContent.includes("@dave.test"));
+      assert.deepEqual(rows[0].dataset.teststate, "disabled");
+      assert(rows[1].textContent.includes("@carol.test"));
+      assert.deepEqual(rows[1].dataset.teststate, "enabled");
+    });
+
+    it("should sort by known availability when new results arrive", async () => {
+      const { dataLayer } = makeDataLayer();
+      dataLayer.dataStore.$profileChatStatus.set("did:plc:carol", {
+        canChat: false,
+        convo: { id: "convo-carol" },
+      });
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:dave",
+          handle: "dave.test",
+          allowIncoming: "none",
+        }),
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
+      assert(rows[0].textContent.includes("@carol.test"));
+      assert.deepEqual(rows[0].dataset.teststate, "enabled");
+      assert(rows[1].textContent.includes("@dave.test"));
+    });
+
+    it("should keep a result disabled when the server reports it can't chat", async () => {
+      const { dataLayer, chatAvailabilitySpy } = makeDataLayer();
+      const element = createDialog(dataLayer);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      await nextFrame();
+      assert.deepEqual(chatAvailabilitySpy.mock.callCount(), 1);
+      assert.deepEqual(
+        resultRow(element, "carol.test").dataset.teststate,
+        "disabled",
+      );
+    });
+
+    it("should only check the latest results when they change before the debounce fires", async () => {
+      const { dataLayer, chatAvailabilitySpy } = makeDataLayer();
+      createDialog(dataLayer);
+      mock.timers.enable({ apis: ["setTimeout"] });
+      const animationFrame = () =>
+        new Promise((resolve) => requestAnimationFrame(resolve));
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await animationFrame();
+      mock.timers.tick(200);
+      seedSearchResults(dataLayer, [
+        createProfile({
+          did: "did:plc:dave",
+          handle: "dave.test",
+          allowIncoming: "none",
+        }),
+      ]);
+      await animationFrame();
+      mock.timers.tick(200);
+      assert.deepEqual(chatAvailabilitySpy.mock.callCount(), 0);
+      mock.timers.tick(100);
+      assert.deepEqual(
+        chatAvailabilitySpy.mock.calls.map((call) => call.arguments[0]),
+        ["did:plc:dave"],
+      );
+    });
+
+    it("should not recheck a profile whose availability is already known", async () => {
+      const { dataLayer, chatAvailabilitySpy } = makeDataLayer();
+      const element = createDialog(dataLayer);
+      const carol = createProfile({
+        did: "did:plc:carol",
+        handle: "carol.test",
+        allowIncoming: "none",
+      });
+      seedSearchResults(dataLayer, [carol]);
+      await typeQuery(element, "car");
+      seedSearchResults(dataLayer, [carol]);
+      await typeQuery(element, "carol");
+      assert.deepEqual(chatAvailabilitySpy.mock.callCount(), 1);
+    });
+
+    it("should retry a failed check on the next results change", async () => {
+      const { dataLayer, chatAvailabilitySpy } = makeDataLayer();
+      const element = createDialog(dataLayer);
+      const warn = mock.method(console, "warn", () => {});
+      chatAvailabilitySpy.mock.mockImplementationOnce(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+      const carol = createProfile({
+        did: "did:plc:carol",
+        handle: "carol.test",
+        allowIncoming: "none",
+      });
+      seedSearchResults(dataLayer, [carol]);
+      await typeQuery(element, "car");
+      seedSearchResults(dataLayer, [carol]);
+      await typeQuery(element, "carol");
+      warn.mock.restore();
+      assert.deepEqual(chatAvailabilitySpy.mock.callCount(), 2);
     });
   });
 
