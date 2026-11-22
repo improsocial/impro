@@ -51,6 +51,7 @@ import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import { showToast } from "/js/toasts.js";
+import { STARTER_PACK_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const SCROLLED_DOWN_LIMIT = 250;
 
@@ -516,7 +517,7 @@ export default async function notificationsView({
           href="${linkToStarterPack(starterPack)}"
           ><img
             class="notification-starter-pack-icon"
-            src="/img/starter-pack-avatar-fallback.svg"
+            src=${STARTER_PACK_AVATAR_FALLBACK_URL}
             alt=""
           />${starterPack.record.name}</a
         >

@@ -26,6 +26,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/starter-pack-wizard-dialog.js";
+import { STARTER_PACK_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 function copyPermalink(permalink) {
   navigator.clipboard.writeText(permalink);
@@ -169,7 +170,7 @@ function starterPackHeaderTemplate({
     >
       <img
         class="starter-pack-detail-avatar"
-        src="/img/starter-pack-avatar-fallback.svg"
+        src=${STARTER_PACK_AVATAR_FALLBACK_URL}
         alt=${record.name}
       />
       <div class="starter-pack-detail-header-text">

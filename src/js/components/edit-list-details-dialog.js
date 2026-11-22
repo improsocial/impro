@@ -12,6 +12,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
+import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 300;
@@ -196,7 +197,7 @@ class EditListDetailsDialog extends Component {
                             />`
                           : html`<img
                               class="form-dialog-avatar-placeholder"
-                              src="/img/list-avatar-fallback.svg"
+                              src=${LIST_AVATAR_FALLBACK_URL}
                               alt=""
                             />`}
                         <div class="form-dialog-image-overlay"></div>

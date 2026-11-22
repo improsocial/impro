@@ -8,6 +8,10 @@ import {
 import { classnames, isTouchOnlyDevice } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
+import {
+  AVATAR_FALLBACK_URL,
+  LABELER_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 
 // Click actions: "default", "link", "lightbox", "live", "none".
 // "default" links to the profile, except live avatars on touch devices open
@@ -77,9 +81,9 @@ function avatarWrapperTemplate({ author, clickAction, isLive, children }) {
 
 function getAvatarFallbackUrl(isLabeler) {
   if (isLabeler) {
-    return "/img/labeler-avatar-fallback.svg";
+    return LABELER_AVATAR_FALLBACK_URL;
   } else {
-    return "/img/avatar-fallback.svg";
+    return AVATAR_FALLBACK_URL;
   }
 }
 

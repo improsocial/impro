@@ -2,6 +2,7 @@ import { html } from "/js/lib/lit-html.js";
 import { linkToFeed } from "/js/navigation.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
+import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 export function feedGeneratorListItemTemplate({
   feedGenerator,
@@ -22,7 +23,7 @@ export function feedGeneratorListItemTemplate({
               class="feed-avatar"
             />`
           : html`<img
-              src="/img/feed-avatar-fallback.svg"
+              src=${FEED_AVATAR_FALLBACK_URL}
               alt=${feedGenerator.displayName}
               class="feed-avatar"
             />`}

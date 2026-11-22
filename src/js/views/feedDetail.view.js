@@ -18,10 +18,11 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
+import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 function feedAvatarTemplate({ feedGenerator }) {
   return html`<img
-    src=${cdnImageUrl(feedGenerator.avatar) || "/img/feed-avatar-fallback.svg"}
+    src=${cdnImageUrl(feedGenerator.avatar) || FEED_AVATAR_FALLBACK_URL}
     alt=""
     class="feed-avatar"
     data-testid="feed-detail-avatar"

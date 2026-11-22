@@ -12,6 +12,7 @@ import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { LOGGED_OUT_FEED_URI } from "/js/config.js";
 import "/js/components/app-icon.js";
+import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const MAX_NAME_LENGTH = 50;
 const MAX_DESCRIPTION_LENGTH = 300;
@@ -429,9 +430,7 @@ function feedRowTemplate({ feed, currentUserDid, toggleState, onToggle }) {
   >
     <div class="feeds-list-item-avatar">
       <img
-        src=${feed.avatar
-          ? cdnImageUrl(feed.avatar)
-          : "/img/feed-avatar-fallback.svg"}
+        src=${feed.avatar ? cdnImageUrl(feed.avatar) : FEED_AVATAR_FALLBACK_URL}
         alt=${feed.displayName}
         class="feed-avatar"
       />
@@ -554,7 +553,7 @@ function feedsStepTemplate({
               class="feed-avatar"
               src=${feed.avatar
                 ? cdnImageUrl(feed.avatar)
-                : "/img/feed-avatar-fallback.svg"}
+                : FEED_AVATAR_FALLBACK_URL}
               alt=${feed.displayName}
             />
           </div>`,
@@ -627,7 +626,7 @@ function reviewTemplate({
                     <img
                       src=${feed.avatar
                         ? cdnImageUrl(feed.avatar)
-                        : "/img/feed-avatar-fallback.svg"}
+                        : FEED_AVATAR_FALLBACK_URL}
                       alt=${feed.displayName}
                       class="feed-avatar"
                     />

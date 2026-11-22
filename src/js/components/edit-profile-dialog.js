@@ -29,6 +29,10 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
+import {
+  AVATAR_FALLBACK_URL,
+  LABELER_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 
 const MAX_DISPLAY_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 256;
@@ -522,8 +526,8 @@ class EditProfileDialog extends Component {
                           : html`<img
                               class="form-dialog-avatar-placeholder"
                               src=${isLabeler
-                                ? "/img/labeler-avatar-fallback.svg"
-                                : "/img/avatar-fallback.svg"}
+                                ? LABELER_AVATAR_FALLBACK_URL
+                                : AVATAR_FALLBACK_URL}
                               alt=""
                             />`}
                         <div class="form-dialog-image-overlay"></div>

@@ -35,6 +35,7 @@ import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/edit-list-details-dialog.js";
 import "/js/components/manage-list-members-dialog.js";
+import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 export default async function listDetailView({
   root,
@@ -317,7 +318,7 @@ export default async function listDetailView({
                     />`
                   : html`<img
                       class="list-detail-avatar"
-                      src="/img/list-avatar-fallback.svg"
+                      src=${LIST_AVATAR_FALLBACK_URL}
                       alt=${list.name}
                     />`}
                 <div class="list-detail-header-text">

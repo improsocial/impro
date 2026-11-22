@@ -33,6 +33,10 @@ import "/js/components/moderation-warning.js";
 import "/js/components/image-carousel.js";
 import "/js/components/youtube-embed.js";
 import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
+import {
+  FEED_AVATAR_FALLBACK_URL,
+  LIST_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
   return mediaLabel
@@ -621,7 +625,7 @@ function starterPackTemplate({ starterPack }) {
 
 function feedGeneratorTemplate({ feedGenerator }) {
   const avatarUrl =
-    cdnImageUrl(feedGenerator.avatar) ?? "/img/feed-avatar-fallback.svg";
+    cdnImageUrl(feedGenerator.avatar) ?? FEED_AVATAR_FALLBACK_URL;
   return html`<div class="feed-generator-embed embed-card">
     <a href="${linkToFeed(feedGenerator)}">
       <div class="feed-generator-embed-content">
@@ -644,7 +648,7 @@ function feedGeneratorTemplate({ feedGenerator }) {
 }
 
 function listTemplate({ list }) {
-  const avatarUrl = cdnImageUrl(list.avatar) ?? "/img/list-avatar-fallback.svg";
+  const avatarUrl = cdnImageUrl(list.avatar) ?? LIST_AVATAR_FALLBACK_URL;
   return html`<div class="list-embed embed-card">
     <a
       href="https://bsky.app/profile/${list.creator.handle}/lists/${getRKey(

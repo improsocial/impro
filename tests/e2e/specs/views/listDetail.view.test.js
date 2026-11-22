@@ -6,6 +6,7 @@ import {
   getSharedData,
 } from "../../helpers.js";
 import { MockServer, MockConstellation } from "../../mockServer.js";
+import { LIST_AVATAR_FALLBACK_URL } from "../../../../src/js/avatarFallbacks.js";
 import {
   createList,
   createPost,
@@ -864,11 +865,9 @@ test.describe("List Detail view", () => {
 
       const view = page.locator("#list-detail-view");
       const avatarImg = view.locator(".list-detail-avatar");
-      await expect(avatarImg).toHaveAttribute(
-        "src",
-        "/img/list-avatar-fallback.svg",
-        { timeout: 10000 },
-      );
+      await expect(avatarImg).toHaveAttribute("src", LIST_AVATAR_FALLBACK_URL, {
+        timeout: 10000,
+      });
 
       await view.locator(".context-menu-button").click();
       await view.locator('[data-testid="menu-action-list-edit"]').click();

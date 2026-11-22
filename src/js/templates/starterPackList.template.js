@@ -3,6 +3,7 @@ import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToStarterPack } from "/js/navigation.js";
 import "/js/components/container-link.js";
+import { STARTER_PACK_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 function starterPackListItemTemplate({
   starterPack,
@@ -23,7 +24,7 @@ function starterPackListItemTemplate({
   >
     <div class="feeds-list-item-avatar">
       <img
-        src="/img/starter-pack-avatar-fallback.svg"
+        src=${STARTER_PACK_AVATAR_FALLBACK_URL}
         alt=${record.name}
         class="feed-avatar"
       />

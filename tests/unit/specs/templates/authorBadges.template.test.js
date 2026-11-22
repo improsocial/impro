@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { render } from "/js/lib/lit-html.js";
+import { LABELER_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const mockLabeler = {
   uri: "at://did:plc:testlabeler/app.bsky.labeler.service/self",
@@ -124,7 +125,7 @@ describe("authorBadgesTemplate - fallback avatar", () => {
     ];
     const container = renderTemplate({ badgeLabels, did: mockDid });
     const img = container.querySelector("[data-testid='label-badge-image']");
-    assert(img.getAttribute("src").includes("labeler-avatar-fallback.svg"));
+    assert.deepEqual(img.getAttribute("src"), LABELER_AVATAR_FALLBACK_URL);
   });
 });
 

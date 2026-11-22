@@ -14,6 +14,7 @@ import {
 } from "/js/dataHelpers.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/app-icon.js";
+import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const MAX_ALLOW_RULES = 5;
 const CURATE_LIST_PURPOSE = "app.bsky.graph.defs#curatelist";
@@ -65,7 +66,7 @@ function listRowTemplate({ list, checked, disabled, onToggle }) {
         @change=${onToggle}
       />
       <img
-        src=${cdnImageUrl(list.avatar) || "/img/list-avatar-fallback.svg"}
+        src=${cdnImageUrl(list.avatar) || LIST_AVATAR_FALLBACK_URL}
         alt=""
         class="feed-avatar interaction-settings-list-avatar"
       />

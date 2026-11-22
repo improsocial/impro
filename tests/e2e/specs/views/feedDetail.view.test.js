@@ -7,6 +7,7 @@ import {
 } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createFeedGenerator, createPost } from "../../../shared/factories.js";
+import { FEED_AVATAR_FALLBACK_URL } from "../../../../src/js/avatarFallbacks.js";
 
 test.describe("Feed Detail view", () => {
   test("should display feed name, creator, and posts", async ({ page }) => {
@@ -100,10 +101,7 @@ test.describe("Feed Detail view", () => {
       '#feed-detail-view [data-testid="feed-detail-avatar"]',
     );
     await expect(avatar).toBeVisible({ timeout: 10000 });
-    await expect(avatar).toHaveAttribute(
-      "src",
-      "/img/feed-avatar-fallback.svg",
-    );
+    await expect(avatar).toHaveAttribute("src", FEED_AVATAR_FALLBACK_URL);
   });
 
   test("should show a header skeleton with the loaded height while the feed loads", async ({

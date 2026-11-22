@@ -1,6 +1,10 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import "/js/components/edit-profile-dialog.js";
+import {
+  AVATAR_FALLBACK_URL,
+  LABELER_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 
 describe("edit-profile-dialog", () => {
   const mockProfile = {
@@ -146,7 +150,7 @@ describe("edit-profile-dialog", () => {
       assert(placeholder !== null, "Avatar placeholder should be shown");
       assert.deepEqual(placeholder.tagName, "IMG");
       assert(
-        placeholder.src.includes("avatar-fallback.svg"),
+        placeholder.src === AVATAR_FALLBACK_URL,
         "Placeholder should use avatar fallback SVG",
       );
     });
@@ -163,7 +167,7 @@ describe("edit-profile-dialog", () => {
         ".form-dialog-avatar-placeholder",
       );
       assert(
-        placeholder.src.includes("labeler-avatar-fallback.svg"),
+        placeholder.src === LABELER_AVATAR_FALLBACK_URL,
         "Placeholder should use labeler avatar fallback SVG",
       );
     });

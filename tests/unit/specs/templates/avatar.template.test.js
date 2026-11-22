@@ -2,6 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
+import {
+  AVATAR_FALLBACK_URL,
+  LABELER_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
@@ -29,7 +33,7 @@ describe("avatarTemplate", () => {
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
     assert(img !== null);
-    assert(img.getAttribute("src").includes("avatar-fallback.svg"));
+    assert.deepEqual(img.getAttribute("src"), AVATAR_FALLBACK_URL);
   });
 
   it("should render as link by default", () => {
@@ -118,9 +122,10 @@ describe("avatarTemplate", () => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assert(img.getAttribute("src").includes("avatar-fallback.svg"));
-    assert(
-      img.getAttribute("data-lightbox-src").includes("avatar-fallback.svg"),
+    assert.deepEqual(img.getAttribute("src"), AVATAR_FALLBACK_URL);
+    assert.deepEqual(
+      img.getAttribute("data-lightbox-src"),
+      AVATAR_FALLBACK_URL,
     );
   });
 });
@@ -321,7 +326,7 @@ describe("avatarTemplate - labeler profiles", () => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assert(img.getAttribute("src").includes("labeler-avatar-fallback.svg"));
+    assert.deepEqual(img.getAttribute("src"), LABELER_AVATAR_FALLBACK_URL);
   });
 
   it("should use regular fallback avatar for non-labeler without avatar URL", () => {
@@ -334,7 +339,7 @@ describe("avatarTemplate - labeler profiles", () => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assert(img.getAttribute("src").includes("avatar-fallback.svg"));
+    assert.deepEqual(img.getAttribute("src"), AVATAR_FALLBACK_URL);
     assert(!img.getAttribute("src").includes("labeler"));
   });
 });

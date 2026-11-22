@@ -9,6 +9,7 @@ import { sidebarPaneTemplate } from "/js/templates/sidebarPane.template.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import "/js/components/app-icon.js";
 import "/js/components/container-link.js";
+import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 const SUGGESTED_FEED_LIMIT = 3;
 const SUGGESTED_FEED_FETCH_LIMIT = 10;
@@ -21,7 +22,7 @@ function suggestedFeedRowTemplate({ feed, isPinned, onTogglePin }) {
   >
     <img
       class="suggested-feed-avatar"
-      src=${cdnImageUrl(feed.avatar) || "/img/feed-avatar-fallback.svg"}
+      src=${cdnImageUrl(feed.avatar) || FEED_AVATAR_FALLBACK_URL}
       alt=""
     />
     <div class="suggested-feed-text">

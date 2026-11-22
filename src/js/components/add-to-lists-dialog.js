@@ -9,6 +9,7 @@ import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
+import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 class AddToListsDialog extends Component {
   connectedCallback() {
@@ -194,7 +195,7 @@ class AddToListsDialog extends Component {
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${cdnImageUrl(list.avatar) || "/img/list-avatar-fallback.svg"}
+            src=${cdnImageUrl(list.avatar) || LIST_AVATAR_FALLBACK_URL}
             alt=${list.name}
             class="feed-avatar"
           />

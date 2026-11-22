@@ -17,6 +17,10 @@ import { enableReorder } from "/js/utils.js";
 import { showToast } from "/js/toasts.js";
 import { cdnImageUrl, valueForPinnedItem } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
+import {
+  FEED_AVATAR_FALLBACK_URL,
+  LIST_AVATAR_FALLBACK_URL,
+} from "/js/avatarFallbacks.js";
 
 export default async function feedsView({
   root,
@@ -131,8 +135,7 @@ export default async function feedsView({
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${cdnImageUrl(item.data.avatar) ??
-            "/img/list-avatar-fallback.svg"}
+            src=${cdnImageUrl(item.data.avatar) ?? LIST_AVATAR_FALLBACK_URL}
             alt=${item.data.name}
             class="feed-avatar"
           />
@@ -160,8 +163,7 @@ export default async function feedsView({
     >
       <div class="feeds-list-item-avatar">
         <img
-          src=${cdnImageUrl(feedGenerator.avatar) ??
-          "/img/feed-avatar-fallback.svg"}
+          src=${cdnImageUrl(feedGenerator.avatar) ?? FEED_AVATAR_FALLBACK_URL}
           alt=${feedGenerator.displayName}
           class="feed-avatar"
         />

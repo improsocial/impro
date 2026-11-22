@@ -3,6 +3,7 @@ import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { linkToList } from "/js/navigation.js";
 import "/js/components/container-link.js";
 import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
+import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 function listItemTemplate({ list }) {
   return html`
@@ -13,7 +14,7 @@ function listItemTemplate({ list }) {
     >
       <div class="feeds-list-item-avatar">
         <img
-          src=${cdnImageUrl(list.avatar) || "/img/list-avatar-fallback.svg"}
+          src=${cdnImageUrl(list.avatar) || LIST_AVATAR_FALLBACK_URL}
           alt=${list.name}
           class="feed-avatar"
         />

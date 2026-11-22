@@ -1,6 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { cdnImageUrl, getLabelNameAndDescription } from "/js/dataHelpers.js";
 import "/js/components/plugin-slot.js";
+import { LABELER_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 export function authorBadgesTemplate({ badgeLabels, did, pluginService }) {
   return html`<div class="author-badges">
@@ -28,7 +29,7 @@ function labelBadgesTemplate({ badgeLabels }) {
           class="label-badge-image"
           data-testid="label-badge-image"
           src="${cdnImageUrl(labeler.creator?.avatar) ??
-          "/img/labeler-avatar-fallback.svg"}"
+          LABELER_AVATAR_FALLBACK_URL}"
           alt="${labeler.creator?.handle ?? "Labeler avatar"}"
         />
         <span class="label-badge-text" data-testid="label-badge-text"
