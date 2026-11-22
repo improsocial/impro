@@ -60,17 +60,19 @@ export default async function communityPluginsView({
                 >`
               : ""}
           </div>
-          <div
-            class="plugins-permissions-callout"
-            data-testid="plugins-permissions-callout"
-          >
-            <app-icon icon="info-circle-line"></app-icon>
-            <span
-              >Plugins cannot access your data or take actions on your behalf
-              unless you grant them permissions. You can disable or uninstall
-              them at any time.</span
-            >
-          </div>
+          ${isAuthenticated
+            ? html`<div
+                class="plugins-permissions-callout"
+                data-testid="plugins-permissions-callout"
+              >
+                <app-icon icon="info-circle-line"></app-icon>
+                <span
+                  >Plugins cannot access your data or take actions on your
+                  behalf unless you grant them permissions. You can disable or
+                  uninstall them at any time.</span
+                >
+              </div>`
+            : ""}
           ${error
             ? html`<div
                 class="error-state"

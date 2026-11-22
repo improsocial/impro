@@ -160,6 +160,9 @@ test.describe("Community plugins view", () => {
     await expect(
       view.locator('[data-testid="community-plugins-intro"]'),
     ).toBeVisible({ timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="plugins-permissions-callout"]'),
+    ).toHaveCount(0);
     await view.locator('[data-testid="plugins-intro-login-button"]').click();
     await expect(page).toHaveURL(/\/login/);
 
@@ -170,6 +173,9 @@ test.describe("Community plugins view", () => {
     ).toBeVisible({ timeout: 10000 });
     await expect(
       view.locator('[data-testid="community-plugins-intro"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="plugins-permissions-callout"]'),
     ).toBeVisible();
     await expect(
       view.locator('[data-testid="plugins-intro-login-button"]'),
