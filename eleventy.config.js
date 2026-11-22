@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isAssetPath } from "./build-support/assetPaths.js";
 import { applyContentHashing } from "./build-support/contentHash.js";
+import { applyModulePreloads } from "./build-support/modulepreload.js";
 import { watchLocalPlugins } from "./build-support/localPlugins.js";
 import { buildIconSprite } from "./build-support/buildIconSprite.js";
 
@@ -70,15 +71,20 @@ export default async function (eleventyConfig) {
     },
   });
 
-  // Create content-hashed filenames
+  // Create content-hashed filenames and module preloads
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     if (isDev) return;
-    await applyContentHashing({
+    const urlMap = await applyContentHashing({
       outputDir: dir.output,
       htmlFiles: results
         .map((result) => result.outputPath)
         .filter((outputPath) => outputPath.endsWith(".html")),
       cacheSalt: CACHE_SALT,
+    });
+    applyModulePreloads({
+      outputDir: dir.output,
+      htmlFile: path.join(dir.output, "index.html"),
+      urlMap,
     });
   });
 

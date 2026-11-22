@@ -1,9 +1,14 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { linkHtml } from "./modulepreload.js";
 import { splitCss } from "./splitCss.js";
+
+function rewritePreloadHrefs(html, urlMap) {
+  return html.replace(
+    /rel="modulepreload" href="([^"]+)"/g,
+    (tag, href) => `rel="modulepreload" href="${urlMap[href] ?? href}"`,
+  );
+}
 
 async function transformFiles(filePaths, replacer) {
   await Promise.all(
@@ -20,8 +25,6 @@ async function transformFiles(filePaths, replacer) {
 // import map; the stylesheet is split on its @chunk markers first, so a change
 // to one area of the CSS only invalidates that chunk.
 export async function applyContentHashing({ outputDir, htmlFiles, cacheSalt }) {
-  const buildBaseUrl = pathToFileURL(path.resolve(outputDir) + path.sep);
-
   const hashedUrlPath = (filePath) => {
     const hash = crypto
       .createHash("sha256")
@@ -53,16 +56,11 @@ export async function applyContentHashing({ outputDir, htmlFiles, cacheSalt }) {
     .join("");
 
   const importMapTag = `<script type="importmap">${JSON.stringify({ imports })}</script>`;
-  await transformFiles(htmlFiles, async (content) => {
-    // linkHtml crawls the un-hashed files on disk, so it must run before renaming
-    const linked = await linkHtml(content, {
-      baseUrl: buildBaseUrl,
-      urlMap: imports,
-    });
-    return linked
+  await transformFiles(htmlFiles, async (content) =>
+    rewritePreloadHrefs(content, imports)
       .replace("<head>", `<head>${importMapTag}`)
-      .replace(/<link[^>]+href="\/css\/style\.css"[^>]*>/, cssLinkTags);
-  });
+      .replace(/<link[^>]+href="\/css\/style\.css"[^>]*>/, cssLinkTags),
+  );
   fs.rmSync(stylesheetPath);
 
   for (const [urlPath, hashed] of [
@@ -74,4 +72,6 @@ export async function applyContentHashing({ outputDir, htmlFiles, cacheSalt }) {
       path.join(outputDir, "." + hashed),
     );
   }
+
+  return imports;
 }
