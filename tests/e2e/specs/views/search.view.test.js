@@ -1,6 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import {
   createPost,
   createProfile,
@@ -85,6 +86,59 @@ test.describe("Search view", () => {
     ).toHaveCount(2, { timeout: 10000 });
     await expect(view).toContainText("Hello world from search");
     await expect(view).toContainText("Another search result");
+  });
+
+  test("should search posts with v2 when the session has the v2 scope", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts([
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "Hello world from search",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=hello");
+
+    const view = page.locator("#search-view");
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
+    expect(mockServer.searchPostsEndpoints).toEqual([
+      "app.bsky.feed.searchPostsV2",
+    ]);
+  });
+
+  test("should fall back to v1 post search without the v2 scope", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts([
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "Hello world from search",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    const scope = OAUTH_SCOPES.split(" ")
+      .filter(
+        (granted) => !granted.startsWith("rpc:app.bsky.feed.searchPostsV2"),
+      )
+      .join(" ");
+    await login(page, { scope });
+    await page.goto("/search?q=hello");
+
+    const view = page.locator("#search-view");
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
+    expect(mockServer.searchPostsEndpoints).toEqual([
+      "app.bsky.feed.searchPosts",
+    ]);
   });
 
   test("should show Top tab as active by default", async ({ page }) => {

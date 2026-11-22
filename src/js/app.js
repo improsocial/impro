@@ -91,12 +91,16 @@ export async function main() {
     storedAuthKeys: getStoredAuthKeys(),
   });
   const appViewConfig = getAppViewConfig();
+  const searchPostsV2Enabled = await auth.hasScope(
+    "rpc:app.bsky.feed.searchPostsV2",
+  );
 
   function createApi(opts = {}) {
     return new Api(session ?? null, {
       onTokenRefreshError: (did) => auth.logout(did),
       bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
       chatAppViewServiceDid: appViewConfig.chatServiceDid,
+      searchPostsV2Enabled,
       ...opts,
     });
   }

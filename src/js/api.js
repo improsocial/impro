@@ -110,6 +110,7 @@ export class Api {
       chatAppViewServiceDid = BSKY_CHAT_SERVICE_DID,
       getLabelerDids = null,
       waitForLabelerDefs = null,
+      searchPostsV2Enabled = false,
     } = {},
   ) {
     this.isAuthenticated = !!session;
@@ -119,6 +120,7 @@ export class Api {
     this.chatAppViewServiceDid = chatAppViewServiceDid;
     this.getLabelerDids = getLabelerDids;
     this.waitForLabelerDefs = waitForLabelerDefs;
+    this.searchPostsV2Enabled = searchPostsV2Enabled;
   }
 
   async appViewRequest(path, options = {}) {
@@ -748,6 +750,25 @@ export class Api {
   }
 
   async searchPosts(query, { limit = 25, sort = "top", cursor = "" } = {}) {
+    if (!this.searchPostsV2Enabled) {
+      return this._searchPostsV1(query, { limit, sort, cursor });
+    }
+    const queryParams = {
+      query,
+      limit,
+      sort: sort === "latest" ? "recent" : sort,
+      allTime: true,
+    };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
+    const res = await this.appViewRequest(`app.bsky.feed.searchPostsV2`, {
+      query: queryParams,
+    });
+    return res.data;
+  }
+
+  async _searchPostsV1(query, { limit, sort, cursor }) {
     const queryParams = { q: query, limit, sort };
     if (cursor) {
       queryParams.cursor = cursor;

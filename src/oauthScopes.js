@@ -126,7 +126,6 @@ const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.acceptConvo",
   "rpc:chat.bsky.convo.addReaction",
   "rpc:chat.bsky.convo.deleteMessageForSelf",
-  "rpc:chat.bsky.convo.exportAccountData",
   "rpc:chat.bsky.convo.getConvo",
   "rpc:chat.bsky.convo.getConvoAvailability",
   "rpc:chat.bsky.convo.getConvoForMembers",
@@ -155,9 +154,49 @@ const ATPROTO_OAUTH_RPC_SCOPES = [
   "rpc:com.atproto.repo.uploadBlob",
 ];
 
-const OPTIONAL_OAUTH_RPC_SCOPES = [];
+const OPTIONAL_OAUTH_RPC_SCOPES = [
+  "rpc:app.bsky.feed.searchPostsV2",
+  "rpc:app.bsky.ageassurance.begin",
+  "rpc:app.bsky.ageassurance.getConfig",
+  "rpc:app.bsky.ageassurance.getState",
+  "rpc:app.bsky.embed.getEmbedExternalView",
+  "rpc:app.bsky.notification.getGroupedNotifications",
+  "rpc:app.bsky.unspecced.getSuggestedOnboardingUsers",
+  "rpc:app.bsky.unspecced.getSuggestedUsersForDiscover",
+  "rpc:app.bsky.unspecced.getSuggestedUsersForExplore",
+  "rpc:app.bsky.unspecced.getSuggestedUsersForSeeMore",
+  "rpc:app.bsky.video.startUpload",
+  "rpc:app.bsky.video.uploadPart",
+  "rpc:app.bsky.video.finishUpload",
+  "rpc:app.bsky.video.abortUpload",
+  "rpc:app.bsky.video.getUploadStatus",
+  "rpc:chat.bsky.actor.exportAccountData",
+  "rpc:chat.bsky.actor.getStatus",
+  "rpc:chat.bsky.convo.listConvoRequests",
+  "rpc:chat.bsky.convo.lockConvo",
+  "rpc:chat.bsky.convo.unlockConvo",
+  "rpc:chat.bsky.group.addMembers",
+  "rpc:chat.bsky.group.approveJoinRequest",
+  "rpc:chat.bsky.group.createJoinLink",
+  "rpc:chat.bsky.group.disableJoinLink",
+  "rpc:chat.bsky.group.editGroup",
+  "rpc:chat.bsky.group.editJoinLink",
+  "rpc:chat.bsky.group.enableJoinLink",
+  "rpc:chat.bsky.group.listJoinRequests",
+  "rpc:chat.bsky.group.listMutualGroups",
+  "rpc:chat.bsky.group.rejectJoinRequest",
+  "rpc:chat.bsky.group.removeMembers",
+  "rpc:chat.bsky.group.updateJoinRequestsRead",
+  "rpc:chat.bsky.group.withdrawJoinRequest",
+  "rpc:chat.bsky.notification.getPreferences",
+  "rpc:chat.bsky.notification.putPreferences",
+];
 
-const OPTIONAL_OAUTH_REPO_SCOPES = ["repo:app.bsky.actor.link"];
+const OPTIONAL_OAUTH_REPO_SCOPES = [
+  "repo:app.bsky.actor.link",
+  "repo:app.bsky.actor.contentVisibilityDeclaration",
+  "repo:app.bsky.graph.verification",
+];
 
 function expandScope(scope) {
   if (scope.startsWith("rpc:")) {

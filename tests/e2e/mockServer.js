@@ -108,6 +108,7 @@ export class MockServer {
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
+    this.searchPostsEndpoints = [];
     this.searchRequestCounts = {
       profiles: 0,
       top: 0,
@@ -2371,7 +2372,10 @@ export class MockServer {
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
-      const sort = url.searchParams.get("sort") || "top";
+      const sort = ["recent", "latest"].includes(url.searchParams.get("sort"))
+        ? "latest"
+        : "top";
+      this.searchPostsEndpoints.push(url.pathname.split("/").pop());
       this.searchRequestCounts[sort] += 1;
       const sortedPosts = this.searchPostsBySort[sort] ?? this.searchPosts;
 

@@ -26,6 +26,7 @@ const PUBLIC_XRPC_QUERIES = new Set([
   "app.bsky.feed.getQuotes",
   "app.bsky.feed.getRepostedBy",
   "app.bsky.feed.searchPosts",
+  "app.bsky.feed.searchPostsV2",
   "app.bsky.graph.getFollowers",
   "app.bsky.graph.getFollows",
   "app.bsky.graph.getKnownFollowers",

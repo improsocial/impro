@@ -1186,24 +1186,42 @@ describe("searchPosts", () => {
       posts: [{ uri: "post1" }],
       cursor: "next",
     });
-    const api = new Api(session);
+    const api = new Api(session, { searchPostsV2Enabled: true });
 
     const result = await api.searchPosts("hello");
 
     const { url } = session.getLastFetchOptions();
-    assert(url.includes("app.bsky.feed.searchPosts"));
-    assert(url.includes("q=hello"));
+    const parsed = new URL(url);
+    assert(parsed.pathname.endsWith("/app.bsky.feed.searchPostsV2"));
+    assert.equal(parsed.searchParams.get("query"), "hello");
+    assert.equal(parsed.searchParams.get("sort"), "top");
+    assert.equal(parsed.searchParams.get("allTime"), "true");
     assert.deepEqual(result.cursor, "next");
   });
 
-  it("should include sort parameter", async () => {
+  it("should map the latest sort to recent", async () => {
     const session = createMockSession({ posts: [] });
-    const api = new Api(session);
+    const api = new Api(session, { searchPostsV2Enabled: true });
 
     await api.searchPosts("hello", { sort: "latest" });
 
     const { url } = session.getLastFetchOptions();
-    assert(url.includes("sort=latest"));
+    assert.equal(new URL(url).searchParams.get("sort"), "recent");
+  });
+
+  it("should fall back to v1 search when v2 is not enabled", async () => {
+    const session = createMockSession({ posts: [], cursor: "next" });
+    const api = new Api(session);
+
+    const result = await api.searchPosts("hello", { sort: "latest" });
+
+    const { url } = session.getLastFetchOptions();
+    const parsed = new URL(url);
+    assert(parsed.pathname.endsWith("/app.bsky.feed.searchPosts"));
+    assert.equal(parsed.searchParams.get("q"), "hello");
+    assert.equal(parsed.searchParams.get("sort"), "latest");
+    assert.equal(parsed.searchParams.get("allTime"), null);
+    assert.deepEqual(result.cursor, "next");
   });
 });
 
