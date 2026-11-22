@@ -3257,7 +3257,12 @@ animated-count.is-empty {
   margin-top: 12px;
 }
 
-.large-post .post-body > .post-embed:first-child > * {
+.large-post .post-body > .post-embed:first-child > *,
+.large-post
+  .post-body
+  > .post-embed:first-child
+  > .quoted-post-link
+  > .quoted-post {
   margin-top: 0;
 }
 
