@@ -179,6 +179,66 @@ test.describe("Profile view", () => {
     );
   });
 
+  test.describe("Long descriptions", () => {
+    const longBioUser = createProfile({
+      did: "did:plc:longbio1",
+      handle: "longbio.bsky.social",
+      displayName: "Long Bio",
+      description: [
+        "First line",
+        ...Array(30).fill("filler"),
+        "Last line",
+      ].join("\n"),
+    });
+
+    test("should collapse a long description and toggle it", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(longBioUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${longBioUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const description = view.locator(".profile-description");
+      const toggle = description.locator(
+        '[data-testid="collapsible-content-toggle"]',
+      );
+      await expect(toggle).toHaveAttribute("data-teststate", "collapsed", {
+        timeout: 10000,
+      });
+      const collapsedHeight = (await description.boundingBox()).height;
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("data-teststate", "expanded");
+      const expandedHeight = (await description.boundingBox()).height;
+      expect(expandedHeight).toBeGreaterThan(collapsedHeight * 2);
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("data-teststate", "collapsed");
+      expect((await description.boundingBox()).height).toBe(collapsedHeight);
+    });
+
+    test("should not show a toggle for a short description", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const description = page.locator("#profile-view .profile-description");
+      await expect(description).toContainText("Hello, I'm a test user!", {
+        timeout: 10000,
+      });
+      await expect(
+        description.locator('[data-testid="collapsible-content-toggle"]'),
+      ).toHaveCount(0);
+    });
+  });
+
   test.describe("Profile links", () => {
     const profileWithLinks = createProfile({
       did: "did:plc:linksuser1",

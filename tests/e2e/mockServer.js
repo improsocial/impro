@@ -126,6 +126,7 @@ export class MockServer {
     this.searchHistory = null;
     // Seeded/captured app.bsky.actor.defs#threadViewPref; null means absent.
     this.threadViewPref = null;
+    this.verificationPref = null;
     this.getProfileDelayMs = 0;
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
@@ -628,6 +629,10 @@ export class MockServer {
 
   setThreadViewPref(threadViewPref) {
     this.threadViewPref = threadViewPref;
+  }
+
+  setVerificationPref(verificationPref) {
+    this.verificationPref = verificationPref;
   }
 
   setPostThreadOther(postUri, threadOther) {
@@ -1289,6 +1294,14 @@ export class MockServer {
                     {
                       $type: "app.bsky.actor.defs#threadViewPref",
                       ...this.threadViewPref,
+                    },
+                  ]
+                : []),
+              ...(this.verificationPref
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#verificationPrefs",
+                      ...this.verificationPref,
                     },
                   ]
                 : []),
@@ -3377,6 +3390,13 @@ export class MockServer {
         if (threadViewPref) {
           const { $type, ...rest } = threadViewPref;
           this.threadViewPref = rest;
+        }
+        const verificationPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#verificationPrefs",
+        );
+        if (verificationPref) {
+          const { $type, ...rest } = verificationPref;
+          this.verificationPref = rest;
         }
         const labelersPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#labelersPref",

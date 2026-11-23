@@ -93,6 +93,27 @@ test.describe("Add profile to list → List Detail flow", () => {
     await expect(listView).toContainText("Other User");
   });
 
+  test("clicking a list name closes the dialog and opens the list", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    setupList(mockServer);
+    mockServer.addListMembers(LIST_URI, []);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${otherUser.handle}`);
+    const dialog = await openAddToListsDialog(page);
+    await dialog.locator('[data-testid="add-to-lists-row-link"]').click();
+
+    await expect(page).toHaveURL(LIST_PATH);
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.locator('#list-detail-view [data-testid="list-detail-name"]'),
+    ).toContainText("Cool People", { timeout: 10000 });
+  });
+
   test("loads additional list pages as the user scrolls the dialog", async ({
     page,
   }) => {

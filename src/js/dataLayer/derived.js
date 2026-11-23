@@ -569,6 +569,11 @@ export class Derived extends ReactiveStore {
       if (!preferences) return null;
       return preferences.getThreadView();
     });
+    this.$verificationBadgesHidden = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      if (!preferences) return null;
+      return preferences.getVerificationBadgesHidden();
+    });
     this.$trends = new Signal.Computed(() => this.dataStore.$trends.get());
     this.$chatActorStatus = new Signal.Computed(() =>
       this.dataStore.$chatActorStatus.get(),

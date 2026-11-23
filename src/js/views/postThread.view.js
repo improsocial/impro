@@ -38,10 +38,29 @@ import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { showToast } from "/js/toasts.js";
 
 const THREAD_TREE_MAX_DEPTH_MOBILE = 4;
 const THREAD_TREE_MAX_DEPTH_DESKTOP = 6;
 const THREAD_TREE_BRANCHING_FACTOR = 10;
+
+function threadViewToggleTemplate({ threadView, onClick }) {
+  const nextThreadView = threadView === "tree" ? "linear" : "tree";
+  return html`<button
+    class="icon-button thread-view-toggle"
+    data-testid="thread-view-toggle"
+    data-teststate=${threadView ?? "loading"}
+    aria-label=${nextThreadView === "tree"
+      ? "Show replies as a tree"
+      : "Show replies as a list"}
+    ?disabled=${threadView === null}
+    @click=${() => onClick(nextThreadView)}
+  >
+    <app-icon
+      icon=${nextThreadView === "tree" ? "git-branch-line" : "view-rows-line"}
+    ></app-icon>
+  </button>`;
+}
 
 export default async function postThreadView({
   root,
@@ -844,6 +863,19 @@ export default async function postThreadView({
   });
 
   let hasScrolledToLargePost = false;
+  let largePostTopBeforeThreadViewChange = null;
+
+  async function handleThreadViewChange(threadView) {
+    const largePost = root.querySelector(".large-post");
+    largePostTopBeforeThreadViewChange = largePost
+      ? largePost.getBoundingClientRect().top
+      : null;
+    try {
+      await dataLayer.mutations.setThreadView(threadView);
+    } catch (error) {
+      showToast("Failed to update thread view", { style: "error" });
+    }
+  }
 
   // The pin only starts once the full thread has loaded, skip it if the user has already scrolled
   let userHasScrolled = false;
@@ -864,7 +896,16 @@ export default async function postThreadView({
 
     render(
       html`<div id="post-detail-view">
-        ${headerTemplate({ title: "Post" })}
+        ${headerTemplate({
+          title: "Post",
+          rightItemTemplate: isAuthenticated
+            ? () =>
+                threadViewToggleTemplate({
+                  threadView,
+                  onClick: handleThreadViewChange,
+                })
+            : null,
+        })}
         <main>
           ${(() => {
             const loadError = postThreadRequestStatus.error;
@@ -890,6 +931,16 @@ export default async function postThreadView({
     // Pin large post on first load
     const largePost = root.querySelector(".large-post");
     const header = root.querySelector("header");
+    if (largePostTopBeforeThreadViewChange !== null) {
+      if (largePost) {
+        window.scrollBy(
+          0,
+          largePost.getBoundingClientRect().top -
+            largePostTopBeforeThreadViewChange,
+        );
+      }
+      largePostTopBeforeThreadViewChange = null;
+    }
     if (
       largePost &&
       header &&
