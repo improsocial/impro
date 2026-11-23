@@ -269,7 +269,18 @@ export class PluginService extends ReactiveStore {
   }
 
   getRenderer(pluginId) {
-    return new PluginRenderer(this.pluginBridge, pluginId, this.renderContext);
+    return new PluginRenderer(
+      this.pluginBridge,
+      pluginId,
+      this.renderContext,
+      (url) => this._allowsOpen(pluginId, url),
+    );
+  }
+
+  _allowsOpen(pluginId, url) {
+    return this.permissionsManager
+      .getPermissionsForPlugin(pluginId)
+      .allowsOpen(url);
   }
 
   // icon can be string | VirtualEl
@@ -1178,18 +1189,27 @@ export class PluginService extends ReactiveStore {
         try {
           const items =
             meta != null ? await handler(target, meta) : await handler(target);
-          return (items ?? []).map((item) => {
-            const entry = {
-              pluginId,
-              icon: item.icon,
-              iconElement: this._createIconElement(pluginId, item.icon),
-              title: item.title,
-              invoke: () =>
-                this.pluginBridge
-                  .getInstance(pluginId)
-                  .call(item.handlerId, target),
-            };
-            return entry;
+          return (items ?? []).flatMap((item) => {
+            const url = item.url ?? null;
+            if (url !== null && !this._allowsOpen(pluginId, url)) {
+              console.warn(
+                `[plugins] "${pluginId}" menu item url "${url}" is not allowed by its "open" permission`,
+              );
+              return [];
+            }
+            return [
+              {
+                pluginId,
+                icon: item.icon,
+                iconElement: this._createIconElement(pluginId, item.icon),
+                title: item.title,
+                url,
+                invoke: () =>
+                  this.pluginBridge
+                    .getInstance(pluginId)
+                    .call(item.handlerId, target),
+              },
+            ];
           });
         } catch (error) {
           console.error(`Plugin ${pluginId} ${event} handler failed:`, error);

@@ -105,6 +105,8 @@ export class SimpleUUID {
 export class MenuItem {
     title: string;
     icon: string | VirtualEl | null;
+    /** @type {string | null} */
+    url: string | null;
     /** @internal */
     _callback: () => void;
     /**
@@ -120,6 +122,14 @@ export class MenuItem {
      * @returns {this}
      */
     setIcon(icon: string | VirtualEl): this;
+    /**
+     * Make the item a link that opens `url` in a new tab. The URL must match
+     * one of the `permissions.open` patterns in the plugin's manifest, or the
+     * host drops the item. Link items don't call their `onClick` handler.
+     * @param {string} url
+     * @returns {this}
+     */
+    setUrl(url: string): this;
     /**
      * Called when the user activates the item.
      * @param {() => void} callback
@@ -145,6 +155,7 @@ export class Menu {
     _serialize(): {
         title: string;
         icon: string | SerializedElement | null;
+        url: string | null;
         handlerId: number;
     }[];
 }

@@ -170,6 +170,8 @@ export class MenuItem {
   constructor() {
     this.title = "";
     this.icon = null;
+    /** @type {string | null} */
+    this.url = null;
     /** @internal */
     this._callback = () => {};
   }
@@ -190,6 +192,17 @@ export class MenuItem {
    */
   setIcon(icon) {
     this.icon = icon;
+    return this;
+  }
+  /**
+   * Make the item a link that opens `url` in a new tab. The URL must match
+   * one of the `permissions.open` patterns in the plugin's manifest, or the
+   * host drops the item. Link items don't call their `onClick` handler.
+   * @param {string} url
+   * @returns {this}
+   */
+  setUrl(url) {
+    this.url = url;
     return this;
   }
   /**
@@ -231,7 +244,7 @@ export class Menu {
       callHandlers.set(handlerId, item._callback);
       const icon =
         item.icon instanceof VirtualEl ? item.icon._serialize() : item.icon;
-      return { title: item.title, icon, handlerId };
+      return { title: item.title, icon, url: item.url, handlerId };
     });
   }
 }

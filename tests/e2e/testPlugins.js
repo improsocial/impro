@@ -327,6 +327,36 @@ const UNCACHED_BADGE_SLOT_PLUGIN_BODY = BADGE_SLOT_PLUGIN_BODY.replace(
   "",
 );
 
+export const OPEN_LINK_ORIGIN = "https://links.example.com";
+
+const OPEN_LINK_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    this.app.on("post-context-menu", (menu, post) => {
+      menu.addItem((item) =>
+        item
+          .setTitle("Open permitted link")
+          .setUrl("${OPEN_LINK_ORIGIN}/" + post.uri),
+      );
+      menu.addItem((item) =>
+        item
+          .setTitle("Open unpermitted link")
+          .setUrl("https://elsewhere.example.com/" + post.uri),
+      );
+    });
+    this.registerSlot("post-thread-view:after-main", (context) => {
+      const link = new VirtualEl("a");
+      link.setAttr("data-testid", "plugin-open-link");
+      link.setAttr("href", "${OPEN_LINK_ORIGIN}/" + context.uri);
+      link.setText("Open permitted link");
+      return link;
+    });
+  }
+}
+
+TestPlugin.register();
+`;
+
 let cachedWorkerSource = null;
 
 function getWorkerSource() {
@@ -376,4 +406,8 @@ export function getBadgeSlotPluginSource() {
 
 export function getUncachedBadgeSlotPluginSource() {
   return getWorkerSource() + "\n" + UNCACHED_BADGE_SLOT_PLUGIN_BODY;
+}
+
+export function getOpenLinkPluginSource() {
+  return getWorkerSource() + "\n" + OPEN_LINK_PLUGIN_BODY;
 }

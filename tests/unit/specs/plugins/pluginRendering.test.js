@@ -592,6 +592,42 @@ describe("PluginRenderer:anchor tags", () => {
     element.remove();
   });
 
+  it("skips the warning modal for hrefs the plugin may open", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo", null, (url) =>
+      url.startsWith("https://allowed.example/"),
+    );
+    const root = renderer.createRoot();
+    const allowed = root.render({
+      tag: "a",
+      attrs: { href: "https://allowed.example/page" },
+      text: "click",
+    });
+    document.body.appendChild(allowed);
+    const event = new Event("click", { bubbles: true, cancelable: true });
+    allowed.dispatchEvent(event);
+    assert(!event.defaultPrevented, "click should not be prevented");
+    assert.deepEqual(
+      document.querySelector(".external-link-warning-modal"),
+      null,
+    );
+    allowed.remove();
+
+    const other = renderer.createRoot().render({
+      tag: "a",
+      attrs: { href: "https://other.example/page" },
+      text: "click",
+    });
+    document.body.appendChild(other);
+    const otherEvent = new Event("click", { bubbles: true, cancelable: true });
+    other.dispatchEvent(otherEvent);
+    assert(otherEvent.defaultPrevented);
+    const dialog = document.querySelector(".external-link-warning-modal");
+    assert(dialog);
+    dialog.remove();
+    other.remove();
+  });
+
   it("removes href on patch when it becomes unsafe", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");

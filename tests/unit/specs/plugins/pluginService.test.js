@@ -2891,3 +2891,85 @@ describe("updating a plugin that adds userFetch", () => {
     assert.deepEqual(entry.permissions, { userFetch: true });
   });
 });
+
+describe("context menu link items", () => {
+  const post = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
+
+  function makeLinkService({ permissions }) {
+    const { state, provider } = makeProvider();
+    state.installedPlugins = [
+      { id: "linker", version: "1.0.0", enabled: true, permissions },
+    ];
+    const service = makeServiceWithRealBridge({ provider });
+    service.registries.eventListeners.set(
+      "post-context-menu",
+      new Map([
+        [
+          "linker",
+          async () => [
+            { title: "Plain", icon: null, url: null, handlerId: 1 },
+            {
+              title: "Allowed",
+              icon: null,
+              url: "https://pdsls.dev/" + post.uri,
+              handlerId: 2,
+            },
+            {
+              title: "Other host",
+              icon: null,
+              url: "https://evil.example/",
+              handlerId: 3,
+            },
+          ],
+        ],
+      ]),
+    );
+    return service;
+  }
+
+  it("keeps link items whose url matches the open permission", async (t) => {
+    t.mock.method(console, "warn", () => {});
+    const service = makeLinkService({
+      permissions: { open: ["https://pdsls.dev/*"] },
+    });
+    const items = await service.getPostContextMenuItems(post);
+    assert.deepEqual(
+      items.map((item) => [item.title, item.url]),
+      [
+        ["Plain", null],
+        ["Allowed", "https://pdsls.dev/" + post.uri],
+      ],
+    );
+  });
+
+  it("drops every link item without an open permission", async (t) => {
+    t.mock.method(console, "warn", () => {});
+    const service = makeLinkService({
+      permissions: { fetch: ["https://pdsls.dev/*"] },
+    });
+    const items = await service.getPostContextMenuItems(post);
+    assert.deepEqual(
+      items.map((item) => item.title),
+      ["Plain"],
+    );
+  });
+
+  it("lets permitted plugin <a> clicks through without the warning modal", () => {
+    const service = makeLinkService({
+      permissions: { open: ["https://pdsls.dev/*"] },
+    });
+    const element = service
+      .getRenderer("linker")
+      .createRoot()
+      .render({ tag: "a", attrs: { href: "https://pdsls.dev/x" }, text: "x" });
+    document.body.appendChild(element);
+    const event = new Event("click", { bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    assert(!event.defaultPrevented);
+    assert.deepEqual(
+      document.querySelector(".external-link-warning-modal"),
+      null,
+    );
+    element.remove();
+  });
+});

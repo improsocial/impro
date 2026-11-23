@@ -73,7 +73,7 @@ The `listener` signature varies per event — see [PluginEventMap](#plugineventm
 
 | Type Parameter | Description |
 | ------ | ------ |
-| `K` *extends* keyof [`PluginEventMap`](#plugineventmap) |  |
+| <a id="type-parameter-k"></a> `K` *extends* keyof [`PluginEventMap`](#plugineventmap) |  |
 
 ###### Parameters
 
@@ -726,6 +726,7 @@ an `onClick` handler. Not constructed directly — obtained via
 | ------ | ------ |
 | <a id="property-icon"></a> `icon` | `string` \| [`VirtualEl`](#virtualel) \| `null` |
 | <a id="property-title"></a> `title` | `string` |
+| <a id="property-url"></a> `url` | `string` \| `null` |
 
 #### Methods
 
@@ -773,6 +774,24 @@ Set the menu item's label.
 | Parameter | Type |
 | ------ | ------ |
 | `title` | `string` |
+
+###### Returns
+
+[`MenuItem`](#menuitem)
+
+##### setUrl()
+
+> **setUrl**(`url`): [`MenuItem`](#menuitem)
+
+Make the item a link that opens `url` in a new tab. The URL must match
+one of the `permissions.open` patterns in the plugin's manifest, or the
+host drops the item. Link items don't call their `onClick` handler.
+
+###### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` |
 
 ###### Returns
 
@@ -950,7 +969,7 @@ any other value is ignored, so one plugin can't un-hide what another hid.
 
 | Parameter | Type |
 | ------ | ------ |
-| `callback` | (`feedUri`, `feedItems`) => `Record`\<`string`, `boolean`\> \| `Promise`\<`Record`\<`string`, `boolean`\>\> |
+| `callback?` | (`feedUri`, `feedItems`) => `Record`\<`string`, `boolean`\> \| `Promise`\<`Record`\<`string`, `boolean`\>\> |
 
 ###### Returns
 
@@ -1140,7 +1159,7 @@ while the transform runs.
 
 | Parameter | Type |
 | ------ | ------ |
-| `callback` | (`tokens`, `context`) => [`RichTextToken`](#richtexttoken)[] \| `Promise`\<[`RichTextToken`](#richtexttoken)[]\> |
+| `callback?` | (`tokens`, `context`) => [`RichTextToken`](#richtexttoken)[] \| `Promise`\<[`RichTextToken`](#richtexttoken)[]\> |
 | `options?` | \{ `handlesFacetTypes?`: `string`[]; \} |
 | `options.handlesFacetTypes?` | `string`[] |
 
@@ -1171,7 +1190,7 @@ The host batches all pending contexts of a render into one call.
 | Parameter | Type |
 | ------ | ------ |
 | `name` | `string` |
-| `callback` | (`context`) => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\> |
+| `callback?` | (`context`) => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\> |
 | `options?` | \{ `cacheKey?`: `string`[]; \} |
 | `options.cacheKey?` | `string`[] |
 
@@ -2731,16 +2750,16 @@ An `app.bsky.richtext.facet` — a byte range plus the features applying to it.
 
 One feature of a facet; fields beyond `$type` vary by service.
 
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+
 #### Type Declaration
 
 | Name | Type |
 | ------ | ------ |
 | `$type` | `string` |
-
-#### Type Parameters
-
-| Type Parameter |
-| ------ |
 
 ***
 

@@ -456,3 +456,65 @@ describe("Permissions", () => {
     assert(!permissions.hasFetchPattern("https://a.com/x"));
   });
 });
+
+describe("Permissions (open)", () => {
+  const isOpenAllowed = (url, permissions) =>
+    Permissions.parse(permissions).allowsOpen(url);
+
+  it("parses open patterns like fetch patterns", () => {
+    assert.deepEqual(
+      parsePermissions({
+        open: ["https://pdsls.dev/*", 42, "https://pdsls.dev/*"],
+      }),
+      { open: ["https://pdsls.dev/*"] },
+    );
+    assert.deepEqual(parsePermissions({ open: "https://pdsls.dev/*" }), {
+      open: ["https://pdsls.dev/*"],
+    });
+    assert.deepEqual(parsePermissions({ open: [] }), {});
+  });
+
+  it("allows urls matching an open pattern", () => {
+    const permissions = { open: ["https://pdsls.dev/*"] };
+    assert(isOpenAllowed("https://pdsls.dev/at://did:plc:abc", permissions));
+    assert(!isOpenAllowed("https://evil.dev/", permissions));
+  });
+
+  it("rejects non-https urls even for loopback patterns", () => {
+    assert(
+      !isOpenAllowed("http://localhost:8080/", {
+        open: ["http://localhost:8080/*"],
+      }),
+    );
+    assert(
+      !isOpenAllowed("javascript:alert(1)", { open: ["https://pdsls.dev/*"] }),
+    );
+  });
+
+  it("rejects urls carrying credentials", () => {
+    assert(
+      !isOpenAllowed("https://user:pass@pdsls.dev/", {
+        open: ["https://pdsls.dev/*"],
+      }),
+    );
+  });
+
+  it("does not cross-grant with fetch", () => {
+    assert(
+      !isOpenAllowed("https://pdsls.dev/", { fetch: ["https://pdsls.dev/*"] }),
+    );
+    assert(
+      !isFetchAllowed("https://pdsls.dev/", { open: ["https://pdsls.dev/*"] }),
+    );
+  });
+
+  it("diffs newly-added open patterns", () => {
+    assert.deepEqual(
+      diffPermissions(
+        { open: ["https://a.com/*"] },
+        { open: ["https://a.com/*", "https://b.com/*"] },
+      ),
+      { open: ["https://b.com/*"] },
+    );
+  });
+});

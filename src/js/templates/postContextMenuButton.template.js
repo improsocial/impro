@@ -284,7 +284,10 @@ function postContextMenuTemplate({
             (item) => html`
               <context-menu-item
                 .iconElement=${item.iconElement}
-                @click=${() => item.invoke()}
+                .href=${item.url}
+                @click=${() => {
+                  if (!item.url) item.invoke();
+                }}
               >
                 ${item.title}
               </context-menu-item>

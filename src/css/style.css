@@ -8903,7 +8903,8 @@ context-menu-item:last-child {
   margin-bottom: 0;
 }
 
-context-menu-item > button {
+context-menu-item > button,
+context-menu-item > .context-menu-item-link {
   width: 100%;
   border: var(--hair) solid var(--post-border-color);
   background-color: light-dark(var(--off-white), var(--gray));
@@ -8919,25 +8920,34 @@ context-menu-item > button {
   gap: 16px;
 }
 
-context-menu-item > button > app-icon,
-context-menu-item > button > .context-menu-item-icon {
+context-menu-item > :is(button, .context-menu-item-link) > app-icon,
+context-menu-item
+  > :is(button, .context-menu-item-link)
+  > .context-menu-item-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
   color: var(--text-color-muted);
 }
 
-context-menu-item > button > .context-menu-item-icon {
+context-menu-item
+  > :is(button, .context-menu-item-link)
+  > .context-menu-item-icon {
   margin-left: 10px;
 }
 
-context-menu-item > button > .context-menu-item-icon svg {
+context-menu-item
+  > :is(button, .context-menu-item-link)
+  > .context-menu-item-icon
+  svg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-context-menu-item > button > svg.context-menu-item-icon {
+context-menu-item
+  > :is(button, .context-menu-item-link)
+  > svg.context-menu-item-icon {
   display: block;
 }
 
@@ -8951,12 +8961,9 @@ context-menu-item
   color: var(--error-color);
 }
 
-context-menu-item > a {
-  padding: 14px 16px;
-  width: 100%;
-  color: inherit;
-  display: inline-block;
-  text-align: left;
+context-menu-item > .context-menu-item-link {
+  box-sizing: border-box;
+  text-decoration: none;
 }
 
 context-menu-item-group {
@@ -8985,13 +8992,14 @@ context-menu-item-group > context-menu-item:not(:last-child)::after {
   transform-origin: bottom;
 }
 
-context-menu-item-group > context-menu-item > button {
+context-menu-item-group > context-menu-item > button,
+context-menu-item-group > context-menu-item > .context-menu-item-link {
   border: none;
   border-radius: 0;
 }
 
 @media (hover: hover) {
-  context-menu-item > a:hover,
+  context-menu-item > .context-menu-item-link:hover,
   context-menu-item > button:not([disabled]):hover {
     background-color: var(--context-menu-item-hover-color);
   }
@@ -9056,14 +9064,16 @@ context-menu-item-group > context-menu-item > button {
     border-bottom: var(--hair) solid var(--post-border-color);
   }
 
-  context-menu-item > button {
+  context-menu-item > button,
+  context-menu-item > .context-menu-item-link {
     background-color: transparent;
     padding: 10px 12px;
     border: none;
     font-size: 14px;
   }
 
-  context-menu-item-group > context-menu-item > button {
+  context-menu-item-group > context-menu-item > button,
+  context-menu-item-group > context-menu-item > .context-menu-item-link {
     border-radius: var(--context-menu-button-radius);
   }
 

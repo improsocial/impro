@@ -13,15 +13,10 @@ export class Permissions {
   static parse(raw) {
     const permissions = raw ?? {};
     const parsed = {};
-    if (permissions.fetch) {
-      const fetchArray = Array.isArray(permissions.fetch)
-        ? permissions.fetch
-        : [permissions.fetch];
-      const fetchPatterns = unique(
-        fetchArray.filter((entry) => typeof entry === "string"),
-      );
-      if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
-    }
+    const fetchPatterns = parsePatternList(permissions.fetch);
+    if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
+    const openPatterns = parsePatternList(permissions.open);
+    if (openPatterns.length > 0) parsed.open = openPatterns;
     if (permissions.userFetch === true) parsed.userFetch = true;
     if (permissions.actions) {
       const actionsArray = Array.isArray(permissions.actions)
@@ -61,6 +56,10 @@ export class Permissions {
 
   get fetch() {
     return this.#obj.fetch;
+  }
+
+  get open() {
+    return this.#obj.open;
   }
 
   get userFetch() {
@@ -112,6 +111,20 @@ export class Permissions {
     );
   }
 
+  allowsOpen(url) {
+    let parsedUrl = null;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return false;
+    }
+    if (parsedUrl.protocol !== "https:") return false;
+    if (parsedUrl.username || parsedUrl.password) return false;
+    return (this.#obj.open ?? []).some((pattern) =>
+      matchesPattern(parsedUrl, pattern),
+    );
+  }
+
   withFetchOrigins(origins) {
     if (origins.length === 0) return this;
     return new Permissions({
@@ -143,6 +156,12 @@ export class Permissions {
     }
     return hasAny ? diff : null;
   }
+}
+
+function parsePatternList(raw) {
+  if (!raw) return [];
+  const entries = Array.isArray(raw) ? raw : [raw];
+  return unique(entries.filter((entry) => typeof entry === "string"));
 }
 
 // Permission pattern matching:

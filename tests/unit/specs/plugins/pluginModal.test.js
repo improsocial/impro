@@ -508,12 +508,36 @@ describe("permission prompts", () => {
       '[data-testid="fetch-permission-prompt"]',
     );
     assert.equal(
-      prompt.querySelector('[data-testid="fetch-origin-host"]').textContent,
+      prompt.querySelector('[data-testid="origin-host"]').textContent,
       "api.example.com",
     );
     assert.equal(prompt.querySelector("code"), null);
     await respondToConfirm(false);
     assert.equal(await prompting, false);
+  });
+
+  it("lists requested open patterns separately from fetch patterns", async () => {
+    const prompting = showPluginInstallModal({
+      pluginName: "Alpha",
+      permissions: Permissions.parse({
+        fetch: ["https://api.example.com/*"],
+        open: ["https://pdsls.dev/*"],
+      }),
+    });
+    await waitFor(() =>
+      document.querySelector('[data-testid="install-prompt"]'),
+    );
+    const prompt = document.querySelector('[data-testid="install-prompt"]');
+    const hostsIn = (testId) =>
+      [
+        ...prompt.querySelectorAll(
+          `[data-testid="${testId}"] [data-testid="origin-host"]`,
+        ),
+      ].map((element) => element.textContent);
+    assert.deepEqual(hostsIn("fetch-origins"), ["api.example.com"]);
+    assert.deepEqual(hostsIn("open-origins"), ["pdsls.dev"]);
+    await respondToConfirm(false);
+    await prompting;
   });
 
   it("lists every requested fetch pattern in the install prompt", async () => {
@@ -532,7 +556,7 @@ describe("permission prompts", () => {
     );
     const prompt = document.querySelector('[data-testid="install-prompt"]');
     const hosts = [
-      ...prompt.querySelectorAll('[data-testid="fetch-origin-host"]'),
+      ...prompt.querySelectorAll('[data-testid="origin-host"]'),
     ].map((element) => element.textContent);
     assert.deepEqual(hosts, [
       "api.example.com",

@@ -133,15 +133,15 @@ function permissionsSectionTemplate({ title, items = [] }) {
   `;
 }
 
-function fetchOriginTemplate({ pattern }) {
+function originTemplate({ pattern, icon }) {
   const host = pattern.replace(/^[a-z]+:\/\//i, "").split("/")[0];
   const isWholeHttpsHost = pattern === `https://${host}/*`;
   return html`<li class="fetch-permission-origin">
     <span class="fetch-permission-origin-icon">
-      <app-icon icon="globe-earth-line"></app-icon>
+      <app-icon icon=${icon}></app-icon>
     </span>
     <div class="fetch-permission-origin-text">
-      <span class="fetch-permission-origin-host" data-testid="fetch-origin-host"
+      <span class="fetch-permission-origin-host" data-testid="origin-host"
         >${host}</span
       >
       ${isWholeHttpsHost ? null : html`<code>${pattern}</code>`}
@@ -149,9 +149,9 @@ function fetchOriginTemplate({ pattern }) {
   </li>`;
 }
 
-function fetchOriginListTemplate({ patterns }) {
-  return html`<ul class="fetch-permission-origins" data-testid="fetch-origins">
-    ${patterns.map((pattern) => fetchOriginTemplate({ pattern }))}
+function originListTemplate({ patterns, icon, testId }) {
+  return html`<ul class="fetch-permission-origins" data-testid=${testId}>
+    ${patterns.map((pattern) => originTemplate({ pattern, icon }))}
   </ul>`;
 }
 
@@ -164,7 +164,26 @@ function permissionsListTemplate({ permissions }) {
         <div class="permission-prompt-section-title">
           Send network requests to:
         </div>
-        ${fetchOriginListTemplate({ patterns: fetchPatterns })}
+        ${originListTemplate({
+          patterns: fetchPatterns,
+          icon: "globe-earth-line",
+          testId: "fetch-origins",
+        })}
+      </div>`,
+    );
+  }
+  const openPatterns = permissions.open ?? [];
+  if (openPatterns.length > 0) {
+    sections.push(
+      html`<div class="permission-prompt-section">
+        <div class="permission-prompt-section-title">
+          Open links to these sites:
+        </div>
+        ${originListTemplate({
+          patterns: openPatterns,
+          icon: "open-line",
+          testId: "open-origins",
+        })}
       </div>`,
     );
   }
@@ -254,7 +273,11 @@ export async function showPluginFetchPermissionModal({ pluginName, origin }) {
         <strong>${name}</strong> wants to send and receive data from this site:
       </p>
       <div class="fetch-permission-card">
-        ${fetchOriginListTemplate({ patterns: [origin] })}
+        ${originListTemplate({
+          patterns: [origin],
+          icon: "globe-earth-line",
+          testId: "fetch-origins",
+        })}
       </div>
       <p class="fetch-permission-note">
         You can revoke this anytime in the plugin's settings.

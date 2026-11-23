@@ -407,6 +407,39 @@ describe("postContextMenuButtonTemplate - plugin context menu items", () => {
     assert.deepEqual(invoked, true);
     container.remove();
   });
+
+  it("should render plugin link items as links without invoking a handler", async () => {
+    let invoked = false;
+    const pluginService = makePluginService([
+      {
+        pluginId: "plugin-a",
+        title: "Open elsewhere",
+        url: "https://example.com/page",
+        invoke: () => {
+          invoked = true;
+        },
+      },
+    ]);
+    const result = postContextMenuButtonTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const item = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    ).find((node) => node.textContent.trim() === "Open elsewhere");
+    const link = item.querySelector("a");
+    assert.deepEqual(link.getAttribute("href"), "https://example.com/page");
+    link.addEventListener("click", (event) => event.preventDefault());
+    link.click();
+    assert.deepEqual(invoked, false);
+    container.remove();
+  });
 });
 
 describe("postContextMenuButtonTemplate - translate menu action", () => {

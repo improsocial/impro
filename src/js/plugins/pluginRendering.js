@@ -404,10 +404,16 @@ function resolveChildNamespace(parentNs, node) {
 
 // Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId, renderContext = null) {
+  constructor(
+    pluginBridge,
+    pluginId,
+    renderContext = null,
+    allowsOpen = () => false,
+  ) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
     this.renderContext = renderContext;
+    this.allowsOpen = allowsOpen;
   }
 
   createRoot() {
@@ -487,6 +493,7 @@ export class PluginRenderer {
       element.addEventListener("click", (event) => {
         const href = element.getAttribute("href");
         if (!href || !isExternalHref(href)) return;
+        if (this.allowsOpen(href)) return;
         event.preventDefault();
         ExternalLinkWarningModal.open({ href });
       });

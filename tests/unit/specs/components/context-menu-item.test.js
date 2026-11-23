@@ -25,6 +25,21 @@ describe("context-menu-item", () => {
     });
   });
 
+  describe("ContextMenuItem - link", () => {
+    it("renders a new-tab link instead of a button when href is set", () => {
+      const element = document.createElement("context-menu-item");
+      element.href = "https://example.com/page";
+      element.innerHTML = "<span class='test-child'>Open</span>";
+      document.body.appendChild(element);
+      assert.deepEqual(element.querySelector(":scope > button"), null);
+      const link = element.querySelector(":scope > a");
+      assert.deepEqual(link.getAttribute("href"), "https://example.com/page");
+      assert.deepEqual(link.getAttribute("target"), "_blank");
+      assert.deepEqual(link.getAttribute("rel"), "noopener noreferrer");
+      assert(link.querySelector(".test-child"));
+    });
+  });
+
   describe("ContextMenuItem - disabled state", () => {
     it("should not be disabled by default", () => {
       const element = document.createElement("context-menu-item");

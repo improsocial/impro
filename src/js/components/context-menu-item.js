@@ -42,21 +42,40 @@ class ContextMenuItem extends Component {
     if (this._initialized) this.render();
   }
 
+  set href(value) {
+    this._href = value;
+    if (this._initialized) this.render();
+  }
+
   render() {
     const buttonClass = this.itemStyle
       ? `context-menu-item-style-${this.itemStyle}`
       : "";
+    const icon = this._iconElement
+      ? this._iconElement
+      : this.icon
+        ? html`<app-icon
+            class="context-menu-item-icon"
+            icon=${this.icon}
+          ></app-icon>`
+        : null;
+    if (this._href) {
+      render(
+        html`<a
+          class="context-menu-item-link ${buttonClass}"
+          href=${this._href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          ${this._children} ${icon}
+        </a>`,
+        this,
+      );
+      return;
+    }
     render(
       html`<button class=${buttonClass} ?disabled=${this.disabled}>
-        ${this._children}
-        ${this._iconElement
-          ? this._iconElement
-          : this.icon
-            ? html`<app-icon
-                class="context-menu-item-icon"
-                icon=${this.icon}
-              ></app-icon>`
-            : null}
+        ${this._children} ${icon}
       </button>`,
       this,
     );
