@@ -4259,6 +4259,7 @@ image-carousel {
   padding: 10px 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   transition: background-color 0.2s;
+  overflow: clip;
 }
 
 .notification-item-clickable {
@@ -4394,6 +4395,7 @@ image-carousel {
   font-size: 15px;
   line-height: 1.5;
   color: var(--text-color);
+  overflow: clip;
 }
 
 .notification-text strong {
@@ -4440,6 +4442,7 @@ image-carousel {
   white-space: pre-wrap;
   word-break: break-word;
   margin-bottom: 8px;
+  overflow: clip;
 }
 
 .notification-preview-text:last-child {
