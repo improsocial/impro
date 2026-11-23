@@ -3102,6 +3102,72 @@ describe("setThreadView", () => {
   });
 });
 
+describe("setVerificationBadgesHidden", () => {
+  function setup({ updatePreferences }) {
+    const preferences = new Preferences([]);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences,
+    };
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, patchStore };
+  }
+
+  it("should save the preference and apply an optimistic patch until it resolves", async () => {
+    let updateResolve;
+    let updatedPreferences = null;
+    const { mutations, patchStore } = setup({
+      updatePreferences: (prefs) => {
+        updatedPreferences = prefs;
+        return new Promise((resolve) => {
+          updateResolve = resolve;
+        });
+      },
+    });
+
+    const promise = mutations.setVerificationBadgesHidden(true);
+    const patches = patchStore.$preferencePatches.get();
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body, {
+      type: "setVerificationBadgesHidden",
+      hidden: true,
+    });
+    assert.deepEqual(
+      patchStore
+        .applyPreferencePatches(new Preferences([]), patches)
+        .getVerificationBadgesHidden(),
+      true,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    updateResolve();
+    await promise;
+    assert.deepEqual(updatedPreferences.getVerificationBadgesHidden(), true);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+
+  it("should remove the patch and rethrow when saving fails", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const { mutations, patchStore } = setup({
+      updatePreferences: async () => {
+        throw new Error("network");
+      },
+    });
+    await assert.rejects(
+      mutations.setVerificationBadgesHidden(true),
+      /network/,
+    );
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
+  });
+});
+
 describe("unpinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 

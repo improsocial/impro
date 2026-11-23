@@ -18,8 +18,8 @@ test.describe("Settings view", () => {
     });
 
     const nav = view.locator(".vertical-nav");
-    // 7 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(9, {
+    // 8 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(10, {
       timeout: 10000,
     });
     await expect(
@@ -39,6 +39,9 @@ test.describe("Settings view", () => {
     ).toBeVisible();
     await expect(
       nav.locator('[data-testid="settings-nav-blocked-accounts"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-verification"]'),
     ).toBeVisible();
     await expect(
       nav.locator('[data-testid="settings-nav-advanced"]'),
