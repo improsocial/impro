@@ -33,6 +33,10 @@ import {
 } from "/js/dataHelpers.js";
 import { ApiError } from "/js/api.js";
 import "/js/components/app-icon.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
+import "/js/components/context-menu-label.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
@@ -44,22 +48,52 @@ const THREAD_TREE_MAX_DEPTH_MOBILE = 4;
 const THREAD_TREE_MAX_DEPTH_DESKTOP = 6;
 const THREAD_TREE_BRANCHING_FACTOR = 10;
 
-function threadViewToggleTemplate({ threadView, onClick }) {
-  const nextThreadView = threadView === "tree" ? "linear" : "tree";
-  return html`<button
-    class="icon-button thread-view-toggle"
-    data-testid="thread-view-toggle"
-    data-teststate=${threadView ?? "loading"}
-    aria-label=${nextThreadView === "tree"
-      ? "Show replies as a tree"
-      : "Show replies as a list"}
-    ?disabled=${threadView === null}
-    @click=${() => onClick(nextThreadView)}
+function threadViewOptionTemplate({ value, label, threadView, onSelect }) {
+  const isSelected = threadView === value;
+  return html`<context-menu-item
+    data-testid="menu-action-thread-view-${value}"
+    data-teststate=${isSelected ? "selected" : "unselected"}
+    icon=${isSelected ? "check" : ""}
+    @click=${() => {
+      if (!isSelected) {
+        onSelect(value);
+      }
+    }}
   >
-    <app-icon
-      icon=${nextThreadView === "tree" ? "git-branch-line" : "view-rows-line"}
-    ></app-icon>
-  </button>`;
+    ${label}
+  </context-menu-item>`;
+}
+
+function threadOptionsMenuTemplate({ threadView, onSelect }) {
+  return html`<button
+      class="icon-button thread-options-button"
+      data-testid="thread-options-button"
+      data-teststate=${threadView ?? "loading"}
+      aria-label="Thread options"
+      ?disabled=${threadView === null}
+      @click=${function (event) {
+        this.nextElementSibling.open(event.clientX, event.clientY);
+      }}
+    >
+      <app-icon icon="settings-cog-line"></app-icon>
+    </button>
+    <context-menu>
+      <context-menu-label>Show replies as</context-menu-label>
+      <context-menu-item-group>
+        ${threadViewOptionTemplate({
+          value: "linear",
+          label: "Linear",
+          threadView,
+          onSelect,
+        })}
+        ${threadViewOptionTemplate({
+          value: "tree",
+          label: "Threaded",
+          threadView,
+          onSelect,
+        })}
+      </context-menu-item-group>
+    </context-menu>`;
 }
 
 export default async function postThreadView({
@@ -900,9 +934,9 @@ export default async function postThreadView({
           title: "Post",
           rightItemTemplate: isAuthenticated
             ? () =>
-                threadViewToggleTemplate({
+                threadOptionsMenuTemplate({
                   threadView,
-                  onClick: handleThreadViewChange,
+                  onSelect: handleThreadViewChange,
                 })
             : null,
         })}
