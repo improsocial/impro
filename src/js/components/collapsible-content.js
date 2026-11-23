@@ -74,7 +74,8 @@ class CollapsibleContent extends Component {
   measureOverflow() {
     if (this.#isExpanded) return;
     const body = this.querySelector(".collapsible-content-body");
-    const isOverflowing = body.scrollHeight > body.clientHeight + 1;
+    const inner = this.querySelector(".collapsible-content-inner");
+    const isOverflowing = inner.offsetHeight > body.clientHeight + 1;
     if (isOverflowing !== this.#isOverflowing) {
       this.#isOverflowing = isOverflowing;
       this.render();
