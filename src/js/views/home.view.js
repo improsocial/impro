@@ -162,6 +162,10 @@ export default async function homeView({
     }
   }
 
+  bindToPage(root, window, "select-home-feed", (event) =>
+    handleTabClick(event.detail.feedUri),
+  );
+
   function feedErrorTemplate({ feedGenerator }) {
     return html`<div class="error-state" data-testid="feed-error">
       An issue occurred when contacting the feed server.<br />

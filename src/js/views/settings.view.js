@@ -223,6 +223,12 @@ export default async function settingsView({
       url: "/settings/content-and-media",
     },
     {
+      key: "verification",
+      icon: () => html`<app-icon icon="shield-line"></app-icon>`,
+      label: "Verification",
+      url: "/settings/verification",
+    },
+    {
       key: "advanced",
       icon: () => html`<app-icon icon="code-line"></app-icon>`,
       label: "Advanced",

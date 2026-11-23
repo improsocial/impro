@@ -15,6 +15,7 @@ export const SEARCH_HISTORY_PREF_TYPE =
   "app.bsky.actor.defs#improSearchHistoryPref";
 export const GIF_HISTORY_PREF_TYPE = "app.bsky.actor.defs#improGifHistoryPref";
 export const THREAD_VIEW_PREF_TYPE = "app.bsky.actor.defs#threadViewPref";
+export const VERIFICATION_PREF_TYPE = "app.bsky.actor.defs#verificationPrefs";
 
 function getContentTextFromEmbed(embed) {
   const texts = [];
@@ -514,6 +515,22 @@ export class Preferences {
     return clone;
   }
 
+  getVerificationBadgesHidden() {
+    const pref = Preferences.getVerificationPreference(this.obj);
+    return pref?.hideBadges === true;
+  }
+
+  setVerificationBadgesHidden(hidden) {
+    const clone = this.clone();
+    let pref = Preferences.getVerificationPreference(clone.obj);
+    if (!pref) {
+      pref = { $type: VERIFICATION_PREF_TYPE };
+      clone.obj.push(pref);
+    }
+    pref.hideBadges = hidden;
+    return clone;
+  }
+
   hasMutedWord({ text, facets, embed, languages, author }) {
     const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
     if (!mutedWordsPreference) {
@@ -709,6 +726,10 @@ export class Preferences {
 
   static getThreadViewPreference(obj) {
     return Preferences.getPreferenceByType(obj, THREAD_VIEW_PREF_TYPE);
+  }
+
+  static getVerificationPreference(obj) {
+    return Preferences.getPreferenceByType(obj, VERIFICATION_PREF_TYPE);
   }
 
   static getSavedFeedsPreference(obj) {
