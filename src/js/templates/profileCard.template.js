@@ -5,7 +5,11 @@ import {
   linkToProfileFollowing,
   linkToSearchPostsByProfile,
 } from "/js/navigation.js";
-import { cdnImageUrl, getDisplayName } from "/js/dataHelpers.js";
+import {
+  cdnImageUrl,
+  getDisplayName,
+  hasValidHandle,
+} from "/js/dataHelpers.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -345,6 +349,7 @@ export function profileCardTemplate({
   labelerInfo = null,
   isSubscribed = false,
   activitySubscription = null,
+  showHandleLink = false,
   onClickChat = noop,
   onClickFollow = noop,
   onClickMute = noop,
@@ -528,6 +533,20 @@ export function profileCardTemplate({
         </h1>
         <div class="profile-handle-row">
           <div class="profile-handle">@${profile.handle}</div>
+          ${showHandleLink &&
+          hasValidHandle(profile) &&
+          !profile.handle.endsWith(".bsky.social")
+            ? html`<a
+                class="profile-handle-link"
+                href="https://${profile.handle}"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Visit ${profile.handle}"
+                data-testid="profile-handle-link"
+              >
+                <app-icon icon="open-line"></app-icon>
+              </a>`
+            : ""}
           ${isFollowedBy && !isBlocking && !isBlockedBy
             ? html`<div class="profile-tag" data-testid="follows-you-badge">
                 Follows you

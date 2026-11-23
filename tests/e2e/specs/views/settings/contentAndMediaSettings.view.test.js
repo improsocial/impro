@@ -191,4 +191,17 @@ test.describe("Settings Content and media view", () => {
       ),
     ).toHaveAttribute("checked", "", { timeout: 10000 });
   });
+
+  test("should show custom handle links by default", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/content-and-media");
+
+    const view = page.locator("#settings-content-and-media-view");
+    await expect(
+      view.locator('[data-testid="handle-link-toggle"]'),
+    ).toHaveAttribute("checked", "", { timeout: 10000 });
+  });
 });

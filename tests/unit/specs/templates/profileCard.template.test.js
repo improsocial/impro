@@ -1136,3 +1136,51 @@ describe("profileCardTemplate - share via", () => {
     );
   });
 });
+
+describe("profileCardTemplate - handle link", () => {
+  function renderHandleLink({ handle, showHandleLink }) {
+    const container = document.createElement("div");
+    render(
+      profileCardTemplate({
+        profile: { ...mockProfile, handle },
+        showHandleLink,
+      }),
+      container,
+    );
+    return container.querySelector("[data-testid='profile-handle-link']");
+  }
+
+  it("should link to a custom domain handle", () => {
+    const link = renderHandleLink({
+      handle: "alice.example.com",
+      showHandleLink: true,
+    });
+    assert.deepEqual(link.getAttribute("href"), "https://alice.example.com");
+    assert.deepEqual(link.getAttribute("rel"), "noopener noreferrer");
+    assert.deepEqual(
+      link.getAttribute("aria-label"),
+      "Visit alice.example.com",
+    );
+  });
+
+  it("should not link a bsky.social handle", () => {
+    assert.deepEqual(
+      renderHandleLink({ handle: "alice.bsky.social", showHandleLink: true }),
+      null,
+    );
+  });
+
+  it("should not link an invalid handle", () => {
+    assert.deepEqual(
+      renderHandleLink({ handle: "handle.invalid", showHandleLink: true }),
+      null,
+    );
+  });
+
+  it("should not link when the setting is off", () => {
+    assert.deepEqual(
+      renderHandleLink({ handle: "alice.example.com", showHandleLink: false }),
+      null,
+    );
+  });
+});

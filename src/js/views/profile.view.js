@@ -20,6 +20,7 @@ import {
 } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
+import { deviceState } from "/js/deviceState.js";
 import "/js/components/tab-bar.js";
 import "/js/components/app-icon.js";
 import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
@@ -291,6 +292,7 @@ export default async function profileView({
       );
       const isCurrentUser = currentUser?.did === profile.did;
       const liveStatus = dataLayer.derived.$actorLiveStatus.get(profile.did);
+      const handleLinkHidden = deviceState.$handleLinkHidden.get();
       let authorFeedsToShow = getAuthorFeeds({ isCurrentUser, isLabeler });
       const feedGenCount = profile.associated?.feedgens || 0;
       if (feedGenCount > 0) {
@@ -338,6 +340,7 @@ export default async function profileView({
             labelerInfo,
             isSubscribed,
             activitySubscription: profile.viewer?.activitySubscription ?? null,
+            showHandleLink: !handleLinkHidden,
             onClickPostNotifications: (profile) =>
               profileInteractionHandler.handlePostNotificationSubscription(
                 profile,
