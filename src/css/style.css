@@ -2496,6 +2496,7 @@ container-link {
   line-height: 1.3125;
   margin-top: -4px;
   --collapsible-content-max-lines: 25;
+  overflow: clip;
 }
 
 .post-number-badge {
@@ -2684,6 +2685,7 @@ container-link {
   color: var(--text-color-muted);
   display: flex;
   gap: 4px;
+  overflow: clip;
 }
 
 @media (hover: hover) {
@@ -3016,6 +3018,7 @@ container-link {
   font-size: 14px;
   color: var(--text-color-muted);
   margin-top: 4px;
+  overflow: clip;
 }
 
 .reply-to-author app-icon {
@@ -4977,6 +4980,7 @@ image-carousel {
   font-size: 20px;
   font-weight: 700;
   color: var(--text-color);
+  overflow: clip;
 }
 
 .chat-info-panel-handle {
@@ -5140,6 +5144,7 @@ image-carousel {
   color: var(--text-color-muted);
   margin-left: calc(var(--avatar-size-message) + 8px);
   margin-bottom: 2px;
+  overflow: clip;
 }
 
 .system-message {
@@ -5206,6 +5211,7 @@ image-carousel {
   border-radius: var(--message-bubble-border-radius);
   word-wrap: break-word;
   overflow-wrap: break-word;
+  overflow: clip;
 }
 
 .message-sent .message-bubble {
@@ -6499,6 +6505,7 @@ emoji-picker-dialog emoji-picker,
   font-weight: 800;
   margin: 0 0 4px 0;
   line-height: 1.2;
+  overflow: clip;
 }
 
 .verification-badge {
@@ -6774,6 +6781,7 @@ emoji-picker-dialog emoji-picker,
   padding: 0 16px 0px 16px;
   line-height: 1.3;
   --collapsible-content-max-lines: 8;
+  overflow: clip;
 }
 
 collapsible-content {
@@ -7511,6 +7519,7 @@ sidebar-search {
   font-weight: 600;
   margin-bottom: 2px;
   color: var(--text-primary);
+  overflow: clip;
 }
 
 .feeds-list-item-creator {
@@ -7526,6 +7535,7 @@ sidebar-search {
   font-size: 14px;
   color: var(--text-color-secondary);
   white-space: pre-wrap;
+  overflow: clip;
 }
 
 .starter-pack-list-item {
@@ -7757,6 +7767,7 @@ sidebar-search {
   font-weight: 600;
   line-height: 1.2;
   word-wrap: break-word;
+  overflow: clip;
 }
 
 .list-detail-creator {
@@ -7774,6 +7785,7 @@ sidebar-search {
   font-size: 15px;
   line-height: 1.4;
   word-wrap: break-word;
+  overflow: clip;
 }
 
 .list-detail-loading {
@@ -7811,6 +7823,7 @@ sidebar-search {
   font-weight: 600;
   line-height: 1.2;
   word-wrap: break-word;
+  overflow: clip;
 }
 
 .starter-pack-detail-creator {
@@ -7840,6 +7853,7 @@ sidebar-search {
   font-size: 15px;
   line-height: 1.4;
   word-wrap: break-word;
+  overflow: clip;
 }
 
 .starter-pack-detail-sign-in {
