@@ -12,6 +12,7 @@ import {
   cdnImageUrl,
   parseUri,
 } from "/js/dataHelpers.js";
+import { linkToList, linkToListFromUri } from "/js/navigation.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/app-icon.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
@@ -50,7 +51,24 @@ function checkboxRowTemplate({ label, checked, disabled, testid, onToggle }) {
   `;
 }
 
-function listRowTemplate({ list, checked, disabled, onToggle }) {
+function listLinkTemplate({ href, label, onOpenList }) {
+  return html`<a
+    class="interaction-settings-list-link"
+    href=${href}
+    data-testid="interaction-settings-list-link"
+    @click=${(event) => onOpenList(event, href)}
+    >${label}</a
+  >`;
+}
+
+function listRowTemplate({
+  list,
+  checked,
+  disabled,
+  linkLists,
+  onToggle,
+  onOpenList,
+}) {
   return html`
     <label
       class="checkbox-row interaction-settings-row interaction-settings-list-row ${disabled
@@ -70,7 +88,15 @@ function listRowTemplate({ list, checked, disabled, onToggle }) {
         alt=""
         class="feed-avatar interaction-settings-list-avatar"
       />
-      <span class="interaction-settings-list-name">${list.name}</span>
+      <span class="interaction-settings-list-name"
+        >${linkLists
+          ? listLinkTemplate({
+              href: linkToList(list),
+              label: list.name,
+              onOpenList,
+            })
+          : list.name}</span
+      >
     </label>
   `;
 }
@@ -78,7 +104,14 @@ function listRowTemplate({ list, checked, disabled, onToggle }) {
 // Rules that must survive a save but can't be shown as a normal row: unknown
 // rule types and list rules for lists the user doesn't have access to. They
 // stay checked-but-opaque and can only be explicitly removed.
-function preservedRowTemplate({ setting, hydratedLists, disabled, onRemove }) {
+function preservedRowTemplate({
+  setting,
+  hydratedLists,
+  disabled,
+  linkLists,
+  onRemove,
+  onOpenList,
+}) {
   let label;
   if (setting.type === "unknown") {
     label = "An unknown rule (added by another app)";
@@ -87,9 +120,18 @@ function preservedRowTemplate({ setting, hydratedLists, disabled, onRemove }) {
     const listView = hydratedLists.find(
       (hydratedList) => hydratedList.uri === setting.list,
     );
-    label = listView
-      ? `${listView.name} members`
-      : `A list you don't have access to (${rkey})`;
+    if (!listView) {
+      label = `A list you don't have access to (${rkey})`;
+    } else if (linkLists) {
+      label = html`${listLinkTemplate({
+        href: linkToListFromUri(listView.uri),
+        label: listView.name,
+        onOpenList,
+      })}
+      members`;
+    } else {
+      label = `${listView.name} members`;
+    }
   }
   return html`
     <div
@@ -119,8 +161,10 @@ function listsSectionTemplate({
   isSaving,
   disabled,
   listsOpen,
+  linkLists,
   onToggleListsOpen,
   onToggleList,
+  onOpenList,
 }) {
   const selectedCount = settings.filter(
     (setting) => setting.type === "list",
@@ -164,7 +208,9 @@ function listsSectionTemplate({
                   list,
                   checked,
                   disabled: disabled || isSaving || (!checked && atRuleCap),
+                  linkLists,
                   onToggle: () => onToggleList(list),
+                  onOpenList,
                 });
               })}
     </details>
@@ -222,6 +268,7 @@ function interactionSettingsFormTemplate({
   defaultsRowState,
   saveAsDefault,
   listsOpen,
+  linkLists,
   onToggleListsOpen,
   onToggleSaveAsDefault,
   onSelectEverybody,
@@ -230,6 +277,7 @@ function interactionSettingsFormTemplate({
   onToggleList,
   onToggleQuotes,
   onRemoveSetting,
+  onOpenList,
   onSave,
 }) {
   const replySettingsDisabled = replySettingsStatus !== "editable";
@@ -303,15 +351,19 @@ function interactionSettingsFormTemplate({
           isSaving,
           disabled: replySettingsDisabled,
           listsOpen,
+          linkLists,
           onToggleListsOpen,
           onToggleList,
+          onOpenList,
         })}
         ${preservedSettings.map((setting) =>
           preservedRowTemplate({
             setting,
             hydratedLists,
             disabled: replyInputsDisabled,
+            linkLists,
             onRemove: () => onRemoveSetting(setting),
+            onOpenList,
           }),
         )}
       </div>
@@ -362,6 +414,7 @@ function interactionSettingsFormTemplate({
 
 class PostInteractionSettingsDialog extends Component {
   threadRootUri = null;
+  linkLists = false;
 
   connectedCallback() {
     if (this.initialized) {
@@ -637,6 +690,7 @@ class PostInteractionSettingsDialog extends Component {
                 defaultsRowState,
                 saveAsDefault,
                 listsOpen,
+                linkLists: this.linkLists,
                 onToggleListsOpen: (open) => this.state.$listsOpen.set(open),
                 onToggleSaveAsDefault: (checked) =>
                   this.state.$saveAsDefault.set(checked),
@@ -647,6 +701,7 @@ class PostInteractionSettingsDialog extends Component {
                 onToggleQuotes: (checked) =>
                   this.state.$quotesEnabled.set(checked),
                 onRemoveSetting: (setting) => this._removeSetting(setting),
+                onOpenList: (event, href) => this._openList(event, href),
                 onSave: () => this._save(),
               })}
             </div>
@@ -655,6 +710,22 @@ class PostInteractionSettingsDialog extends Component {
       `,
       this,
     );
+  }
+
+  async _openList(event, href) {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.button === 1
+    ) {
+      return;
+    }
+    event.preventDefault();
+    await this.close();
+    this.scrollLock?.release();
+    this.scrollLock = null;
+    window.router.go(href);
   }
 
   open() {
@@ -669,7 +740,7 @@ class PostInteractionSettingsDialog extends Component {
         ".post-interaction-settings-dialog-body",
       ),
       ignoreTouchTarget: (element) =>
-        element.closest("button, label, summary") !== null,
+        element.closest("button, label, summary, a") !== null,
     });
   }
 
