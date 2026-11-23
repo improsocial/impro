@@ -11539,6 +11539,17 @@ label:has(toggle-switch[disabled]) {
   flex-direction: column;
 }
 
+.add-to-lists-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .add-to-lists-row-link:hover {
+    text-decoration: underline;
+  }
+}
+
 .add-to-lists-row .add-to-lists-toggle {
   flex-shrink: 0;
   min-width: 80px;
