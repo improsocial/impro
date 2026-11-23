@@ -106,6 +106,14 @@ html {
     var(--off-white),
     var(--light-gray)
   );
+  --toast-background-color: light-dark(
+    var(--white),
+    color-mix(in srgb, var(--light-gray) 70%, var(--mid-gray))
+  );
+  --toast-border-color: light-dark(
+    var(--lighter-gray),
+    color-mix(in srgb, var(--off-white) 18%, transparent)
+  );
   --post-action-icon-color: light-dark(
     var(--mid-light-gray),
     var(--text-color-muted)
@@ -285,6 +293,7 @@ html {
     0 0 10px 0 rgba(0, 0, 0, 0.1),
     0 0 10px 0 rgba(0, 0, 0, 0.3)
   );
+  --toast-shadow-color: light-dark(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.6));
 
   /* skeleton gradient */
   --skeleton-gradient-edge: light-dark(
@@ -9576,14 +9585,14 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
   right: 8px;
   width: auto;
   margin: 0;
-  background: light-dark(var(--white), var(--mid-gray));
-  border: var(--hair) solid var(--post-border-color);
-  color: var(--text-color-muted);
+  background: var(--toast-background-color);
+  border: var(--hair) solid var(--toast-border-color);
+  color: var(--text-color);
   padding: 12px 16px;
   border-radius: var(--toast-border-radius);
   box-shadow:
-    0 1px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    0 6px 20px -4px var(--toast-shadow-color),
+    0 2px 6px -2px var(--toast-shadow-color);
   transform: translateY(-150%);
   transition:
     top 0.3s linear,
@@ -9599,29 +9608,38 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 
 .toast.success {
   background: light-dark(
-    color-mix(in srgb, var(--highlight-color) 8%, var(--white)),
-    color-mix(in srgb, var(--highlight-color) 8%, var(--mid-gray))
+    color-mix(in srgb, var(--highlight-color) 10%, var(--white)),
+    color-mix(in srgb, var(--highlight-color) 22%, var(--mid-gray))
   );
   border-color: var(--highlight-color);
-  color: var(--highlight-color);
+  color: light-dark(
+    var(--highlight-color),
+    color-mix(in srgb, var(--highlight-color) 80%, var(--off-white))
+  );
 }
 
 .toast.error {
   background: light-dark(
     color-mix(in srgb, var(--error-color) 12%, var(--white)),
-    color-mix(in srgb, var(--error-color) 12%, var(--mid-gray))
+    color-mix(in srgb, var(--error-color) 22%, var(--mid-gray))
   );
   border-color: var(--error-color);
-  color: var(--error-color);
+  color: light-dark(
+    var(--error-color),
+    color-mix(in srgb, var(--error-color) 80%, var(--off-white))
+  );
 }
 
 .toast.warning {
   background: light-dark(
     color-mix(in srgb, var(--warning-color) 12%, var(--white)),
-    color-mix(in srgb, var(--warning-color) 12%, var(--mid-gray))
+    color-mix(in srgb, var(--warning-color) 20%, var(--mid-gray))
   );
   border-color: var(--warning-color);
-  color: var(--warning-color);
+  color: light-dark(
+    var(--warning-color),
+    color-mix(in srgb, var(--warning-color) 80%, var(--off-white))
+  );
 }
 
 .toast.warning .toast-icon {
