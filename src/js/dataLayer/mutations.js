@@ -1401,12 +1401,14 @@ export class Mutations {
     const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) throw new Error("No current user");
     const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
+    const resolvedDescription =
+      await this._buildDescriptionWithFacets(description);
     const record = {
       purpose,
       name,
-      description,
       createdAt: getCurrentTimestamp(),
     };
+    this._applyDescriptionToRecord(record, resolvedDescription);
     if (avatarRef) record.avatar = avatarRef;
 
     const res = await this.api.createListRecord(record);
@@ -1423,8 +1425,8 @@ export class Mutations {
       cid: res.cid,
       name,
       purpose,
-      description,
-      descriptionFacets: [],
+      description: resolvedDescription.description ?? "",
+      descriptionFacets: resolvedDescription.descriptionFacets ?? [],
       avatar: avatarRef?.ref?.$link
         ? buildCdnUrl("avatar", creator.did, avatarRef.ref.$link)
         : undefined,
@@ -1450,6 +1452,11 @@ export class Mutations {
     const rkey = list.uri.split("/").pop();
     const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
 
+    const resolvedDescription =
+      description !== undefined
+        ? await this._buildDescriptionWithFacets(description)
+        : null;
+
     const recordData = await this.api.getListRecord(rkey);
     const existingRecord = recordData.value || {};
     const swapCid = recordData.cid;
@@ -1458,9 +1465,10 @@ export class Mutations {
     if (name !== undefined) {
       updatedRecord.name = name;
     }
-    if (description !== undefined) {
-      updatedRecord.description = description;
+    if (resolvedDescription) {
+      delete updatedRecord.description;
       delete updatedRecord.descriptionFacets;
+      this._applyDescriptionToRecord(updatedRecord, resolvedDescription);
     }
     if (avatarRef) {
       updatedRecord.avatar = avatarRef;
@@ -1474,9 +1482,9 @@ export class Mutations {
     const current = this.dataStore.$lists.get(list.uri) ?? list;
     const patched = { ...current };
     if (name !== undefined) patched.name = name;
-    if (description !== undefined) {
-      patched.description = description;
-      patched.descriptionFacets = [];
+    if (resolvedDescription) {
+      patched.description = resolvedDescription.description ?? "";
+      patched.descriptionFacets = resolvedDescription.descriptionFacets ?? [];
     }
     if (avatarRef?.ref?.$link && list.creator?.did) {
       patched.avatar = buildCdnUrl(
@@ -1577,7 +1585,7 @@ export class Mutations {
     }
   }
 
-  async _buildStarterPackDescription(description) {
+  async _buildDescriptionWithFacets(description) {
     const trimmed = (description ?? "").trim();
     if (!trimmed) return { description: null, descriptionFacets: null };
     const facets = await getFacetsFromText(trimmed, this.identityResolver);
@@ -1585,6 +1593,12 @@ export class Mutations {
       description: trimmed,
       descriptionFacets: facets.length > 0 ? facets : null,
     };
+  }
+
+  _applyDescriptionToRecord(record, { description, descriptionFacets }) {
+    if (!description) return;
+    record.description = description;
+    if (descriptionFacets) record.descriptionFacets = descriptionFacets;
   }
 
   _buildStarterPackName(name, currentUser) {
@@ -1617,7 +1631,7 @@ export class Mutations {
     if (!currentUser) throw new Error("No current user");
     const resolvedName = this._buildStarterPackName(name, currentUser);
     const resolvedDescription =
-      await this._buildStarterPackDescription(description);
+      await this._buildDescriptionWithFacets(description);
     const createdAt = getCurrentTimestamp();
     const did = currentUser.did;
 
@@ -1629,12 +1643,7 @@ export class Mutations {
       name: resolvedName,
       createdAt,
     };
-    if (resolvedDescription.description) {
-      listRecord.description = resolvedDescription.description;
-      if (resolvedDescription.descriptionFacets) {
-        listRecord.descriptionFacets = resolvedDescription.descriptionFacets;
-      }
-    }
+    this._applyDescriptionToRecord(listRecord, resolvedDescription);
 
     const listItemWrites = profiles.map((profile) =>
       this._listItemCreateWrite({ listUri, did: profile.did }),
@@ -1648,12 +1657,7 @@ export class Mutations {
       list: listUri,
       createdAt,
     };
-    if (resolvedDescription.description) {
-      packRecord.description = resolvedDescription.description;
-      if (resolvedDescription.descriptionFacets) {
-        packRecord.descriptionFacets = resolvedDescription.descriptionFacets;
-      }
-    }
+    this._applyDescriptionToRecord(packRecord, resolvedDescription);
     if (feeds.length > 0) {
       packRecord.feeds = feeds.map((feed) => ({ uri: feed.uri }));
     }
@@ -1757,7 +1761,7 @@ export class Mutations {
 
     const resolvedName = this._buildStarterPackName(name, currentUser);
     const resolvedDescription =
-      await this._buildStarterPackDescription(description);
+      await this._buildDescriptionWithFacets(description);
 
     const selectedDids = new Set(profiles.map((profile) => profile.did));
     const existingRecords = await this._findListItemRecords(listUri);
@@ -1801,12 +1805,7 @@ export class Mutations {
     const listRecord = { ...listRecordData.value, name: resolvedName };
     delete listRecord.description;
     delete listRecord.descriptionFacets;
-    if (resolvedDescription.description) {
-      listRecord.description = resolvedDescription.description;
-      if (resolvedDescription.descriptionFacets) {
-        listRecord.descriptionFacets = resolvedDescription.descriptionFacets;
-      }
-    }
+    this._applyDescriptionToRecord(listRecord, resolvedDescription);
     await this.api.putListRecord(listRkey, listRecord, listRecordData.cid);
 
     const packRkey = parseUri(starterPack.uri).rkey;
@@ -1819,12 +1818,7 @@ export class Mutations {
     delete packRecord.description;
     delete packRecord.descriptionFacets;
     delete packRecord.feeds;
-    if (resolvedDescription.description) {
-      packRecord.description = resolvedDescription.description;
-      if (resolvedDescription.descriptionFacets) {
-        packRecord.descriptionFacets = resolvedDescription.descriptionFacets;
-      }
-    }
+    this._applyDescriptionToRecord(packRecord, resolvedDescription);
     if (feeds.length > 0) {
       packRecord.feeds = feeds.map((feed) => ({ uri: feed.uri }));
     }

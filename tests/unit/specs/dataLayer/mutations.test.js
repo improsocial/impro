@@ -31,6 +31,29 @@ const mockIdentityResolver = {
   resolveHandle: async () => null,
 };
 
+const facetDescription = "See https://example.com @alice.bsky.social";
+const expectedDescriptionFacets = [
+  {
+    index: { byteStart: 4, byteEnd: 23 },
+    features: [
+      { $type: "app.bsky.richtext.facet#link", uri: "https://example.com" },
+    ],
+  },
+  {
+    index: { byteStart: 24, byteEnd: 42 },
+    features: [
+      { $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice" },
+    ],
+  },
+];
+
+function useAliceResolver(mutations) {
+  mutations.identityResolver = {
+    resolveHandle: async (handle) =>
+      handle === "alice.bsky.social" ? "did:plc:alice" : null,
+  };
+}
+
 function makeLabelerDefsProvider() {
   return {
     addedLabelerDefs: [],
@@ -6137,6 +6160,80 @@ describe("$detailedProfiles mirroring", () => {
   });
 });
 
+describe("createList", () => {
+  const currentUser = {
+    did: "did:plc:test123",
+    handle: "test.bsky.social",
+    displayName: "Test",
+    avatar: "",
+  };
+  const listUri = "at://did:plc:test123/app.bsky.graph.list/newlist";
+
+  function setup() {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$currentUser.set(currentUser);
+    const createdRecords = [];
+    const api = {
+      createListRecord: async (record) => {
+        createdRecords.push(record);
+        return { uri: listUri, cid: "newcid" };
+      },
+    };
+    const mutations = makeMutations(api, dataStore, new PatchStore(), {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    useAliceResolver(mutations);
+    return { mutations, dataStore, createdRecords };
+  }
+
+  it("writes descriptionFacets for links and mentions in the description", async () => {
+    const { mutations, dataStore, createdRecords } = setup();
+
+    await mutations.createList({
+      purpose: "app.bsky.graph.defs#curatelist",
+      name: "My List",
+      description: facetDescription,
+    });
+
+    assert.equal(createdRecords[0].description, facetDescription);
+    assert.deepEqual(
+      createdRecords[0].descriptionFacets,
+      expectedDescriptionFacets,
+    );
+    assert.deepEqual(
+      dataStore.$lists.get(listUri).descriptionFacets,
+      expectedDescriptionFacets,
+    );
+  });
+
+  it("omits descriptionFacets when the description has no facets", async () => {
+    const { mutations, dataStore, createdRecords } = setup();
+
+    await mutations.createList({
+      purpose: "app.bsky.graph.defs#curatelist",
+      name: "My List",
+      description: "Just plain text",
+    });
+
+    assert.equal(createdRecords[0].description, "Just plain text");
+    assert.equal("descriptionFacets" in createdRecords[0], false);
+    assert.deepEqual(dataStore.$lists.get(listUri).descriptionFacets, []);
+  });
+
+  it("omits description fields when the description is empty", async () => {
+    const { mutations, createdRecords } = setup();
+
+    await mutations.createList({
+      purpose: "app.bsky.graph.defs#curatelist",
+      name: "My List",
+      description: "",
+    });
+
+    assert.equal("description" in createdRecords[0], false);
+    assert.equal("descriptionFacets" in createdRecords[0], false);
+  });
+});
+
 describe("updateList", () => {
   const listUri = "at://did:plc:test123/app.bsky.graph.list/mylist";
   const testList = {
@@ -6233,6 +6330,73 @@ describe("updateList", () => {
       mimeType: "image/jpeg",
       size: 100,
     });
+  });
+
+  it("writes descriptionFacets for links and mentions in the description", async () => {
+    let putRecord = null;
+    const { mutations, dataStore } = setup({
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+    useAliceResolver(mutations);
+
+    await mutations.updateList(testList, {
+      name: "Old Name",
+      description: facetDescription,
+    });
+
+    assert.equal(putRecord.description, facetDescription);
+    assert.deepEqual(putRecord.descriptionFacets, expectedDescriptionFacets);
+    assert.deepEqual(
+      dataStore.$lists.get(listUri).descriptionFacets,
+      expectedDescriptionFacets,
+    );
+  });
+
+  it("omits description fields from the put record when the description is cleared", async () => {
+    let putRecord = null;
+    const { mutations, dataStore } = setup({
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, { name: "Old Name", description: "" });
+
+    assert.equal("description" in putRecord, false);
+    assert.equal("descriptionFacets" in putRecord, false);
+    assert.equal(dataStore.$lists.get(listUri).description, "");
+  });
+
+  it("keeps the existing description and facets when description is not passed", async () => {
+    const existingFacets = [
+      { index: { byteStart: 0, byteEnd: 3 }, features: [] },
+    ];
+    let putRecord = null;
+    const { mutations } = setup({
+      getListRecord: async () => ({
+        value: {
+          purpose: "app.bsky.graph.defs#curatelist",
+          name: "Old Name",
+          description: "Old description",
+          descriptionFacets: existingFacets,
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+        cid: "listcid",
+      }),
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, { name: "New Name" });
+
+    assert.equal(putRecord.description, "Old description");
+    assert.deepEqual(putRecord.descriptionFacets, existingFacets);
   });
 
   it("strips stale descriptionFacets from the put record when description changes", async () => {
