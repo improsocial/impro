@@ -24,6 +24,7 @@ import { moderationWarningTemplate } from "/js/templates/moderationWarning.templ
 import { postNumberBadgeTemplate } from "/js/templates/postNumberBadge.template.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/container-link.js";
+import "/js/components/collapsible-content.js";
 import "/js/components/app-icon.js";
 
 function contentWarningTemplate({
@@ -242,8 +243,10 @@ export function smallPostTemplate({
                     <app-icon icon="lock-line"></app-icon> Sign-in required
                   </div>`
                 : html`${postText.length > 0
-                    ? html`<div class="post-text">
-                        <plugin-rich-text
+                    ? html`<collapsible-content
+                        class="post-text"
+                        expand-only
+                        .content=${html`<plugin-rich-text
                           .pluginService=${pluginService}
                           .text=${postText}
                           .facets=${post.record.facets}
@@ -259,8 +262,8 @@ export function smallPostTemplate({
                               })
                             : null}
                           truncate-urls
-                        ></plugin-rich-text>
-                      </div>`
+                        ></plugin-rich-text>`}
+                      ></collapsible-content>`
                     : postNumbering
                       ? postNumberBadgeTemplate({
                           numbering: postNumbering,

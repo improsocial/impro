@@ -39,6 +39,7 @@ export class MockServer {
     this.sendMessageFailure = null;
     this.listConvosFailure = null;
     this.listMembersFailure = null;
+    this.listsWithMembershipFailure = null;
     this.getPostsFailure = null;
     this.createRecordFailures = new Map();
     this.convoForMembersError = null;
@@ -126,6 +127,7 @@ export class MockServer {
     this.searchHistory = null;
     // Seeded/captured app.bsky.actor.defs#threadViewPref; null means absent.
     this.threadViewPref = null;
+    this.verificationPref = null;
     this.getProfileDelayMs = 0;
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
@@ -630,6 +632,10 @@ export class MockServer {
     this.threadViewPref = threadViewPref;
   }
 
+  setVerificationPref(verificationPref) {
+    this.verificationPref = verificationPref;
+  }
+
   setPostThreadOther(postUri, threadOther) {
     this.postThreadOthers.set(postUri, threadOther);
   }
@@ -669,6 +675,25 @@ export class MockServer {
 
   failListMembers({ status = 500, error = "InternalServerError", message }) {
     this.listMembersFailure = { status, error, message };
+  }
+
+  // Pass onlyWithCursor to fail only paginated (load-more) requests
+  failListsWithMembership({
+    status = 500,
+    error = "InternalServerError",
+    message,
+    onlyWithCursor = false,
+  } = {}) {
+    this.listsWithMembershipFailure = {
+      status,
+      error,
+      message,
+      onlyWithCursor,
+    };
+  }
+
+  clearListsWithMembershipFailure() {
+    this.listsWithMembershipFailure = null;
   }
 
   // Pass onlyWithCursor to fail only paginated (load-more) requests
@@ -1289,6 +1314,14 @@ export class MockServer {
                     {
                       $type: "app.bsky.actor.defs#threadViewPref",
                       ...this.threadViewPref,
+                    },
+                  ]
+                : []),
+              ...(this.verificationPref
+                ? [
+                    {
+                      $type: "app.bsky.actor.defs#verificationPrefs",
+                      ...this.verificationPref,
                     },
                   ]
                 : []),
@@ -2655,6 +2688,17 @@ export class MockServer {
         const actor = url.searchParams.get("actor");
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
         const cursorParam = url.searchParams.get("cursor") || "";
+        const failure = this.listsWithMembershipFailure;
+        if (failure && (!failure.onlyWithCursor || cursorParam)) {
+          return route.fulfill({
+            status: failure.status,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: failure.error,
+              message: failure.message,
+            }),
+          });
+        }
         const start = cursorParam ? parseInt(cursorParam, 10) : 0;
         const lists = this.actorLists.get(userProfile.did) || [];
         const page = lists.slice(start, start + limit);
@@ -3377,6 +3421,13 @@ export class MockServer {
         if (threadViewPref) {
           const { $type, ...rest } = threadViewPref;
           this.threadViewPref = rest;
+        }
+        const verificationPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#verificationPrefs",
+        );
+        if (verificationPref) {
+          const { $type, ...rest } = verificationPref;
+          this.verificationPref = rest;
         }
         const labelersPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#labelersPref",
