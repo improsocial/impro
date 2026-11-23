@@ -11605,15 +11605,15 @@ label:has(toggle-switch[disabled]) {
   cursor: not-allowed;
 }
 
-.add-to-lists-dialog-empty,
-.add-to-lists-dialog-error {
+.add-to-lists-dialog-empty {
   color: var(--text-color-secondary);
   text-align: center;
   padding: 20px 0;
 }
 
 .add-to-lists-dialog-error {
-  color: var(--error-color);
+  height: 60vh;
+  box-sizing: border-box;
 }
 
 .add-to-lists-dialog-loading {
