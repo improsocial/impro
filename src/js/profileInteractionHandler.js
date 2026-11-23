@@ -136,6 +136,37 @@ export class ProfileInteractionHandler {
     }
   }
 
+  async handleAddToStarterPack(profile, starterPack) {
+    try {
+      await this.dataLayer.mutations.addProfileToStarterPack(
+        profile,
+        starterPack,
+      );
+      showToast(`Added to ${starterPack.record.name}`, { style: "success" });
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to add to starter pack", { style: "error" });
+      throw error;
+    }
+  }
+
+  async handleRemoveFromStarterPack(profile, starterPack, membershipUri) {
+    try {
+      await this.dataLayer.mutations.removeProfileFromStarterPack(
+        profile,
+        starterPack,
+        membershipUri,
+      );
+      showToast(`Removed from ${starterPack.record.name}`, {
+        style: "success",
+      });
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to remove from starter pack", { style: "error" });
+      throw error;
+    }
+  }
+
   async handleSubscribe(profile, doSubscribe, labelerInfo) {
     haptics.impactMedium();
     if (doSubscribe) {

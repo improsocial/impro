@@ -57,7 +57,7 @@ test.describe("Account switch flow", () => {
     });
   });
 
-  test("the sidebar ellipsis button opens the dialog without navigating", async ({
+  test("the sidebar account switcher button opens the dialog without navigating", async ({
     page,
   }) => {
     const dialog = await openSwitcherDialog(page);
@@ -74,6 +74,41 @@ test.describe("Account switch flow", () => {
     await expect(
       dialog.locator('[data-testid="account-switcher-add"]'),
     ).toBeVisible();
+  });
+
+  test("the sidebar button shows a stack of the other accounts", async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="menu-button"]').click();
+    await expect(
+      page.locator('[data-testid="sidebar-account-stack-item"]'),
+    ).toHaveCount(1);
+  });
+
+  test("clicking an avatar in the sidebar stack switches to that account", async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="menu-button"]').click();
+    await page
+      .locator(
+        `[data-testid="sidebar-account-stack-item"][data-did="${otherProfile.did}"]`,
+      )
+      .click();
+
+    await expect
+      .poll(
+        () => page.evaluate(() => localStorage.getItem("oauth_current_did")),
+        { timeout: 10000 },
+      )
+      .toBe(otherProfile.did);
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      page.locator(
+        `[data-testid="sidebar-account-stack-item"][data-did="${userProfile.did}"]`,
+      ),
+    ).toHaveCount(1);
   });
 
   test("shows a sign out button for the current account", async ({ page }) => {
@@ -107,6 +142,10 @@ test.describe("Account switch flow", () => {
     page,
   }) => {
     mockServer.getProfilesDelayMs = 5000;
+    await page.reload();
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
     const dialog = await openSwitcherDialog(page);
 
     const otherRow = dialog.locator(
@@ -325,6 +364,31 @@ test.describe("Account switch flow", () => {
   });
 });
 
+test.describe("Account switch flow with a single account", () => {
+  test.beforeEach(async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(userProfile);
+    await mockServer.setup(page);
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+    ]);
+    await page.goto("/");
+    await expect(page.locator('[data-testid="footer-nav-home"]')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("the sidebar shows only the ellipsis button", async ({ page }) => {
+    await page.locator('[data-testid="menu-button"]').click();
+    await expect(
+      page.locator('[data-testid="sidebar-profile-account-switcher-button"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="sidebar-account-avatar-stack"]'),
+    ).toHaveCount(0);
+  });
+});
+
 test.describe("Account switch flow with an account needing re-auth", () => {
   let otherProfile;
 
@@ -363,6 +427,18 @@ test.describe("Account switch flow with an account needing re-auth", () => {
         `[data-testid="account-switcher-item"][data-did="${userProfile.did}"]`,
       ),
     ).toHaveAttribute("data-teststate", "current");
+  });
+
+  test("leaves the re-auth account out of the sidebar stack", async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="menu-button"]').click();
+    await expect(
+      page.locator('[data-testid="sidebar-profile-account-switcher-button"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="sidebar-account-avatar-stack"]'),
+    ).toHaveCount(0);
   });
 
   test("selecting a re-auth account starts the OAuth flow", async ({

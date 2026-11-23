@@ -322,6 +322,7 @@ export default async function settingsView({
                     }
                     await auth.removeAccount(account.did);
                     await loadOtherAccounts();
+                    accountSwitcherService.loadOtherAccounts();
                     const stillHasOthers = $otherAccounts.get().length > 0;
                     if (!stillHasOthers) {
                       $accountSwitcherExpanded.set(false);

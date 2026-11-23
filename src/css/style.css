@@ -1761,6 +1761,64 @@ tab-bar.is-scroll-frozen {
   height: var(--profile-action-button-size);
 }
 
+.sidebar-profile-top .sidebar-account-switcher-buttons .ellipsis-button {
+  width: var(--avatar-size-menu-button);
+  height: var(--avatar-size-menu-button);
+  padding: 0;
+}
+
+.sidebar-account-switcher-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-account-avatar-stack {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-account-stack-item {
+  display: flex;
+  padding: 0;
+  border: none;
+  border-radius: var(--avatar-border-radius);
+  background: none;
+  cursor: pointer;
+}
+
+.sidebar-account-stack-item .avatar,
+.sidebar-account-stack-item .avatar .avatar-image-frame {
+  width: var(--avatar-size-menu-button);
+  height: var(--avatar-size-menu-button);
+}
+
+.sidebar-account-stack-item .avatar .avatar-image-frame {
+  border-radius: var(--avatar-border-radius);
+  overflow: hidden;
+}
+
+.sidebar-account-stack-item .avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-account-stack-item .avatar {
+  transition: transform 0.15s ease;
+}
+
+.sidebar-account-stack-item.is-selected .avatar {
+  transform: scale(1.1);
+}
+
+@media (hover: hover) {
+  .sidebar-account-stack-item:hover .avatar {
+    transform: scale(1.1);
+  }
+}
+
 .sidebar-profile-avatar {
   display: flex;
   justify-content: flex-start;
@@ -10551,7 +10609,7 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
   height: 40px;
   align-items: center;
   justify-content: center;
-  color: var(--text-color-muted);
+  color: var(--text-color);
 }
 
 .account-switcher-names {
@@ -11584,113 +11642,113 @@ label:has(toggle-switch[disabled]) {
   cursor: not-allowed;
 }
 
-.add-to-lists-dialog::before {
+.membership-dialog::before {
   z-index: 1;
 }
 
 @media (min-width: 800px) {
-  .add-to-lists-dialog {
+  .membership-dialog {
     max-width: 480px;
   }
 }
 
-.add-to-lists-dialog-content {
+.membership-dialog-content {
   padding: 24px 20px;
   padding-top: 28px;
   position: relative;
 }
 
 @media (min-width: 800px) {
-  .add-to-lists-dialog-content {
+  .membership-dialog-content {
     padding-top: 24px;
   }
 }
 
-.add-to-lists-dialog-body {
+.membership-dialog-body {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.add-to-lists-dialog-header {
+.membership-dialog-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.add-to-lists-dialog-title {
+.membership-dialog-title {
   font-size: 1.3rem;
   font-weight: 700;
   margin: 0;
 }
 
-.add-to-lists-dialog-subtitle {
+.membership-dialog-subtitle {
   margin: 0;
   color: var(--text-color-secondary);
   font-size: 0.95rem;
 }
 
-.add-to-lists-dialog-rows {
+.membership-dialog-rows {
   max-height: 60vh;
   overflow-y: auto;
 }
 
-.add-to-lists-dialog-rows .infinite-scroll-container {
+.membership-dialog-rows .infinite-scroll-container {
   display: flex;
   flex-direction: column;
 }
 
-.add-to-lists-row-link {
+.membership-row-link {
   color: inherit;
   text-decoration: none;
 }
 
 @media (hover: hover) {
-  .add-to-lists-row-link:hover {
+  .membership-row-link:hover {
     text-decoration: underline;
   }
 }
 
-.add-to-lists-row .add-to-lists-toggle {
+.membership-row .membership-toggle {
   flex-shrink: 0;
   min-width: 80px;
   margin-left: 12px;
 }
 
-.add-to-lists-toggle:disabled {
+.membership-toggle:disabled {
   cursor: not-allowed;
 }
 
-.add-to-lists-dialog-empty {
+.membership-dialog-empty {
   color: var(--text-color-secondary);
   text-align: center;
   padding: 20px 0;
 }
 
-.add-to-lists-dialog-error {
+.membership-dialog-error {
   height: 60vh;
   box-sizing: border-box;
 }
 
-.add-to-lists-dialog-loading {
+.membership-dialog-loading {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 60vh;
 }
 
-.add-to-lists-dialog-loading .loading-spinner {
+.membership-dialog-loading .loading-spinner {
   height: 24px;
   width: 24px;
 }
 
-.add-to-lists-dialog-loading-more {
+.membership-dialog-loading-more {
   display: flex;
   justify-content: center;
   padding: 12px 0;
 }
 
-.add-to-lists-dialog-loading-more .loading-spinner {
+.membership-dialog-loading-more .loading-spinner {
   height: 20px;
   width: 20px;
 }

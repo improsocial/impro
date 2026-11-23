@@ -3,9 +3,7 @@ import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
 import { wait } from "/js/utils.js";
 import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
@@ -171,26 +169,9 @@ class AccountSwitcherDialog extends Component {
       this.close();
       return;
     }
-    if (account.needsReauth) {
-      this.state.$pendingAction.set({ type: "switch", did: account.did });
-      try {
-        await this.auth.login({
-          handle: account.handle,
-          returnTo: window.location.pathname + window.location.search,
-        });
-      } catch (error) {
-        this.state.$pendingAction.set(null);
-        showToast(getLoginErrorMessage(error), { style: "error" });
-      }
-      return;
-    }
     this.state.$pendingAction.set({ type: "switch", did: account.did });
-    try {
-      await this.auth.switchAccount(account.did);
-    } catch {
-      this.state.$pendingAction.set(null);
-      showToast("Failed to switch account", { style: "error" });
-    }
+    await this.onSwitchAccount(account);
+    this.state.$pendingAction.set(null);
   }
 
   _onAdd() {

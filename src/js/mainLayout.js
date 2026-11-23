@@ -72,6 +72,9 @@ export function mainLayoutTemplate({
   pluginService,
   previewingPlugins = [],
   onOpenAccountSwitcher = null,
+  otherAccounts = null,
+  onSwitchAccount = null,
+  pendingSwitchDid = null,
   groupChatLinkService,
   liveStatusService,
   feedInteractionHandler,
@@ -101,6 +104,9 @@ export function mainLayoutTemplate({
             onClickComposeButton,
             pluginSidebarItems: pluginService.getSidebarItems(),
             onOpenAccountSwitcher,
+            otherAccounts,
+            onSwitchAccount,
+            pendingSwitchDid,
           })}
         </div>
         <div class="view-column-center" data-testid="view-column-center">
@@ -185,6 +191,14 @@ export class MainLayout extends Layout {
       accountSwitcherService && auth.supportsMultipleAccounts()
         ? () => accountSwitcherService.openAccountSwitcherDialog()
         : null;
+    const onSwitchAccount = onOpenAccountSwitcher
+      ? (account) => accountSwitcherService.switchToAccount(account)
+      : null;
+    if (onOpenAccountSwitcher) {
+      accountSwitcherService.loadOtherAccounts().catch((error) => {
+        console.error("Failed to load other accounts", error);
+      });
+    }
 
     // The active page may claim the click by cancelling the event
     const onClickActiveNavItem = () => {
@@ -210,6 +224,19 @@ export class MainLayout extends Layout {
           ? layoutOptions.isNavItemPage(currentRoute.params)
           : (layoutOptions.isNavItemPage ?? false);
       const previewingPlugins = pluginService.getPreviewPlugins();
+      const otherAccounts =
+        (onOpenAccountSwitcher
+          ? accountSwitcherService.$otherAccounts.get()
+          : null
+        )?.map((account) => ({
+          account,
+          profile:
+            dataLayer.derived.$hydratedDetailedProfiles.get(account.did) ??
+            null,
+        })) ?? null;
+      const pendingSwitchDid = onOpenAccountSwitcher
+        ? accountSwitcherService.$pendingSwitchDid.get()
+        : null;
       render(
         mainLayoutTemplate({
           isAuthenticated,
@@ -229,6 +256,9 @@ export class MainLayout extends Layout {
           pluginService,
           previewingPlugins,
           onOpenAccountSwitcher,
+          otherAccounts,
+          onSwitchAccount,
+          pendingSwitchDid,
           groupChatLinkService,
           liveStatusService,
           feedInteractionHandler: interactionHandlers.feedInteractionHandler,

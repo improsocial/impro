@@ -1,304 +1,60 @@
-import { html, render } from "/js/lib/lit-html.js";
-import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
-import { Component } from "/js/components/component.js";
-import { scrollLocks } from "/js/scrollLocks.js";
-import { closeWithAnimation } from "/js/dialogHelpers.js";
-import { enableDragToDismiss } from "/js/dragHelpers.js";
-import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
+import { MembershipDialog } from "/js/components/membership-dialog.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
-import { classnames } from "/js/utils.js";
 import { linkToList } from "/js/navigation.js";
-import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
-import "/js/components/app-icon.js";
-import "/js/components/infinite-scroll-container.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
-function loadErrorTemplate({ onRetry }) {
-  return html`<div
-    class="add-to-lists-dialog-error error-state error-state-inline"
-    data-testid="add-to-lists-error"
-  >
-    <div>Couldn't load your lists.</div>
-    ${tryAgainButtonTemplate({ onClick: onRetry })}
-  </div>`;
-}
+class AddToListsDialog extends MembershipDialog {
+  static copy = {
+    testIdPrefix: "add-to-lists",
+    title: "Add to Lists",
+    loadError: "Couldn't load your lists.",
+    loadMoreError: "Couldn't load more lists.",
+    empty: "You haven't created any lists yet.",
+  };
 
-function loadMoreErrorTemplate({ onRetry }) {
-  return html`<div
-    class="error-state error-state-inline"
-    data-testid="add-to-lists-load-more-error"
-  >
-    <div>Couldn't load more lists.</div>
-    ${tryAgainButtonTemplate({ onClick: onRetry })}
-  </div>`;
-}
-
-class AddToListsDialog extends Component {
-  connectedCallback() {
-    if (this.initialized) {
-      return;
-    }
-    this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = null;
-    this.state = new ReactiveStore("add-to-lists-dialog");
-    this.state.$pendingByListUri = new SignalSet();
-    this.state.$loadError = new Signal.State(null);
-    this.state.$loadMoreError = new Signal.State(null);
-    this.innerHTML = "";
-    this._disposeEffect = effect(() => {
-      this.render();
-    });
-    this._load();
-    this.initialized = true;
-  }
-
-  disconnectedCallback() {
-    this._disposeEffect?.();
-    this._disposeEffect = null;
-  }
-
-  async _load() {
-    try {
-      await this.dataLayer.requests.loadListsWithMembershipForActor(
-        this.profile.did,
-        { reload: true },
-      );
-    } catch (error) {
-      console.error(error);
-      this.state.$loadError.set(error);
-    }
-  }
-
-  _retry() {
-    this.state.$loadError.set(null);
-    this._load();
-  }
-
-  _currentUserDid() {
-    return this.dataLayer.derived.$currentUser.get()?.did ?? null;
-  }
-
-  _getListsWithMembership() {
-    return (
-      this.dataLayer.derived.$listsWithMembershipByActor.get(
-        this.profile.did,
-      ) ?? null
+  loadPage({ reload }) {
+    return this.dataLayer.requests.loadListsWithMembershipForActor(
+      this.profile.did,
+      { reload },
     );
   }
 
-  async _loadMore() {
-    this.state.$loadMoreError.set(null);
-    try {
-      await this.dataLayer.requests.loadListsWithMembershipForActor(
-        this.profile.did,
-      );
-    } catch (error) {
-      console.error(error);
-      this.state.$loadMoreError.set(error);
-    }
-  }
-
-  async _onToggle(entry) {
-    const list = entry.list;
-    if (this.state.$pendingByListUri.has(list.uri)) return;
-    this.state.$pendingByListUri.add(list.uri);
-    try {
-      if (entry.listItem) {
-        await this.profileInteractionHandler.handleRemoveFromList(
-          this.profile,
-          list,
-          entry.listItem.uri,
-        );
-      } else {
-        await this.profileInteractionHandler.handleAddToList(
-          this.profile,
-          list,
-        );
-      }
-    } catch {
-      // pass
-    } finally {
-      this.state.$pendingByListUri.delete(list.uri);
-    }
-  }
-
-  render() {
-    const listsWithMembership = this._getListsWithMembership();
-    const entries = listsWithMembership
-      ? listsWithMembership.listsWithMembership
-      : null;
-    const hasMore = !!listsWithMembership?.cursor;
-    const isLoading = entries === null;
-    const loadError = this.state.$loadError.get();
-    const loadMoreError = this.state.$loadMoreError.get();
-    render(
-      html`
-        <dialog
-          class="bottom-sheet add-to-lists-dialog"
-          data-testid="add-to-lists-dialog"
-          @click=${(event) => {
-            if (event.target === event.currentTarget) {
-              this.close();
-            }
-          }}
-          @cancel=${(event) => {
-            event.preventDefault();
-            this.close();
-          }}
-          @close=${() => {
-            this.scrollLock?.release();
-            this.scrollLock = null;
-            this.dispatchEvent(new CustomEvent("dialog-closed"));
-          }}
-        >
-          <div class="add-to-lists-dialog-content">
-            <button
-              class="dialog-close-button dialog-close-button-floating"
-              aria-label="Close"
-              @click=${() => this.close()}
-            >
-              <app-icon icon="close-line"></app-icon>
-            </button>
-            <div class="add-to-lists-dialog-body">
-              <div class="add-to-lists-dialog-header">
-                <h2 class="add-to-lists-dialog-title">Add to Lists</h2>
-                <p class="add-to-lists-dialog-subtitle">
-                  @${this.profile.handle}
-                </p>
-              </div>
-              ${loadError
-                ? loadErrorTemplate({ onRetry: () => this._retry() })
-                : isLoading
-                  ? html`<div
-                      class="add-to-lists-dialog-loading loading-block loading-block-soon"
-                      data-testid="add-to-lists-loading"
-                    >
-                      <div class="loading-spinner"></div>
-                    </div>`
-                  : entries.length === 0
-                    ? html`<div
-                        class="add-to-lists-dialog-empty"
-                        data-testid="add-to-lists-empty"
-                      >
-                        You haven't created any lists yet.
-                      </div>`
-                    : html`
-                        <div class="add-to-lists-dialog-rows">
-                          ${paginatedListTemplate({
-                            items: entries,
-                            renderItem: (entry) => this._renderRow(entry),
-                            hasMore,
-                            onLoadMore: () => this._loadMore(),
-                            errorTemplate: loadMoreError
-                              ? loadMoreErrorTemplate({
-                                  onRetry: () => this._loadMore(),
-                                })
-                              : null,
-                            lookahead: "400px",
-                          })}
-                        </div>
-                      `}
-            </div>
-          </div>
-        </dialog>
-      `,
-      this,
+  getCollection() {
+    const data = this.dataLayer.derived.$listsWithMembershipByActor.get(
+      this.profile.did,
     );
+    if (!data) return null;
+    return { entries: data.listsWithMembership, cursor: data.cursor };
   }
 
-  _renderRow(entry) {
+  getRow(entry, currentUserDid) {
     const list = entry.list;
-    const isMember = !!entry.listItem;
-    const isPending = this.state.$pendingByListUri.has(list.uri);
-    const isModList = isModerationList(list);
-    const currentUserDid = this._currentUserDid();
     const isOwnList = list.creator?.did === currentUserDid;
-    const authorLabel = isModList
-      ? isOwnList
-        ? "Moderation list by you"
-        : `Moderation list by @${list.creator?.handle ?? ""}`
-      : isOwnList
-        ? "User list by you"
-        : `User list by @${list.creator?.handle ?? ""}`;
-    return html`
-      <div
-        class="feeds-list-item add-to-lists-row"
-        data-testid="add-to-lists-row"
-        data-list-uri=${list.uri}
-        data-list-purpose=${isModList ? "mod" : "curate"}
-      >
-        <div class="feeds-list-item-avatar">
-          <img
-            src=${cdnImageUrl(list.avatar) || LIST_AVATAR_FALLBACK_URL}
-            alt=${list.name}
-            class="feed-avatar"
-          />
-        </div>
-        <div class="feeds-list-item-content">
-          <div class="feeds-list-item-title">
-            <a
-              class="add-to-lists-row-link"
-              href=${linkToList(list)}
-              data-testid="add-to-lists-row-link"
-              @click=${(event) => this._openList(event, list)}
-              >${list.name}</a
-            >
-          </div>
-          <div class="feeds-list-item-creator">${authorLabel}</div>
-        </div>
-        <button
-          class=${classnames("rounded-button add-to-lists-toggle", {
-            "rounded-button-primary": !isMember,
-          })}
-          data-testid="add-to-lists-toggle"
-          data-teststate=${isMember ? "member" : "not-member"}
-          ?disabled=${isPending}
-          @click=${() => this._onToggle(entry)}
-        >
-          ${isPending
-            ? html`<div
-                class="loading-spinner"
-                data-testid="loading-spinner"
-              ></div>`
-            : isMember
-              ? "Remove"
-              : "Add"}
-        </button>
-      </div>
-    `;
+    const kind = isModerationList(list) ? "Moderation list" : "User list";
+    return {
+      uri: list.uri,
+      name: list.name,
+      avatar: cdnImageUrl(list.avatar) || LIST_AVATAR_FALLBACK_URL,
+      href: linkToList(list),
+      subtitle: isOwnList
+        ? `${kind} by you`
+        : `${kind} by @${list.creator?.handle ?? ""}`,
+    };
   }
 
-  async _openList(event, list) {
-    if (
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.button === 1
-    ) {
-      return;
-    }
-    event.preventDefault();
-    await this.close();
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    window.router.go(linkToList(list));
+  addMember(entry) {
+    return this.profileInteractionHandler.handleAddToList(
+      this.profile,
+      entry.list,
+    );
   }
 
-  open() {
-    this.scrollLock ??= scrollLocks.acquire({ target: this });
-    const dialog = this.querySelector(".add-to-lists-dialog");
-    if (dialog?.open) return;
-    dialog.showModal();
-    enableDragToDismiss(dialog, {
-      onDismiss: () => this.close(),
-      allowOppositeStretch: true,
-      scrollContainer: this.querySelector(".add-to-lists-dialog-rows"),
-      ignoreTouchTarget: (element) => element.closest("button, a") !== null,
-    });
-  }
-
-  close() {
-    return closeWithAnimation(this.querySelector(".add-to-lists-dialog"));
+  removeMember(entry) {
+    return this.profileInteractionHandler.handleRemoveFromList(
+      this.profile,
+      entry.list,
+      entry.listItem.uri,
+    );
   }
 }
 

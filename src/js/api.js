@@ -566,6 +566,18 @@ export class Api {
     return res.data;
   }
 
+  async getStarterPacksWithMembership(actor, { limit = 50, cursor = "" } = {}) {
+    const query = { actor, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.appViewRequest(
+      "app.bsky.graph.getStarterPacksWithMembership",
+      { query },
+    );
+    return res.data;
+  }
+
   async getActorStarterPacks(did, { limit = 50, cursor = "" } = {}) {
     const query = { actor: did, limit };
     if (cursor) {

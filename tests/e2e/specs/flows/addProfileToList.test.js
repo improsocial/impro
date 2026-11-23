@@ -73,7 +73,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     );
     const dialog = await openAddToListsDialog(page);
     const toggle = dialog.locator(
-      `[data-testid="add-to-lists-row"][data-list-uri="${LIST_URI}"] [data-testid="add-to-lists-toggle"]`,
+      `[data-testid="add-to-lists-row"][data-uri="${LIST_URI}"] [data-testid="add-to-lists-toggle"]`,
     );
     await expect(toggle).toHaveAttribute("data-teststate", "not-member", {
       timeout: 5000,
@@ -146,7 +146,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     ).toBeVisible();
 
     // Scrolling the dialog list to the bottom triggers the next page.
-    await dialog.locator(".add-to-lists-dialog-rows").evaluate((element) => {
+    await dialog.locator(".membership-dialog-rows").evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
 
@@ -180,7 +180,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     const rows = dialog.locator('[data-testid="add-to-lists-row"]');
     await expect(rows).toHaveCount(50, { timeout: 5000 });
 
-    await dialog.locator(".add-to-lists-dialog-rows").evaluate((element) => {
+    await dialog.locator(".membership-dialog-rows").evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
     const loadMoreError = dialog.locator(
@@ -220,7 +220,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     await expect(error).toHaveCount(0);
     await expect(
       dialog.locator(
-        `[data-testid="add-to-lists-row"][data-list-uri="${LIST_URI}"]`,
+        `[data-testid="add-to-lists-row"][data-uri="${LIST_URI}"]`,
       ),
     ).toBeVisible({ timeout: 5000 });
   });
@@ -260,7 +260,7 @@ test.describe("Add profile to list → List Detail flow", () => {
     );
     const dialog = await openAddToListsDialog(page);
     const toggle = dialog.locator(
-      `[data-testid="add-to-lists-row"][data-list-uri="${LIST_URI}"] [data-testid="add-to-lists-toggle"]`,
+      `[data-testid="add-to-lists-row"][data-uri="${LIST_URI}"] [data-testid="add-to-lists-toggle"]`,
     );
     await expect(toggle).toHaveAttribute("data-teststate", "member", {
       timeout: 5000,

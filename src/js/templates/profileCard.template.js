@@ -143,6 +143,7 @@ function profileContextMenuTemplate({
   onClickMuteReposts,
   onClickBlock,
   onClickAddToLists,
+  onClickAddToStarterPacks,
   onClickReport,
   onClickGoLive,
   onClickEditLive,
@@ -208,6 +209,15 @@ function profileContextMenuTemplate({
               }}
             >
               Add to Lists
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-profile-add-to-starter-packs"
+              icon="users-line"
+              @click=${() => {
+                onClickAddToStarterPacks(profile);
+              }}
+            >
+              Add to Starter Packs
             </context-menu-item>
           </context-menu-item-group>
         `
@@ -358,6 +368,7 @@ export function profileCardTemplate({
   onClickSubscribe = noop,
   onClickPostNotifications = noop,
   onClickAddToLists = noop,
+  onClickAddToStarterPacks = noop,
   onClickReport = noop,
   onClickEditProfile = noop,
   onClickGoLive = noop,
@@ -414,6 +425,7 @@ export function profileCardTemplate({
               onClickMuteReposts,
               onClickBlock,
               onClickAddToLists,
+              onClickAddToStarterPacks,
               onClickReport,
               onClickGoLive,
               onClickEditLive,

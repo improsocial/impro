@@ -81,6 +81,7 @@ export class DataStore extends ReactiveStore {
     this.$popularFeeds = new Signal.State(null);
     this.$suggestedFeeds = new Signal.State(null);
     this.$listsWithMembershipByActor = new SignalMap();
+    this.$starterPacksWithMembershipByActor = new SignalMap();
     this.$hashtagFeeds = new SignalMap();
     this.$profileFollowers = new SignalMap();
     this.$profileFollows = new SignalMap();

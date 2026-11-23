@@ -384,29 +384,79 @@ export class Mutations {
       uri: result.uri,
       subject: profile.did,
     });
-    // Add to cached list members
-    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
-    if (
-      cachedMembers &&
-      !cachedMembers.items.some((item) => item.subject.did === profile.did)
-    ) {
-      this.dataStore.$listMembers.set(list.uri, {
-        ...cachedMembers,
-        items: [{ uri: result.uri, subject: profile }, ...cachedMembers.items],
-      });
-    }
+    this._addToCachedListMembers(list.uri, profile, result.uri);
   }
 
   async removeProfileFromList(profile, list, membershipUri) {
     await this.api.deleteListItemRecord(membershipUri);
     this._patchListMembershipForActor(profile.did, list.uri, null);
-    // Remove from cached list members
-    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
+    this._removeFromCachedListMembers(list.uri, profile);
+  }
+
+  async addProfileToStarterPack(profile, starterPack) {
+    const listUri = starterPack.record.list;
+    const result = await this.api.createListItemRecord(listUri, profile.did);
+    this._patchStarterPackMembershipForActor(profile.did, starterPack.uri, {
+      uri: result.uri,
+      subject: profile.did,
+    });
+    this._addToCachedListMembers(listUri, profile, result.uri);
+    this._adjustStarterPackListItemCount(starterPack, 1);
+  }
+
+  async removeProfileFromStarterPack(profile, starterPack, membershipUri) {
+    const listUri = starterPack.record.list;
+    await this.api.deleteListItemRecord(membershipUri);
+    this._patchStarterPackMembershipForActor(
+      profile.did,
+      starterPack.uri,
+      null,
+    );
+    this._removeFromCachedListMembers(listUri, profile);
+    this._adjustStarterPackListItemCount(starterPack, -1);
+  }
+
+  _addToCachedListMembers(listUri, profile, listItemUri) {
+    const cachedMembers = this.dataStore.$listMembers.get(listUri);
+    if (
+      cachedMembers &&
+      !cachedMembers.items.some((item) => item.subject.did === profile.did)
+    ) {
+      this.dataStore.$listMembers.set(listUri, {
+        ...cachedMembers,
+        items: [{ uri: listItemUri, subject: profile }, ...cachedMembers.items],
+      });
+    }
+  }
+
+  _removeFromCachedListMembers(listUri, profile) {
+    const cachedMembers = this.dataStore.$listMembers.get(listUri);
     if (cachedMembers) {
-      this.dataStore.$listMembers.set(list.uri, {
+      this.dataStore.$listMembers.set(listUri, {
         ...cachedMembers,
         items: cachedMembers.items.filter(
           (item) => item.subject.did !== profile.did,
+        ),
+      });
+    }
+  }
+
+  _adjustStarterPackListItemCount(starterPack, delta) {
+    const adjust = (entry) => ({
+      ...entry,
+      listItemCount: Math.max(0, (entry.listItemCount ?? 0) + delta),
+    });
+    const cached = this.dataStore.$starterPacks.get(starterPack.uri);
+    if (cached) {
+      this.dataStore.$starterPacks.set(starterPack.uri, adjust(cached));
+    }
+    const creatorDid = starterPack.creator.did;
+    const actorStarterPacks = this.dataStore.$actorStarterPacks.get(creatorDid);
+    if (actorStarterPacks) {
+      this.dataStore.$actorStarterPacks.set(creatorDid, {
+        ...actorStarterPacks,
+        starterPacks: actorStarterPacks.starterPacks.map((entry) =>
+          entry.uri === starterPack.uri ? adjust(entry) : entry,
         ),
       });
     }
@@ -421,6 +471,21 @@ export class Mutations {
         entry.list.uri === listUri
           ? { ...entry, listItem: listItem || undefined }
           : entry,
+      ),
+    });
+  }
+
+  _patchStarterPackMembershipForActor(actorDid, starterPackUri, listItem) {
+    const existing =
+      this.dataStore.$starterPacksWithMembershipByActor.get(actorDid);
+    if (!existing) return;
+    this.dataStore.$starterPacksWithMembershipByActor.set(actorDid, {
+      ...existing,
+      starterPacksWithMembership: existing.starterPacksWithMembership.map(
+        (entry) =>
+          entry.starterPack.uri === starterPackUri
+            ? { ...entry, listItem: listItem || undefined }
+            : entry,
       ),
     });
   }

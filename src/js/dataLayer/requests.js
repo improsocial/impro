@@ -1580,6 +1580,39 @@ export class Requests {
     );
   }
 
+  async loadStarterPacksWithMembershipForActor(
+    actorDid,
+    { reload = false, limit = 50 } = {},
+  ) {
+    const existing =
+      this.dataStore.$starterPacksWithMembershipByActor.get(actorDid);
+    if (existing && !reload && !existing.cursor) {
+      return;
+    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(
+          this.dataStore.$starterPacksWithMembershipByActor,
+          {
+            key: actorDid,
+          },
+        );
+    const data = await this.api.getStarterPacksWithMembership(actorDid, {
+      limit,
+      cursor,
+    });
+    writePageToCollection(
+      this.dataStore.$starterPacksWithMembershipByActor,
+      "starterPacksWithMembership",
+      data,
+      {
+        key: actorDid,
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
+  }
+
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
 

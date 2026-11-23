@@ -467,16 +467,28 @@ describe("sidebarTemplate - compose button", () => {
 });
 
 describe("sidebarTemplate - profile account switcher button", () => {
-  function renderSidebar({ onOpenAccountSwitcher = null } = {}) {
+  function renderSidebar({
+    onOpenAccountSwitcher = () => {},
+    onSwitchAccount = () => {},
+    otherAccounts = [],
+    pendingSwitchDid = null,
+  } = {}) {
     const container = document.createElement("div");
     render(
       sidebarTemplate({
         isAuthenticated: true,
         currentUser: mockUser,
         onOpenAccountSwitcher,
+        onSwitchAccount,
+        otherAccounts,
+        pendingSwitchDid,
       }),
       container,
     );
+    return container;
+  }
+
+  function getSwitcherButton(container) {
     return container.querySelector(
       "[data-testid='sidebar-profile-account-switcher-button']",
     );
@@ -484,13 +496,142 @@ describe("sidebarTemplate - profile account switcher button", () => {
 
   it("invokes the handler when the button is clicked", () => {
     let fired = 0;
-    const button = renderSidebar({ onOpenAccountSwitcher: () => fired++ });
-    button.click();
+    const container = renderSidebar({ onOpenAccountSwitcher: () => fired++ });
+    getSwitcherButton(container).click();
     assert.deepEqual(fired, 1);
   });
 
   it("is not rendered when no handler is provided", () => {
-    assert.deepEqual(renderSidebar(), null);
+    const container = renderSidebar({ onOpenAccountSwitcher: null });
+    assert.deepEqual(getSwitcherButton(container), null);
+  });
+
+  it("shows only the ellipsis button while other accounts are loading", () => {
+    const container = renderSidebar({ otherAccounts: null });
+    assert(getSwitcherButton(container));
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-account-avatar-stack']"),
+      null,
+    );
+  });
+
+  it("shows only the ellipsis button when there are no other accounts", () => {
+    const container = renderSidebar();
+    assert(getSwitcherButton(container));
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-account-avatar-stack']"),
+      null,
+    );
+  });
+
+  function makeAccount(did) {
+    return { did, handle: `${did}.test`, needsReauth: false };
+  }
+
+  it("shows a stack of other account avatars next to an ellipsis button", () => {
+    const otherProfile = { ...mockUser, did: "did:plc:other" };
+    const container = renderSidebar({
+      otherAccounts: [
+        { account: makeAccount("did:plc:other"), profile: otherProfile },
+        { account: makeAccount("did:plc:third"), profile: null },
+      ],
+    });
+    assert(getSwitcherButton(container));
+    const items = container.querySelectorAll(
+      "[data-testid='sidebar-account-stack-item']",
+    );
+    assert.deepEqual(
+      [...items].map((item) => item.dataset.did),
+      ["did:plc:other", "did:plc:third"],
+    );
+  });
+
+  it("switches to an account when its avatar is clicked", () => {
+    const onSwitchAccount = mock.fn();
+    const account = makeAccount("did:plc:third");
+    const container = renderSidebar({
+      onSwitchAccount,
+      otherAccounts: [
+        { account: makeAccount("did:plc:other"), profile: null },
+        { account, profile: null },
+      ],
+    });
+    container
+      .querySelector(
+        "[data-testid='sidebar-account-stack-item'][data-did='did:plc:third']",
+      )
+      .click();
+    assert.deepEqual(onSwitchAccount.mock.calls.length, 1);
+    assert.equal(onSwitchAccount.mock.calls[0].arguments[0], account);
+  });
+
+  it("marks the avatar of the account being switched to as selected", () => {
+    const container = renderSidebar({
+      pendingSwitchDid: "did:plc:third",
+      otherAccounts: [
+        { account: makeAccount("did:plc:other"), profile: null },
+        { account: makeAccount("did:plc:third"), profile: null },
+      ],
+    });
+    const items = container.querySelectorAll(
+      "[data-testid='sidebar-account-stack-item']",
+    );
+    assert.deepEqual(
+      [...items].map((item) => item.dataset.teststate),
+      ["idle", "selected"],
+    );
+  });
+
+  it("leaves accounts that need to sign in again out of the stack", () => {
+    const container = renderSidebar({
+      otherAccounts: [
+        {
+          account: { ...makeAccount("did:plc:reauth"), needsReauth: true },
+          profile: null,
+        },
+        ...["one", "two", "three"].map((name) => ({
+          account: makeAccount(`did:plc:${name}`),
+          profile: null,
+        })),
+      ],
+    });
+    const items = container.querySelectorAll(
+      "[data-testid='sidebar-account-stack-item']",
+    );
+    assert.deepEqual(
+      [...items].map((item) => item.dataset.did),
+      ["did:plc:one", "did:plc:two", "did:plc:three"],
+    );
+  });
+
+  it("omits the stack when every other account needs to sign in again", () => {
+    const container = renderSidebar({
+      otherAccounts: [
+        {
+          account: { ...makeAccount("did:plc:reauth"), needsReauth: true },
+          profile: null,
+        },
+      ],
+    });
+    assert(getSwitcherButton(container));
+    assert.deepEqual(
+      container.querySelector("[data-testid='sidebar-account-avatar-stack']"),
+      null,
+    );
+  });
+
+  it("caps the avatar stack at three accounts", () => {
+    const container = renderSidebar({
+      otherAccounts: Array.from({ length: 7 }, (_, i) => ({
+        account: makeAccount(`did:plc:account${i}`),
+        profile: null,
+      })),
+    });
+    assert.deepEqual(
+      container.querySelectorAll("[data-testid='sidebar-account-stack-item']")
+        .length,
+      3,
+    );
   });
 });
 

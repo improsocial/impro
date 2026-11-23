@@ -2720,6 +2720,36 @@ export class MockServer {
       },
     );
 
+    await page.route(
+      "**/xrpc/app.bsky.graph.getStarterPacksWithMembership*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const actor = url.searchParams.get("actor");
+        const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+        const cursorParam = url.searchParams.get("cursor") || "";
+        const start = cursorParam ? parseInt(cursorParam, 10) : 0;
+        const starterPacks = this.actorStarterPacks.get(userProfile.did) || [];
+        const page = starterPacks.slice(start, start + limit);
+        const starterPacksWithMembership = page.map((starterPack) => {
+          const item = this.currentUserListItems.find(
+            (entry) =>
+              entry.listUri === starterPack.record.list &&
+              entry.subjectDid === actor,
+          );
+          return item
+            ? { starterPack, listItem: { uri: item.uri, subject: actor } }
+            : { starterPack };
+        });
+        const nextStart = start + page.length;
+        const cursor = nextStart < starterPacks.length ? String(nextStart) : "";
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ starterPacksWithMembership, cursor }),
+        });
+      },
+    );
+
     await page.route("**/xrpc/app.bsky.feed.getLikes*", (route) => {
       const url = new URL(route.request().url());
       const uri = url.searchParams.get("uri");

@@ -240,6 +240,53 @@ function sidebarAccountTemplate({
   `;
 }
 
+function sidebarProfileAccountSwitcherTemplate({
+  otherAccounts,
+  onOpenAccountSwitcher,
+  onSwitchAccount,
+  pendingSwitchDid,
+}) {
+  const stackAccounts = otherAccounts
+    .filter(({ account }) => !account.needsReauth)
+    .slice(0, 3);
+  return html`<div class="sidebar-account-switcher-buttons">
+    ${stackAccounts.length > 0
+      ? html`<span
+          class="sidebar-account-avatar-stack"
+          data-testid="sidebar-account-avatar-stack"
+        >
+          ${stackAccounts.map(
+            ({ account, profile }) =>
+              html`<button
+                class=${classnames("sidebar-account-stack-item", {
+                  "is-selected": pendingSwitchDid === account.did,
+                })}
+                data-testid="sidebar-account-stack-item"
+                data-teststate=${pendingSwitchDid === account.did
+                  ? "selected"
+                  : "idle"}
+                data-did=${account.did}
+                aria-label="Switch to @${profile?.handle ?? account.handle}"
+                @click=${() => onSwitchAccount(account)}
+              >
+                ${profile
+                  ? avatarTemplate({ author: profile, clickAction: "none" })
+                  : avatarPlaceholderTemplate()}
+              </button>`,
+          )}
+        </span>`
+      : null}
+    <button
+      class="rounded-button ellipsis-button"
+      data-testid="sidebar-profile-account-switcher-button"
+      aria-label="Switch accounts"
+      @click=${() => onOpenAccountSwitcher()}
+    >
+      <span>...</span>
+    </button>
+  </div>`;
+}
+
 export function sidebarTemplate({
   isAuthenticated,
   currentUser,
@@ -251,6 +298,9 @@ export function sidebarTemplate({
   onClickComposeButton,
   pluginSidebarItems = [],
   onOpenAccountSwitcher = null,
+  otherAccounts = null,
+  onSwitchAccount = null,
+  pendingSwitchDid = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
@@ -347,14 +397,12 @@ export function sidebarTemplate({
               : avatarPlaceholderTemplate()}
           </div>
           ${onOpenAccountSwitcher
-            ? html`<button
-                class="rounded-button ellipsis-button"
-                data-testid="sidebar-profile-account-switcher-button"
-                aria-label="Switch accounts"
-                @click=${() => onOpenAccountSwitcher()}
-              >
-                <span>...</span>
-              </button>`
+            ? sidebarProfileAccountSwitcherTemplate({
+                otherAccounts: otherAccounts ?? [],
+                onOpenAccountSwitcher,
+                onSwitchAccount,
+                pendingSwitchDid,
+              })
             : null}
         </div>
         <div class="sidebar-profile-info">

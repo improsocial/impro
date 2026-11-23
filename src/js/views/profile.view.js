@@ -30,6 +30,7 @@ import { linkToStarterPack } from "/js/navigation.js";
 import "/js/components/starter-pack-wizard-dialog.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
+import "/js/components/add-to-starter-packs-dialog.js";
 import "/js/components/go-live-dialog.js";
 import "/js/components/edit-live-dialog.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
@@ -74,8 +75,8 @@ export default async function profileView({
   const { postInteractionHandler, profileInteractionHandler } =
     interactionHandlers;
 
-  async function handleAddToLists(profile) {
-    const dialog = document.createElement("add-to-lists-dialog");
+  function openMembershipDialog(tagName, profile) {
+    const dialog = document.createElement(tagName);
     dialog.profile = profile;
     dialog.dataLayer = dataLayer;
     dialog.profileInteractionHandler = profileInteractionHandler;
@@ -383,7 +384,10 @@ export default async function profileView({
               ),
             onClickReport: (profile) =>
               profileInteractionHandler.handleReport(profile),
-            onClickAddToLists: (profile) => handleAddToLists(profile),
+            onClickAddToLists: (profile) =>
+              openMembershipDialog("add-to-lists-dialog", profile),
+            onClickAddToStarterPacks: (profile) =>
+              openMembershipDialog("add-to-starter-packs-dialog", profile),
             onClickEditProfile: () => handleEditProfile(profile),
             onClickGoLive: () => handleGoLive(profile),
             onClickEditLive: () => handleEditLive(profile),

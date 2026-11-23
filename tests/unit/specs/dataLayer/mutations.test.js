@@ -6022,6 +6022,149 @@ describe("removeProfileFromList", () => {
   });
 });
 
+describe("starter pack membership", () => {
+  const testProfile = {
+    did: "did:test:profile",
+    handle: "test.user",
+  };
+  const listUri = "at://did:test:viewer/app.bsky.graph.list/pack";
+  const starterPack = {
+    uri: "at://did:test:viewer/app.bsky.graph.starterpack/pack",
+    record: { name: "Test Pack", list: listUri },
+    creator: { did: "did:test:viewer", handle: "viewer.test" },
+    listItemCount: 1,
+  };
+  const membershipUri = "at://did:test:viewer/app.bsky.graph.listitem/xyz";
+  const otherMember = {
+    uri: "listitem-other-uri",
+    subject: { did: "did:test:other", handle: "other.user" },
+  };
+
+  let dataStore;
+  let api;
+  let mutations;
+
+  beforeEach(() => {
+    dataStore = new DataStore(createSessionState(null));
+    api = {
+      createListItemRecord: mock.fn(async () => ({ uri: membershipUri })),
+      deleteListItemRecord: mock.fn(async () => {}),
+    };
+    mutations = makeMutations(api, dataStore, new PatchStore(), {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+  });
+
+  it("adds the profile to the starter pack's list and updates cached state", async () => {
+    dataStore.$starterPacksWithMembershipByActor.set(testProfile.did, {
+      starterPacksWithMembership: [{ starterPack }],
+      cursor: null,
+    });
+    dataStore.$listMembers.set(listUri, { items: [otherMember], cursor: null });
+    dataStore.$starterPacks.set(starterPack.uri, starterPack);
+    dataStore.$actorStarterPacks.set(starterPack.creator.did, {
+      starterPacks: [starterPack],
+      cursor: null,
+    });
+
+    await mutations.addProfileToStarterPack(testProfile, starterPack);
+
+    assert.deepEqual(api.createListItemRecord.mock.calls[0].arguments, [
+      listUri,
+      testProfile.did,
+    ]);
+    const membership = dataStore.$starterPacksWithMembershipByActor.get(
+      testProfile.did,
+    );
+    assert.deepEqual(membership.starterPacksWithMembership[0].listItem, {
+      uri: membershipUri,
+      subject: testProfile.did,
+    });
+    const members = dataStore.$listMembers.get(listUri);
+    assert.deepEqual(
+      members.items.map((item) => item.subject.did),
+      [testProfile.did, otherMember.subject.did],
+    );
+    assert.deepEqual(
+      dataStore.$starterPacks.get(starterPack.uri).listItemCount,
+      2,
+    );
+    assert.deepEqual(
+      dataStore.$actorStarterPacks.get(starterPack.creator.did).starterPacks[0]
+        .listItemCount,
+      2,
+    );
+  });
+
+  it("removes the profile from the starter pack's list and updates cached state", async () => {
+    dataStore.$starterPacksWithMembershipByActor.set(testProfile.did, {
+      starterPacksWithMembership: [
+        {
+          starterPack,
+          listItem: { uri: membershipUri, subject: testProfile.did },
+        },
+      ],
+      cursor: null,
+    });
+    dataStore.$listMembers.set(listUri, {
+      items: [{ uri: membershipUri, subject: testProfile }, otherMember],
+      cursor: null,
+    });
+    dataStore.$starterPacks.set(starterPack.uri, starterPack);
+
+    await mutations.removeProfileFromStarterPack(
+      testProfile,
+      starterPack,
+      membershipUri,
+    );
+
+    assert.deepEqual(api.deleteListItemRecord.mock.calls[0].arguments, [
+      membershipUri,
+    ]);
+    const membership = dataStore.$starterPacksWithMembershipByActor.get(
+      testProfile.did,
+    );
+    assert.deepEqual(
+      membership.starterPacksWithMembership[0].listItem ?? null,
+      null,
+    );
+    assert.deepEqual(
+      dataStore.$listMembers.get(listUri).items.map((item) => item.subject.did),
+      [otherMember.subject.did],
+    );
+    assert.deepEqual(
+      dataStore.$starterPacks.get(starterPack.uri).listItemCount,
+      0,
+    );
+  });
+
+  it("leaves state untouched when the API call fails", async () => {
+    api.createListItemRecord = mock.fn(async () => {
+      throw new Error("nope");
+    });
+    dataStore.$starterPacksWithMembershipByActor.set(testProfile.did, {
+      starterPacksWithMembership: [{ starterPack }],
+      cursor: null,
+    });
+    dataStore.$starterPacks.set(starterPack.uri, starterPack);
+
+    await assert.rejects(
+      mutations.addProfileToStarterPack(testProfile, starterPack),
+      /nope/,
+    );
+
+    assert.deepEqual(
+      dataStore.$starterPacksWithMembershipByActor.get(testProfile.did)
+        .starterPacksWithMembership[0].listItem ?? null,
+      null,
+    );
+    assert.deepEqual(
+      dataStore.$starterPacks.get(starterPack.uri).listItemCount,
+      1,
+    );
+  });
+});
+
 describe("$detailedProfiles mirroring", () => {
   const targetDid = "did:plc:target";
   const baseProfile = {

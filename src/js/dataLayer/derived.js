@@ -768,6 +768,9 @@ export class Derived extends ReactiveStore {
     this.$listsWithMembershipByActor = new ComputedMap((did) =>
       this.dataStore.$listsWithMembershipByActor.get(did),
     );
+    this.$starterPacksWithMembershipByActor = new ComputedMap((did) =>
+      this.dataStore.$starterPacksWithMembershipByActor.get(did),
+    );
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
     );

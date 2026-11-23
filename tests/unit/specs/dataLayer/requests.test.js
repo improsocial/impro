@@ -3366,6 +3366,73 @@ describe("loadListsWithMembershipForActor", () => {
   });
 });
 
+describe("loadStarterPacksWithMembershipForActor", () => {
+  const actorDid = "did:plc:target";
+  const pack1 = { uri: "at://owner/app.bsky.graph.starterpack/1" };
+  const pack2 = { uri: "at://owner/app.bsky.graph.starterpack/2" };
+
+  it("stores pages keyed by actor and appends with the cached cursor", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const getStarterPacksWithMembership = mock.fn(async (_actor, { cursor }) =>
+      cursor
+        ? { starterPacksWithMembership: [{ starterPack: pack2 }] }
+        : {
+            starterPacksWithMembership: [
+              {
+                starterPack: pack1,
+                listItem: { uri: "li1", subject: actorDid },
+              },
+            ],
+            cursor: "c1",
+          },
+    );
+    const requests = makeRequests({ getStarterPacksWithMembership }, dataStore);
+
+    await requests.loadStarterPacksWithMembershipForActor(actorDid);
+    await requests.loadStarterPacksWithMembershipForActor(actorDid);
+    await requests.loadStarterPacksWithMembershipForActor(actorDid);
+
+    assert.deepEqual(
+      getStarterPacksWithMembership.mock.calls.map(
+        (call) => call.arguments[1].cursor,
+      ),
+      ["", "c1"],
+    );
+    const stored = dataStore.$starterPacksWithMembershipByActor.get(actorDid);
+    assert.deepEqual(
+      stored.starterPacksWithMembership.map((entry) => entry.starterPack.uri),
+      [pack1.uri, pack2.uri],
+    );
+    assert.deepEqual(stored.starterPacksWithMembership[0].listItem.uri, "li1");
+  });
+
+  it("refetches from scratch on reload", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    dataStore.$starterPacksWithMembershipByActor.set(actorDid, {
+      starterPacksWithMembership: [{ starterPack: pack1 }],
+      cursor: null,
+    });
+    const requests = makeRequests(
+      {
+        getStarterPacksWithMembership: async () => ({
+          starterPacksWithMembership: [{ starterPack: pack2 }],
+        }),
+      },
+      dataStore,
+    );
+
+    await requests.loadStarterPacksWithMembershipForActor(actorDid, {
+      reload: true,
+    });
+
+    const stored = dataStore.$starterPacksWithMembershipByActor.get(actorDid);
+    assert.deepEqual(
+      stored.starterPacksWithMembership.map((entry) => entry.starterPack.uri),
+      [pack2.uri],
+    );
+  });
+});
+
 describe("loadHashtagFeed", () => {
   it("should store hashtag feed posts on first load", async () => {
     const dataStore = new DataStore(createSessionState(null));

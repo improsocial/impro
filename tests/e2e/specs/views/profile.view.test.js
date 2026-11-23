@@ -1095,7 +1095,7 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(8, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(9, {
       timeout: 5000,
     });
     await expect(
@@ -1118,6 +1118,9 @@ test.describe("Profile view", () => {
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-starter-packs"]'),
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-report"]'),
@@ -1296,7 +1299,7 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(5, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(6, {
       timeout: 5000,
     });
     await expect(
@@ -1304,6 +1307,9 @@ test.describe("Profile view", () => {
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-starter-packs"]'),
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-search-posts"]'),
@@ -1365,10 +1371,10 @@ test.describe("Profile view", () => {
     await expect(rows).toHaveCount(2);
 
     const listOneRow = dialog.locator(
-      `[data-testid="add-to-lists-row"][data-list-uri="${listOne.uri}"]`,
+      `[data-testid="add-to-lists-row"][data-uri="${listOne.uri}"]`,
     );
     const listTwoRow = dialog.locator(
-      `[data-testid="add-to-lists-row"][data-list-uri="${listTwo.uri}"]`,
+      `[data-testid="add-to-lists-row"][data-uri="${listTwo.uri}"]`,
     );
 
     await expect(
