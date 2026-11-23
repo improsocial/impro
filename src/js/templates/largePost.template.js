@@ -39,6 +39,17 @@ import {
 } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 
+function signInRequiredPostTemplate() {
+  return html`<div
+    class="post small-post"
+    data-testid="post-tombstone-sign-in-required"
+  >
+    <div class="missing-post-indicator">
+      <app-icon icon="lock-line"></app-icon> Sign-in required
+    </div>
+  </div> `;
+}
+
 function mutedWarningTemplate({ post, children }) {
   if (post.viewer?.hasMutedWord) {
     return html`<moderation-warning
@@ -186,7 +197,7 @@ export function largePostTemplate({
     post.author &&
     doHideAuthorOnUnauthenticated(post.author)
   ) {
-    return unavailablePostTemplate();
+    return signInRequiredPostTemplate();
   }
   const embed = post.embed ?? post.record?.embed;
   const postText = post.record.text || "";

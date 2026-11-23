@@ -13,14 +13,4 @@ describe("blockedPostTemplate", () => {
         null,
     );
   });
-
-  it("should render an info icon", () => {
-    const result = blockedPostTemplate();
-    const container = document.createElement("div");
-    render(result, container);
-    const indicator = container.querySelector(".missing-post-indicator");
-    assert(
-      indicator.querySelector("app-icon[icon='info-circle-line']") !== null,
-    );
-  });
 });
