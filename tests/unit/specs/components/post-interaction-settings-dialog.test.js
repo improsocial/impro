@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { makeTestDataLayer } from "../../testHelpers.js";
 import "/js/components/post-interaction-settings-dialog.js";
@@ -55,9 +55,11 @@ describe("post-interaction-settings-dialog", () => {
     threadgateAllow = null,
     postgateEmbeddingRules = null,
     dataLayer,
+    linkLists = false,
   } = {}) {
     const element = document.createElement("post-interaction-settings-dialog");
     element.dataLayer = dataLayer ?? makeDataLayer();
+    element.linkLists = linkLists;
     if (post) {
       element.threadgateAllow = post.threadgate?.record?.allow ?? null;
       element.postgateEmbeddingRules = post.viewer?.embeddingDisabled
@@ -377,6 +379,107 @@ describe("post-interaction-settings-dialog", () => {
     assert.deepEqual(detail.threadgateAllow, [
       { $type: "app.bsky.feed.threadgate#listRule", list: curateList.uri },
     ]);
+  });
+
+  describe("list links", () => {
+    let originalRouter;
+
+    beforeEach(() => {
+      originalRouter = window.router;
+      window.router = { go: mock.fn() };
+    });
+
+    afterEach(() => {
+      window.router = originalRouter;
+    });
+
+    function listLinks(element) {
+      return element.querySelectorAll(
+        '[data-testid="interaction-settings-list-link"]',
+      );
+    }
+
+    it("renders list names as plain text by default", async () => {
+      const element = await createDialog({});
+      expandLists(element);
+      await flushRender();
+      assert.deepEqual(listLinks(element).length, 0);
+      assert(
+        element
+          .querySelector('[data-testid="interaction-settings-list-row"]')
+          .textContent.includes(curateList.name),
+      );
+    });
+
+    it("opens the list without toggling its rule", async () => {
+      const element = await createDialog({ linkLists: true });
+      let detail = null;
+      element.addEventListener("save-interaction-settings", (event) => {
+        detail = event.detail;
+      });
+      expandLists(element);
+      await flushRender();
+      const [link] = listLinks(element);
+      assert.deepEqual(link.getAttribute("href"), "/profile/me.test/lists/l1");
+      link.click();
+      await flushRender();
+      assert.deepEqual(window.router.go.mock.calls.length, 1);
+      assert.deepEqual(window.router.go.mock.calls[0].arguments, [
+        "/profile/me.test/lists/l1",
+      ]);
+      assert(
+        !element.querySelector(
+          '[data-testid="interaction-settings-list-row"] input',
+        ).checked,
+      );
+      input(element, "interaction-settings-mention").click();
+      await flushRender();
+      input(element, "interaction-settings-save").click();
+      assert.deepEqual(detail.threadgateAllow, [
+        { $type: "app.bsky.feed.threadgate#mentionRule" },
+      ]);
+    });
+
+    it("lets modifier clicks through to the browser", async () => {
+      const element = await createDialog({ linkLists: true });
+      expandLists(element);
+      await flushRender();
+      const event = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        metaKey: true,
+      });
+      listLinks(element)[0].dispatchEvent(event);
+      assert(!event.defaultPrevented);
+      assert.deepEqual(window.router.go.mock.calls.length, 0);
+    });
+
+    it("links preserved list rules by URI", async () => {
+      const foreignListUri = "at://did:plc:other/app.bsky.graph.list/zzz";
+      const element = await createDialog({
+        linkLists: true,
+        post: makePost({
+          allow: [
+            {
+              $type: "app.bsky.feed.threadgate#listRule",
+              list: foreignListUri,
+            },
+          ],
+          lists: [{ uri: foreignListUri, name: "Their list" }],
+        }),
+      });
+      const preserved = element.querySelector(
+        '[data-testid="interaction-settings-preserved-row"]',
+      );
+      const link = preserved.querySelector(
+        '[data-testid="interaction-settings-list-link"]',
+      );
+      assert.deepEqual(
+        link.getAttribute("href"),
+        "/profile/did:plc:other/lists/zzz",
+      );
+      assert.deepEqual(link.textContent, "Their list");
+    });
   });
 
   describe("thread root reply settings", () => {

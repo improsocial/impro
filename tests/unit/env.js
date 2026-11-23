@@ -68,6 +68,13 @@ class IntersectionObserver {
 }
 globalThis.IntersectionObserver = IntersectionObserver;
 
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserver;
+
 globalThis.window.HTMLDialogElement.prototype.showModal = function () {
   this.setAttribute("open", "");
 };

@@ -697,6 +697,23 @@ export class Mutations {
     }
   }
 
+  async setVerificationBadgesHidden(hidden) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "setVerificationBadgesHidden",
+      hidden,
+    });
+    const preferences = await this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setVerificationBadgesHidden(hidden);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
   async addRecentGif(gif) {
     const preferences = await this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addRecentGif(gif);

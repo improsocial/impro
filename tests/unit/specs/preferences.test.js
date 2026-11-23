@@ -7,6 +7,7 @@ import {
   SEARCH_HISTORY_PREF_TYPE,
   GIF_HISTORY_PREF_TYPE,
   THREAD_VIEW_PREF_TYPE,
+  VERIFICATION_PREF_TYPE,
 } from "/js/preferences.js";
 import { createGif } from "../../shared/factories.js";
 import { createMinimalGifObject } from "/js/embedHelpers.js";
@@ -2490,6 +2491,40 @@ describe("Preferences.setThreadView", () => {
       },
     ]);
     assert.deepEqual(newPreferences.getThreadView(), "linear");
+  });
+});
+
+describe("Preferences.getVerificationBadgesHidden", () => {
+  it("should default to false when there is no verification preference", () => {
+    assert.deepEqual(new Preferences([]).getVerificationBadgesHidden(), false);
+  });
+
+  it("should return true when hideBadges is true", () => {
+    const preferences = new Preferences([
+      { $type: VERIFICATION_PREF_TYPE, hideBadges: true },
+    ]);
+    assert.deepEqual(preferences.getVerificationBadgesHidden(), true);
+  });
+});
+
+describe("Preferences.setVerificationBadgesHidden", () => {
+  it("should create the verification preference when missing", () => {
+    const preferences = new Preferences([]);
+    const newPreferences = preferences.setVerificationBadgesHidden(true);
+    assert.deepEqual(preferences.obj, []);
+    assert.deepEqual(newPreferences.obj, [
+      { $type: VERIFICATION_PREF_TYPE, hideBadges: true },
+    ]);
+  });
+
+  it("should preserve unknown keys on the existing preference", () => {
+    const preferences = new Preferences([
+      { $type: VERIFICATION_PREF_TYPE, someFutureKey: 1, hideBadges: true },
+    ]);
+    const newPreferences = preferences.setVerificationBadgesHidden(false);
+    assert.deepEqual(newPreferences.obj, [
+      { $type: VERIFICATION_PREF_TYPE, someFutureKey: 1, hideBadges: false },
+    ]);
   });
 });
 
