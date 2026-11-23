@@ -1073,6 +1073,11 @@ plugin-slot {
   height: 24px;
 }
 
+.thread-view-toggle {
+  height: 30px;
+  width: 30px;
+}
+
 .inbox-button .unread-dot {
   position: absolute;
   top: 1px;
