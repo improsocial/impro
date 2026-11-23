@@ -7,6 +7,7 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
+import { linkToList } from "/js/navigation.js";
 import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
@@ -201,7 +202,15 @@ class AddToListsDialog extends Component {
           />
         </div>
         <div class="feeds-list-item-content">
-          <div class="feeds-list-item-title">${list.name}</div>
+          <div class="feeds-list-item-title">
+            <a
+              class="add-to-lists-row-link"
+              href=${linkToList(list)}
+              data-testid="add-to-lists-row-link"
+              @click=${(event) => this._openList(event, list)}
+              >${list.name}</a
+            >
+          </div>
           <div class="feeds-list-item-creator">${authorLabel}</div>
         </div>
         <button
@@ -226,6 +235,22 @@ class AddToListsDialog extends Component {
     `;
   }
 
+  async _openList(event, list) {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.button === 1
+    ) {
+      return;
+    }
+    event.preventDefault();
+    await this.close();
+    this.scrollLock?.release();
+    this.scrollLock = null;
+    window.router.go(linkToList(list));
+  }
+
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".add-to-lists-dialog");
@@ -235,7 +260,7 @@ class AddToListsDialog extends Component {
       onDismiss: () => this.close(),
       allowOppositeStretch: true,
       scrollContainer: this.querySelector(".add-to-lists-dialog-rows"),
-      ignoreTouchTarget: (element) => element.closest("button") !== null,
+      ignoreTouchTarget: (element) => element.closest("button, a") !== null,
     });
   }
 

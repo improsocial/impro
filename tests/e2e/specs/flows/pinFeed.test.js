@@ -119,6 +119,83 @@ test.describe("Pin feed flow", () => {
     await expect(tabs.nth(1)).toContainText("Trending");
   });
 
+  test("should open the pinned feed on home from the pin toast", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setSavedFeeds([feed.uri]);
+    mockServer.addFeedItems(feed.uri, [
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/trendingpost",
+        text: "Post from the trending feed",
+        authorHandle: "author1.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+    const detailView = page.locator("#feed-detail-view");
+    const pinButton = detailView.locator(".pin-feed-button");
+    await expect(pinButton).toBeVisible({ timeout: 10000 });
+    await pinButton.click();
+
+    await page.locator('[data-testid="toast-view-feed"]').click();
+
+    const homeView = page.locator("#home-view");
+    await expect(page).toHaveURL("/");
+    await expect(homeView.locator(".tab-bar-button.active")).toContainText(
+      "Trending",
+      { timeout: 10000 },
+    );
+    await expect(homeView).toContainText("Post from the trending feed");
+  });
+
+  test("should switch to the pinned feed's tab from the pin toast while on home", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.addSuggestedFeeds([feed]);
+    mockServer.addFeedItems(feed.uri, [
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/trendingpost",
+        text: "Post from the trending feed",
+        authorHandle: "author1.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    await expect(
+      homeView.locator(
+        '[data-testid="tab-following"][data-teststate="active"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
+
+    await page.locator('[data-testid="suggested-feed-pin-button"]').click();
+    await page.locator('[data-testid="toast-view-feed"]').click();
+
+    await expect(homeView.locator(".tab-bar-button.active")).toContainText(
+      "Trending",
+      { timeout: 10000 },
+    );
+    await expect(homeView).toContainText("Post from the trending feed");
+  });
+
   test("should show feed in feeds index after pinning from search results", async ({
     page,
   }) => {

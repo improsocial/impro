@@ -4016,6 +4016,22 @@ describe("$threadView", () => {
   });
 });
 
+describe("$verificationBadgesHidden", () => {
+  it("is null until preferences load, then reflects the verification preference", () => {
+    const { derived } = makeDerived(new DataStore(createSessionState(null)));
+    derived.preferencesProvider.$preferences.set(null);
+    assert.equal(derived.$verificationBadgesHidden.get(), null);
+
+    derived.preferencesProvider.$preferences.set(new Preferences([]));
+    assert.equal(derived.$verificationBadgesHidden.get(), false);
+
+    derived.preferencesProvider.$preferences.set(
+      new Preferences([]).setVerificationBadgesHidden(true),
+    );
+    assert.equal(derived.$verificationBadgesHidden.get(), true);
+  });
+});
+
 describe("creator hydration", () => {
   const embeddedCreator = {
     did: "did:plc:creator",

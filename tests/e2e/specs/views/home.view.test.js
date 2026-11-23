@@ -410,6 +410,51 @@ test.describe("Home view", () => {
     );
   });
 
+  test("should collapse a long post and expand it without navigating", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const longPost = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/longpost",
+      text: ["First line", ...Array(40).fill("filler"), "Last line"].join("\n"),
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    const shortPost = createPost({
+      uri: "at://did:plc:author2/app.bsky.feed.post/shortpost",
+      text: "Short post",
+      authorHandle: "author2.bsky.social",
+      authorDisplayName: "Author Two",
+    });
+    mockServer.addTimelinePosts([longPost, shortPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const feedItems = view.locator('[data-testid="feed-item"]');
+    await expect(feedItems).toHaveCount(2, { timeout: 10000 });
+
+    const longText = feedItems.nth(0).locator(".post-text");
+    const toggle = longText.locator(
+      '[data-testid="collapsible-content-toggle"]',
+    );
+    await expect(toggle).toHaveAttribute("data-teststate", "collapsed");
+    await expect(
+      feedItems.nth(1).locator('[data-testid="collapsible-content-toggle"]'),
+    ).toHaveCount(0);
+    const collapsedHeight = (await longText.boundingBox()).height;
+
+    await toggle.click();
+
+    await expect(toggle).toHaveCount(0);
+    expect((await longText.boundingBox()).height).toBeGreaterThan(
+      collapsedHeight,
+    );
+    await expect(page).toHaveURL(/\/$/);
+  });
+
   test("should like a post when clicking the like button", async ({ page }) => {
     const mockServer = new MockServer();
     const post = createPost({

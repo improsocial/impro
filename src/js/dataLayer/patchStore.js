@@ -511,6 +511,8 @@ export class PatchStore extends ReactiveStore {
         return preferences.removeRecentSearchProfile(patchBody.did);
       case "setThreadView":
         return preferences.setThreadView(patchBody.view);
+      case "setVerificationBadgesHidden":
+        return preferences.setVerificationBadgesHidden(patchBody.hidden);
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

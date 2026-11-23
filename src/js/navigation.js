@@ -71,6 +71,11 @@ export function linkToList(list) {
   )}`;
 }
 
+export function linkToListFromUri(listUri) {
+  const { repo, rkey } = parseUri(listUri);
+  return `/profile/${encodePathSegment(repo)}/lists/${encodePathSegment(rkey)}`;
+}
+
 export function linkToStarterPack(starterPack) {
   const creator = profileIdentifier(starterPack.creator);
   const rkey = getRKey(starterPack);
