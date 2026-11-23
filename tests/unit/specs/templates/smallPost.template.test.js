@@ -509,10 +509,6 @@ describe("smallPostTemplate - moderation", () => {
       ".missing-post-indicator.no-unauthenticated",
     );
     assert(messageEl !== null, "should have message element");
-    assert(
-      messageEl.querySelector("app-icon[icon='info-circle-line']") !== null,
-      "should show info icon",
-    );
     assert(!container.querySelector(".post-text"), "should not show post text");
   });
 

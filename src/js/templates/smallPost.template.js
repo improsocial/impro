@@ -240,8 +240,7 @@ export function smallPostTemplate({
             children: html` <div class="post-body">
               ${hideUnauthenticated
                 ? html`<div class="missing-post-indicator no-unauthenticated">
-                    <app-icon icon="info-circle-line"></app-icon> Sign-in
-                    required
+                    <app-icon icon="lock-line"></app-icon> Sign-in required
                   </div>`
                 : html`${postText.length > 0
                     ? html`<collapsible-content

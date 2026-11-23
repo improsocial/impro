@@ -320,6 +320,51 @@ describe("largePostTemplate - blocked/unavailable posts", () => {
         null,
     );
   });
+
+  it("should render the sign-in required tombstone for a no-unauthenticated author when logged out", () => {
+    const hiddenPost = {
+      ...post,
+      author: {
+        ...post.author,
+        labels: [{ val: "!no-unauthenticated" }],
+      },
+    };
+    const result = largePostTemplate({
+      post: hiddenPost,
+      ...baseProps,
+      isAuthenticated: false,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector(
+        "[data-testid='post-tombstone-sign-in-required']",
+      ) !== null,
+    );
+    assert(container.querySelector("[data-testid='large-post']") === null);
+  });
+
+  it("should render the post for a no-unauthenticated author when logged in", () => {
+    const hiddenPost = {
+      ...post,
+      author: {
+        ...post.author,
+        labels: [{ val: "!no-unauthenticated" }],
+      },
+    };
+    const result = largePostTemplate({
+      post: hiddenPost,
+      ...baseProps,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector(
+        "[data-testid='post-tombstone-sign-in-required']",
+      ) === null,
+    );
+    assert(container.querySelector("[data-testid='large-post']") !== null);
+  });
 });
 
 describe("largePostTemplate - moderation", () => {

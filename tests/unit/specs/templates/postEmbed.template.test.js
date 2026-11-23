@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   postEmbedTemplate,
+  quotedPostTemplate,
   recordEmbedTemplate,
 } from "/js/templates/postEmbed.template.js";
 import { post } from "../../testData.js";
@@ -890,6 +891,18 @@ describe("postEmbedTemplate - quoted posts", () => {
     assert(
       notFoundQuote.querySelector("app-icon[icon='info-circle-line']") !== null,
     );
+  });
+
+  it("should render a not found quote when the quoted post is missing", () => {
+    const result = quotedPostTemplate({
+      quotedPost: null,
+      lazyLoadImages: false,
+      isAuthenticated: true,
+      pluginService,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector("[data-testid='not-found-quote']") !== null);
   });
 
   it("should render detached/removed quote embed", () => {
