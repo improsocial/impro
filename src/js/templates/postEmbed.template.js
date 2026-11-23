@@ -171,7 +171,12 @@ export function quotedPostTemplate({
   showPronouns = false,
 }) {
   if (!quotedPost) {
-    return html`<div class="quoted-post embed-card">Post not found</div>`;
+    return html`<div
+      class="quoted-post missing-quote-indicator embed-card"
+      data-testid="not-found-quote"
+    >
+      <app-icon icon="info-circle-line"></app-icon> Post not found
+    </div>`;
   }
   // only supports one embed for now
   let embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
