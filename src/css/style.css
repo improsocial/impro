@@ -10249,9 +10249,15 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 }
 
 /* @chunk drafts */
+.drafts-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (min-width: 800px) {
   .drafts-dialog {
     max-width: 500px;
+    max-height: min(800px, 85dvh);
   }
 }
 
@@ -10259,6 +10265,7 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
   padding: 16px;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -10282,9 +10289,9 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 }
 
 .drafts-dialog-list {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 120px;
-  max-height: 60vh;
 }
 
 .drafts-dialog-message {
