@@ -27,6 +27,7 @@ import settingsContentAndMediaView from "/js/views/settings/contentAndMediaSetti
 import settingsMutedWordsView from "/js/views/settings/mutedWordsSettings.view.js";
 import settingsBlockedAccountsView from "/js/views/settings/blockedAccountsSettings.view.js";
 import settingsMutedAccountsView from "/js/views/settings/mutedAccountsSettings.view.js";
+import settingsVerificationView from "/js/views/settings/verificationSettings.view.js";
 import settingsAdvancedView from "/js/views/settings/advancedSettings.view.js";
 import settingsNotificationsView from "/js/views/settings/notificationsSettings.view.js";
 import installedPluginsView from "/js/views/installedPlugins.view.js";
@@ -243,6 +244,13 @@ export async function main() {
   scrollLocks.setContainerProvider(() => router.currentPage);
   // installIOSFixedLayerResync();
 
+  effect(() => {
+    document.documentElement.classList.toggle(
+      "hide-verification-badges",
+      dataLayer.derived.$verificationBadgesHidden.get() === true,
+    );
+  });
+
   if (notificationService) {
     effect(() => {
       const numNotifications = notificationService.$numNotifications.get() ?? 0;
@@ -381,6 +389,11 @@ export async function main() {
   router.addRoute(
     "/settings/blocked-accounts",
     () => settingsBlockedAccountsView,
+    settingsRouteOptions,
+  );
+  router.addRoute(
+    "/settings/verification",
+    () => settingsVerificationView,
     settingsRouteOptions,
   );
   router.addRoute(

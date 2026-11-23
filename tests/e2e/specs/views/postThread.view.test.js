@@ -1362,6 +1362,89 @@ test.describe("Post thread view", () => {
       ).not.toBeAttached();
     });
 
+    test("should switch between linear and tree replies from the header toggle", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ sort: "top" });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const toggle = view.locator('[data-testid="thread-view-toggle"]');
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      await expect(view.locator(".post-thread-reply-chains")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(toggle).toHaveAttribute("data-teststate", "linear");
+      await expect(tree).not.toBeAttached();
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("data-teststate", "tree");
+      await expect(tree).toBeVisible();
+      await expect
+        .poll(() => mockServer.threadViewPref)
+        .toEqual({ sort: "top", lab_treeViewEnabled: true });
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("data-teststate", "linear");
+      await expect(tree).not.toBeAttached();
+      await expect(view.locator(".post-thread-reply-chains")).toBeVisible();
+      await expect
+        .poll(() => mockServer.threadViewPref)
+        .toEqual({ sort: "top", lab_treeViewEnabled: false });
+    });
+
+    test("should keep the main post in place when switching thread view", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(view.locator(".post-thread-reply-chains")).toBeVisible({
+        timeout: 10000,
+      });
+      const topBefore = await largePost.evaluate(
+        (element) => element.getBoundingClientRect().top,
+      );
+
+      await view.locator('[data-testid="thread-view-toggle"]').click();
+      await expect(
+        view.locator('[data-testid="post-thread-tree"]'),
+      ).toBeVisible();
+      const topAfter = await largePost.evaluate(
+        (element) => element.getBoundingClientRect().top,
+      );
+      expect(Math.abs(topAfter - topBefore)).toBeLessThan(2);
+    });
+
+    test("should not show the thread view toggle when logged out", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="thread-view-toggle"]'),
+      ).not.toBeAttached();
+    });
+
     test("should cap a reply's children and add read more rows deepest first", async ({
       page,
     }) => {

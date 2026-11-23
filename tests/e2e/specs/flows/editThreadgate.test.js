@@ -2,7 +2,7 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../../shared/factories.js";
+import { createList, createPost } from "../../../shared/factories.js";
 
 test.describe("Edit threadgate flow", () => {
   const ownPostUri = `at://${userProfile.did}/app.bsky.feed.post/own1`;
@@ -428,6 +428,96 @@ test.describe("Edit threadgate flow", () => {
     expect(body.rkey).toBe("root1");
     expect(body.record.post).toBe(rootUri);
     expect(body.record.allow).toEqual([]);
+  });
+
+  test("clicking a list name from the post menu opens the list without toggling it", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([makeOwnPost()]);
+    const list = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/mylist`,
+      name: "Cool People",
+      creatorHandle: userProfile.handle,
+    });
+    mockServer.addLists([list]);
+    mockServer.addActorLists(userProfile.did, [list]);
+    mockServer.addListMembers(list.uri, []);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${userProfile.handle}/post/own1`);
+
+    const largePost = page.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+    await largePost.locator('[data-testid="post-context-menu-button"]').click();
+    await page
+      .locator('[data-testid="menu-action-interaction-settings"]')
+      .click();
+
+    const dialog = page.locator(
+      '[data-testid="post-interaction-settings-dialog"]',
+    );
+    await expect(dialog).toBeVisible();
+    await dialog
+      .locator('[data-testid="interaction-settings-lists-toggle"]')
+      .click();
+    const checkbox = dialog.locator(
+      '[data-testid="interaction-settings-list-row"] input',
+    );
+    await checkbox.evaluate((element) => {
+      element.addEventListener("change", () => {
+        window.listRuleToggled = true;
+      });
+    });
+    await dialog
+      .locator('[data-testid="interaction-settings-list-link"]')
+      .click();
+
+    await expect(page).toHaveURL(`/profile/${userProfile.handle}/lists/mylist`);
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.locator('#list-detail-view [data-testid="list-detail-name"]'),
+    ).toContainText("Cool People", { timeout: 10000 });
+    expect(await page.evaluate(() => window.listRuleToggled)).toBeUndefined();
+  });
+
+  test("renders list names without links from the composer", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const list = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/mylist`,
+      name: "Cool People",
+      creatorHandle: userProfile.handle,
+    });
+    mockServer.addActorLists(userProfile.did, [list]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+    await composer
+      .locator('[data-testid="composer-interaction-settings"]')
+      .click();
+
+    const dialog = page.locator(
+      '[data-testid="post-interaction-settings-dialog"]',
+    );
+    await expect(dialog).toBeVisible();
+    await dialog
+      .locator('[data-testid="interaction-settings-lists-toggle"]')
+      .click();
+    await expect(
+      dialog.locator('[data-testid="interaction-settings-list-row"]'),
+    ).toContainText("Cool People");
+    await expect(
+      dialog.locator('[data-testid="interaction-settings-list-link"]'),
+    ).toHaveCount(0);
   });
 
   test("composes a post with a threadgate written in the same batch", async ({

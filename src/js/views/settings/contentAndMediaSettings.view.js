@@ -42,6 +42,10 @@ export default async function settingsContentAndMediaView({
     deviceState.$hapticsDisabled.set(disabled);
   }
 
+  function handleHandleLinkChange(shown) {
+    deviceState.$handleLinkHidden.set(!shown);
+  }
+
   function handleTrendingChange(shown) {
     dataLayer.mutations.setTrendingHidden(!shown);
   }
@@ -72,6 +76,7 @@ export default async function settingsContentAndMediaView({
     const suggestedFeedsHidden = dataLayer.derived.$suggestedFeedsHidden.get();
     const threadView = dataLayer.derived.$threadView.get();
     const hapticsDisabled = deviceState.$hapticsDisabled.get();
+    const handleLinkHidden = deviceState.$handleLinkHidden.get();
     render(
       html`<div id="settings-content-and-media-view">
         ${headerTemplate({
@@ -113,6 +118,26 @@ export default async function settingsContentAndMediaView({
                 label="Autoplay videos and GIFs"
                 ?checked=${!autoplayDisabled}
                 @change=${(event) => handleAutoplayChange(event.detail.checked)}
+              ></toggle-switch>
+            </div>
+          </section>
+          <section
+            class="setting-item"
+            data-testid="settings-section-handle-link"
+          >
+            <div class="setting-item-info">
+              <h2 class="setting-item-name">Show link for custom handles</h2>
+              <p class="setting-item-desc">
+                Show a link to open custom domain handles in your browser.
+              </p>
+            </div>
+            <div class="setting-item-control">
+              <toggle-switch
+                data-testid="handle-link-toggle"
+                label="Show link for custom handles"
+                ?checked=${!handleLinkHidden}
+                @change=${(event) =>
+                  handleHandleLinkChange(event.detail.checked)}
               ></toggle-switch>
             </div>
           </section>

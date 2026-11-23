@@ -1082,6 +1082,11 @@ plugin-slot {
   height: 24px;
 }
 
+.thread-view-toggle {
+  height: 30px;
+  width: 30px;
+}
+
 .inbox-button .unread-dot {
   position: absolute;
   top: 1px;
@@ -2490,6 +2495,7 @@ container-link {
 .post-text {
   line-height: 1.3125;
   margin-top: -4px;
+  --collapsible-content-max-lines: 25;
 }
 
 .post-number-badge {
@@ -4262,6 +4268,7 @@ image-carousel {
   padding: 10px 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   transition: background-color 0.2s;
+  overflow: clip;
 }
 
 .notification-item-clickable {
@@ -4397,6 +4404,7 @@ image-carousel {
   font-size: 15px;
   line-height: 1.5;
   color: var(--text-color);
+  overflow: clip;
 }
 
 .notification-text strong {
@@ -4443,6 +4451,7 @@ image-carousel {
   white-space: pre-wrap;
   word-break: break-word;
   margin-bottom: 8px;
+  overflow: clip;
 }
 
 .notification-preview-text:last-child {
@@ -6534,6 +6543,11 @@ emoji-picker-dialog emoji-picker,
   height: 18px;
 }
 
+.hide-verification-badges .verification-badge,
+.hide-verification-badges .profile-badges:not(:has(.automated-account-badge)) {
+  display: none;
+}
+
 .automated-account-badge {
   display: inline-flex;
   align-items: center;
@@ -6572,6 +6586,24 @@ emoji-picker-dialog emoji-picker,
   justify-content: flex-start;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.profile-handle-link {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: -4px;
+  color: var(--text-color-muted);
+}
+
+.profile-handle-link app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .profile-handle-link:hover {
+    color: var(--text-color);
+  }
 }
 
 .profile-card .author-badges {
@@ -6737,9 +6769,40 @@ emoji-picker-dialog emoji-picker,
 }
 
 .profile-description {
+  display: block;
   margin-top: 12px;
   padding: 0 16px 0px 16px;
   line-height: 1.3;
+  --collapsible-content-max-lines: 8;
+}
+
+collapsible-content {
+  display: block;
+}
+
+.collapsible-content-body.is-collapsed {
+  max-height: calc(var(--collapsible-content-max-lines) * 1lh);
+  overflow: hidden;
+}
+
+.collapsible-content-body.is-collapsed.is-overflowing {
+  mask-image: linear-gradient(to bottom, black calc(100% - 3lh), transparent);
+}
+
+.collapsible-content-toggle {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-link-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .collapsible-content-toggle:hover {
+    text-decoration: underline;
+  }
 }
 
 .profile-description a {
@@ -10222,9 +10285,15 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 }
 
 /* @chunk drafts */
+.drafts-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (min-width: 800px) {
   .drafts-dialog {
     max-width: 500px;
+    max-height: min(800px, 85dvh);
   }
 }
 
@@ -10232,6 +10301,7 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
   padding: 16px;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -10255,9 +10325,9 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 }
 
 .drafts-dialog-list {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 120px;
-  max-height: 60vh;
 }
 
 .drafts-dialog-message {
@@ -11557,6 +11627,17 @@ label:has(toggle-switch[disabled]) {
   flex-direction: column;
 }
 
+.add-to-lists-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .add-to-lists-row-link:hover {
+    text-decoration: underline;
+  }
+}
+
 .add-to-lists-row .add-to-lists-toggle {
   flex-shrink: 0;
   min-width: 80px;
@@ -11567,15 +11648,15 @@ label:has(toggle-switch[disabled]) {
   cursor: not-allowed;
 }
 
-.add-to-lists-dialog-empty,
-.add-to-lists-dialog-error {
+.add-to-lists-dialog-empty {
   color: var(--text-color-secondary);
   text-align: center;
   padding: 20px 0;
 }
 
 .add-to-lists-dialog-error {
-  color: var(--error-color);
+  height: 60vh;
+  box-sizing: border-box;
 }
 
 .add-to-lists-dialog-loading {
@@ -11804,6 +11885,17 @@ label:has(toggle-switch[disabled]) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.interaction-settings-list-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .interaction-settings-list-link:hover {
+    text-decoration: underline;
+  }
 }
 
 .interaction-settings-preserved-row {
