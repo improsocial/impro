@@ -5,6 +5,7 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
+import { Labeling } from "/js/labeling.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { DraftMediaStore } from "/js/drafts.js";
@@ -226,15 +227,62 @@ describe("live status", () => {
       }
     });
 
-    it("returns none when the profile has a blur label", () => {
-      const { derived, dataStore } = makeDerived({
-        labeling: { getProfileBlurLabel: () => "porn" },
+    describe("account labels", () => {
+      const labelerDid = "did:plc:labeler";
+      const labeling = new Labeling(new Preferences([]), [
+        {
+          creator: { did: labelerDid, handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "spam",
+                blurs: "content",
+                severity: "inform",
+                defaultSetting: "hide",
+              },
+              {
+                identifier: "misleading",
+                blurs: "content",
+                severity: "alert",
+                defaultSetting: "warn",
+              },
+            ],
+          },
+        },
+      ]);
+      const label = (val, uri = did) => ({ src: labelerDid, uri, val });
+
+      it("returns none when an account label is set to hide", () => {
+        const { derived, dataStore } = makeDerived({ labeling });
+        addLiveProfile(
+          dataStore,
+          createLiveStatusView({ did, expiresAt: futureExpiry() }),
+          { labels: [label("spam")] },
+        );
+        assert.deepEqual(derived.$actorLiveStatus.get(did), { state: "none" });
       });
-      addLiveProfile(
-        dataStore,
-        createLiveStatusView({ did, expiresAt: futureExpiry() }),
-      );
-      assert.deepEqual(derived.$actorLiveStatus.get(did), { state: "none" });
+
+      it("stays active for warn-level account labels", () => {
+        const { derived, dataStore } = makeDerived({ labeling });
+        addLiveProfile(
+          dataStore,
+          createLiveStatusView({ did, expiresAt: futureExpiry() }),
+          { labels: [label("misleading")] },
+        );
+        assert.deepEqual(derived.$actorLiveStatus.get(did).state, "active");
+      });
+
+      it("stays active for hide labels on the profile record", () => {
+        const { derived, dataStore } = makeDerived({ labeling });
+        addLiveProfile(
+          dataStore,
+          createLiveStatusView({ did, expiresAt: futureExpiry() }),
+          {
+            labels: [label("spam", `at://${did}/app.bsky.actor.profile/self`)],
+          },
+        );
+        assert.deepEqual(derived.$actorLiveStatus.get(did).state, "active");
+      });
     });
 
     it("attaches isLive to hydrated profiles and post authors", () => {

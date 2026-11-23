@@ -69,6 +69,7 @@ function fakePreferences(overrides = {}) {
     getContentLabel: () => null,
     getMediaLabel: () => null,
     getProfileBlurLabel: () => null,
+    getLinkBlurLabel: () => null,
     getBadgeLabelsForProfile: () => [],
     getFollowingFeedPreference: () => null,
     hasHideLabel: () => false,
@@ -3306,8 +3307,10 @@ describe("$hydratedProfiles (labels)", () => {
     const dataStore = new DataStore(createSessionState(null));
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
-        getProfileBlurLabel: (subject) =>
-          subject.labels?.some((label) => label.val === "blur") ? "blur" : null,
+        getLinkBlurLabel: (linkView) =>
+          linkView.labels?.some((label) => label.val === "blur")
+            ? "blur"
+            : null,
         hasHideLabel: (labels) => labels.some((label) => label.val === "hide"),
       }),
     });

@@ -552,8 +552,12 @@ export function getRootUri(feedItem) {
   return feedItem.post.uri;
 }
 
+export function isAccountLabel(label) {
+  return !label.uri.endsWith("/app.bsky.actor.profile/self");
+}
+
 export function getPostLabels(post) {
-  const authorLabels = post.author?.labels || [];
+  const authorLabels = (post.author?.labels || []).filter(isAccountLabel);
   const postLabels = post.labels || [];
   return [...authorLabels, ...postLabels];
 }

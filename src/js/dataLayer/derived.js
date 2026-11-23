@@ -27,6 +27,7 @@ import {
   isStatusValid,
   getReplyRootFromPost,
   profileLinksFromViews,
+  isAccountLabel,
 } from "/js/dataHelpers.js";
 import { sortBy, KeyedScheduler } from "/js/utils.js";
 import { Labeling } from "/js/labeling.js";
@@ -102,10 +103,6 @@ function isHideableOffenseLabel(label) {
   return label.val === "!hide" || label.val === "!takedown";
 }
 
-function isAccountLabel(label) {
-  return !label.uri.endsWith("/app.bsky.actor.profile/self");
-}
-
 function shouldHideNotification(notification, labeling) {
   const author = notification.author;
   if (author.labels?.some(isHideableOffenseLabel)) return true;
@@ -167,9 +164,7 @@ function filterBlockedReactions(reactions, memberProfiles) {
 
 function isProfileLinkModerated(labeling, linkView) {
   const labels = linkView.labels ?? [];
-  return (
-    !!labeling.getProfileBlurLabel(linkView) || labeling.hasHideLabel(labels)
-  );
+  return !!labeling.getLinkBlurLabel(linkView) || labeling.hasHideLabel(labels);
 }
 
 export class Derived extends ReactiveStore {
@@ -260,7 +255,12 @@ export class Derived extends ReactiveStore {
         viewer?.blocking ||
         viewer?.blockedBy ||
         viewer?.muted ||
-        (profile && labeling && labeling.getProfileBlurLabel(profile))
+        (profile &&
+          labeling &&
+          labeling.hasHideLabel([
+            ...(statusView.labels ?? []),
+            ...(profile.labels ?? []).filter(isAccountLabel),
+          ]))
       ) {
         this.liveStatusScheduler.cancel(did);
         return { state: "none" };

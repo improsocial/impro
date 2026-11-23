@@ -105,57 +105,13 @@ export class Labeling {
     });
   }
 
-  _getLabelByBlurType(post, blurType) {
-    const labels = getPostLabels(post);
-    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
+  _getStrongestBlurEntry(labels, shouldBlur) {
     let currentLabel = null;
     for (const label of labels) {
       const result = this.getLabelDefinitionAndLabeler(label);
       if (!result) continue;
       const { labelDefinition, labeler } = result;
-      if (labelDefinition.blurs !== blurType) continue;
-      const labelVisibility = this.getLabelVisibility(label, labelDefinition);
-      if (labelVisibility !== "hide" && labelVisibility !== "warn") continue;
-      const entry = this._createBlurLabelEntry(
-        labelVisibility,
-        label,
-        labelDefinition,
-        labeler,
-      );
-      if (entry.noOverride) {
-        return entry;
-      }
-      if (
-        !currentLabel ||
-        getBlurEntryRank(entry) > getBlurEntryRank(currentLabel)
-      ) {
-        currentLabel = entry;
-      }
-    }
-    return currentLabel;
-  }
-
-  getContentLabel(post) {
-    return this._getLabelByBlurType(post, "content");
-  }
-
-  getMediaLabel(post) {
-    return this._getLabelByBlurType(post, "media");
-  }
-
-  getProfileBlurLabel(profileOrAuthor) {
-    const labels = profileOrAuthor?.labels ?? [];
-    let currentLabel = null;
-    for (const label of labels) {
-      const result = this.getLabelDefinitionAndLabeler(label);
-      if (!result) continue;
-      const { labelDefinition, labeler } = result;
-      if (
-        labelDefinition.blurs !== "content" &&
-        labelDefinition.blurs !== "media"
-      ) {
-        continue;
-      }
+      if (!shouldBlur(labelDefinition)) continue;
       const visibility = this.getLabelVisibility(label, labelDefinition);
       if (visibility !== "hide" && visibility !== "warn") continue;
       const entry = this._createBlurLabelEntry(
@@ -175,6 +131,38 @@ export class Labeling {
       }
     }
     return currentLabel;
+  }
+
+  getContentLabel(post) {
+    return this._getStrongestBlurEntry(
+      getPostLabels(post),
+      (labelDefinition) => labelDefinition.blurs === "content",
+    );
+  }
+
+  getMediaLabel(post) {
+    return this._getStrongestBlurEntry(
+      getPostLabels(post),
+      (labelDefinition) => labelDefinition.blurs === "media",
+    );
+  }
+
+  getProfileBlurLabel(profileOrAuthor) {
+    return this._getStrongestBlurEntry(
+      profileOrAuthor?.labels ?? [],
+      (labelDefinition) =>
+        labelDefinition.blurs === "media" ||
+        labelDefinition.configurable === false,
+    );
+  }
+
+  getLinkBlurLabel(linkView) {
+    return this._getStrongestBlurEntry(
+      linkView.labels ?? [],
+      (labelDefinition) =>
+        labelDefinition.blurs === "content" ||
+        labelDefinition.blurs === "media",
+    );
   }
 
   hasHideLabel(labels) {

@@ -346,6 +346,65 @@ describe("Labeling.getContentLabel", () => {
   });
 });
 
+describe("Labeling - author labels on posts", () => {
+  const authorDid = "did:plc:author";
+  const labelerDefs = [
+    {
+      creator: { did: "did:labeler1", handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          { identifier: "spam", blurs: "content", defaultSetting: "warn" },
+          { identifier: "gross", blurs: "media", defaultSetting: "warn" },
+          {
+            identifier: "verified",
+            blurs: "none",
+            severity: "inform",
+            defaultSetting: "warn",
+          },
+        ],
+      },
+    },
+  ];
+  const labeling = new Labeling(new Preferences([]), labelerDefs);
+  const accountLabel = (val) => ({ src: "did:labeler1", uri: authorDid, val });
+  const profileRecordLabel = (val) => ({
+    src: "did:labeler1",
+    uri: `at://${authorDid}/app.bsky.actor.profile/self`,
+    val,
+  });
+  const postBy = (authorLabels) => ({
+    author: { did: authorDid, labels: authorLabels },
+    labels: [],
+  });
+
+  it("should apply account labels to the post", () => {
+    const post = postBy([
+      accountLabel("spam"),
+      accountLabel("gross"),
+      accountLabel("verified"),
+    ]);
+
+    assert.deepEqual(labeling.getContentLabel(post).label.val, "spam");
+    assert.deepEqual(labeling.getMediaLabel(post).label.val, "gross");
+    assert.deepEqual(
+      labeling.getBadgeLabelsForPost(post).map((entry) => entry.label.val),
+      ["verified"],
+    );
+  });
+
+  it("should ignore labels on the author's profile record", () => {
+    const post = postBy([
+      profileRecordLabel("spam"),
+      profileRecordLabel("gross"),
+      profileRecordLabel("verified"),
+    ]);
+
+    assert.deepEqual(labeling.getContentLabel(post), null);
+    assert.deepEqual(labeling.getMediaLabel(post), null);
+    assert.deepEqual(labeling.getBadgeLabelsForPost(post), []);
+  });
+});
+
 describe("Labeling.getMediaLabel", () => {
   it("should return null when post has no media labels", () => {
     const labeling = new Labeling(new Preferences([]), []);
@@ -500,7 +559,7 @@ describe("Labeling.getProfileBlurLabel", () => {
     assert.deepEqual(result, null);
   });
 
-  it("should respect labeler-defined blur labels when subscribed", () => {
+  it("should respect labeler-defined media blur labels when subscribed", () => {
     const labelerDefs = [
       {
         creator: { did: "did:labeler1", handle: "labeler.test" },
@@ -508,7 +567,7 @@ describe("Labeling.getProfileBlurLabel", () => {
           labelValueDefinitions: [
             {
               identifier: "nsfw",
-              blurs: "content",
+              blurs: "media",
               defaultSetting: "warn",
               locales: [{ lang: "en", name: "NSFW" }],
             },
@@ -525,6 +584,43 @@ describe("Labeling.getProfileBlurLabel", () => {
 
     assert.deepEqual(result.visibility, "warn");
     assert.deepEqual(result.labelDefinition.identifier, "nsfw");
+  });
+
+  it("should not blur for labeler-defined content labels, even when set to hide", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "spam",
+              blurs: "content",
+              severity: "inform",
+              defaultSetting: "hide",
+            },
+          ],
+        },
+      },
+    ];
+
+    const labeling = new Labeling(new Preferences([]), labelerDefs);
+    const author = {
+      labels: [{ src: "did:labeler1", val: "spam" }],
+    };
+    const result = labeling.getProfileBlurLabel(author);
+
+    assert.deepEqual(result, null);
+  });
+
+  it("should return entry for the !warn global label", () => {
+    const labeling = new Labeling(new Preferences([]), []);
+    const author = {
+      labels: [{ src: "did:plc:author", val: "!warn" }],
+    };
+    const result = labeling.getProfileBlurLabel(author);
+
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "!warn");
   });
 
   it("should skip labeler-defined labels when labeler is not subscribed", () => {
@@ -571,7 +667,7 @@ describe("Labeling.getProfileBlurLabel", () => {
           labelValueDefinitions: [
             {
               identifier: "soft",
-              blurs: "content",
+              blurs: "media",
               defaultSetting: "warn",
               locales: [{ lang: "en", name: "Soft" }],
             },
@@ -617,6 +713,50 @@ describe("Labeling.getProfileBlurLabel", () => {
 
     assert.deepEqual(result.visibility, "hide");
     assert.deepEqual(result.labelDefinition.identifier, "nudity");
+  });
+});
+
+describe("Labeling.getLinkBlurLabel", () => {
+  const labelerDefs = [
+    {
+      creator: { did: "did:labeler1", handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          {
+            identifier: "misleading",
+            blurs: "content",
+            defaultSetting: "warn",
+          },
+          { identifier: "gross", blurs: "media", defaultSetting: "warn" },
+          { identifier: "verified", blurs: "none", defaultSetting: "warn" },
+        ],
+      },
+    },
+  ];
+  const labeling = new Labeling(new Preferences([]), labelerDefs);
+
+  it("should return content blur labels", () => {
+    const result = labeling.getLinkBlurLabel({
+      labels: [{ src: "did:labeler1", val: "misleading" }],
+    });
+
+    assert.deepEqual(result.labelDefinition.identifier, "misleading");
+  });
+
+  it("should return media blur labels", () => {
+    const result = labeling.getLinkBlurLabel({
+      labels: [{ src: "did:labeler1", val: "gross" }],
+    });
+
+    assert.deepEqual(result.labelDefinition.identifier, "gross");
+  });
+
+  it("should skip badge labels", () => {
+    const result = labeling.getLinkBlurLabel({
+      labels: [{ src: "did:labeler1", val: "verified" }],
+    });
+
+    assert.deepEqual(result, null);
   });
 });
 
@@ -1305,13 +1445,12 @@ describe("Labeling - adult-only labels", () => {
     assert.deepEqual(result.noOverride, false);
   });
 
-  it("should mark adult-only profile blur labels as non-overridable", () => {
+  it("should not blur profiles for adult-only content labels", () => {
     const labeling = new Labeling(new Preferences([]), labelerDefs);
     const result = labeling.getProfileBlurLabel({
       labels: [{ src: "did:labeler1", val: "adult-custom" }],
     });
 
-    assert.deepEqual(result.visibility, "hide");
-    assert.deepEqual(result.noOverride, true);
+    assert.deepEqual(result, null);
   });
 });
