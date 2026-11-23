@@ -35,6 +35,7 @@ export class PostInteractionHandler {
     this._interactionSettingsDialog = dialog;
     const rootUri = post.record?.reply?.root?.uri ?? post.uri;
     dialog.dataLayer = this.dataLayer;
+    dialog.linkLists = true;
     if (rootUri !== post.uri) {
       dialog.threadRootUri = rootUri;
     }

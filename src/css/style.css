@@ -11841,6 +11841,17 @@ label:has(toggle-switch[disabled]) {
   white-space: nowrap;
 }
 
+.interaction-settings-list-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .interaction-settings-list-link:hover {
+    text-decoration: underline;
+  }
+}
+
 .interaction-settings-preserved-row {
   justify-content: space-between;
   color: var(--text-color-secondary);
