@@ -75,7 +75,7 @@ function threadOptionsMenuTemplate({ threadView, onSelect }) {
         this.nextElementSibling.open(event.clientX, event.clientY);
       }}
     >
-      <app-icon icon="settings-cog-line"></app-icon>
+      <app-icon icon="sliders-line"></app-icon>
     </button>
     <context-menu>
       <context-menu-label>Show replies as</context-menu-label>

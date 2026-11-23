@@ -8967,7 +8967,6 @@ sidebar-search {
 }
 
 .context-menu-label {
-  font-size: 13px;
   font-weight: 500;
   color: var(--text-color-muted);
   white-space: nowrap;
@@ -9126,7 +9125,7 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 
   .context-menu-label {
     padding: 12px 14px 4px;
-    font-size: inherit;
+    font-size: 14px;
     font-weight: normal;
   }
 
