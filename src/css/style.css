@@ -6579,6 +6579,24 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 8px;
 }
 
+.profile-handle-link {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: -4px;
+  color: var(--text-color-muted);
+}
+
+.profile-handle-link app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .profile-handle-link:hover {
+    color: var(--text-color);
+  }
+}
+
 .profile-card .author-badges {
   gap: 4px;
   margin-top: 12px;
