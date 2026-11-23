@@ -1362,7 +1362,7 @@ test.describe("Post thread view", () => {
       ).not.toBeAttached();
     });
 
-    test("should switch between linear and tree replies from the header toggle", async ({
+    test("should switch between linear and tree replies from the thread options menu", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1374,23 +1374,36 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      const toggle = view.locator('[data-testid="thread-view-toggle"]');
+      const optionsButton = view.locator(
+        '[data-testid="thread-options-button"]',
+      );
+      const linearOption = view.locator(
+        '[data-testid="menu-action-thread-view-linear"]',
+      );
+      const treeOption = view.locator(
+        '[data-testid="menu-action-thread-view-tree"]',
+      );
       const tree = view.locator('[data-testid="post-thread-tree"]');
       await expect(view.locator(".post-thread-reply-chains")).toBeVisible({
         timeout: 10000,
       });
-      await expect(toggle).toHaveAttribute("data-teststate", "linear");
+      await expect(optionsButton).toHaveAttribute("data-teststate", "linear");
       await expect(tree).not.toBeAttached();
 
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("data-teststate", "tree");
+      await optionsButton.click();
+      await expect(linearOption).toHaveAttribute("data-teststate", "selected");
+      await expect(treeOption).toHaveAttribute("data-teststate", "unselected");
+      await treeOption.click();
+      await expect(optionsButton).toHaveAttribute("data-teststate", "tree");
       await expect(tree).toBeVisible();
       await expect
         .poll(() => mockServer.threadViewPref)
         .toEqual({ sort: "top", lab_treeViewEnabled: true });
 
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("data-teststate", "linear");
+      await optionsButton.click();
+      await expect(treeOption).toHaveAttribute("data-teststate", "selected");
+      await linearOption.click();
+      await expect(optionsButton).toHaveAttribute("data-teststate", "linear");
       await expect(tree).not.toBeAttached();
       await expect(view.locator(".post-thread-reply-chains")).toBeVisible();
       await expect
@@ -1417,7 +1430,10 @@ test.describe("Post thread view", () => {
         (element) => element.getBoundingClientRect().top,
       );
 
-      await view.locator('[data-testid="thread-view-toggle"]').click();
+      await view.locator('[data-testid="thread-options-button"]').click();
+      await view
+        .locator('[data-testid="menu-action-thread-view-tree"]')
+        .click();
       await expect(
         view.locator('[data-testid="post-thread-tree"]'),
       ).toBeVisible();
@@ -1427,7 +1443,7 @@ test.describe("Post thread view", () => {
       expect(Math.abs(topAfter - topBefore)).toBeLessThan(2);
     });
 
-    test("should not show the thread view toggle when logged out", async ({
+    test("should not show the thread options button when logged out", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1441,7 +1457,7 @@ test.describe("Post thread view", () => {
         timeout: 10000,
       });
       await expect(
-        view.locator('[data-testid="thread-view-toggle"]'),
+        view.locator('[data-testid="thread-options-button"]'),
       ).not.toBeAttached();
     });
 
