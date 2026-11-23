@@ -8,9 +8,30 @@ import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { cdnImageUrl, isModerationList } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import { linkToList } from "/js/navigation.js";
+import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import "/js/components/app-icon.js";
 import "/js/components/infinite-scroll-container.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+
+function loadErrorTemplate({ onRetry }) {
+  return html`<div
+    class="add-to-lists-dialog-error error-state error-state-inline"
+    data-testid="add-to-lists-error"
+  >
+    <div>Couldn't load your lists.</div>
+    ${tryAgainButtonTemplate({ onClick: onRetry })}
+  </div>`;
+}
+
+function loadMoreErrorTemplate({ onRetry }) {
+  return html`<div
+    class="error-state error-state-inline"
+    data-testid="add-to-lists-load-more-error"
+  >
+    <div>Couldn't load more lists.</div>
+    ${tryAgainButtonTemplate({ onClick: onRetry })}
+  </div>`;
+}
 
 class AddToListsDialog extends Component {
   connectedCallback() {
@@ -22,6 +43,7 @@ class AddToListsDialog extends Component {
     this.state = new ReactiveStore("add-to-lists-dialog");
     this.state.$pendingByListUri = new SignalSet();
     this.state.$loadError = new Signal.State(null);
+    this.state.$loadMoreError = new Signal.State(null);
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
       this.render();
@@ -43,8 +65,13 @@ class AddToListsDialog extends Component {
       );
     } catch (error) {
       console.error(error);
-      this.state.$loadError.set(error.message || "Could not load your lists.");
+      this.state.$loadError.set(error);
     }
+  }
+
+  _retry() {
+    this.state.$loadError.set(null);
+    this._load();
   }
 
   _currentUserDid() {
@@ -60,12 +87,14 @@ class AddToListsDialog extends Component {
   }
 
   async _loadMore() {
+    this.state.$loadMoreError.set(null);
     try {
       await this.dataLayer.requests.loadListsWithMembershipForActor(
         this.profile.did,
       );
     } catch (error) {
       console.error(error);
+      this.state.$loadMoreError.set(error);
     }
   }
 
@@ -101,6 +130,7 @@ class AddToListsDialog extends Component {
     const hasMore = !!listsWithMembership?.cursor;
     const isLoading = entries === null;
     const loadError = this.state.$loadError.get();
+    const loadMoreError = this.state.$loadMoreError.get();
     render(
       html`
         <dialog
@@ -137,9 +167,7 @@ class AddToListsDialog extends Component {
                 </p>
               </div>
               ${loadError
-                ? html`<div class="add-to-lists-dialog-error">
-                    ${loadError}
-                  </div>`
+                ? loadErrorTemplate({ onRetry: () => this._retry() })
                 : isLoading
                   ? html`<div
                       class="add-to-lists-dialog-loading loading-block loading-block-soon"
@@ -161,6 +189,11 @@ class AddToListsDialog extends Component {
                             renderItem: (entry) => this._renderRow(entry),
                             hasMore,
                             onLoadMore: () => this._loadMore(),
+                            errorTemplate: loadMoreError
+                              ? loadMoreErrorTemplate({
+                                  onRetry: () => this._loadMore(),
+                                })
+                              : null,
                             lookahead: "400px",
                           })}
                         </div>
