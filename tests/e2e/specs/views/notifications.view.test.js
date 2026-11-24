@@ -1925,7 +1925,7 @@ test.describe("Notifications view", () => {
       await expect(pill).toBeHidden();
     });
 
-    test("should stay hidden at the top when new notifications arrive", async ({
+    test("should show at the top when new notifications arrive", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -1957,7 +1957,76 @@ test.describe("Notifications view", () => {
         '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
       );
       await expect(badge).toBeVisible({ timeout: 10000 });
-      await expect(view.locator('[data-testid="refresh-pill"]')).toBeHidden();
+      const pill = view.locator('[data-testid="refresh-pill"]');
+      await expect(pill).toBeVisible();
+
+      await pill.click();
+
+      await expect(
+        view.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(pill).toBeHidden();
+    });
+
+    test("should stay hidden when returning to the page with new notifications", async ({
+      page,
+    }) => {
+      const { likedPosts, notifications } = createPagedLikeNotifications(30);
+      const mockServer = new MockServer();
+      mockServer.addPosts(likedPosts);
+      mockServer.addNotifications(notifications);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await page.evaluate(() => window.scrollTo(0, 1000));
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBeGreaterThan(250);
+
+      await page.locator('[data-testid="sidebar-nav-home"]').click();
+      await expect(page).toHaveURL(/\/$/);
+
+      mockServer.notifications.unshift(
+        createNotification({
+          reason: "follow",
+          author: alice,
+          isRead: false,
+          indexedAt: new Date().toISOString(),
+        }),
+      );
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "push-received" } }),
+        );
+      });
+      const badge = page.locator(
+        '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+      );
+      await expect(badge).toBeVisible({ timeout: 10000 });
+
+      await page.goBack();
+      await expect(page).toHaveURL(/\/notifications$/);
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBeGreaterThan(250);
+      await expect(badge).toBeVisible();
+      await page.evaluate(async () => {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+      });
+      const pillClass = await view
+        .locator('[data-testid="refresh-pill"]')
+        .getAttribute("class");
+      expect(pillClass).not.toContain("is-visible");
     });
 
     test("should clear the badge only once the reload finishes and keep loaded items unread", async ({

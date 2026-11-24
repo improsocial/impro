@@ -15,7 +15,13 @@ import {
   getCurrentTimestamp,
   groupBy,
 } from "/js/utils.js";
-import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
+import {
+  Signal,
+  ReactiveStore,
+  SignalSet,
+  effect,
+  untrack,
+} from "/js/signals.js";
 import {
   bindToPage,
   pageEffect,
@@ -244,7 +250,7 @@ export default async function notificationsView({
   state.$loadMoreError = new Signal.State(null);
   state.$mentionLoadMoreError = new Signal.State(null);
   state.$expandedGroups = new SignalSet();
-  state.$isScrolledDown = new Signal.State(false);
+  state.$hasNewSincePageShow = new Signal.State(false);
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -923,10 +929,6 @@ export default async function notificationsView({
     scrollAndReloadNotifications();
   });
 
-  bindToPage(root, window, "scroll", () => {
-    state.$isScrolledDown.set(window.scrollY > SCROLLED_DOWN_LIMIT);
-  });
-
   bindPageTitle(root, () => "Notifications");
 
   pageEffect(root, () => {
@@ -949,9 +951,9 @@ export default async function notificationsView({
 
     const hasNew =
       activeTab === "all" &&
+      state.$hasNewSincePageShow.get() &&
       notificationService.$numNotifications.get() > 0 &&
       !notificationsRequestStatus.loading;
-    const isScrolledDown = state.$isScrolledDown.get();
 
     const isLoading =
       activeTab === "all"
@@ -984,7 +986,7 @@ export default async function notificationsView({
           `,
           overlayTemplate: () =>
             refreshPillTemplate({
-              visible: hasNew && isScrolledDown,
+              visible: hasNew,
               onClick: scrollAndReloadNotifications,
             }),
         })}
@@ -1128,8 +1130,25 @@ export default async function notificationsView({
     }
   }
 
+  onPageShow(root, () => {
+    state.$hasNewSincePageShow.set(false);
+    let previousCount = untrack(() =>
+      notificationService.$numNotifications.get(),
+    );
+    const dispose = effect(() => {
+      const count = notificationService.$numNotifications.get();
+      if (previousCount !== null && count > previousCount) {
+        state.$hasNewSincePageShow.set(true);
+      }
+      previousCount = count;
+    });
+    return () => {
+      dispose();
+      state.$hasNewSincePageShow.set(false);
+    };
+  });
+
   onPageShow(root, async ({ scrollY }) => {
-    state.$isScrolledDown.set(scrollY > SCROLLED_DOWN_LIMIT);
     if (scrollY <= SCROLLED_DOWN_LIMIT) {
       window.scrollTo(0, 0);
       await reloadTabs();

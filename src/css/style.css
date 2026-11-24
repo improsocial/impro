@@ -8809,6 +8809,12 @@ sidebar-search {
     visibility 0s;
 }
 
+@media (hover: hover) {
+  .refresh-pill.is-visible:hover {
+    transform: scale(1.06);
+  }
+}
+
 .refresh-pill.is-visible:active {
   transform: scale(0.95);
 }
