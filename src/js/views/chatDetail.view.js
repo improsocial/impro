@@ -63,6 +63,8 @@ import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/app-icon.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
+
 export default async function chatDetailView({
   root,
   params,
@@ -1398,7 +1400,7 @@ export default async function chatDetailView({
       }`;
     } else if (otherMember) {
       title = getDisplayName(otherMember);
-      subtitle = otherMember?.handle ? `@${otherMember.handle}` : "";
+      subtitle = otherMember?.handle ? handleTemplate(otherMember.handle) : "";
     }
 
     render(

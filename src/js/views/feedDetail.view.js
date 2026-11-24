@@ -19,6 +19,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function feedAvatarTemplate({ feedGenerator }) {
   return html`<img
@@ -58,7 +59,7 @@ function feedLikeCountTemplate({ likeCount }) {
 }
 
 function feedSubtitleTemplate({ handle, likeCount }) {
-  return html`${handle ? `@${handle}` : ""}${handle && likeCount
+  return html`${handle ? handleTemplate(handle) : ""}${handle && likeCount
     ? " · "
     : ""}${likeCount ? feedLikeCountTemplate({ likeCount }) : ""}`;
 }

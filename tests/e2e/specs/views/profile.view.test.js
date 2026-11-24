@@ -165,6 +165,48 @@ test.describe("Profile view", () => {
     ).toContainText("Badge Label");
   });
 
+  test("should show a warning badge in place of an invalid handle", async ({
+    page,
+  }) => {
+    const invalidHandleUser = createProfile({
+      did: "did:plc:invalidhandle1",
+      handle: "handle.invalid",
+      displayName: "Invalid Handle User",
+    });
+    const mockServer = new MockServer();
+    mockServer.addProfile(invalidHandleUser);
+    mockServer.addAuthorFeedPosts(
+      invalidHandleUser.did,
+      "posts_and_author_threads",
+      [
+        createPost({
+          uri: "at://did:plc:invalidhandle1/app.bsky.feed.post/1",
+          author: invalidHandleUser,
+          text: "Hello",
+        }),
+      ],
+    );
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${invalidHandleUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(
+      view.locator('.profile-handle [data-testid="invalid-handle-badge"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator(".profile-handle")).not.toContainText(
+      "handle.invalid",
+    );
+    const postHandleBadge = view.locator(
+      '[data-testid="post-author-handle"] [data-testid="invalid-handle-badge"]',
+    );
+    await expect(postHandleBadge).toBeVisible();
+
+    await postHandleBadge.click();
+    await expect(page.locator('[data-testid="alert-modal"]')).toBeVisible();
+    await expect(page).toHaveURL(`/profile/${invalidHandleUser.did}`);
+  });
+
   test("should display profile description", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);

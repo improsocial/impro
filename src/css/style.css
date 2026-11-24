@@ -14162,3 +14162,27 @@ h2.setting-item-name {
     text-decoration: underline;
   }
 }
+
+.invalid-handle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  max-width: 100%;
+  padding: 0 5px;
+  border: 1px solid var(--generic-border-color);
+  border-radius: var(--tag-border-radius);
+  background: none;
+  color: var(--text-color-muted);
+  font: inherit;
+  font-size: 0.9em;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.invalid-handle-badge app-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}

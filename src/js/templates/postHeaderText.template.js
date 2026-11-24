@@ -4,6 +4,7 @@ import { linkToProfile } from "/js/navigation.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { pronounBadgeTemplate } from "/js/templates/pronounBadge.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export function postHeaderTextTemplate({
   author,
@@ -34,10 +35,10 @@ export function postHeaderTextTemplate({
             class="post-username"
             data-testid="post-author-handle"
             data-hover-did=${author.did}
-            >@${author.handle}</a
+            >${handleTemplate(author.handle)}</a
           >`
         : html`<span class="post-username" data-testid="post-author-handle"
-            >@${author.handle}</span
+            >${handleTemplate(author.handle)}</span
           >`
       : ""}
     ${includeTime

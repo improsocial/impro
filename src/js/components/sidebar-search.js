@@ -7,6 +7,7 @@ import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/container-link.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 const TYPEAHEAD_LIMIT = 8;
 
@@ -46,7 +47,9 @@ function typeaheadTemplate({ query, profiles, onCommit, onSelectProfile }) {
                     profile,
                   })}
                 </div>
-                <div class="search-typeahead-handle">@${profile.handle}</div>
+                <div class="search-typeahead-handle">
+                  ${handleTemplate(profile.handle)}
+                </div>
               </div>
             </container-link>
           `,

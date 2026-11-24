@@ -4,6 +4,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToStarterPack } from "/js/navigation.js";
 import "/js/components/container-link.js";
 import { STARTER_PACK_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function starterPackListItemTemplate({
   starterPack,
@@ -32,7 +33,7 @@ function starterPackListItemTemplate({
     <div class="feeds-list-item-content">
       <div class="feeds-list-item-title">${record.name}</div>
       <div class="feeds-list-item-creator">
-        Starter pack by ${isOwner ? "you" : html`@${creator.handle}`}
+        Starter pack by ${isOwner ? "you" : handleTemplate(creator.handle)}
       </div>
       ${record.description
         ? // prettier-ignore

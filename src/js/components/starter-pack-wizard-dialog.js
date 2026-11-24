@@ -13,6 +13,7 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { LOGGED_OUT_FEED_URI } from "/js/config.js";
 import "/js/components/app-icon.js";
 import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 const MAX_NAME_LENGTH = 50;
 const MAX_DESCRIPTION_LENGTH = 300;
@@ -442,7 +443,7 @@ function feedRowTemplate({ feed, currentUserDid, toggleState, onToggle }) {
             Feed by
             ${feed.creator.did === currentUserDid
               ? "you"
-              : `@${feed.creator.handle}`}
+              : handleTemplate(feed.creator.handle)}
           </div>`
         : ""}
     </div>

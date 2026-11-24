@@ -2,6 +2,7 @@ import { html } from "/js/lib/lit-html.js";
 import { normalizeThreadgateAllowSettings } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
 import { Modal } from "/js/modals/modal.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function ruleTemplate({ rule, author, lists }) {
   if (rule.type === "mention") {
@@ -9,11 +10,11 @@ function ruleTemplate({ rule, author, lists }) {
   }
   if (rule.type === "followers") {
     return html`users following
-      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
+      <a href=${linkToProfile(author)}>${handleTemplate(author.handle)}</a>`;
   }
   if (rule.type === "following") {
     return html`users followed by
-      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
+      <a href=${linkToProfile(author)}>${handleTemplate(author.handle)}</a>`;
   }
   if (rule.type === "list") {
     const listView = lists.find(

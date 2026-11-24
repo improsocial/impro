@@ -3,6 +3,7 @@ import { linkToFeed } from "/js/navigation.js";
 import { cdnImageUrl } from "/js/dataHelpers.js";
 import "/js/components/container-link.js";
 import { FEED_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export function feedGeneratorListItemTemplate({
   feedGenerator,
@@ -35,7 +36,7 @@ export function feedGeneratorListItemTemplate({
               Feed by
               ${feedGenerator.creator.did === currentUserDid
                 ? "you"
-                : `@${feedGenerator.creator.handle}`}
+                : handleTemplate(feedGenerator.creator.handle)}
             </div>`
           : ""}
         ${showDescription && feedGenerator.description

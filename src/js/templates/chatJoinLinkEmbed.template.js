@@ -4,6 +4,7 @@ import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import "/js/components/app-icon.js";
 import { getDisplayName, isAvailableJoinLinkPreview } from "/js/dataHelpers.js";
 import { linkToProfile } from "/js/navigation.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function deriveJoinLinkAction({ preview, currentConvoId }) {
   if (!isAvailableJoinLinkPreview(preview)) return null;
@@ -97,7 +98,9 @@ function ownerRowTemplate({ owner }) {
       @click=${(event) => event.stopPropagation()}
       >${displayName}</a
     >${profileBadgesTemplate({ profile: owner })}
-    <span class="chat-join-link-embed-owner-handle">@${owner.handle}</span>
+    <span class="chat-join-link-embed-owner-handle"
+      >${handleTemplate(owner.handle)}</span
+    >
   </div>`;
 }
 

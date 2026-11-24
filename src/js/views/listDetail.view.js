@@ -36,6 +36,7 @@ import "/js/components/context-menu-item-group.js";
 import "/js/components/edit-list-details-dialog.js";
 import "/js/components/manage-list-members-dialog.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export default async function listDetailView({
   root,
@@ -345,7 +346,9 @@ export default async function listDetailView({
                               : "Starter pack"
                             : "List"}
                         by
-                        ${isCurrentUserList ? "you" : `@${listCreator.handle}`}
+                        ${isCurrentUserList
+                          ? "you"
+                          : handleTemplate(listCreator.handle)}
                       </div>`
                     : ""}
                 </div>

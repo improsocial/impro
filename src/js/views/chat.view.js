@@ -28,6 +28,7 @@ import "/js/components/app-icon.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import { Signal } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export default async function chatView({
   root,
@@ -112,7 +113,7 @@ export default async function chatView({
             ${!groupDetails &&
             otherUser?.handle &&
             otherUser?.handle !== MISSING_HANDLE
-              ? `@${otherUser.handle}`
+              ? handleTemplate(otherUser.handle)
               : ""}
           </div>
           <div class="convo-preview ${isUnread ? "unread" : ""}">

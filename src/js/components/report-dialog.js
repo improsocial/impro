@@ -8,6 +8,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/app-icon.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
 const BSKY_ONLY_REASON_TYPES = [
@@ -348,7 +349,9 @@ function labelerCardTemplate({ labeler, onClick }) {
       </div>
       <div class="report-labeler-info">
         <div class="report-option-title">${title}</div>
-        <div class="report-option-description">@${labeler.creator.handle}</div>
+        <div class="report-option-description">
+          ${handleTemplate(labeler.creator.handle)}
+        </div>
       </div>
     </button>
   `;
@@ -667,7 +670,10 @@ class ReportDialog extends Component {
           }}
         >
           <div class="report-dialog-content">
-            <button class="dialog-close-button dialog-close-button-floating report-dialog-close" @click=${() => this.close()}>
+            <button
+              class="dialog-close-button dialog-close-button-floating report-dialog-close"
+              @click=${() => this.close()}
+            >
               <app-icon icon="close-line"></app-icon>
             </button>
             <div class="report-dialog-body">

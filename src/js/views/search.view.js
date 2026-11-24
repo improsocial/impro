@@ -21,6 +21,7 @@ import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { starterPackListTemplate } from "/js/templates/starterPackList.template.js";
 import { feedGeneratorListTemplate } from "/js/templates/feedGeneratorList.template.js";
 import { paginatedListTemplate } from "/js/templates/paginatedList.template.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export default async function searchView({
   root,
@@ -334,7 +335,9 @@ export default async function searchView({
                       profile,
                     })}
                   </div>
-                  <div class="search-typeahead-handle">@${profile.handle}</div>
+                  <div class="search-typeahead-handle">
+                    ${handleTemplate(profile.handle)}
+                  </div>
                 </div>
               </container-link>
             `,

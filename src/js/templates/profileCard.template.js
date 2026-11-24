@@ -34,6 +34,7 @@ import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/profile-links.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function getBlueskyLinkForProfile(profile) {
   return `https://bsky.app/profile/${profile.handle}`;
@@ -544,7 +545,7 @@ export function profileCardTemplate({
           })}${pronounBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
-          <div class="profile-handle">@${profile.handle}</div>
+          <div class="profile-handle">${handleTemplate(profile.handle)}</div>
           ${showHandleLink &&
           hasValidHandle(profile) &&
           !profile.handle.endsWith(".bsky.social")

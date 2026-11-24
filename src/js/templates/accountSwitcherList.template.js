@@ -6,6 +6,7 @@ import {
 } from "/js/templates/avatar.template.js";
 import { profileBadgesTemplate } from "/js/templates/profileBadges.template.js";
 import "/js/components/app-icon.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export function accountSwitcherListTemplate({
   accounts,
@@ -128,7 +129,9 @@ function identityTemplate({ profile, account }) {
           : ""}
       </span>
       ${handle
-        ? html`<span class="account-switcher-handle">@${handle}</span>`
+        ? html`<span class="account-switcher-handle"
+            >${handleTemplate(handle)}</span
+          >`
         : null}
       ${account.needsReauth
         ? html`<span

@@ -10,6 +10,7 @@ import {
 } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
 import "/js/components/app-icon.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 class ReactionsDialog extends Component {
   connectedCallback() {
@@ -203,7 +204,9 @@ class ReactionsDialog extends Component {
                 const displayName = profile
                   ? getDisplayName(profile)
                   : "Someone";
-                const handle = profile?.handle ? `@${profile.handle}` : "";
+                const handle = profile?.handle
+                  ? handleTemplate(profile.handle)
+                  : "";
                 return html`
                   <li>
                     <button

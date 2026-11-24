@@ -21,6 +21,7 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/container-link.js";
 import "/js/components/infinite-scroll-container.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export default async function chatRequestsView({
   root,
@@ -104,7 +105,7 @@ export default async function chatRequestsView({
               ${!groupDetails &&
               otherMember?.handle &&
               otherMember?.handle !== MISSING_HANDLE
-                ? `@${otherMember.handle}`
+                ? handleTemplate(otherMember.handle)
                 : ""}
             </div>
             <div class="convo-preview">${messagePreview}</div>

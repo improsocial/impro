@@ -19,6 +19,7 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/app-icon.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 function navigateFromSidebar(event, url) {
   if (
@@ -375,7 +376,9 @@ export function sidebarTemplate({
   ];
 
   const displayName = currentUser ? getDisplayName(currentUser) : null;
-  const handle = currentUser?.handle ? "@" + currentUser.handle : null;
+  const handle = currentUser?.handle
+    ? handleTemplate(currentUser.handle)
+    : null;
   const followersCount = currentUser?.followersCount ?? null;
   const followsCount = currentUser?.followsCount ?? null;
   // A partial profile has no counts to show

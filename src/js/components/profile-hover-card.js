@@ -21,6 +21,7 @@ import { Component } from "/js/components/component.js";
 import "/js/components/floating-card.js";
 import "/js/components/detected-rich-text.js";
 import "/js/components/app-icon.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 // A hover card that renders profile data for a given DID inside an inner
 // <floating-card>. Set `dataLayer` and `interactionHandlers` once, then drive
@@ -156,7 +157,9 @@ function liveHoverCardTemplate({ profile, liveStatus, onOpenProfile }) {
         })}
         <div class="live-status-profile-info">
           <div class="live-status-profile-name">${getDisplayName(profile)}</div>
-          <div class="live-status-profile-handle">@${profile.handle}</div>
+          <div class="live-status-profile-handle">
+            ${handleTemplate(profile.handle)}
+          </div>
         </div>
         <button
           class="rounded-button live-status-open-profile-button"

@@ -21,6 +21,7 @@ import {
   FEED_AVATAR_FALLBACK_URL,
   LIST_AVATAR_FALLBACK_URL,
 } from "/js/avatarFallbacks.js";
+import { handleTemplate } from "/js/templates/handle.template.js";
 
 export default async function feedsView({
   root,
@@ -147,7 +148,7 @@ export default async function feedsView({
                 List by
                 ${item.data.creator.did === currentUser?.did
                   ? "you"
-                  : `@${item.data.creator.handle}`}
+                  : handleTemplate(item.data.creator.handle)}
               </div>`
             : ""}
         </div>
@@ -175,7 +176,7 @@ export default async function feedsView({
               Feed by
               ${feedGenerator.creator.did === currentUser?.did
                 ? "you"
-                : `@${feedGenerator.creator.handle}`}
+                : handleTemplate(feedGenerator.creator.handle)}
             </div>`
           : ""}
       </div>
