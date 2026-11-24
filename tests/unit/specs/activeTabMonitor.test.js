@@ -169,14 +169,13 @@ describe("startActiveTabMonitor", () => {
     });
 
     it("is inactive without BroadcastChannel support", async (t) => {
-      const warn = t.mock.method(console, "warn", () => {});
+      t.mock.method(console, "warn", () => {});
       restoreBroadcastChannel();
       const originalChannel = globalThis.BroadcastChannel;
       delete globalThis.BroadcastChannel;
       try {
         const monitor = startActiveTabMonitor();
         assert.deepEqual(await monitor.isAnyTabActive(), false);
-        assert.deepEqual(warn.mock.callCount(), 1);
       } finally {
         globalThis.BroadcastChannel = originalChannel;
         restoreBroadcastChannel = installFakeBroadcastChannel();

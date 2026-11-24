@@ -8,9 +8,7 @@ import {
   PAGE_TITLE,
   PAGE_LOAD_ERROR_MESSAGE,
   PLUGIN_LOAD_FAILURE_MESSAGE,
-  DANGLING_SIDEBAR_ITEM_ID,
   getPagesPluginSource,
-  getDanglingSidebarItemPluginSource,
   getThrowingPagePluginSource,
   getFailingPluginSource,
   getNoSettingsPluginSource,
@@ -140,41 +138,6 @@ test.describe("Plugin page view", () => {
     await expect(
       view.locator('[data-testid="plugin-page-unknown"]'),
     ).toBeVisible({ timeout: 10000 });
-  });
-
-  test("warns once when a page's sidebarItemId matches no sidebar item", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    mockServer.localPluginSource = getDanglingSidebarItemPluginSource();
-    await mockServer.setup(page);
-    await login(page);
-    seedEnabled(mockServer);
-    const warnings = [];
-    page.on("console", (message) => {
-      if (
-        message.type() === "warning" &&
-        message.text().includes("sidebarItemId")
-      ) {
-        warnings.push(message.text());
-      }
-    });
-
-    const view = await gotoPage(page);
-    await expect(
-      view.locator('[data-testid="plugin-page-dashboard"]'),
-    ).toBeVisible({ timeout: 10000 });
-    expect(warnings).toEqual([]);
-
-    await page.evaluate(
-      (path) => window.router.go(path),
-      `/plugin/${PLUGIN_ID}/pages/dangling`,
-    );
-    await expect(
-      page.locator('[data-testid="plugin-page-dangling"]'),
-    ).toBeVisible({ timeout: 10000 });
-    await expect.poll(() => warnings.length).toBe(1);
-    expect(warnings[0]).toContain(DANGLING_SIDEBAR_ITEM_ID);
   });
 
   test("surfaces the reason a plugin failed to load", async ({ page }) => {

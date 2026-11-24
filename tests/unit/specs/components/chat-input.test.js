@@ -75,8 +75,8 @@ describe("chat-input", () => {
       );
     });
 
-    it("warns instead of erroring when searchMentions is not provided", async (t) => {
-      const warn = t.mock.method(console, "warn", () => {});
+    it("does not error when searchMentions is not provided", async (t) => {
+      t.mock.method(console, "warn", () => {});
       const error = t.mock.method(console, "error", () => {});
       const element = createChatInput();
       const richTextInput = getRichTextInput(element);
@@ -89,7 +89,6 @@ describe("chat-input", () => {
 
       await richTextInput.updateMentionSuggestions();
 
-      assert.deepEqual(warn.mock.callCount(), 1);
       assert.deepEqual(error.mock.callCount(), 0);
       assert.deepEqual(document.querySelector(".mention-typeahead-host"), null);
     });

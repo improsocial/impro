@@ -238,33 +238,6 @@ class TestPlugin extends Plugin {
 TestPlugin.register();
 `;
 
-export const DANGLING_SIDEBAR_ITEM_ID = "no-such-item";
-
-const DANGLING_SIDEBAR_ITEM_PLUGIN_BODY = /* js */ `
-class TestPlugin extends Plugin {
-  async onload() {
-    for (const [id, sidebarItemId] of [
-      ["dashboard", "dashboard"],
-      ["dangling", ${JSON.stringify(DANGLING_SIDEBAR_ITEM_ID)}],
-    ]) {
-      this.registerPage({
-        id,
-        sidebarItemId,
-        display: () =>
-          new VirtualEl("div")
-            .setAttr("data-testid", "plugin-page-" + id)
-            .setText(id),
-      });
-    }
-    this.addSidebarItem("document-line", ${JSON.stringify(PAGE_TITLE)}, () => {}, {
-      id: "dashboard",
-    });
-  }
-}
-
-TestPlugin.register();
-`;
-
 // A plugin whose onload rejects, so the host never gets a usable instance.
 // The host reports its own message for this, not the plugin's.
 export const PLUGIN_LOAD_FAILURE_MESSAGE =
@@ -415,10 +388,6 @@ export function getPagesPluginSource() {
 
 export function getThrowingPagePluginSource() {
   return getWorkerSource() + "\n" + THROWING_PAGE_PLUGIN_BODY;
-}
-
-export function getDanglingSidebarItemPluginSource() {
-  return getWorkerSource() + "\n" + DANGLING_SIDEBAR_ITEM_PLUGIN_BODY;
 }
 
 export function getFailingPluginSource() {

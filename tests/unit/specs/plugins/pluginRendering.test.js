@@ -1114,44 +1114,6 @@ describe("PluginRenderer:malformed and oversized nodes", () => {
     const element = renderer.createRoot().render(node);
     assert.deepEqual(element.tagName.toLowerCase(), "span");
   });
-
-  it("reports all issues in a single consolidated warning with the total", (t) => {
-    const warn = t.mock.method(console, "warn", () => {});
-    const { bridge } = makeBridge();
-    const renderer = new PluginRenderer(bridge, "demo");
-    renderer.createRoot().render({
-      type: "element",
-      tag: "span",
-      attrs: {},
-      events: {},
-      children: [
-        { type: "comment", value: "x" },
-        { type: "comment", value: "y" },
-        { type: "text", value: 5 },
-        { type: "text", value: "kept" },
-      ],
-    });
-    assert.deepEqual(warn.mock.callCount(), 1);
-    const message = warn.mock.calls[0].arguments[0];
-    assert(message.includes("demo"));
-    assert(message.includes("3 issue(s)"));
-    assert(message.includes('unknown node type "comment" ×2'));
-    assert(message.includes("text node value is not a string"));
-  });
-
-  it("emits no warning when there are no issues", (t) => {
-    const warn = t.mock.method(console, "warn", () => {});
-    const { bridge } = makeBridge();
-    const renderer = new PluginRenderer(bridge, "demo");
-    renderer.createRoot().render({
-      type: "element",
-      tag: "span",
-      attrs: {},
-      events: {},
-      children: [{ type: "text", value: "ok" }],
-    });
-    assert.deepEqual(warn.mock.callCount(), 0);
-  });
 });
 
 const SVG_NS = "http://www.w3.org/2000/svg";

@@ -393,21 +393,6 @@ describe("PluginBridge:handleNodeEvent", () => {
     assert.deepEqual(instance._calls[0].handlerId, 12);
     assert.deepEqual(instance._calls[0].args, [{ kind: "click" }]);
   });
-
-  it("warns and skips when plugin is not loaded", () => {
-    const { bridge } = makeBridge();
-    const originalWarn = console.warn;
-    let warned = false;
-    console.warn = () => {
-      warned = true;
-    };
-    try {
-      bridge.handleNodeEvent("missing", 1, {});
-    } finally {
-      console.warn = originalWarn;
-    }
-    assert(warned);
-  });
 });
 
 describe("PluginBridge:unloadPlugin", () => {

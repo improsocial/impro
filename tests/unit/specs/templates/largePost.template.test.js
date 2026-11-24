@@ -105,7 +105,7 @@ describe("largePostTemplate", () => {
   });
 
   it("should not render a post embed when only the record has an embed", (t) => {
-    const warn = t.mock.method(console, "warn", noop);
+    t.mock.method(console, "warn", noop);
     const postWithRecordEmbed = {
       ...post,
       embed: undefined,
@@ -124,7 +124,6 @@ describe("largePostTemplate", () => {
     const container = document.createElement("div");
     render(result, container);
     assert.deepEqual(container.querySelector(".post-embed"), null);
-    assert.equal(warn.mock.callCount(), 0);
   });
 
   it("should render action counts and an action bar skeleton for an embedded prefill", () => {

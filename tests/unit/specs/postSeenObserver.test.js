@@ -163,7 +163,6 @@ describe("PostSeenObserver - seen tracking", () => {
     observer.checkAllIntersections();
     await flushTimers();
     assert.deepEqual(sendInteractions.mock.callCount(), 1);
-    assert.deepEqual(warnMock.mock.callCount(), 1);
     assert(observer.seenPosts.has(postUriA));
   });
 

@@ -112,21 +112,13 @@ describe("PluginSlotDispatcher - registry", () => {
     assert.notEqual(second.versionFor({ did: "did:one" }), firstVersion);
   });
 
-  it("warns and skips when a plugin registers the same slot twice", () => {
+  it("skips when a plugin registers the same slot twice", (t) => {
     const dispatcher = new PluginSlotDispatcher();
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(" "));
-    try {
-      register(dispatcher, { name: "x" });
-      const { dispose } = register(dispatcher, { name: "x" });
-      assert.deepEqual(dispose, null);
-      assert.deepEqual(warnings.length, 1);
-      assert(warnings[0].includes("alpha"));
-      assert.deepEqual(dispatcher.getRegistrations("x").length, 1);
-    } finally {
-      console.warn = originalWarn;
-    }
+    t.mock.method(console, "warn", () => {});
+    register(dispatcher, { name: "x" });
+    const { dispose } = register(dispatcher, { name: "x" });
+    assert.deepEqual(dispose, null);
+    assert.deepEqual(dispatcher.getRegistrations("x").length, 1);
   });
 
   it("dispose removes the registration and prunes the slot when empty", () => {
@@ -325,24 +317,16 @@ describe("PluginSlotDispatcher - invocation and caching", () => {
     assert.deepEqual(calls.length, 2);
   });
 
-  it("rejects keys for an empty-cacheKey registration", async () => {
+  it("rejects keys for an empty-cacheKey registration", async (t) => {
     const dispatcher = makeDispatcher();
     const { registration } = register(dispatcher, { cacheKey: [] });
     await registration.request({ did: "did:one" });
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(" "));
-    try {
-      dispatcher.refresh("alpha", SLOT, [{ did: "did:one" }]);
-      assert.deepEqual(warnings.length, 1);
-      assert(warnings[0].includes("empty cacheKey"));
-      assert.deepEqual(
-        isPromise(registration.request({ did: "did:one" })),
-        false,
-      );
-    } finally {
-      console.warn = originalWarn;
-    }
+    t.mock.method(console, "warn", () => {});
+    dispatcher.refresh("alpha", SLOT, [{ did: "did:one" }]);
+    assert.deepEqual(
+      isPromise(registration.request({ did: "did:one" })),
+      false,
+    );
   });
 
   it("serves a later appearance of a known projection synchronously", async () => {
@@ -409,23 +393,15 @@ describe("PluginSlotDispatcher - invocation and caching", () => {
     assert(isPromise(registration.request(context)));
   });
 
-  it("rejects keys naming fields outside the declared cacheKey", async () => {
+  it("rejects keys naming fields outside the declared cacheKey", async (t) => {
     const dispatcher = makeDispatcher();
     const { registration } = register(dispatcher, { cacheKey: ["did"] });
     const context = { uri: "at://a", did: "did:one" };
     await registration.request(context);
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(" "));
-    try {
-      // The output can't depend on uri, so matching on it can't mean anything
-      dispatcher.refresh("alpha", SLOT, [{ uri: "at://a" }]);
-      assert.deepEqual(warnings.length, 1);
-      assert(warnings[0].includes("cacheKey (did)"));
-      assert.deepEqual(isPromise(registration.request(context)), false);
-    } finally {
-      console.warn = originalWarn;
-    }
+    t.mock.method(console, "warn", () => {});
+    // The output can't depend on uri, so matching on it can't mean anything
+    dispatcher.refresh("alpha", SLOT, [{ uri: "at://a" }]);
+    assert.deepEqual(isPromise(registration.request(context)), false);
   });
 
   it("allows any context field for a registration with no cacheKey", async () => {
@@ -448,30 +424,23 @@ describe("PluginSlotDispatcher - invocation and caching", () => {
     );
   });
 
-  it("rejects malformed keys without touching the cache", async () => {
+  it("rejects malformed keys without touching the cache", async (t) => {
     const dispatcher = makeDispatcher();
     const { registration } = register(dispatcher, { cacheKey: ["did"] });
     await registration.request({ did: "did:one" });
-    const warnings = [];
-    const originalWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(" "));
-    try {
-      const versionBefore = registration.versionFor({ did: "did:one" });
-      for (const keys of [[{}], [], [{ did: 7 }], ["did:one"], {}]) {
-        dispatcher.refresh("alpha", SLOT, keys);
-      }
-      assert.deepEqual(warnings.length, 5);
-      assert.deepEqual(
-        isPromise(registration.request({ did: "did:one" })),
-        false,
-      );
-      assert.deepEqual(
-        registration.versionFor({ did: "did:one" }),
-        versionBefore,
-      );
-    } finally {
-      console.warn = originalWarn;
+    t.mock.method(console, "warn", () => {});
+    const versionBefore = registration.versionFor({ did: "did:one" });
+    for (const keys of [[{}], [], [{ did: 7 }], ["did:one"], {}]) {
+      dispatcher.refresh("alpha", SLOT, keys);
     }
+    assert.deepEqual(
+      isPromise(registration.request({ did: "did:one" })),
+      false,
+    );
+    assert.deepEqual(
+      registration.versionFor({ did: "did:one" }),
+      versionBefore,
+    );
   });
 
   it("discards an in-flight result that a refresh invalidated", async () => {

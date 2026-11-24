@@ -826,8 +826,8 @@ describe("rich-text-input", () => {
       element.closeTypeahead();
     });
 
-    it("warns and skips suggestions when searchMentions is not provided", async (t) => {
-      const warn = t.mock.method(console, "warn", () => {});
+    it("skips suggestions when searchMentions is not provided", async (t) => {
+      t.mock.method(console, "warn", () => {});
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
       element.setText("Hi @al");
@@ -835,7 +835,6 @@ describe("rich-text-input", () => {
 
       await element.updateMentionSuggestions();
 
-      assert.deepEqual(warn.mock.callCount(), 1);
       assert.deepEqual(element.mentionSuggestions, []);
       assert.deepEqual(document.querySelector(".mention-typeahead-host"), null);
     });

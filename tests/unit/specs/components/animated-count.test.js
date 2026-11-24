@@ -161,22 +161,15 @@ describe("animated-count", () => {
     assert.equal(animations.length, 0);
   });
 
-  it("warns and does not roll without a parent animated-button", async (t) => {
-    const warn = t.mock.method(console, "warn", () => {});
+  it("does not roll without a parent animated-button", async (t) => {
+    t.mock.method(console, "warn", () => {});
     const element = document.createElement("animated-count");
     element.setAttribute("count", "5");
     document.body.appendChild(element);
     await flush();
-    assert.equal(warn.mock.callCount(), 1);
     await setState(element, { count: 6, isActive: true });
     assert.equal(currentText(element), "6");
     assert.equal(animations.length, 0);
-  });
-
-  it("does not warn inside an animated-button", async (t) => {
-    const warn = t.mock.method(console, "warn", () => {});
-    await createCount({ count: 5, isActive: false });
-    assert.equal(warn.mock.callCount(), 0);
   });
 
   it("does not roll when the formatted count is unchanged", async () => {

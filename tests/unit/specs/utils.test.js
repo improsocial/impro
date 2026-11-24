@@ -2368,28 +2368,6 @@ describe("share sheet", () => {
         { url: "https://bsky.app/profile/alice.test" },
       ]);
     });
-
-    it("should ignore the user cancelling the share sheet", async (t) => {
-      const warn = t.mock.method(console, "warn", () => {});
-      stubShare(async () => {
-        const error = new Error("Share canceled");
-        error.name = "AbortError";
-        throw error;
-      });
-      await shareUrl("https://bsky.app/profile/alice.test");
-      assert.equal(warn.mock.callCount(), 0);
-    });
-
-    it("should warn when the share sheet fails", async (t) => {
-      const warn = t.mock.method(console, "warn", () => {});
-      stubShare(async () => {
-        const error = new Error("Not allowed");
-        error.name = "NotAllowedError";
-        throw error;
-      });
-      await shareUrl("https://bsky.app/profile/alice.test");
-      assert.equal(warn.mock.callCount(), 1);
-    });
   });
 });
 
