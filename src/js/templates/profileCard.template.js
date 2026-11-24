@@ -565,6 +565,15 @@ export function profileCardTemplate({
                 Follows you
               </div>`
             : ""}
+          ${profile.viewer?.muted
+            ? html`<div
+                class="profile-tag profile-tag-with-icon"
+                data-testid="muted-badge"
+              >
+                <app-icon icon="speaker-slash-line"></app-icon>
+                Muted
+              </div>`
+            : ""}
           ${profile.viewer?.mutedOnlyReposts
             ? html`<div
                 class="profile-tag profile-tag-with-icon"

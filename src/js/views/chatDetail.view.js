@@ -1145,6 +1145,7 @@ export default async function chatDetailView({
       !!profile.viewer?.followedBy &&
       !profile.viewer?.blocking &&
       !profile.viewer?.blockedBy;
+    const isMuted = !!profile.viewer?.muted;
     return html`<div class="chat-info-panel" data-testid="chat-info-panel">
       ${avatarTemplate({ author: profile, showLiveStatus: false })}
       <div class="chat-info-panel-name">
@@ -1153,9 +1154,22 @@ export default async function chatDetailView({
       ${hasValidHandle(profile)
         ? html`<div class="chat-info-panel-handle">@${profile.handle}</div>`
         : ""}
-      ${isFollowedBy
-        ? html`<div class="profile-tag" data-testid="follows-you-badge">
-            Follows you
+      ${isFollowedBy || isMuted
+        ? html`<div class="chat-info-panel-tags">
+            ${isFollowedBy
+              ? html`<div class="profile-tag" data-testid="follows-you-badge">
+                  Follows you
+                </div>`
+              : ""}
+            ${isMuted
+              ? html`<div
+                  class="profile-tag profile-tag-with-icon"
+                  data-testid="muted-badge"
+                >
+                  <app-icon icon="speaker-slash-line"></app-icon>
+                  Muted
+                </div>`
+              : ""}
           </div>`
         : ""}
       ${authorBadgesTemplate({

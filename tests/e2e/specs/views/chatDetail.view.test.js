@@ -2453,6 +2453,39 @@ test.describe("Chat detail view", () => {
     await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/);
   });
 
+  test("should show a muted badge on the empty state user card when the user is muted", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+      viewer: { muted: true },
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", []);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const infoPanel = page.locator(
+      '#chat-detail-view [data-testid="chat-info-panel"]',
+    );
+    await expect(infoPanel).toBeVisible({ timeout: 10000 });
+    await expect(
+      infoPanel.locator('[data-testid="muted-badge"]'),
+    ).toBeVisible();
+    await expect(
+      infoPanel.locator('[data-testid="follows-you-badge"]'),
+    ).toHaveCount(0);
+  });
+
   test("should show moderation label pills on the empty state user card", async ({
     page,
   }) => {

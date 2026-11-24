@@ -255,6 +255,26 @@ describe("profileCardTemplate", () => {
     });
   });
 
+  it("should render muted badge only when the profile is muted", () => {
+    const container = document.createElement("div");
+    render(
+      profileCardTemplate({
+        profile: { ...mockProfile, viewer: { muted: true } },
+      }),
+      container,
+    );
+    assert(container.querySelector("[data-testid='muted-badge']") !== null);
+
+    render(
+      profileCardTemplate({ profile: { ...mockProfile, viewer: {} } }),
+      container,
+    );
+    assert.deepEqual(
+      container.querySelector("[data-testid='muted-badge']"),
+      null,
+    );
+  });
+
   it("should render reposts hidden badge only for reposts-only mutes", () => {
     const container = document.createElement("div");
     render(

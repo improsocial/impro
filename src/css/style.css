@@ -5049,7 +5049,11 @@ image-carousel {
   text-align: center;
 }
 
-.chat-info-panel .profile-tag {
+.chat-info-panel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
   margin-top: 4px;
 }
 
