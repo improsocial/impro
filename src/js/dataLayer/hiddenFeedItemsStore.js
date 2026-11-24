@@ -3,6 +3,13 @@ import { SignalMap } from "/js/signals.js";
 // Store for feed items hidden by plugins
 export class HiddenFeedItemsStore {
   constructor() {
+    this.feeds = new HiddenFeedItems();
+    this.homeFeeds = new HiddenFeedItems();
+  }
+}
+
+class HiddenFeedItems {
+  constructor() {
     this.$items = new SignalMap();
   }
 

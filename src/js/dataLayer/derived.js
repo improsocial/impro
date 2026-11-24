@@ -327,33 +327,20 @@ export class Derived extends ReactiveStore {
       const labeling = this.$labeling.get();
       return this.hydratePost(post, preferences, labeling);
     });
-    this.$hydratedFeeds = new ComputedMap((feedURI) => {
-      const feed = this.dataStore.$feeds.get(feedURI);
-      if (!feed) {
-        return null;
-      }
-      const hydratedFeed = {
-        feed: feed.feed.map((feedItem) => this.hydrateFeedItem(feedItem)),
-        cursor: feed.cursor,
-      };
-      const pluginFilteredFeedItems =
-        this.hiddenFeedItemsStore.$items.get(feedURI) ?? {};
-      if (isFollowingFeedUri(feedURI)) {
-        const preferences = this.$preferences.get();
-        return filterFollowingFeed(
-          hydratedFeed,
-          this.currentUserDid,
-          preferences,
-          pluginFilteredFeedItems,
-        );
-      } else {
-        return filterAlgorithmicFeed(
-          hydratedFeed,
-          this.isAuthenticated,
-          pluginFilteredFeedItems,
-        );
-      }
-    });
+    this.$hydratedFeeds = new ComputedMap((feedURI) =>
+      this._hydrateFeed(
+        feedURI,
+        this.dataStore.$feeds.get(feedURI),
+        this.hiddenFeedItemsStore.feeds.get(feedURI),
+      ),
+    );
+    this.$hydratedHomeFeeds = new ComputedMap((feedURI) =>
+      this._hydrateFeed(
+        feedURI,
+        this.dataStore.$homeFeeds.get(feedURI),
+        this.hiddenFeedItemsStore.homeFeeds.get(feedURI),
+      ),
+    );
     this.$currentUser = new Signal.Computed(() => {
       const user = this.dataStore.$currentUser.get();
       const patches = this.patchStore.$currentUserPatches.get();
@@ -1253,6 +1240,30 @@ export class Derived extends ReactiveStore {
       return { ...notification, post };
     }
     return notification;
+  }
+
+  _hydrateFeed(feedURI, feed, pluginFilteredFeedItems) {
+    if (!feed) {
+      return null;
+    }
+    const hydratedFeed = {
+      feed: feed.feed.map((feedItem) => this.hydrateFeedItem(feedItem)),
+      cursor: feed.cursor,
+    };
+    if (isFollowingFeedUri(feedURI)) {
+      const preferences = this.$preferences.get();
+      return filterFollowingFeed(
+        hydratedFeed,
+        this.currentUserDid,
+        preferences,
+        pluginFilteredFeedItems,
+      );
+    }
+    return filterAlgorithmicFeed(
+      hydratedFeed,
+      this.isAuthenticated,
+      pluginFilteredFeedItems,
+    );
   }
 
   hydrateFeedItem(feedItem) {

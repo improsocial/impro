@@ -253,15 +253,22 @@ export class PluginService extends ReactiveStore {
   }
 
   _setupFeedFilterIntegration() {
-    this._dataLayer.on("feedLoaded", async ({ feedURI, feed, reload }) => {
-      await this._waitForInitialPluginLoad();
-      const overrides = await this.getFilteredFeedItems(feedURI, feed);
-      if (reload) {
-        this._hiddenFeedItemsStore.replace(feedURI, overrides);
-      } else {
-        this._hiddenFeedItemsStore.merge(feedURI, overrides);
-      }
-    });
+    this._dataLayer.on("feedLoaded", (event) =>
+      this._applyFeedFilters(this._hiddenFeedItemsStore.feeds, event),
+    );
+    this._dataLayer.on("homeFeedLoaded", (event) =>
+      this._applyFeedFilters(this._hiddenFeedItemsStore.homeFeeds, event),
+    );
+  }
+
+  async _applyFeedFilters(hiddenFeedItems, { feedURI, feed, reload }) {
+    await this._waitForInitialPluginLoad();
+    const overrides = await this.getFilteredFeedItems(feedURI, feed);
+    if (reload) {
+      hiddenFeedItems.replace(feedURI, overrides);
+    } else {
+      hiddenFeedItems.merge(feedURI, overrides);
+    }
   }
 
   setRenderContext(renderContext) {
@@ -653,8 +660,13 @@ export class PluginService extends ReactiveStore {
   }
 
   _resolveFeedAttribution(postUri, feedUri) {
-    const feed = this._dataLayer.dataStore.$feeds.get(feedUri);
-    const feedItem = feed?.feed.find((item) => item.post.uri === postUri);
+    const { dataStore } = this._dataLayer;
+    const feedItem = [
+      dataStore.$homeFeeds.get(feedUri),
+      dataStore.$feeds.get(feedUri),
+    ]
+      .flatMap((feed) => feed?.feed ?? [])
+      .find((item) => item.post.uri === postUri);
     const feedGenerator = this._dataLayer.derived.$feedGenerators.get(feedUri);
     return {
       feedContext: feedItem?.feedContext ?? null,
@@ -1246,15 +1258,29 @@ export class PluginService extends ReactiveStore {
   }
 
   async refreshFeedFilters(feedURI = null) {
-    const feedURIs = feedURI
-      ? [feedURI]
-      : Array.from(this._dataLayer.dataStore.$feeds.keys());
+    const { dataStore } = this._dataLayer;
+    await Promise.all([
+      this._refreshFeedFiltersIn(
+        dataStore.$feeds,
+        this._hiddenFeedItemsStore.feeds,
+        feedURI,
+      ),
+      this._refreshFeedFiltersIn(
+        dataStore.$homeFeeds,
+        this._hiddenFeedItemsStore.homeFeeds,
+        feedURI,
+      ),
+    ]);
+  }
+
+  async _refreshFeedFiltersIn(feeds, hiddenFeedItems, feedURI) {
+    const feedURIs = feedURI ? [feedURI] : Array.from(feeds.keys());
     await Promise.all(
       feedURIs.map(async (uri) => {
-        const feed = this._dataLayer.dataStore.$feeds.get(uri);
+        const feed = feeds.get(uri);
         if (!feed) return;
         const overrides = await this.getFilteredFeedItems(uri, feed);
-        this._hiddenFeedItemsStore.replace(uri, overrides);
+        hiddenFeedItems.replace(uri, overrides);
       }),
     );
   }

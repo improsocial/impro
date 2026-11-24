@@ -209,6 +209,10 @@ export class Requests {
       ({ uri }) => "loadNextFeedPage-" + uri,
     );
     this.enableStatus(
+      this.loadNextHomeFeedPage,
+      ({ uri }) => "loadNextHomeFeedPage-" + uri,
+    );
+    this.enableStatus(
       this.loadDetailedProfile,
       (did) => "loadDetailedProfile-" + did,
     );
@@ -586,6 +590,36 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$feeds, { key: uri });
+    const feed = await this._fetchFeedPage({ type, uri }, { cursor, limit });
+    await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
+    writePageToCollection(this.dataStore.$feeds, "feed", feed, {
+      key: uri,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
+  }
+
+  async loadNextHomeFeedPage(
+    { type, uri },
+    { reload = false, limit = 31 } = {},
+  ) {
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$homeFeeds, { key: uri });
+    const feed = await this._fetchFeedPage({ type, uri }, { cursor, limit });
+    await this.events.emitAsync("homeFeedLoaded", {
+      feedURI: uri,
+      feed,
+      reload,
+    });
+    writePageToCollection(this.dataStore.$homeFeeds, "feed", feed, {
+      key: uri,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
+  }
+
+  async _fetchFeedPage({ type, uri }, { cursor, limit }) {
     let feed;
     switch (type) {
       case "timeline":
@@ -619,12 +653,7 @@ export class Requests {
     this.dataStore.setPosts(postsToSave);
     this.dataStore.setProfiles(getRepostersFromFeed(feed));
     this.dataStore.setPostNumberingForFeed(feed);
-    await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
-    writePageToCollection(this.dataStore.$feeds, "feed", feed, {
-      key: uri,
-      requestCursor: cursor,
-      overwrite: reload,
-    });
+    return feed;
   }
 
   async _getReplyUrisForPostFromBacklinks(post) {

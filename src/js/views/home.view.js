@@ -152,7 +152,7 @@ export default async function homeView({
       dataLayer.mutations.setSelectedFeedUri(feedUri);
     });
     if (!switched) return;
-    if (!dataLayer.hasCachedFeed(feedUri)) {
+    if (!dataLayer.hasCachedHomeFeed(feedUri)) {
       await loadCurrentFeed();
     }
     // Trigger post seen checks for the new feed
@@ -257,9 +257,9 @@ export default async function homeView({
 
   function feedContentsTemplate({ item, currentUser }) {
     const feedRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-      "loadNextFeedPage-" + item.uri,
+      "loadNextHomeFeedPage-" + item.uri,
     );
-    const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
+    const feed = dataLayer.derived.$hydratedHomeFeeds.get(item.uri);
     if (feedRequestStatus.error && !feed) {
       return feedErrorTemplate({ feedGenerator: item });
     }
@@ -293,7 +293,7 @@ export default async function homeView({
       pinnedItems.map((item) => [
         item.uri,
         new Map(
-          (dataLayer.derived.$hydratedFeeds.get(item.uri)?.feed ?? []).map(
+          (dataLayer.derived.$hydratedHomeFeeds.get(item.uri)?.feed ?? []).map(
             (feedItem) => [feedItem.post.uri, feedItem.feedContext ?? null],
           ),
         ),
@@ -309,12 +309,12 @@ export default async function homeView({
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     const currentFeedRequestStatus =
       dataLayer.requests.statusStore.$statuses.get(
-        "loadNextFeedPage-" + currentFeedUri,
+        "loadNextHomeFeedPage-" + currentFeedUri,
       );
     const isLoading =
       currentFeedRequestStatus.loading &&
       state.$isReloadingFeed.get() &&
-      !!dataLayer.derived.$hydratedFeeds.get(currentFeedUri);
+      !!dataLayer.derived.$hydratedHomeFeeds.get(currentFeedUri);
     render(
       html`<div id="home-view">
         ${headerTemplate({
@@ -411,7 +411,7 @@ export default async function homeView({
 
   async function loadCurrentFeed({ reload = false } = {}) {
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
-    await dataLayer.requests.loadNextFeedPage(
+    await dataLayer.requests.loadNextHomeFeedPage(
       { type: getFeedTypeFromUri(currentFeedUri), uri: currentFeedUri },
       { reload, limit: FEED_PAGE_SIZE + 1 },
     );
@@ -422,10 +422,10 @@ export default async function homeView({
     const itemsToPreload = pinnedItems
       .filter((item) => item.uri !== currentFeedUri)
       .slice(0, 5)
-      .filter((item) => !dataLayer.hasCachedFeed(item.uri));
+      .filter((item) => !dataLayer.hasCachedHomeFeed(item.uri));
     for (const item of itemsToPreload) {
       try {
-        await dataLayer.requests.loadNextFeedPage(item, {
+        await dataLayer.requests.loadNextHomeFeedPage(item, {
           limit: FEED_PAGE_SIZE + 1,
         });
       } catch (error) {
@@ -460,7 +460,7 @@ export default async function homeView({
     const currentFeedUri = dataLayer.derived.$selectedFeedUri.get();
     if (
       currentFeedUri !== initialFeedUri &&
-      !dataLayer.hasCachedFeed(currentFeedUri)
+      !dataLayer.hasCachedHomeFeed(currentFeedUri)
     ) {
       await loadCurrentFeed();
     }
@@ -478,7 +478,7 @@ export default async function homeView({
     if (!preferences.isFeedPinned(selectedFeedUri)) {
       return null;
     }
-    if (!dataLayer.hasCachedFeed(selectedFeedUri)) {
+    if (!dataLayer.hasCachedHomeFeed(selectedFeedUri)) {
       await loadCurrentFeed();
     }
     return selectedFeedUri;

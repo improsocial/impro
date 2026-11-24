@@ -4,7 +4,7 @@ import { MockServer } from "../../mockServer.js";
 import { createFeedGenerator, createPost } from "../../../shared/factories.js";
 
 test.describe("Open cached feed flow", () => {
-  test("should not reload a feed that home already loaded when opening its detail page", async ({
+  test("should load a separate copy of a home feed when opening its detail page", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -55,7 +55,14 @@ test.describe("Open cached feed flow", () => {
       feedDetailView.locator('[data-testid="feed-item"]'),
     ).toHaveCount(1);
 
-    expect(getFeedRequests).toBe(1);
+    expect(getFeedRequests).toBe(2);
     expect(getFeedGeneratorRequests).toBe(0);
+
+    await page.goBack();
+    await page.goBack();
+    await expect(
+      page.locator("#home-view [data-testid='feed-item']"),
+    ).toHaveCount(1);
+    expect(getFeedRequests).toBe(2);
   });
 });

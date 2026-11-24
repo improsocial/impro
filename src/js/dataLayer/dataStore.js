@@ -49,6 +49,7 @@ export class DataStore extends ReactiveStore {
     this.$showLessInteractions = new SignalMap();
     this.$showMoreInteractions = new SignalMap();
     this.$feeds = new SignalMap();
+    this.$homeFeeds = new SignalMap();
     this.$posts = new SignalMap();
     this.$embeddedPosts = new SignalMap();
     this.$postThreads = new SignalMap();

@@ -4,9 +4,11 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
-import { Signal, SignalMap, effect } from "/js/signals.js";
+import { Signal, effect } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { DataStore } from "/js/dataLayer/dataStore.js";
+import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { Constellation } from "/js/constellation.js";
 import { respondToConfirm, waitFor } from "../../testHelpers.js";
 
@@ -17,7 +19,7 @@ async function confirmInstall(installing) {
 
 function emptyDataLayer() {
   const dataLayer = new EventEmitter();
-  dataLayer.dataStore = { $feeds: new SignalMap() };
+  dataLayer.dataStore = new DataStore(createSessionState(null));
   return dataLayer;
 }
 
@@ -1407,11 +1409,22 @@ describe("feed filter integration", () => {
       call += 1;
       return call === 1 ? { p1: false } : { p2: false };
     });
-    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: false,
+    });
     await flush();
-    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: false,
+    });
     await flush();
-    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p1: false, p2: false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("f"), {
+      p1: false,
+      p2: false,
+    });
   });
 
   it("defers filtering a page until the initial plugin load completes", async () => {
@@ -1420,13 +1433,17 @@ describe("feed filter integration", () => {
       { initialLoadComplete: false },
     );
 
-    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: false,
+    });
     await flush();
-    assert.deepEqual(hiddenFeedItemsStore.get("f"), {});
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("f"), {});
 
     service._completeInitialLoad();
     await flush();
-    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p1: false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("f"), { p1: false });
   });
 
   it("replaces on reload", async () => {
@@ -1435,11 +1452,19 @@ describe("feed filter integration", () => {
       call += 1;
       return call === 1 ? { p1: false } : { p2: false };
     });
-    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: false,
+    });
     await flush();
-    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: true });
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: true,
+    });
     await flush();
-    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p2: false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("f"), { p2: false });
   });
 
   it("targets a specific feed on refresh request", async () => {
@@ -1455,8 +1480,8 @@ describe("feed filter integration", () => {
     await service.refreshFeedFilters("a");
     await flush();
     assert.deepEqual(invocations, ["a"]);
-    assert.deepEqual(hiddenFeedItemsStore.get("a"), { "x-a": false });
-    assert.deepEqual(hiddenFeedItemsStore.get("b"), {});
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("a"), { "x-a": false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("b"), {});
   });
 
   it("refreshes all cached feeds when no URI is supplied", async () => {
@@ -1472,8 +1497,42 @@ describe("feed filter integration", () => {
     await service.refreshFeedFilters();
     await flush();
     assert.deepEqual(new Set(invocations), new Set(["a", "b"]));
-    assert.deepEqual(hiddenFeedItemsStore.get("a"), { "x-a": false });
-    assert.deepEqual(hiddenFeedItemsStore.get("b"), { "x-b": false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("a"), { "x-a": false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("b"), { "x-b": false });
+  });
+
+  it("keeps home and detail hidden items separate", async () => {
+    let call = 0;
+    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+      call += 1;
+      return call === 1 ? { p1: false } : { p2: false };
+    });
+    dataLayer.emit("homeFeedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: false,
+    });
+    await flush();
+    dataLayer.emit("feedLoaded", {
+      feedURI: "f",
+      feed: {},
+      reload: true,
+    });
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.homeFeeds.get("f"), { p1: false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("f"), { p2: false });
+  });
+
+  it("refreshes a feed in both home and detail stores", async () => {
+    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+      async (uri) => ({ [`x-${uri}`]: false }),
+    );
+    dataLayer.dataStore.$homeFeeds.set("a", { feed: [] });
+    dataLayer.dataStore.$feeds.set("a", { feed: [] });
+    await service.refreshFeedFilters("a");
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.homeFeeds.get("a"), { "x-a": false });
+    assert.deepEqual(hiddenFeedItemsStore.feeds.get("a"), { "x-a": false });
   });
 });
 
@@ -1906,6 +1965,7 @@ describe("action host methods", () => {
           get: (uri) =>
             uri === feedUri && feedItem ? { feed: [feedItem] } : null,
         },
+        $homeFeeds: { get: () => null },
       },
       derived: {
         $feedGenerators: {

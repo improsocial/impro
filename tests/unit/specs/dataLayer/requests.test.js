@@ -412,6 +412,36 @@ describe("loadNextFeedPage", () => {
     assert.deepEqual(capturedReloads, [false, true]);
   });
 
+  it("should store home feeds separately from detail feeds", async () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const homeFeed = { feed: [{ post: { uri: "home-post" } }], cursor: "c1" };
+    const detailFeed = {
+      feed: [{ post: { uri: "detail-post" } }],
+      cursor: "c2",
+    };
+    const responses = [homeFeed, detailFeed];
+    const mockApi = {
+      getFeed: async () => responses.shift(),
+    };
+    const events = new EventEmitter();
+    const capturedEvents = [];
+    events.on("homeFeedLoaded", () => capturedEvents.push("homeFeedLoaded"));
+    events.on("feedLoaded", () => capturedEvents.push("feedLoaded"));
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+      events,
+    );
+
+    await requests.loadNextHomeFeedPage({ type: "feed", uri: feedURI });
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+
+    assert.deepEqual(dataStore.$homeFeeds.get(feedURI), homeFeed);
+    assert.deepEqual(dataStore.$feeds.get(feedURI), detailFeed);
+    assert.deepEqual(capturedEvents, ["homeFeedLoaded", "feedLoaded"]);
+  });
+
   it("should handle empty feed", async () => {
     const emptyFeed = {
       feed: [],

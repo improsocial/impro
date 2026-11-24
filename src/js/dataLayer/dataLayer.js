@@ -66,6 +66,10 @@ export class DataLayer extends EventEmitter {
     return this.dataStore.$feeds.get(feedURI) !== null;
   }
 
+  hasCachedHomeFeed(feedURI) {
+    return this.dataStore.$homeFeeds.get(feedURI) !== null;
+  }
+
   hasCachedAuthorFeed(profileDid, feedType) {
     const feedURI = `${profileDid}-${feedType}`;
     return this.dataStore.$authorFeeds.get(feedURI) !== null;

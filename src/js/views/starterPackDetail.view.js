@@ -526,7 +526,9 @@ export default async function starterPackDetailView({
     if (!listUri) return;
     await Promise.all([
       dataLayer.requests.loadAllListMembers(listUri),
-      loadFeed(listUri, { reload: true }),
+      dataLayer.hasCachedFeed(listUri)
+        ? null
+        : loadFeed(listUri, { reload: true }),
     ]);
   }
 

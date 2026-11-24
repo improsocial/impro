@@ -526,7 +526,7 @@ export default async function listDetailView({
       requests.push(
         dataLayer.requests.loadStarterPackUriForList(list).catch(console.warn),
       );
-    } else if (isCurateList(list)) {
+    } else if (isCurateList(list) && !dataLayer.hasCachedFeed(listUri)) {
       requests.push(loadFeed({ reload: true }));
     }
     await Promise.all(requests);

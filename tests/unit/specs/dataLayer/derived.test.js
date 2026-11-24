@@ -139,6 +139,30 @@ describe("$hydratedFeeds", () => {
   });
 });
 
+describe("$hydratedHomeFeeds", () => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  it("should read from the home feed store and home hidden items", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived, hiddenFeedItemsStore } = makeDerived(dataStore);
+    dataStore.$posts.set("post1", { uri: "post1" });
+    dataStore.$posts.set("post2", { uri: "post2" });
+    dataStore.$homeFeeds.set(feedURI, {
+      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      cursor: "cursor123",
+    });
+    hiddenFeedItemsStore.homeFeeds.replace(feedURI, { post2: false });
+    hiddenFeedItemsStore.feeds.replace(feedURI, { post1: false });
+
+    const result = derived.$hydratedHomeFeeds.get(feedURI);
+    assert.deepEqual(
+      result.feed.map((item) => item.post.uri),
+      ["post1"],
+    );
+    assert.deepEqual(derived.$hydratedFeeds.get(feedURI), null);
+  });
+});
+
 describe("$hydratedFeeds post numbering", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
   const opDid = "did:plc:op";

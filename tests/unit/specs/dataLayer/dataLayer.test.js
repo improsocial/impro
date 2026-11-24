@@ -116,6 +116,20 @@ describe("hasCachedFeed", () => {
   });
 });
 
+describe("hasCachedHomeFeed", () => {
+  it("should only report feeds cached in the home store", () => {
+    const mockApi = createMockApi();
+    const dataLayer = createDataLayer(mockApi);
+    const feedURI = "at://feed/uri";
+
+    dataLayer.dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
+    assert.deepEqual(dataLayer.hasCachedHomeFeed(feedURI), false);
+
+    dataLayer.dataStore.$homeFeeds.set(feedURI, { feed: [], cursor: null });
+    assert.deepEqual(dataLayer.hasCachedHomeFeed(feedURI), true);
+  });
+});
+
 describe("hasCachedAuthorFeed", () => {
   it("should return false when author feed not cached", () => {
     const mockApi = createMockApi();
