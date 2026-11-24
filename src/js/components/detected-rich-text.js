@@ -8,6 +8,7 @@ import {
 } from "/js/facetHelpers.js";
 
 class DetectedRichText extends Component {
+  static tagName = "detected-rich-text";
   static get observedAttributes() {
     return ["text", "truncate-urls"];
   }

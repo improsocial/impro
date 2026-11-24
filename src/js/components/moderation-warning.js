@@ -3,6 +3,8 @@ import { Component, getChildrenFragment } from "/js/components/component.js";
 import "/js/components/app-icon.js";
 
 class ModerationWarning extends Component {
+  static tagName = "moderation-warning";
+
   connectedCallback() {
     if (this._initialized) {
       return;

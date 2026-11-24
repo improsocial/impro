@@ -71,7 +71,6 @@ export async function bundleJs({
         splitting: true,
         format: "esm",
         minify: true,
-        keepNames: true,
         entryNames: "[dir]/[name].[hash]",
         chunkNames: "chunks/[name].[hash]",
         banner: { js: `/*${cacheSalt}*/` },

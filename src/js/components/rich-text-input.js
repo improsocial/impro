@@ -334,6 +334,7 @@ function mentionSuggestionsTemplate({
 }
 
 export class RichTextInput extends Component {
+  static tagName = "rich-text-input";
   static get observedAttributes() {
     return ["disabled", "autofocus"];
   }

@@ -118,6 +118,8 @@ function sidebarSearchTemplate({
 }
 
 class SidebarSearch extends Component {
+  static tagName = "sidebar-search";
+
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;

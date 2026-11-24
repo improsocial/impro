@@ -11,6 +11,8 @@ const DURATIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 5); // 5..240
 const DEFAULT_DURATION = 60;
 
 class GoLiveDialog extends Component {
+  static tagName = "go-live-dialog";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

@@ -13,6 +13,8 @@ import "/js/components/app-icon.js";
 import { handleTemplate } from "/js/templates/handle.template.js";
 
 class ReactionsDialog extends Component {
+  static tagName = "reactions-dialog";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

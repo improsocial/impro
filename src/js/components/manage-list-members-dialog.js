@@ -44,6 +44,8 @@ function compactProfileListTemplate({
 }
 
 class ManageListMembersDialog extends Component {
+  static tagName = "manage-list-members-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

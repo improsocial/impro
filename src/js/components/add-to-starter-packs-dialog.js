@@ -3,6 +3,7 @@ import { linkToStarterPack } from "/js/navigation.js";
 import { STARTER_PACK_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 class AddToStarterPacksDialog extends MembershipDialog {
+  static tagName = "add-to-starter-packs-dialog";
   static copy = {
     testIdPrefix: "add-to-starter-packs",
     title: "Add to Starter Packs",

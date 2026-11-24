@@ -1,6 +1,7 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 
 class InfiniteScrollContainer extends Component {
+  static tagName = "infinite-scroll-container";
   static get observedAttributes() {
     return ["disabled"];
   }

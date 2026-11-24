@@ -112,6 +112,8 @@ function suggestedFeedsPaneTemplate({
 }
 
 class SuggestedFeedsPane extends Component {
+  static tagName = "suggested-feeds-pane";
+
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;

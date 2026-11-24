@@ -19,6 +19,8 @@ const CURATE_LIST_PURPOSE = "app.bsky.graph.defs#curatelist";
 const MOD_LIST_PURPOSE = "app.bsky.graph.defs#modlist";
 
 class CreateListDialog extends Component {
+  static tagName = "create-list-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

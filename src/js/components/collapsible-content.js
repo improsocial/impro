@@ -44,6 +44,8 @@ function getSharedResizeObserver() {
 }
 
 class CollapsibleContent extends Component {
+  static tagName = "collapsible-content";
+
   #content = null;
   #isExpanded = false;
   #isOverflowing = false;

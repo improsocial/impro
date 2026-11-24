@@ -651,6 +651,8 @@ function composerPostTemplate({
 }
 
 class PostComposer extends Component {
+  static tagName = "post-composer";
+
   connectedCallback() {
     if (this.initialized) {
       return;

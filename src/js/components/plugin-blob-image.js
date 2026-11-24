@@ -19,6 +19,7 @@ function isValidCid(cid) {
 }
 
 class PluginBlobImage extends Component {
+  static tagName = "plugin-blob-image";
   static get observedAttributes() {
     return ["did", "cid", "alt", "cdn-prefix"];
   }

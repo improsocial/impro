@@ -174,6 +174,8 @@ function toRows(trends) {
 }
 
 class TrendingPane extends Component {
+  static tagName = "trending-pane";
+
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;

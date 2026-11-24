@@ -83,6 +83,8 @@ function labelGroupTemplate({ group, labelValues, onToggle }) {
 }
 
 class PostLabelsDialog extends Component {
+  static tagName = "post-labels-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

@@ -245,6 +245,8 @@ function gifResultsBodyTemplate({
 }
 
 class GifPickerDialog extends Component {
+  static tagName = "gif-picker-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

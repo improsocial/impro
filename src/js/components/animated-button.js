@@ -5,6 +5,7 @@ import { classnames } from "/js/utils.js";
 const RIPPLE_ANIMATION_DURATION = 300;
 
 class AnimatedButton extends Component {
+  static tagName = "animated-button";
   static get observedAttributes() {
     return ["is-active"];
   }

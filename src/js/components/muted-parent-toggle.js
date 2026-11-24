@@ -4,6 +4,8 @@ import "/js/components/app-icon.js";
 import { classnames } from "/js/utils.js";
 
 class MutedParentToggle extends Component {
+  static tagName = "muted-parent-toggle";
+
   connectedCallback() {
     if (this.initialized) {
       return;

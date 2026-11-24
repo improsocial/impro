@@ -13,6 +13,8 @@ import { linkToProfile } from "/js/navigation.js";
 import { classnames } from "/js/utils.js";
 
 class LiveStatusDialog extends Component {
+  static tagName = "live-status-dialog";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

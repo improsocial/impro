@@ -164,6 +164,8 @@ function postLanguageDialogTemplate({
 }
 
 class PostLanguageDialog extends Component {
+  static tagName = "post-language-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

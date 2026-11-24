@@ -648,6 +648,8 @@ function reviewTemplate({
 }
 
 class StarterPackWizardDialog extends Component {
+  static tagName = "starter-pack-wizard-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

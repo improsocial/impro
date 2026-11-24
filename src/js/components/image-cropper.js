@@ -8,6 +8,8 @@ const ROUNDED_SQUARE_RADIUS = 8;
 
 // Claude wrote this
 class ImageCropper extends Component {
+  static tagName = "image-cropper";
+
   connectedCallback() {
     if (this.initialized) {
       return;

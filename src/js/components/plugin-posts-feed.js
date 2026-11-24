@@ -4,6 +4,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 
 class PluginPostsFeed extends Component {
+  static tagName = "plugin-posts-feed";
   static get observedAttributes() {
     return ["uris", "empty-message"];
   }

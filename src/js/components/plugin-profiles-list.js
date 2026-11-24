@@ -4,6 +4,7 @@ import { profileListTemplate } from "/js/templates/profileList.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 
 class PluginProfilesList extends Component {
+  static tagName = "plugin-profiles-list";
   static get observedAttributes() {
     return ["dids", "empty-message"];
   }

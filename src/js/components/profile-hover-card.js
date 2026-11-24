@@ -28,6 +28,8 @@ import { handleTemplate } from "/js/templates/handle.template.js";
 // with `card.did = "..."` + `card.open(rect)` / `card.reposition(rect)` /
 // `card.close()`.
 class ProfileHoverCard extends Component {
+  static tagName = "profile-hover-card";
+
   #$did = new Signal.State(null);
   #dataLayer = null;
   #interactionHandlers = null;

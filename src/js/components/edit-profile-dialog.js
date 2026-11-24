@@ -235,6 +235,8 @@ function linkFormTemplate({
 }
 
 class EditProfileDialog extends Component {
+  static tagName = "edit-profile-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

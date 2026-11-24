@@ -43,6 +43,8 @@ function computeAnchoredPosition(
 }
 
 export class FloatingCard extends Component {
+  static tagName = "floating-card";
+
   #anchorRect = null;
   #observer = null;
   #rafId = 0;

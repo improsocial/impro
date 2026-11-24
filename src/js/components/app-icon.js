@@ -33,6 +33,7 @@ function loadAllIcons() {
 }
 
 export class AppIcon extends Component {
+  static tagName = "app-icon";
   static observedAttributes = ["icon"];
 
   connectedCallback() {

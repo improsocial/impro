@@ -2,6 +2,8 @@ import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 
 class ContextMenuLabel extends Component {
+  static tagName = "context-menu-label";
+
   connectedCallback() {
     if (this._initialized) {
       return;

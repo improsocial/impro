@@ -6,6 +6,8 @@ import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 
 class AnimatedSidebar extends Component {
+  static tagName = "animated-sidebar";
+
   connectedCallback() {
     if (!this._initialized) {
       this.setAttribute("data-dialog-wrapper", "");

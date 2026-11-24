@@ -43,6 +43,8 @@ class RepeatRequestMonitor {
 }
 
 class PluginSlot extends Component {
+  static tagName = "plugin-slot";
+
   connectedCallback() {
     if (!this.initialized) {
       this.initialized = true;

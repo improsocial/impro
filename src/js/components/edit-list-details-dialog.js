@@ -18,6 +18,8 @@ const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 300;
 
 class EditListDetailsDialog extends Component {
+  static tagName = "edit-list-details-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

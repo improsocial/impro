@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import "/js/components/app-icon.js";
 
 class ContextMenuItem extends Component {
+  static tagName = "context-menu-item";
   static get observedAttributes() {
     return ["disabled", "icon", "item-style"];
   }

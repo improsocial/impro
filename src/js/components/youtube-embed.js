@@ -6,6 +6,8 @@ const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed";
 const DEFAULT_ASPECT_RATIO = String(16 / 9);
 
 class YoutubeEmbed extends Component {
+  static tagName = "youtube-embed";
+
   // Pause on navigate
   handlePageTransition = () => {
     if (!this.playing) {

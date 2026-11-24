@@ -3,6 +3,8 @@ import { Component } from "/js/components/component.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 
 class PluginCustomContent extends Component {
+  static tagName = "plugin-custom-content";
+
   constructor() {
     super();
     this.state = new ReactiveStore("plugin-custom-content");

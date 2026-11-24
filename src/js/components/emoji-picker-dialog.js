@@ -14,6 +14,8 @@ function loadPickerComponent() {
 }
 
 class EmojiPickerDialog extends Component {
+  static tagName = "emoji-picker-dialog";
+
   connectedCallback() {
     if (this._initialized) {
       return;

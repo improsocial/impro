@@ -29,6 +29,8 @@ function signOutButtonTemplate({ handle, disabled, onClick }) {
 }
 
 class AccountSwitcherDialog extends Component {
+  static tagName = "account-switcher-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

@@ -6,6 +6,7 @@ import { tokenizeRichText, tokensHaveFacetType } from "/js/richTextHelpers.js";
 import { richTextTokensTemplate } from "/js/templates/richText.template.js";
 
 class PluginRichText extends Component {
+  static tagName = "plugin-rich-text";
   static placeholderFallbackMs = 500;
 
   static get observedAttributes() {

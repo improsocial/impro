@@ -5,6 +5,7 @@ import { classnames } from "/js/utils.js";
 const SCROLL_FREEZE_FALLBACK_MS = 500;
 
 class TabBar extends Component {
+  static tagName = "tab-bar";
   static observedAttributes = ["active-tab", "full-width"];
 
   #unfreezeTimeout = null;

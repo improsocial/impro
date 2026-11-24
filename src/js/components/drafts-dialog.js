@@ -148,6 +148,8 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
 }
 
 class DraftsDialog extends Component {
+  static tagName = "drafts-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

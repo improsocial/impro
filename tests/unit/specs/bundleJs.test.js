@@ -150,9 +150,4 @@ describe("bundleJs", () => {
     const secondFiles = new Set(jsFiles());
     assert(firstFiles.every((file) => !secondFiles.has(file)));
   });
-
-  it("keeps class names for components that derive their tag from them", async () => {
-    await build();
-    assert.match(readFile(findJs(/^\/js\/app\./)), /"HomeView"/);
-  });
 });

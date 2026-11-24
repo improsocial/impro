@@ -1,6 +1,8 @@
 import { Component } from "/js/components/component.js";
 
 class ContainerLink extends Component {
+  static tagName = "container-link";
+
   connectedCallback() {
     if (this.initialized) return;
     if (!this.hasAttribute("role")) this.setAttribute("role", "link");

@@ -21,6 +21,8 @@ function clampAspectRatio(rawRatio) {
 }
 
 export class ImageCarousel extends Component {
+  static tagName = "image-carousel";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

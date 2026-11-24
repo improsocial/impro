@@ -413,6 +413,8 @@ function interactionSettingsFormTemplate({
 }
 
 class PostInteractionSettingsDialog extends Component {
+  static tagName = "post-interaction-settings-dialog";
+
   threadRootUri = null;
   linkLists = false;
 

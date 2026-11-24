@@ -26,6 +26,7 @@ function exitingKeyframes(direction) {
 }
 
 class AnimatedCount extends Component {
+  static tagName = "animated-count";
   static get observedAttributes() {
     return ["count", "is-active"];
   }

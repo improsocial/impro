@@ -1,12 +1,9 @@
-import { kebabCase } from "/js/utils.js";
-
 export class Component extends HTMLElement {
   static register() {
-    const tagName = kebabCase(this.name);
     try {
-      customElements.define(tagName, this);
+      customElements.define(this.tagName, this);
     } catch (e) {
-      console.error(`Could not register component ${tagName}`, e);
+      console.error(`Could not register component ${this.tagName}`, e);
       throw e;
     }
   }

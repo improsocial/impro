@@ -7,6 +7,8 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 import "/js/components/app-icon.js";
 
 class ImageAltTextDialog extends Component {
+  static tagName = "image-alt-text-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

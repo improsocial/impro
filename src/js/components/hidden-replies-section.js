@@ -4,6 +4,8 @@ import "/js/components/app-icon.js";
 import { classnames } from "/js/utils.js";
 
 class HiddenRepliesSection extends Component {
+  static tagName = "hidden-replies-section";
+
   connectedCallback() {
     if (this.initialized) {
       return;

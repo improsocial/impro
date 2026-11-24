@@ -6,6 +6,8 @@ import { closeWithAnimation } from "/js/dialogHelpers.js";
 import { enableDragToDismiss } from "/js/dragHelpers.js";
 
 class ContextMenu extends Component {
+  static tagName = "context-menu";
+
   connectedCallback() {
     if (this._initialized) {
       return;

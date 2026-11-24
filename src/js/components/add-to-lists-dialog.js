@@ -4,6 +4,7 @@ import { linkToList } from "/js/navigation.js";
 import { LIST_AVATAR_FALLBACK_URL } from "/js/avatarFallbacks.js";
 
 class AddToListsDialog extends MembershipDialog {
+  static tagName = "add-to-lists-dialog";
   static copy = {
     testIdPrefix: "add-to-lists",
     title: "Add to Lists",

@@ -3,6 +3,8 @@ import { Component } from "/js/components/component.js";
 import { classnames } from "/js/utils.js";
 
 class ToggleSwitch extends Component {
+  static tagName = "toggle-switch";
+
   // formAssociated makes the element labelable, so a wrapping <label> (or
   // for/id) forwards clicks to it like a native checkbox.
   static formAssociated = true;

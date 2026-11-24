@@ -629,6 +629,8 @@ function getLabelersForSelections(
 }
 
 class ReportDialog extends Component {
+  static tagName = "report-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

@@ -6,6 +6,8 @@ const QUICK_EMOJIS = ["❤️", "👍", "😆", "👀", "😢"];
 const EMOJI_REACTION_LIMIT = 5;
 
 class ReactionPalette extends Component {
+  static tagName = "reaction-palette";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

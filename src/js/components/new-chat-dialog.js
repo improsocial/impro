@@ -576,6 +576,8 @@ function groupNameStepTemplate({
 }
 
 class NewChatDialog extends Component {
+  static tagName = "new-chat-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

@@ -7,6 +7,8 @@ import "/js/components/toggle-switch.js";
 import "/js/components/app-icon.js";
 
 class PostNotificationsDialog extends Component {
+  static tagName = "post-notifications-dialog";
+
   connectedCallback() {
     if (this.initialized) {
       return;

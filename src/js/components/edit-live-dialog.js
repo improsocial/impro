@@ -9,6 +9,8 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/live-link-form.js";
 
 class EditLiveDialog extends Component {
+  static tagName = "edit-live-dialog";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

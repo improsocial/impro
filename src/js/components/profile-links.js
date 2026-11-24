@@ -45,6 +45,8 @@ function linkPillTemplate({ link }) {
 }
 
 class ProfileLinks extends Component {
+  static tagName = "profile-links";
+
   #links = [];
   #hoverObserver = null;
   #floatingCard = null;

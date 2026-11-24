@@ -8,18 +8,19 @@ describe("component", () => {
   });
 
   describe("Component - register", () => {
-    it("should convert PascalCase class name to kebab-case tag name", () => {
-      class TestPascalCase extends Component {}
-      TestPascalCase.register();
-      const element = document.createElement("test-pascal-case");
-      assert(element instanceof TestPascalCase);
+    it("should define the element under its static tagName", () => {
+      class RenamedByMinifier extends Component {
+        static tagName = "test-explicit-tag";
+      }
+      RenamedByMinifier.register();
+      const element = document.createElement("test-explicit-tag");
+      assert(element instanceof RenamedByMinifier);
     });
 
-    it("should handle multiple uppercase letters", () => {
-      class MyTestComponent extends Component {}
-      MyTestComponent.register();
-      const element = document.createElement("my-test-component");
-      assert(element instanceof MyTestComponent);
+    it("should throw when tagName is missing", (t) => {
+      t.mock.method(console, "error", () => {});
+      class MissingTagName extends Component {}
+      assert.throws(() => MissingTagName.register());
     });
   });
 

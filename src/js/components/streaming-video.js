@@ -152,6 +152,8 @@ function formatRemainingTime(seconds) {
 }
 
 class StreamingVideo extends Component {
+  static tagName = "streaming-video";
+
   // Pause on navigate
   handlePageTransition = () => {
     if (activeVideo === this) {

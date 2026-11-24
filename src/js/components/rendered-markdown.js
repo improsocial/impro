@@ -2,6 +2,8 @@ import { Component } from "/js/components/component.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 
 class RenderedMarkdown extends Component {
+  static tagName = "rendered-markdown";
+
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;

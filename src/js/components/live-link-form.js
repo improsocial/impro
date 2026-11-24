@@ -53,6 +53,8 @@ function previewTemplate({ linkMeta, linkMetaFailed }) {
 }
 
 class LiveLinkForm extends Component {
+  static tagName = "live-link-form";
+
   connectedCallback() {
     if (this._initialized) return;
     this._initialized = true;

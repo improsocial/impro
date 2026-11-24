@@ -11,6 +11,7 @@ const MAX_MESSAGE_GRAPHEMES = 1000;
 const MAX_MESSAGE_BYTES = 10000;
 
 class ChatInput extends Component {
+  static tagName = "chat-input";
   static get observedAttributes() {
     return ["disabled", "loading", "has-embed"];
   }

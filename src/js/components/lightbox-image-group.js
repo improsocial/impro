@@ -7,6 +7,8 @@ import { closeWithAnimation } from "/js/dialogHelpers.js";
 import "/js/components/app-icon.js";
 
 class LightboxDialog extends Component {
+  static tagName = "lightbox-dialog";
+
   connectedCallback() {
     if (this._initialized) {
       return;
@@ -175,6 +177,8 @@ class LightboxDialog extends Component {
 LightboxDialog.register();
 
 class LightboxImageGroup extends Component {
+  static tagName = "lightbox-image-group";
+
   connectedCallback() {
     if (this._initialized) {
       return;
