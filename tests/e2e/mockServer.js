@@ -1,4 +1,4 @@
-import { CDN_URL } from "../../src/js/config.js";
+import { CDN_URL, PLUGIN_REGISTRY_URL } from "../../src/js/config.js";
 import { createPost } from "../shared/factories.js";
 import { bskyLabeler, notificationService, userProfile } from "./testData.js";
 import {
@@ -1078,14 +1078,12 @@ export class MockServer {
 
     // Remote plugin registry routes — serve a fake registry and matching
     // GitHub release assets so flow tests can install remote plugins.
-    await page.route(
-      "**/improsocial/impro-releases/main/community-plugins.json",
-      (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(this.registryEntries),
-        }),
+    await page.route(PLUGIN_REGISTRY_URL, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(this.registryEntries),
+      }),
     );
     await page.route(
       "**/raw.githubusercontent.com/*/*/refs/tags/*/manifest.json",

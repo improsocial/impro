@@ -9,6 +9,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/app-icon.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToCommunityPlugin, linkToLogin } from "/js/navigation.js";
+import { APP_NAME } from "/js/config.js";
 
 export default async function communityPluginsView({
   root,
@@ -45,11 +46,14 @@ export default async function communityPluginsView({
               <span class="plugins-intro-icon"
                 ><app-icon icon="globe-grid-line"></app-icon
               ></span>
-              <div class="plugins-intro-title">Extend Impro with plugins</div>
+              <div class="plugins-intro-title">
+                Extend ${APP_NAME} with plugins
+              </div>
             </div>
             <p class="plugins-intro-message">
-              Community plugins are built by other people using Impro. They can
-              add new themes, display options, and functionality to the app.
+              Community plugins are built by other people using ${APP_NAME}.
+              They can add new themes, display options, and functionality to the
+              app.
             </p>
             ${!isAuthenticated
               ? html`<a

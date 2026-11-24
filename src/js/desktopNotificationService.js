@@ -1,8 +1,8 @@
 import { effect } from "/js/signals.js";
 import { isTouchOnlyDevice } from "/js/utils.js";
+import { APP_NAME, APP_ICON_192_URL } from "/js/config.js";
 
 const STORAGE_KEY = "system-notifications-enabled";
-const ICON_URL = "/img/impro-logo-192.png";
 
 export class DesktopNotificationService {
   constructor(
@@ -30,7 +30,7 @@ export class DesktopNotificationService {
 
       if (activityCount > this._lastSeenActivityCount) {
         this.notify({
-          title: "New activity on Impro",
+          title: `New activity on ${APP_NAME}`,
           body:
             activityCount === 1
               ? "You have 1 unread notification"
@@ -42,7 +42,7 @@ export class DesktopNotificationService {
 
       if (chatCount > this._lastSeenChatCount) {
         this.notify({
-          title: "New message on Impro",
+          title: `New message on ${APP_NAME}`,
           body:
             chatCount === 1
               ? "You have 1 unread conversation"
@@ -94,7 +94,7 @@ export class DesktopNotificationService {
     if (await this.activeTabMonitor.isAnyTabActive()) return;
     const notification = new Notification(title, {
       body,
-      icon: ICON_URL,
+      icon: APP_ICON_192_URL,
       tag,
     });
     notification.onclick = () => {

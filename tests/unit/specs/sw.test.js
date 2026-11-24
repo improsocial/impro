@@ -1,12 +1,11 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import swTemplate from "../../../src/sw.11ty.js";
+import { APP_NAME, APP_ICON_192_URL } from "/js/config.js";
 
-const swSource = readFileSync(new URL("../../../src/sw.js", import.meta.url), {
-  encoding: "utf8",
-});
+const swSource = swTemplate.render();
 
-const ORIGIN = "https://impro.example";
+const ORIGIN = "https://app.example";
 
 function createWindowClient(url) {
   return {
@@ -116,7 +115,7 @@ describe("service worker notificationclick", () => {
 
 describe("service worker push", () => {
   const payload = {
-    title: "Impro",
+    title: "New activity",
     body: "alice liked your post",
     url: "/notifications",
     tag: "n:abc123",
@@ -164,7 +163,7 @@ describe("service worker push", () => {
           {
             body: payload.body,
             tag: payload.tag,
-            icon: "/img/impro-logo-192.png",
+            icon: APP_ICON_192_URL,
             data: { url: payload.url },
           },
         ],
@@ -180,5 +179,16 @@ describe("service worker push", () => {
 
     assert.equal(client.postMessage.mock.callCount(), 0);
     assert.equal(self.registration.showNotification.mock.callCount(), 1);
+  });
+
+  it("falls back to the app name when the payload has no title", async () => {
+    const { listeners, self } = loadServiceWorker({ clients: [] });
+
+    await receivePush(listeners, { body: payload.body });
+
+    const [title, options] =
+      self.registration.showNotification.mock.calls[0].arguments;
+    assert.equal(title, APP_NAME);
+    assert.equal(options.icon, APP_ICON_192_URL);
   });
 });

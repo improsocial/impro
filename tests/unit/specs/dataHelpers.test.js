@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CDN_URL } from "/js/config.js";
+import { APP_HOST, CDN_URL } from "/js/config.js";
 import {
   isSameProfileLinkList,
   profileLinksFromRecords,
@@ -1987,8 +1987,9 @@ describe("groupReactions", () => {
 describe("isInAppLinkHostname", () => {
   it("accepts the static in-app domains", () => {
     assert.deepEqual(isInAppLinkHostname("bsky.app"), true);
-    assert.deepEqual(isInAppLinkHostname("impro.social"), true);
-    assert.deepEqual(isInAppLinkHostname("dev.impro.social"), true);
+    for (const domain of IN_APP_LINK_DOMAINS) {
+      assert.deepEqual(isInAppLinkHostname(domain), true);
+    }
   });
 
   it("accepts the current hostname even when it's not in the static domain list", () => {
@@ -2000,7 +2001,10 @@ describe("isInAppLinkHostname", () => {
 
   it("rejects other hostnames", () => {
     assert.deepEqual(isInAppLinkHostname("example.com"), false);
-    assert.deepEqual(isInAppLinkHostname("evil-impro.social"), false);
+    for (const domain of IN_APP_LINK_DOMAINS) {
+      assert.deepEqual(isInAppLinkHostname(`evil-${domain}`), false);
+      assert.deepEqual(isInAppLinkHostname(`${domain}.evil.example`), false);
+    }
   });
 });
 
@@ -2030,13 +2034,9 @@ describe("getInviteCodeFromUrl", () => {
     );
   });
 
-  it("accepts impro.social hosts", () => {
+  it("accepts the app's own host", () => {
     assert.deepEqual(
-      getInviteCodeFromUrl("https://impro.social/chat/abcd1234"),
-      "abcd1234",
-    );
-    assert.deepEqual(
-      getInviteCodeFromUrl("https://dev.impro.social/chat/abcd1234"),
+      getInviteCodeFromUrl(`https://${APP_HOST}/chat/abcd1234`),
       "abcd1234",
     );
   });

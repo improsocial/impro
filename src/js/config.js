@@ -12,6 +12,17 @@ export const LOGGED_OUT_FEED_URI =
 export const FOLLOWING_FEED_URI = "following";
 export const CHAT_MESSAGES_PAGE_SIZE = 100;
 
+// Branding
+export const APP_NAME = "Impro";
+export const APP_FULL_NAME = "Impro Bluesky Client";
+export const APP_DESCRIPTION = "A Bluesky client with plugins";
+export const APP_HOST = "impro.social";
+export const APP_LOGO_URL = "/img/impro-logo.jpg";
+export const APP_ICON_192_URL = "/img/impro-logo-192.png";
+export const APP_ICON_512_URL = "/img/impro-logo-512.png";
+export const APP_OG_IMAGE_URL = "/img/impro-logo-og.jpg";
+export const PUSH_APP_ID = "social.impro";
+
 // Project links
 export const SOURCE_CODE_URL = "https://github.com/improsocial/impro";
 export const SUPPORT_URL = "https://github.com/sponsors/improsocial";
@@ -56,11 +67,7 @@ export const LIVE_ALLOWED_SERVICES = [
   { domain: "beehiiv.com", displayName: "Beehiiv" },
 ];
 
-export const IN_APP_LINK_DOMAINS = [
-  "bsky.app",
-  "impro.social",
-  "dev.impro.social",
-];
+export const IN_APP_LINK_DOMAINS = ["bsky.app", APP_HOST];
 
 export const AppViewConfig = {
   BLUESKY: {

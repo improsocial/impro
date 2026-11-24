@@ -9,6 +9,7 @@ import "/js/components/app-icon.js";
 import { getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { linkToLogin } from "/js/navigation.js";
+import { APP_NAME } from "/js/config.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
@@ -355,7 +356,7 @@ export default async function settingsView({
             </button>
           </nav>
           <div class="version-info" data-testid="version-info">
-            Impro v${window.env.version} - ${window.env.gitCommit}
+            ${APP_NAME} v${window.env.version} - ${window.env.gitCommit}
           </div>
           ${siteLinksTemplate({ className: "settings-site-links" })}
         </main>

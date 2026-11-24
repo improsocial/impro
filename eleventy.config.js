@@ -25,8 +25,6 @@ export default async function (eleventyConfig) {
   eleventyConfig.addWatchTarget("src/img/icons");
   // Inlined icons for index html
   eleventyConfig.addShortcode("iconSprite", () => buildIconSprite());
-  eleventyConfig.addPassthroughCopy("src/manifest.json");
-  eleventyConfig.addPassthroughCopy("src/sw.js");
   eleventyConfig.addPassthroughCopy("src/not-found.txt");
   eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
 

@@ -64,7 +64,7 @@ export default async function installedPluginsView({
     try {
       const updates = await pluginService.checkForUpdates();
       if (updates.size === 0) {
-        showToast("All plugins are up to date", { style: "success" });
+        showToast("All plugins are up to date!", { style: "success" });
       } else {
         showToast(
           `${updates.size} update${updates.size === 1 ? "" : "s"} available`,

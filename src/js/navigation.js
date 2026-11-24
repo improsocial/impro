@@ -1,6 +1,6 @@
 import { getRKey, parseUri, hasValidHandle } from "/js/dataHelpers.js";
 import { isNil, unique } from "/js/utils.js";
-import { NOTIFICATION_ACTIVITY_MAX_POSTS } from "/js/config.js";
+import { APP_HOST, NOTIFICATION_ACTIVITY_MAX_POSTS } from "/js/config.js";
 
 function encodePathSegment(segment) {
   return encodeURIComponent(segment).replace(/%3A/g, ":").replace(/%40/g, "@");
@@ -134,7 +134,7 @@ export function linkToCommunityPlugin(pluginId) {
 }
 
 export function getPermalinkForCommunityPlugin(pluginId) {
-  return "https://impro.social" + linkToCommunityPlugin(pluginId);
+  return `https://${APP_HOST}${linkToCommunityPlugin(pluginId)}`;
 }
 
 export function linkToLogin({ query = {} } = {}) {

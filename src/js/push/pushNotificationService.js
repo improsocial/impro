@@ -2,11 +2,11 @@ import { resolveDid, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 import { Signal } from "/js/signals.js";
 import { isTouchOnlyDevice, isStandalonePWA, isIOS } from "/js/utils.js";
 import { Api, ApiError } from "/js/api.js";
+import { PUSH_APP_ID } from "/js/config.js";
 
 const STORAGE_KEY = "push-notifications-enabled";
 const SERVICE_STORAGE_KEY = "push-notification-service";
 const NEEDS_REAUTH_STORAGE_KEY = "push-notifications-needs-reauth";
-const APP_ID = "social.impro";
 const PLATFORM = "web";
 const SW_PATH = "/sw.js";
 const NOTIF_SERVICE_ID = "#bsky_notif";
@@ -224,7 +224,7 @@ export class PushNotificationService {
       serviceDid: this.serviceDid,
       token: JSON.stringify(subscription),
       platform: PLATFORM,
-      appId: APP_ID,
+      appId: PUSH_APP_ID,
     });
     this._setEnabled(true);
     this._setNeedsReauth(false);
@@ -274,7 +274,7 @@ export class PushNotificationService {
       serviceDid: this.serviceDid,
       token: JSON.stringify(subscription),
       platform: PLATFORM,
-      appId: APP_ID,
+      appId: PUSH_APP_ID,
     };
   }
 

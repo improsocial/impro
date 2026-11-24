@@ -1,3 +1,5 @@
+import { APP_NAME, APP_LOGO_URL } from "./js/config.js";
+
 export default {
   data() {
     return {
@@ -11,9 +13,9 @@ export default {
       : [];
     const output = {
       client_id: `https://${data.hostName}/oauth-client-metadata.json`,
-      client_name: "Impro",
+      client_name: APP_NAME,
       client_uri: `https://${data.hostName}`,
-      logo_uri: `https://${data.hostName}/img/impro-logo.jpg`,
+      logo_uri: `https://${data.hostName}${APP_LOGO_URL}`,
       redirect_uris: [`https://${data.hostName}/callback.html`],
       scope: data.oauthScopes,
       grant_types: ["authorization_code", "refresh_token"],

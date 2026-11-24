@@ -5,7 +5,7 @@ import { onRequest } from "../../../../functions/_middleware.js";
 function makeContext(pathname, response) {
   const assetsFetch = mock.fn(async () => new Response("Not found\n"));
   return {
-    request: new Request(`https://impro.social${pathname}`),
+    request: new Request(`https://app.example${pathname}`),
     next: async () => response,
     env: { ASSETS: { fetch: assetsFetch } },
     assetsFetch,
@@ -31,7 +31,7 @@ describe("pages middleware", () => {
     assert.equal(await response.text(), "Not found\n");
     assert.equal(
       context.assetsFetch.mock.calls[0].arguments[0].href,
-      "https://impro.social/not-found.txt",
+      "https://app.example/not-found.txt",
     );
   });
 
@@ -46,7 +46,7 @@ describe("pages middleware", () => {
 
   it("passes through the SPA fallback for page routes", async () => {
     const page = htmlResponse();
-    const context = makeContext("/profile/impro.social", page);
+    const context = makeContext("/profile/alice.test", page);
     assert.equal(await onRequest(context), page);
     assert.equal(context.assetsFetch.mock.callCount(), 0);
   });

@@ -1,6 +1,10 @@
 import { BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
+import {
+  APP_NAME,
+  AppViewConfig,
+  DEFAULT_APP_VIEW_CONFIGS,
+} from "/js/config.js";
 import {
   getAppViewConfig,
   setAppViewConfig,
@@ -252,7 +256,7 @@ export default async function loginView({
         <main>
           <div class="column-left">
             <h1 data-testid="login-title">Sign in</h1>
-            <h2><small>to</small> IMPRO</h2>
+            <h2><small>to</small> ${APP_NAME.toUpperCase()}</h2>
           </div>
           <div class="column-right">
             ${listVisible

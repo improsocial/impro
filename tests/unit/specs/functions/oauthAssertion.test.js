@@ -5,9 +5,9 @@ import {
   onRequestPost,
 } from "../../../../functions/oauth/assertion.js";
 
-const FUNCTION_URL = "https://impro.social/oauth/assertion";
+const FUNCTION_URL = "https://app.example/oauth/assertion";
 const AUD = "https://bsky.social";
-const CROSS_ORIGIN_CLIENTS = "https://impro.social, https://impro.wisp.place";
+const CROSS_ORIGIN_CLIENTS = "https://app.example, https://other.example";
 
 function decodePayload(assertion) {
   const payloadB64 = assertion.split(".")[1];
@@ -25,7 +25,7 @@ describe("oauth assertion function", () => {
     );
     const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
     env = {
-      HOST_NAME: "impro.social",
+      HOST_NAME: "app.example",
       OAUTH_CROSS_ORIGIN_CLIENTS: CROSS_ORIGIN_CLIENTS,
       OAUTH_PRIVATE_JWK: JSON.stringify({ ...privateJwk, kid: "test-key" }),
     };
@@ -50,60 +50,57 @@ describe("oauth assertion function", () => {
 
   it("signs same-origin requests for the configured host without CORS headers", async () => {
     const response = await onRequestPost({
-      request: postRequest("https://impro.social"),
+      request: postRequest("https://app.example"),
       env,
     });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("Access-Control-Allow-Origin"), null);
     const { assertion } = await response.json();
     const payload = decodePayload(assertion);
-    assert.equal(
-      payload.iss,
-      "https://impro.social/oauth-client-metadata.json",
-    );
+    assert.equal(payload.iss, "https://app.example/oauth-client-metadata.json");
     assert.equal(payload.sub, payload.iss);
     assert.equal(payload.aud, AUD);
   });
 
   it("signs allowlisted cross-origin requests for that origin's client id", async () => {
     const response = await onRequestPost({
-      request: postRequest("https://impro.wisp.place"),
+      request: postRequest("https://other.example"),
       env,
     });
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("Access-Control-Allow-Origin"),
-      "https://impro.wisp.place",
+      "https://other.example",
     );
     const { assertion } = await response.json();
     assert.equal(
       decodePayload(assertion).iss,
-      "https://impro.wisp.place/oauth-client-metadata.json",
+      "https://other.example/oauth-client-metadata.json",
     );
   });
 
-  it("signs for impro.social when the function is hosted elsewhere", async () => {
-    const request = new Request("https://oauth.impro.social/oauth/assertion", {
+  it("signs for the client origin when the function is hosted elsewhere", async () => {
+    const request = new Request("https://auth.app.example/oauth/assertion", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Origin: "https://impro.social",
+        Origin: "https://app.example",
       },
       body: JSON.stringify({ aud: AUD }),
     });
     const response = await onRequestPost({
       request,
-      env: { ...env, HOST_NAME: "oauth.impro.social" },
+      env: { ...env, HOST_NAME: "auth.app.example" },
     });
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("Access-Control-Allow-Origin"),
-      "https://impro.social",
+      "https://app.example",
     );
     const { assertion } = await response.json();
     assert.equal(
       decodePayload(assertion).iss,
-      "https://impro.social/oauth-client-metadata.json",
+      "https://app.example/oauth-client-metadata.json",
     );
   });
 
@@ -119,12 +116,12 @@ describe("oauth assertion function", () => {
   it("rejects all cross-origin requests when no clients are configured", async () => {
     const { OAUTH_CROSS_ORIGIN_CLIENTS, ...envWithoutClients } = env;
     const response = await onRequestPost({
-      request: postRequest("https://impro.wisp.place"),
+      request: postRequest("https://other.example"),
       env: envWithoutClients,
     });
     assert.equal(response.status, 403);
     const preflight = onRequestOptions({
-      request: preflightRequest("https://impro.wisp.place"),
+      request: preflightRequest("https://other.example"),
       env: envWithoutClients,
     });
     assert.equal(preflight.status, 403);
@@ -132,28 +129,28 @@ describe("oauth assertion function", () => {
 
   it("includes CORS headers on errors for allowlisted origins", async () => {
     const response = await onRequestPost({
-      request: postRequest("https://impro.wisp.place"),
+      request: postRequest("https://other.example"),
       env: {
-        HOST_NAME: "impro.social",
+        HOST_NAME: "app.example",
         OAUTH_CROSS_ORIGIN_CLIENTS: CROSS_ORIGIN_CLIENTS,
       },
     });
     assert.equal(response.status, 501);
     assert.equal(
       response.headers.get("Access-Control-Allow-Origin"),
-      "https://impro.wisp.place",
+      "https://other.example",
     );
   });
 
   it("answers preflights from allowlisted origins", () => {
     const response = onRequestOptions({
-      request: preflightRequest("https://impro.wisp.place"),
+      request: preflightRequest("https://other.example"),
       env,
     });
     assert.equal(response.status, 204);
     assert.equal(
       response.headers.get("Access-Control-Allow-Origin"),
-      "https://impro.wisp.place",
+      "https://other.example",
     );
     assert.equal(
       response.headers.get("Access-Control-Allow-Headers"),

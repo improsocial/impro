@@ -8,6 +8,7 @@ import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButt
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import {
+  APP_NAME,
   FEED_PAGE_SIZE,
   FOLLOWING_FEED_URI,
   LOGGED_OUT_FEED_URI,
@@ -191,7 +192,9 @@ export default async function homeView({
         ><app-icon icon="widgets-line"></app-icon
       ></span>
       <span class="community-plugins-link-text">
-        <span class="community-plugins-link-title">Welcome to Impro!</span>
+        <span class="community-plugins-link-title"
+          >Welcome to ${APP_NAME}!</span
+        >
         <span class="community-plugins-link-subtitle"
           >Customize your experience with community plugins</span
         >

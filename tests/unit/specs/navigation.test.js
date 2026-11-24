@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { APP_HOST } from "/js/config.js";
 import {
   linkToHashtag,
   linkToProfile,
@@ -436,10 +437,10 @@ describe("linkToCommunityPlugin", () => {
 });
 
 describe("getPermalinkForCommunityPlugin", () => {
-  it("should return impro.social permalink for community plugin", () => {
+  it("should return the app permalink for community plugin", () => {
     assert.deepEqual(
       getPermalinkForCommunityPlugin("remote-themes"),
-      "https://impro.social/plugins/community/remote-themes",
+      `https://${APP_HOST}/plugins/community/remote-themes`,
     );
   });
 });

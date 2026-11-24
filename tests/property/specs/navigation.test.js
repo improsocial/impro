@@ -11,6 +11,7 @@ import {
 } from "/js/navigation.js";
 import { parseRecordLink } from "/js/embedHelpers.js";
 import { INVALID_HANDLE } from "/js/dataHelpers.js";
+import { APP_HOST } from "/js/config.js";
 
 const redirectFragmentArbitrary = fc.oneof(
   {
@@ -77,7 +78,7 @@ describe("validateReturnToParam properties", () => {
         const result = validateReturnToParam(raw);
         if (result === null) return;
         assert(result.startsWith("/"));
-        for (const origin of [window.location.origin, "https://impro.social"]) {
+        for (const origin of [window.location.origin, `https://${APP_HOST}`]) {
           assert.deepEqual(new URL(result, origin).origin, origin);
         }
       }),

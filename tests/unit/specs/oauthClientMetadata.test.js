@@ -21,7 +21,7 @@ describe("oauth client metadata", () => {
   function render(oauthPublicJwk) {
     return JSON.parse(
       clientMetadata.render({
-        hostName: "impro.social",
+        hostName: "app.example",
         oauthScopes: "atproto",
         oauthPublicJwk,
       }),

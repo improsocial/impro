@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { PushNotificationService } from "/js/push/pushNotificationService.js";
 import { ApiError } from "/js/api.js";
 import { effect } from "/js/signals.js";
+import { PUSH_APP_ID } from "/js/config.js";
 
 const SUBSCRIPTION = {
   endpoint: "https://push.example/ep/abc",
@@ -132,7 +133,7 @@ describe("PushNotificationService registration", () => {
     await service._subscribeAndRegister({ vapidPublicKey: "k" });
     assert.equal(registerPush.mock.calls.length, 1);
     const args = registerPush.mock.calls[0].arguments[0];
-    assert.equal(args.appId, "social.impro");
+    assert.equal(args.appId, PUSH_APP_ID);
     assert.equal(args.platform, "web");
     // The token is the serialized PushSubscription (functions don't survive).
     assert.deepEqual(JSON.parse(args.token), {
@@ -220,7 +221,7 @@ describe("PushNotificationService registration", () => {
     await service.disable();
     assert.equal(unregisterPush.mock.calls.length, 1);
     const args = unregisterPush.mock.calls[0].arguments[0];
-    assert.equal(args.appId, "social.impro");
+    assert.equal(args.appId, PUSH_APP_ID);
     assert.equal(args.platform, "web");
     assert.deepEqual(JSON.parse(args.token), {
       endpoint: SUBSCRIPTION.endpoint,
@@ -308,7 +309,7 @@ describe("PushNotificationService registration", () => {
     assert.equal(unregisterPush.mock.calls.length, 1);
     const args = unregisterPush.mock.calls[0].arguments[0];
     assert.equal(args.serviceDid, "did:web:notifs.example");
-    assert.equal(args.appId, "social.impro");
+    assert.equal(args.appId, PUSH_APP_ID);
     assert.equal(args.platform, "web");
     assert.deepEqual(JSON.parse(args.token), {
       endpoint: SUBSCRIPTION.endpoint,
