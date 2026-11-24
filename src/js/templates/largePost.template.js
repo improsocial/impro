@@ -199,7 +199,7 @@ export function largePostTemplate({
   ) {
     return signInRequiredPostTemplate();
   }
-  const embed = post.embed ?? post.record?.embed;
+  const embed = post.embed;
   const postText = post.record.text || "";
   const isRootPost = !post.record?.reply;
   const canEditInteractionSettings = isUserPost && isRootPost;
