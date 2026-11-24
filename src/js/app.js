@@ -412,11 +412,14 @@ export async function main() {
     () => pluginSettingsView,
     pluginsRouteOptions,
   );
-  router.addRoute(
-    "/plugin/:pluginId/pages/:pageId",
-    () => pluginPageView,
-    pluginsRouteOptions,
-  );
+  const pageSidebarItem = (params) =>
+    pluginService.getPageSidebarItem(params.pluginId, params.pageId);
+  router.addRoute("/plugin/:pluginId/pages/:pageId", () => pluginPageView, {
+    layoutOptions: {
+      activeNavItem: (params) => (pageSidebarItem(params) ? null : "plugins"),
+      activePluginSidebarItem: pageSidebarItem,
+    },
+  });
   router.addRoute("/plugins/community", () => communityPluginsView, {
     // Logged out, the Plugins nav item points here instead
     layoutOptions: { activeNavItem: "plugins", isNavItemPage: !session },

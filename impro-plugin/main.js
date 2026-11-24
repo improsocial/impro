@@ -884,18 +884,30 @@ export class Plugin {
   /**
    * Adds an item to the impro sidebar. `icon` is a {@link VirtualEl} (typically
    * an SVG) or a string; `callback` runs when the item is clicked.
+   * `options.id` lets a page claim the item via `registerPage`'s
+   * `sidebarItemId`, which marks it active while that page is open;
+   * `options.activeIcon` replaces `icon` while it is active.
    * @param {string | VirtualEl} icon
    * @param {string} title
    * @param {() => void} [callback]
+   * @param {{ id?: string | null, activeIcon?: string | VirtualEl | null }} [options]
    * @returns {void}
    */
-  addSidebarItem(icon, title, callback = () => {}) {
+  addSidebarItem(
+    icon,
+    title,
+    callback = () => {},
+    { id = null, activeIcon = null } = {},
+  ) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, callback);
     post({
       type: "register",
       target: "sidebarItem",
+      id,
       icon: icon instanceof VirtualEl ? icon._serialize() : icon,
+      activeIcon:
+        activeIcon instanceof VirtualEl ? activeIcon._serialize() : activeIcon,
       title,
       handlerId,
     });
@@ -1071,11 +1083,17 @@ export class Plugin {
   /**
    * Registers a full-page view reachable via {@link Plugin.openPage}. `display()`
    * is called on navigation and must return a {@link VirtualEl}, or nothing to
-   * render an empty page.
-   * @param {{ id: string, title?: string | null, display?: () => RenderResult | Promise<RenderResult> }} options
+   * render an empty page. `sidebarItemId` names a sidebar item (see
+   * {@link Plugin.addSidebarItem}) to mark active while the page is open.
+   * @param {{ id: string, title?: string | null, sidebarItemId?: string | null, display?: () => RenderResult | Promise<RenderResult> }} options
    * @returns {void}
    */
-  registerPage({ id, title = null, display = () => null }) {
+  registerPage({
+    id,
+    title = null,
+    sidebarItemId = null,
+    display = () => null,
+  }) {
     const displayHandlerId = uuid.create();
     callHandlers.set(displayHandlerId, async () => {
       const result = /** @type {unknown} */ (await display());
@@ -1092,6 +1110,7 @@ export class Plugin {
       target: "page",
       id,
       title,
+      sidebarItemId,
       displayHandlerId,
     });
   }
@@ -2175,7 +2194,7 @@ export class VirtualEl {
  *   `Date`, `Map` and friends cannot.
  * @typedef {{ type: "register", target: "eventListener", event: string, handlerId: number }} RegisterEventListenerMessage
  *   {@internal}
- * @typedef {{ type: "register", target: "sidebarItem", icon: string | SerializedElement, title: string, handlerId: number }} RegisterSidebarItemMessage
+ * @typedef {{ type: "register", target: "sidebarItem", id: string | null, icon: string | SerializedElement, activeIcon: string | SerializedElement | null, title: string, handlerId: number }} RegisterSidebarItemMessage
  *   {@internal}
  * @typedef {{ type: "register", target: "settingTab", name: string | null, displayHandlerId: number }} RegisterSettingTabMessage
  *   {@internal}
@@ -2185,7 +2204,7 @@ export class VirtualEl {
  *   {@internal}
  * @typedef {{ type: "register", target: "slot", name: string, handlerId: number, cacheKey: string[] | null, batch: true }} RegisterSlotMessage
  *   {@internal}
- * @typedef {{ type: "register", target: "page", id: string, title: string | null, displayHandlerId: number }} RegisterPageMessage
+ * @typedef {{ type: "register", target: "page", id: string, title: string | null, sidebarItemId: string | null, displayHandlerId: number }} RegisterPageMessage
  *   {@internal}
  * @typedef {RegisterEventListenerMessage | RegisterSidebarItemMessage | RegisterSettingTabMessage | RegisterFeedFilterMessage | RegisterRichTextTransformMessage | RegisterSlotMessage | RegisterPageMessage} RegisterMessage
  *   {@internal} Announces an extension point this plugin provides.

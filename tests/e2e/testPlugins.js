@@ -155,6 +155,7 @@ class TestPlugin extends Plugin {
     this.registerPage({
       id: "dashboard",
       title: ${JSON.stringify(PAGE_TITLE)},
+      sidebarItemId: "dashboard",
       display: () => {
         renders += 1;
         const el = new VirtualEl("div");
@@ -178,9 +179,14 @@ class TestPlugin extends Plugin {
         return el;
       },
     });
-    this.addSidebarItem("document-line", ${JSON.stringify(PAGE_TITLE)}, () => {
-      this.openPage("dashboard");
-    });
+    this.addSidebarItem(
+      "document-line",
+      ${JSON.stringify(PAGE_TITLE)},
+      () => {
+        this.openPage("dashboard");
+      },
+      { id: "dashboard", activeIcon: "document" },
+    );
     this.addSidebarItem("document-line", ${JSON.stringify(MODAL_TITLE)}, () => {
       const ListModal = class extends Modal {
         onOpen() {
@@ -225,6 +231,33 @@ class TestPlugin extends Plugin {
       display: () => {
         throw new Error(${JSON.stringify(PAGE_LOAD_ERROR_MESSAGE)});
       },
+    });
+  }
+}
+
+TestPlugin.register();
+`;
+
+export const DANGLING_SIDEBAR_ITEM_ID = "no-such-item";
+
+const DANGLING_SIDEBAR_ITEM_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    for (const [id, sidebarItemId] of [
+      ["dashboard", "dashboard"],
+      ["dangling", ${JSON.stringify(DANGLING_SIDEBAR_ITEM_ID)}],
+    ]) {
+      this.registerPage({
+        id,
+        sidebarItemId,
+        display: () =>
+          new VirtualEl("div")
+            .setAttr("data-testid", "plugin-page-" + id)
+            .setText(id),
+      });
+    }
+    this.addSidebarItem("document-line", ${JSON.stringify(PAGE_TITLE)}, () => {}, {
+      id: "dashboard",
     });
   }
 }
@@ -382,6 +415,10 @@ export function getPagesPluginSource() {
 
 export function getThrowingPagePluginSource() {
   return getWorkerSource() + "\n" + THROWING_PAGE_PLUGIN_BODY;
+}
+
+export function getDanglingSidebarItemPluginSource() {
+  return getWorkerSource() + "\n" + DANGLING_SIDEBAR_ITEM_PLUGIN_BODY;
 }
 
 export function getFailingPluginSource() {

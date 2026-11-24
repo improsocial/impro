@@ -994,10 +994,13 @@ the app's settings.
 
 ##### addSidebarItem()
 
-> **addSidebarItem**(`icon`, `title`, `callback?`): `void`
+> **addSidebarItem**(`icon`, `title`, `callback?`, `options?`): `void`
 
 Adds an item to the impro sidebar. `icon` is a [VirtualEl](#virtualel) (typically
 an SVG) or a string; `callback` runs when the item is clicked.
+`options.id` lets a page claim the item via `registerPage`'s
+`sidebarItemId`, which marks it active while that page is open;
+`options.activeIcon` replaces `icon` while it is active.
 
 ###### Parameters
 
@@ -1006,6 +1009,9 @@ an SVG) or a string; `callback` runs when the item is clicked.
 | `icon` | `string` \| [`VirtualEl`](#virtualel) |
 | `title` | `string` |
 | `callback?` | () => `void` |
+| `options?` | \{ `activeIcon?`: `string` \| [`VirtualEl`](#virtualel) \| `null`; `id?`: `string` \| `null`; \} |
+| `options.activeIcon?` | `string` \| [`VirtualEl`](#virtualel) \| `null` |
+| `options.id?` | `string` \| `null` |
 
 ###### Returns
 
@@ -1122,15 +1128,17 @@ nothing else.
 
 Registers a full-page view reachable via [Plugin.openPage](#openpage). `display()`
 is called on navigation and must return a [VirtualEl](#virtualel), or nothing to
-render an empty page.
+render an empty page. `sidebarItemId` names a sidebar item (see
+[Plugin.addSidebarItem](#addsidebaritem)) to mark active while the page is open.
 
 ###### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `display?`: () => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\>; `id`: `string`; `title?`: `string` \| `null`; \} |
+| `options` | \{ `display?`: () => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\>; `id`: `string`; `sidebarItemId?`: `string` \| `null`; `title?`: `string` \| `null`; \} |
 | `options.display?` | () => [`RenderResult`](#renderresult) \| `Promise`\<[`RenderResult`](#renderresult)\> |
 | `options.id` | `string` |
+| `options.sidebarItemId?` | `string` \| `null` |
 | `options.title?` | `string` \| `null` |
 
 ###### Returns

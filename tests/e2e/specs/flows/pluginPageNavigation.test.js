@@ -19,14 +19,24 @@ test.describe("Plugin page navigation flow", () => {
     await page.goto("/");
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
 
-    await page
-      .locator(`[data-testid="sidebar-plugin-item"][title="${PAGE_TITLE}"]`)
-      .click();
+    const sidebarItem = page.locator(
+      `[data-testid="sidebar-plugin-item"][title="${PAGE_TITLE}"]`,
+    );
+    await expect(sidebarItem).toHaveAttribute("data-teststate", "inactive");
+    await sidebarItem.click();
 
     const view = page.locator("#plugin-page-view");
     await expect(
       view.locator('[data-testid="plugin-page-renders"]'),
     ).toHaveText("1", { timeout: 10000 });
     await expect(page).toHaveURL(`/plugin/${TEST_PLUGIN_ID}/pages/dashboard`);
+    await expect(sidebarItem).toHaveAttribute("data-teststate", "active");
+    await expect(sidebarItem.locator("app-icon")).toHaveAttribute(
+      "icon",
+      "document",
+    );
+    await expect(
+      page.locator('[data-testid="sidebar-nav-plugins"]'),
+    ).not.toHaveClass(/\bactive\b/);
   });
 });

@@ -831,6 +831,69 @@ describe("sidebarTemplate - plugin sidebar items", () => {
     assert.deepEqual(icons[1].getAttribute("icon"), "bell");
   });
 
+  it("should mark only the active plugin item and swap in its activeIconElement", () => {
+    const makeAppIcon = (name) => {
+      const el = document.createElement("app-icon");
+      el.setAttribute("icon", name);
+      return el;
+    };
+    const activeEntry = {
+      title: "Plugin One",
+      iconElement: makeAppIcon("document-line"),
+      activeIconElement: makeAppIcon("document"),
+      invoke: () => {},
+    };
+    const inactiveEntry = {
+      title: "Plugin Two",
+      iconElement: makeAppIcon("bell-line"),
+      activeIconElement: makeAppIcon("bell"),
+      invoke: () => {},
+    };
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      pluginSidebarItems: [activeEntry, inactiveEntry],
+      activePluginSidebarItem: activeEntry,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const items = container.querySelectorAll(".sidebar-plugin-nav-item");
+    assert.deepEqual(items[0].dataset.teststate, "active");
+    assert.deepEqual(
+      items[0].querySelector("app-icon").getAttribute("icon"),
+      "document",
+    );
+    assert.deepEqual(items[1].dataset.teststate, "inactive");
+    assert.deepEqual(
+      items[1].querySelector("app-icon").getAttribute("icon"),
+      "bell-line",
+    );
+  });
+
+  it("should keep the regular icon on an active plugin item without an activeIconElement", () => {
+    const entry = {
+      title: "Plugin One",
+      iconElement: document.createElement("app-icon"),
+      activeIconElement: null,
+      invoke: () => {},
+    };
+    entry.iconElement.setAttribute("icon", "document-line");
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      pluginSidebarItems: [entry],
+      activePluginSidebarItem: entry,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const item = container.querySelector(".sidebar-plugin-nav-item");
+    assert.deepEqual(item.dataset.teststate, "active");
+    assert.deepEqual(
+      item.querySelector("app-icon").getAttribute("icon"),
+      "document-line",
+    );
+  });
+
   it("should not render plugin sidebar items in logged out sidebar", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,

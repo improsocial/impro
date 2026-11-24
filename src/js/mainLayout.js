@@ -64,6 +64,7 @@ export function mainLayoutTemplate({
   currentUser,
   activeNavItem,
   isNavItemPage = false,
+  activePluginSidebarItem = null,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveNavItem,
@@ -103,6 +104,7 @@ export function mainLayoutTemplate({
             onClickActiveItem: onClickActiveNavItem,
             onClickComposeButton,
             pluginSidebarItems: pluginService.getSidebarItems(),
+            activePluginSidebarItem,
             onOpenAccountSwitcher,
             otherAccounts,
             onSwitchAccount,
@@ -223,6 +225,8 @@ export class MainLayout extends Layout {
         typeof layoutOptions.isNavItemPage === "function"
           ? layoutOptions.isNavItemPage(currentRoute.params)
           : (layoutOptions.isNavItemPage ?? false);
+      const activePluginSidebarItem =
+        layoutOptions.activePluginSidebarItem?.(currentRoute.params) ?? null;
       const previewingPlugins = pluginService.getPreviewPlugins();
       const otherAccounts =
         (onOpenAccountSwitcher
@@ -243,6 +247,7 @@ export class MainLayout extends Layout {
           currentUser,
           activeNavItem,
           isNavItemPage,
+          activePluginSidebarItem,
           numNotifications:
             notificationService?.$numNotifications.get() ?? null,
           numChatNotifications:

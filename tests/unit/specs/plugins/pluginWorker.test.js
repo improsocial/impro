@@ -264,6 +264,28 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert(typeof msg.handlerId === "number");
   });
 
+  it("addSidebarItem defaults id and activeIcon to null", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.addSidebarItem("⭐", "Stars", () => {});
+    const msg = lastMessage();
+    assert.deepEqual(msg.id, null);
+    assert.deepEqual(msg.activeIcon, null);
+  });
+
+  it("addSidebarItem posts its id and serialized activeIcon", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const activeIcon = new VirtualEl("svg");
+    plugin.addSidebarItem("star-line", "Stars", () => {}, {
+      id: "stars",
+      activeIcon,
+    });
+    const msg = lastMessage();
+    assert.deepEqual(msg.id, "stars");
+    assert.deepEqual(msg.activeIcon, activeIcon._serialize());
+  });
+
   it("addFeedFilter posts a register message", () => {
     clearMessages();
     const plugin = new Plugin();
@@ -397,11 +419,19 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert(typeof msg.displayHandlerId === "number");
   });
 
-  it("registerPage defaults the title to null", () => {
+  it("registerPage defaults the title and sidebarItemId to null", () => {
     clearMessages();
     const plugin = new Plugin();
     plugin.registerPage({ id: "dashboard" });
     assert.deepEqual(lastMessage().title, null);
+    assert.deepEqual(lastMessage().sidebarItemId, null);
+  });
+
+  it("registerPage posts its sidebarItemId", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerPage({ id: "dashboard", sidebarItemId: "stars" });
+    assert.deepEqual(lastMessage().sidebarItemId, "stars");
   });
 
   it("registerPage serializes the VirtualEl returned by display", async () => {

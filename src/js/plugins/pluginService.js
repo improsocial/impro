@@ -318,8 +318,13 @@ export class PluginService extends ReactiveStore {
       (plugin, message) => {
         const entry = {
           pluginId: plugin.pluginId,
+          id: message.id ?? null,
           icon: message.icon,
           iconElement: this._createIconElement(plugin.pluginId, message.icon),
+          activeIconElement: this._createIconElement(
+            plugin.pluginId,
+            message.activeIcon,
+          ),
           title: message.title,
           invoke: () => plugin.call(message.handlerId),
         };
@@ -370,6 +375,7 @@ export class PluginService extends ReactiveStore {
         pluginId: plugin.pluginId,
         pageId,
         title: message.title ?? null,
+        sidebarItemId: message.sidebarItemId ?? null,
         customContent: new CustomContent(plugin.pluginId, {
           display: () => plugin.call(message.displayHandlerId),
         }),
@@ -1134,6 +1140,16 @@ export class PluginService extends ReactiveStore {
 
   getPage(pluginId, pageId) {
     return this.$pages.get(createPluginPageKey(pluginId, pageId));
+  }
+
+  getPageSidebarItem(pluginId, pageId) {
+    const sidebarItemId = this.getPage(pluginId, pageId)?.sidebarItemId;
+    if (!sidebarItemId) return null;
+    return (
+      this.getSidebarItems().find(
+        (entry) => entry.pluginId === pluginId && entry.id === sidebarItemId,
+      ) ?? null
+    );
   }
 
   // Until the initial enabled-plugins load has settled, report every plugin

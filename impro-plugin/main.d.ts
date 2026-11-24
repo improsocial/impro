@@ -531,12 +531,19 @@ export class Plugin {
     /**
      * Adds an item to the impro sidebar. `icon` is a {@link VirtualEl} (typically
      * an SVG) or a string; `callback` runs when the item is clicked.
+     * `options.id` lets a page claim the item via `registerPage`'s
+     * `sidebarItemId`, which marks it active while that page is open;
+     * `options.activeIcon` replaces `icon` while it is active.
      * @param {string | VirtualEl} icon
      * @param {string} title
      * @param {() => void} [callback]
+     * @param {{ id?: string | null, activeIcon?: string | VirtualEl | null }} [options]
      * @returns {void}
      */
-    addSidebarItem(icon: string | VirtualEl, title: string, callback?: () => void): void;
+    addSidebarItem(icon: string | VirtualEl, title: string, callback?: () => void, { id, activeIcon }?: {
+        id?: string | null;
+        activeIcon?: string | VirtualEl | null;
+    }): void;
     /**
      * Loads this plugin's account-synced JSON blob. Follows the user across
      * devices via account preferences. Returns whatever was last saved, or null.
@@ -630,13 +637,15 @@ export class Plugin {
     /**
      * Registers a full-page view reachable via {@link Plugin.openPage}. `display()`
      * is called on navigation and must return a {@link VirtualEl}, or nothing to
-     * render an empty page.
-     * @param {{ id: string, title?: string | null, display?: () => RenderResult | Promise<RenderResult> }} options
+     * render an empty page. `sidebarItemId` names a sidebar item (see
+     * {@link Plugin.addSidebarItem}) to mark active while the page is open.
+     * @param {{ id: string, title?: string | null, sidebarItemId?: string | null, display?: () => RenderResult | Promise<RenderResult> }} options
      * @returns {void}
      */
-    registerPage({ id, title, display }: {
+    registerPage({ id, title, sidebarItemId, display, }: {
         id: string;
         title?: string | null;
+        sidebarItemId?: string | null;
         display?: () => RenderResult | Promise<RenderResult>;
     }): void;
     /**
@@ -1461,7 +1470,9 @@ export type RegisterEventListenerMessage = {
 export type RegisterSidebarItemMessage = {
     type: "register";
     target: "sidebarItem";
+    id: string | null;
     icon: string | SerializedElement;
+    activeIcon: string | SerializedElement | null;
     title: string;
     handlerId: number;
 };
@@ -1510,6 +1521,7 @@ export type RegisterPageMessage = {
     target: "page";
     id: string;
     title: string | null;
+    sidebarItemId: string | null;
     displayHandlerId: number;
 };
 /**

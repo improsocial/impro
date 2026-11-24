@@ -1744,6 +1744,55 @@ describe("page wiring", () => {
     assert.deepEqual(service.getPage("alpha", "three"), null);
   });
 
+  function registerSidebarItem(service, plugin, message = {}) {
+    return service.pluginBridge._registrationTargets.get("sidebarItem")(
+      plugin,
+      {
+        target: "sidebarItem",
+        id: "dashboard-item",
+        icon: "document-line",
+        activeIcon: "document",
+        title: "Dashboard",
+        handlerId: 6,
+        ...message,
+      },
+    );
+  }
+
+  it("resolves the sidebar item a page declares", () => {
+    const service = makeServiceWithRouter();
+    registerSidebarItem(service, makePlugin("alpha"), { id: "other" });
+    registerSidebarItem(service, makePlugin("alpha"));
+    registerPage(service, makePlugin("alpha"), {
+      sidebarItemId: "dashboard-item",
+    });
+    const entry = service.getPageSidebarItem("alpha", "dashboard");
+    assert.deepEqual(entry.id, "dashboard-item");
+    assert.deepEqual(entry.activeIconElement.getAttribute("icon"), "document");
+  });
+
+  it("resolves no sidebar item when the page declares none or it's missing", () => {
+    const service = makeServiceWithRouter();
+    registerSidebarItem(service, makePlugin("alpha"));
+    registerPage(service, makePlugin("alpha"), { id: "plain" });
+    registerPage(service, makePlugin("alpha"), {
+      id: "dangling",
+      sidebarItemId: "missing",
+    });
+    assert.deepEqual(service.getPageSidebarItem("alpha", "plain"), null);
+    assert.deepEqual(service.getPageSidebarItem("alpha", "dangling"), null);
+    assert.deepEqual(service.getPageSidebarItem("alpha", "unknown"), null);
+  });
+
+  it("only resolves sidebar items registered by the page's own plugin", () => {
+    const service = makeServiceWithRouter();
+    registerSidebarItem(service, makePlugin("beta"));
+    registerPage(service, makePlugin("alpha"), {
+      sidebarItemId: "dashboard-item",
+    });
+    assert.deepEqual(service.getPageSidebarItem("alpha", "dashboard"), null);
+  });
+
   it("defaults a missing title to null", () => {
     const service = makeServiceWithRouter();
     registerPage(service, makePlugin(), { title: undefined });

@@ -36,6 +36,18 @@ export default async function pluginPageView({
     return state.$pluginDetails.get()?.name ?? null;
   });
 
+  let warnedMissingSidebarItem = false;
+  pageEffect(root, () => {
+    const page = state.$page.get();
+    const { loading } = state.$loadStatus.get();
+    if (warnedMissingSidebarItem || loading || !page?.sidebarItemId) return;
+    if (pluginService.getPageSidebarItem(pluginId, pageId)) return;
+    warnedMissingSidebarItem = true;
+    console.warn(
+      `[plugins] "${pluginId}" page "${pageId}" declares sidebarItemId "${page.sidebarItemId}", but the plugin has no sidebar item with that id`,
+    );
+  });
+
   pageEffect(root, () => {
     const pluginDetails = state.$pluginDetails.get();
     const page = state.$page.get();

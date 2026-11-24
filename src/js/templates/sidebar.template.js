@@ -37,11 +37,18 @@ function navigateFromSidebar(event, url) {
   return sidebar.navigate(() => window.router.go(url));
 }
 
-function pluginSidebarItemTemplate({ entry }) {
+function pluginSidebarItemTemplate({ entry, active }) {
+  const iconElement =
+    active && entry.activeIconElement
+      ? entry.activeIconElement
+      : entry.iconElement;
   return html`
     <button
-      class="sidebar-nav-item sidebar-plugin-nav-item"
+      class=${classnames("sidebar-nav-item sidebar-plugin-nav-item", {
+        active,
+      })}
       data-testid="sidebar-plugin-item"
+      data-teststate=${active ? "active" : "inactive"}
       title=${entry.title}
       @click=${(event) => {
         const sidebar = event.currentTarget.closest("animated-sidebar");
@@ -49,7 +56,7 @@ function pluginSidebarItemTemplate({ entry }) {
         entry.invoke();
       }}
     >
-      <span class="sidebar-nav-icon">${entry.iconElement}</span>
+      <span class="sidebar-nav-icon">${iconElement}</span>
       <span class="sidebar-nav-label">${entry.title}</span>
     </button>
   `;
@@ -61,6 +68,7 @@ function sidebarNavTemplate({
   isNavItemPage,
   onClickActiveItem,
   pluginSidebarItems = [],
+  activePluginSidebarItem = null,
 }) {
   return html`
     <nav class="sidebar-nav" data-testid="sidebar-nav">
@@ -103,7 +111,12 @@ function sidebarNavTemplate({
           </a>
         `,
       )}
-      ${pluginSidebarItems.map((entry) => pluginSidebarItemTemplate({ entry }))}
+      ${pluginSidebarItems.map((entry) =>
+        pluginSidebarItemTemplate({
+          entry,
+          active: entry === activePluginSidebarItem,
+        }),
+      )}
     </nav>
   `;
 }
@@ -292,6 +305,7 @@ export function sidebarTemplate({
   onClickActiveItem,
   onClickComposeButton,
   pluginSidebarItems = [],
+  activePluginSidebarItem = null,
   onOpenAccountSwitcher = null,
   otherAccounts = null,
   onSwitchAccount = null,
@@ -473,6 +487,7 @@ export function sidebarTemplate({
         isNavItemPage,
         onClickActiveItem,
         pluginSidebarItems,
+        activePluginSidebarItem,
       })}
       <button
         class="rounded-button rounded-button-highlight sidebar-compose-button"
