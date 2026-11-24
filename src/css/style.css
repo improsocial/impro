@@ -1825,8 +1825,10 @@ tab-bar.is-scroll-frozen {
   transition: transform 0.15s ease;
 }
 
-.sidebar-account-stack-item.is-selected .avatar {
-  transform: scale(1.1);
+@media (min-width: 800px) {
+  .sidebar-account-stack-item.is-selected .avatar {
+    transform: scale(1.1);
+  }
 }
 
 @media (hover: hover) {
