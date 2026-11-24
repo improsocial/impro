@@ -739,8 +739,12 @@ export default async function profileView({
       preloadHiddenFeeds({ isCurrentUser, isLabeler });
     }
     // Load chat status
-    if (!isCurrentUser) {
-      dataLayer.requests.loadProfileChatStatus(profile.did);
+    if (isAuthenticated && !isCurrentUser) {
+      dataLayer.requests
+        .loadProfileChatStatus(profile.did)
+        .catch((error) =>
+          console.warn("Failed to load profile chat status:", error),
+        );
     }
   }
 

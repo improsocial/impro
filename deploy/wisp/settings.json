@@ -16,7 +16,7 @@
     },
     {
       "name": "Permissions-Policy",
-      "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), display-capture=(), browsing-topics=()"
+      "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), display-capture=()"
     },
     { "name": "Cache-Control", "value": "no-cache", "path": "*.html" },
     {

@@ -2617,6 +2617,27 @@ test.describe("Profile view", () => {
       );
     });
 
+    test("should not request chat availability", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      const chatAvailabilityRequests = [];
+      page.on("request", (request) => {
+        if (request.url().includes("chat.bsky.convo.getConvoAvailability")) {
+          chatAvailabilityRequests.push(request.url());
+        }
+      });
+
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await page.waitForLoadState("networkidle");
+      expect(chatAvailabilityRequests).toEqual([]);
+    });
+
     test("should hide follow/block/mute actions", async ({ page }) => {
       const mockServer = new MockServer();
       mockServer.addProfile(otherUser);
