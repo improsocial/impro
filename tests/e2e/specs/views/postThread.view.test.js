@@ -1146,7 +1146,11 @@ test.describe("Post thread view", () => {
         authorDisplayName: "Restricted Author",
       });
       restrictedPost.author.labels = [
-        { val: "!no-unauthenticated", src: restrictedPost.author.did },
+        {
+          val: "!no-unauthenticated",
+          src: restrictedPost.author.did,
+          uri: `at://${restrictedPost.author.did}/app.bsky.actor.profile/self`,
+        },
       ];
 
       const mockServer = new MockServer();
@@ -1172,7 +1176,11 @@ test.describe("Post thread view", () => {
         authorDisplayName: "Restricted Author",
       });
       restrictedParent.author.labels = [
-        { val: "!no-unauthenticated", src: restrictedParent.author.did },
+        {
+          val: "!no-unauthenticated",
+          src: restrictedParent.author.did,
+          uri: `at://${restrictedParent.author.did}/app.bsky.actor.profile/self`,
+        },
       ];
 
       const childPost = createPost({
@@ -1236,7 +1244,11 @@ test.describe("Post thread view", () => {
         authorDisplayName: "Restricted Author",
       });
       restrictedReply.author.labels = [
-        { val: "!no-unauthenticated", src: restrictedReply.author.did },
+        {
+          val: "!no-unauthenticated",
+          src: restrictedReply.author.did,
+          uri: `at://${restrictedReply.author.did}/app.bsky.actor.profile/self`,
+        },
       ];
 
       const mockServer = new MockServer();
