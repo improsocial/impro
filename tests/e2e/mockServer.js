@@ -758,7 +758,7 @@ export class MockServer {
   }
 
   // Simulate flaky delivery of the app's entry module (e.g. a CDN error
-  // serving /js/app.js): failAppScript aborts the request, delayAppScript
+  // serving /js/boot.js): failAppScript aborts the request, delayAppScript
   // stalls it before letting it through.
   failAppScript() {
     this.appScriptFailure = true;
@@ -3972,9 +3972,9 @@ export class MockServer {
     );
 
     // Registered last so it wins over any broader route (later routes match
-    // first). The app's entry module is content-hashed to /js/app.<hash>.js.
+    // first). The app's entry module is content-hashed to /js/boot.<hash>.js.
     if (this.appScriptFailure || this.appScriptDelayMs) {
-      await page.route("**/js/app.*.js", async (route) => {
+      await page.route("**/js/boot.*.js", async (route) => {
         if (this.appScriptFailure) {
           return route.abort();
         }

@@ -667,15 +667,13 @@ test.describe("Drag-to-dismiss", () => {
   });
 
   test.describe("toast (swipe up)", () => {
-    async function showToast(page, options = {}) {
+    async function showToast(page) {
       await setupFeedWithPost(page);
-      await page.evaluate(
-        async ({ message, timeout }) => {
-          const { showToast } = await import("/js/toasts.js");
-          showToast(message, { timeout });
-        },
-        { message: "Test toast", timeout: options.timeout ?? 10000 },
-      );
+      await page
+        .locator(
+          '#home-view [data-testid="feed-item"] [data-testid="bookmark-button"]',
+        )
+        .click();
       const toast = page.locator('[data-testid="toast"].active');
       await expect(toast).toBeVisible({ timeout: 2000 });
       return toast;

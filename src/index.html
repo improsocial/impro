@@ -2,10 +2,9 @@
 <html lang="en">
   <head>
     {% include "head.html" %}
-    <link rel="modulepreload" href="/js/app.js" />
+    <link rel="modulepreload" href="/js/boot.js" />
   </head>
   <body>
-    {% iconSprite %}
     <div id="app-root"></div>
     <div id="boot-state" class="boot-state-layer" hidden></div>
 
@@ -70,9 +69,6 @@
     </script>
 
     <script type="module">
-      import { enableErrorLogs } from "/js/errorLogs.js";
-      import "/js/perf.js";
-
       // Reload when a newer version is deployed
       const RELOAD_GUARD_KEY = "version-check-last-reload";
       const RELOAD_GUARD_MS = 60 * 1000;
@@ -121,39 +117,12 @@
           reloadIfOutdated();
         }
       });
-
-      const params = new URLSearchParams(window.location.search);
-
-      // Dev tools
-      if (
-        (window.env.environment === "development" && !window.env.playwright) ||
-        params.has("enable-debug")
-      ) {
-        enableErrorLogs();
-        const devVersionOverlay = document.createElement("div");
-        devVersionOverlay.className = "dev-version-overlay";
-        devVersionOverlay.textContent = `v${window.env.version} - ${window.env.gitCommit}`;
-        document.body.appendChild(devVersionOverlay);
-      }
     </script>
 
-    <script type="module">
-      import("/js/app.js").then(
-        ({ main }) =>
-          main().then(
-            () => {
-              window.bootUi.ready();
-            },
-            (error) => {
-              console.error("Error in main function:", error);
-              window.bootUi.showError();
-            },
-          ),
-        (error) => {
-          console.error("Error loading app module:", error);
-          window.bootUi.showError();
-        },
-      );
-    </script>
+    <script
+      type="module"
+      src="/js/boot.js"
+      onerror="window.bootUi.showError()"
+    ></script>
   </body>
 </html>

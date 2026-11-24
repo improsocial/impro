@@ -415,14 +415,16 @@ class StreamingVideo extends Component {
     const video = this.querySelector("video");
     const resumeTime = this._resumeTime;
     if (this.src.includes(".m3u8")) {
-      if (!window.Hls) {
+      let Hls = window.Hls;
+      if (!Hls) {
         const generation = this._streamingGeneration;
-        await import("/js/lib/hls.js");
+        const hlsModule = await import("/js/lib/hls.js");
         if (generation !== this._streamingGeneration) {
           return;
         }
+        Hls = window.Hls ?? hlsModule.default;
       }
-      this._hls = new window.Hls({
+      this._hls = new Hls({
         // https://github.com/bluesky-social/social-app/blob/92926a2417af8fb6f37feb93779f8cf4c4a4b622/src/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoEmbedInnerWeb.tsx#L108
         maxBufferSize: 10 * 1000 * 1000, // 10MB
         maxMaxBufferLength: 10,

@@ -2,9 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { isAssetPath } from "./build-support/assetPaths.js";
 import { applyContentHashing } from "./build-support/contentHash.js";
-import { applyModulePreloads } from "./build-support/modulepreload.js";
+import { bundleJs } from "./build-support/bundleJs.js";
 import { watchLocalPlugins } from "./build-support/localPlugins.js";
-import { buildIconSprite } from "./build-support/buildIconSprite.js";
 
 const BUILD_DIR = process.env.BUILD_DIR || "build";
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "cloudflare";
@@ -16,15 +15,11 @@ const CACHE_SALT = "2";
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy("src/css");
-  // Individual icon SVGs are combined into build/img/icons.svg by
-  // src/img/icons.11ty.js, so we don't ship src/img/icons/ itself.
   eleventyConfig.addPassthroughCopy(
     "src/img/*.{png,jpg,jpeg,ico,svg,webp,avif}",
   );
   eleventyConfig.addPassthroughCopy("src/img/shortcuts");
   eleventyConfig.addWatchTarget("src/img/icons");
-  // Inlined icons for index html
-  eleventyConfig.addShortcode("iconSprite", () => buildIconSprite());
   eleventyConfig.addPassthroughCopy("src/not-found.txt");
   eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
 
@@ -69,20 +64,17 @@ export default async function (eleventyConfig) {
     },
   });
 
-  // Create content-hashed filenames and module preloads
+  // Bundle JS and create content-hashed filenames and module preloads
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     if (isDev) return;
-    const urlMap = await applyContentHashing({
+    const htmlFiles = results
+      .map((result) => result.outputPath)
+      .filter((outputPath) => outputPath.endsWith(".html"));
+    await bundleJs({ outputDir: dir.output, htmlFiles, cacheSalt: CACHE_SALT });
+    await applyContentHashing({
       outputDir: dir.output,
-      htmlFiles: results
-        .map((result) => result.outputPath)
-        .filter((outputPath) => outputPath.endsWith(".html")),
+      htmlFiles,
       cacheSalt: CACHE_SALT,
-    });
-    applyModulePreloads({
-      outputDir: dir.output,
-      htmlFile: path.join(dir.output, "index.html"),
-      urlMap,
     });
   });
 

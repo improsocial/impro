@@ -1,0 +1,72 @@
+import { createAuth, OAuthProvider } from "/js/auth.js";
+import { IdentityResolver } from "/js/atproto.js";
+import { validateReturnToParam } from "/js/navigation.js";
+
+async function main() {
+  const auth = createAuth({ identityResolver: new IdentityResolver() });
+
+  if (!(auth.provider instanceof OAuthProvider)) {
+    throw new Error("callback.html requires an OAuth provider on auth");
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  const code = params.get("code");
+  const state = params.get("state");
+  const iss = params.get("iss");
+  const errorParam = params.get("error");
+  const errorDescription = params.get("error_description");
+
+  const parsedState = state ? JSON.parse(decodeURIComponent(state)) : null;
+  const returnToFromState = parsedState
+    ? validateReturnToParam(parsedState.returnTo)
+    : null;
+
+  if (errorParam) {
+    const errorParams = new URLSearchParams();
+    errorParams.set(
+      "error_message",
+      errorDescription
+        ? `Login failed: ${errorDescription}`
+        : `Login failed: ${errorParam}`,
+    );
+    if (returnToFromState) {
+      errorParams.set("returnTo", returnToFromState);
+    }
+    window.location.href = "/login?" + errorParams.toString();
+    return;
+  }
+
+  if (!code || !state || !iss) {
+    window.location.href = "/";
+    return;
+  }
+
+  if (
+    parsedState.loopback === true &&
+    window.env.environment === "development" &&
+    window.location.hostname !== "localhost"
+  ) {
+    window.location.href =
+      "http://localhost:8080/callback.html" + window.location.search;
+    return;
+  }
+  try {
+    await auth.provider.handleOauthCallback(window.location.href);
+    window.location.href = returnToFromState ?? "/";
+    return;
+  } catch (error) {
+    console.error("error", error);
+    const failureParams = new URLSearchParams();
+    failureParams.set(
+      "error_message",
+      "OAuth callback failed. Please try again.",
+    );
+    if (returnToFromState) {
+      failureParams.set("returnTo", returnToFromState);
+    }
+    window.location.href = "/login?" + failureParams.toString();
+    return;
+  }
+}
+main();

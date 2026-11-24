@@ -14,44 +14,61 @@ describe("applyContentHashing", () => {
     fs.writeFileSync(filePath, content);
   };
 
-  const build = () =>
+  const stylesheetHrefs = () =>
+    [
+      ...fs
+        .readFileSync(path.join(outputDir, "index.html"), "utf-8")
+        .matchAll(/rel="stylesheet" href="([^"]+)"/g),
+    ].map((match) => match[1]);
+
+  const build = (cacheSalt = "test") =>
     applyContentHashing({
       outputDir,
       htmlFiles: [path.join(outputDir, "index.html")],
-      cacheSalt: "test",
+      cacheSalt,
     });
 
   beforeEach(() => {
     outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "content-hash-"));
-    writeFile("css/style.css", "/* @chunk base */\nbody {}");
+    writeFile(
+      "css/style.css",
+      "/* @chunk base */\nbody {}\n/* @chunk feed */\n.feed {}",
+    );
     writeFile(
       "index.html",
-      '<html><head><link rel="modulepreload" href="/js/app.js" /><link rel="stylesheet" href="/css/style.css" /></head></html>',
+      '<html><head><link rel="stylesheet" href="/css/style.css" /></head></html>',
     );
-    writeFile("js/app.js", 'import "./views/home.js";');
-    writeFile("js/views/home.js", "export const home = {};");
   });
 
   afterEach(() => {
     fs.rmSync(outputDir, { recursive: true, force: true });
   });
 
-  it("renames every module and returns the url map", async () => {
-    const urlMap = await build();
-    assert.deepEqual(Object.keys(urlMap).sort(), [
-      "/js/app.js",
-      "/js/views/home.js",
-    ]);
-    for (const [urlPath, hashed] of Object.entries(urlMap)) {
-      assert.match(hashed, /\.[0-9a-f]{10}\.js$/);
-      assert(fs.existsSync(path.join(outputDir, hashed)));
-      assert(!fs.existsSync(path.join(outputDir, urlPath)));
+  it("replaces the stylesheet link with one hashed link per chunk", async () => {
+    await build();
+    const hrefs = stylesheetHrefs();
+    assert.equal(hrefs.length, 2);
+    assert.match(hrefs[0], /^\/css\/base\.[0-9a-f]{10}\.css$/);
+    assert.match(hrefs[1], /^\/css\/feed\.[0-9a-f]{10}\.css$/);
+    for (const href of hrefs) {
+      assert(fs.existsSync(path.join(outputDir, href)));
     }
+    assert(!fs.existsSync(path.join(outputDir, "css", "style.css")));
   });
 
-  it("rewrites existing preload links to hashed filenames", async () => {
-    const urlMap = await build();
-    const html = fs.readFileSync(path.join(outputDir, "index.html"), "utf-8");
-    assert(html.includes(`rel="modulepreload" href="${urlMap["/js/app.js"]}"`));
+  it("changes chunk filenames when the cache salt changes", async () => {
+    await build("first");
+    const firstHrefs = stylesheetHrefs();
+    writeFile(
+      "css/style.css",
+      "/* @chunk base */\nbody {}\n/* @chunk feed */\n.feed {}",
+    );
+    writeFile(
+      "index.html",
+      '<html><head><link rel="stylesheet" href="/css/style.css" /></head></html>',
+    );
+    await build("second");
+    const secondHrefs = stylesheetHrefs();
+    assert(firstHrefs.every((href) => !secondHrefs.includes(href)));
   });
 });
