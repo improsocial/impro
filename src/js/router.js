@@ -296,6 +296,10 @@ export class Router extends EventEmitter {
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
+      this.currentPage.classList.toggle(
+        "page-restored-at-top",
+        isRestore && scrollY === 0,
+      );
       // A same-path load reuses the outgoing page, which must stay visible
       if (outgoingPage !== page) {
         outgoingPage.classList.remove("page-visible");

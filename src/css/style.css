@@ -391,7 +391,7 @@ video {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .page.page-visible > * > :not(header) {
+  .page.page-visible:not(.page-restored-at-top) > * > :not(header) {
     animation: fade-in 150ms ease-out;
   }
 }

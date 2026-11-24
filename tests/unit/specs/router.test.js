@@ -1442,6 +1442,54 @@ describe("page event dispatch", () => {
     ]);
   });
 
+  it("marks a cached page restored at the top on a history traversal", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    await router.load("/b");
+
+    await router.load("/a", { isRestore: true });
+
+    assert(
+      router.pages.get("/a").el.classList.contains("page-restored-at-top"),
+    );
+  });
+
+  it("does not mark a page restored to a scrolled-down position", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    await withScrollY(175, () => router.load("/b"));
+
+    await router.load("/a", { isRestore: true });
+
+    assert(
+      !router.pages.get("/a").el.classList.contains("page-restored-at-top"),
+    );
+  });
+
+  it("clears the restored mark when the page is revisited forwards", async () => {
+    const router = createRouter();
+    await router.load("/a");
+    await router.load("/b");
+    await router.load("/a", { isRestore: true });
+    await router.load("/b");
+
+    await router.load("/a");
+
+    assert(
+      !router.pages.get("/a").el.classList.contains("page-restored-at-top"),
+    );
+  });
+
+  it("does not mark a page as restored on first load", async () => {
+    const router = createRouter();
+
+    await router.load("/a");
+
+    assert(
+      !router.pages.get("/a").el.classList.contains("page-restored-at-top"),
+    );
+  });
+
   it("dispatches a single page-show with an advance action on first load", async () => {
     const router = new Router();
     router.addRoute("/a", () => () => {});
