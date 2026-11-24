@@ -339,6 +339,11 @@ describe("postEmbedTemplate - video", () => {
     assert(player.hasAttribute("muted"));
     assert(player.hasAttribute("playsinline"));
   });
+
+  it("does not show the GIF badge", () => {
+    const el = renderVideo({ width: 16, height: 9 });
+    assert.deepEqual(el.querySelector("[data-testid='gif-badge']"), null);
+  });
 });
 
 describe("postEmbedTemplate - gif presentation video", () => {
@@ -400,6 +405,11 @@ describe("postEmbedTemplate - gif presentation video", () => {
   it("omits the ALT badge when alt text is missing", () => {
     const el = renderGifVideo();
     assert.deepEqual(el.querySelector("[data-testid='video-alt-badge']"), null);
+  });
+
+  it("shows the GIF badge", () => {
+    const el = renderGifVideo();
+    assert(el.querySelector("[data-testid='gif-badge']") !== null);
   });
 });
 
@@ -564,6 +574,13 @@ describe("postEmbedTemplate - external GIFs", () => {
     const dialogText = document.querySelector(".alt-text-dialog-text");
     assert.deepEqual(dialogText?.textContent, "dancing cat");
     dialogText.closest("dialog").remove();
+  });
+
+  it("shows the GIF badge on Tenor and Klipy GIFs", () => {
+    for (const uri of [TENOR_URI, KLIPY_URI]) {
+      const container = renderExternal({ uri, description: "" });
+      assert(container.querySelector("[data-testid='gif-badge']") !== null);
+    }
   });
 
   it("hides the alt badge when the description carries only a prefix", () => {

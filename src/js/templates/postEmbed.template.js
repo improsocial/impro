@@ -460,19 +460,24 @@ function gifPlayerTemplate({
           playsinline
         ></streaming-video>`
       : html`<img src="${uri}" alt="${alt ?? ""}" loading="lazy" />`}
-    ${alt
-      ? html`<button
-          class="alt-indicator"
-          data-testid="video-alt-badge"
-          @click=${(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            openAltTextDialog(alt);
-          }}
-        >
-          ALT
-        </button>`
-      : ""}
+    <div class="post-video-badges">
+      <span class="alt-indicator" data-testid="gif-badge" aria-hidden="true"
+        >GIF</span
+      >
+      ${alt
+        ? html`<button
+            class="alt-indicator"
+            data-testid="video-alt-badge"
+            @click=${(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              openAltTextDialog(alt);
+            }}
+          >
+            ALT
+          </button>`
+        : ""}
+    </div>
   </div>`;
 }
 

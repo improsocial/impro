@@ -3415,6 +3415,28 @@ animated-count.is-empty {
   cursor: pointer;
 }
 
+.post-video-badges {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.post-video-badges > .alt-indicator {
+  position: static;
+  padding: 1px 3px;
+  color: var(--white);
+  background: var(--alt-indicator-background);
+  border: none;
+}
+
+.post-video-badges > button.alt-indicator {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 .alt-text-dialog {
   padding: 0;
   border: none;
