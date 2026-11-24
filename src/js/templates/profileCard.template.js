@@ -545,7 +545,6 @@ export function profileCardTemplate({
           })}${pronounBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
-          <div class="profile-handle">${handleTemplate(profile.handle)}</div>
           ${showHandleLink &&
           hasValidHandle(profile) &&
           !profile.handle.endsWith(".bsky.social")
@@ -557,9 +556,14 @@ export function profileCardTemplate({
                 aria-label="Visit ${profile.handle}"
                 data-testid="profile-handle-link"
               >
+                <span class="profile-handle"
+                  >${handleTemplate(profile.handle)}</span
+                >
                 <app-icon icon="open-line"></app-icon>
               </a>`
-            : ""}
+            : html`<div class="profile-handle">
+                ${handleTemplate(profile.handle)}
+              </div>`}
           ${isFollowedBy && !isBlocking && !isBlockedBy
             ? html`<div class="profile-tag" data-testid="follows-you-badge">
                 Follows you

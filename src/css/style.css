@@ -6697,12 +6697,19 @@ emoji-picker-dialog emoji-picker,
 
 .profile-handle-link {
   display: flex;
-  flex-shrink: 0;
-  margin-left: -4px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   color: var(--text-color-muted);
+  text-decoration: none;
+}
+
+.profile-handle-link .profile-handle {
+  color: inherit;
 }
 
 .profile-handle-link app-icon {
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
 }

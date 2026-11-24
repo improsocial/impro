@@ -1183,6 +1183,14 @@ describe("profileCardTemplate - handle link", () => {
     );
   });
 
+  it("should include the handle text in the link", () => {
+    const link = renderHandleLink({
+      handle: "alice.example.com",
+      showHandleLink: true,
+    });
+    assert.deepEqual(link.textContent.trim(), "@alice.example.com");
+  });
+
   it("should not link a bsky.social handle", () => {
     assert.deepEqual(
       renderHandleLink({ handle: "alice.bsky.social", showHandleLink: true }),
