@@ -255,3 +255,25 @@ export function clampFacetIndex(facet, { byteStart, byteEnd }) {
     },
   };
 }
+
+function labelToDomain(label) {
+  if (/\s/.test(label)) {
+    return null;
+  }
+  for (const candidate of [label, `https://${label}`]) {
+    try {
+      return new URL(candidate).hostname.toLowerCase();
+    } catch {}
+  }
+  return null;
+}
+
+export function linkRequiresWarning(uri, label) {
+  const labelDomain = labelToDomain(label);
+  if (labelDomain === null) {
+    return false;
+  }
+  const looksLikeUrl =
+    /^https?:\/\//i.test(label) || isValidDomain(labelDomain);
+  return looksLikeUrl && labelDomain !== new URL(uri).hostname.toLowerCase();
+}

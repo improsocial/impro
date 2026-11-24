@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   richTextTemplate,
@@ -375,5 +375,102 @@ describe("richTextTokensTemplate suffix", () => {
     const richText = container.querySelector("[data-teststate='emoji-only']");
     assert(richText !== null);
     assert(richText.querySelector("[data-testid='suffix']") !== null);
+  });
+});
+
+describe("richTextTemplate link warnings", () => {
+  let container = null;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+    document
+      .querySelectorAll(".external-link-warning-modal")
+      .forEach((dialog) => dialog.remove());
+  });
+
+  function clickLink({ label, uri }) {
+    const text = `See ${label}`;
+    const facets = [
+      {
+        index: {
+          byteStart: 4,
+          byteEnd: 4 + new TextEncoder().encode(label).length,
+        },
+        features: [{ $type: "app.bsky.richtext.facet#link", uri }],
+      },
+    ];
+    render(richTextTemplate({ text, facets }), container);
+    const event = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    container.querySelector("a").dispatchEvent(event);
+    return {
+      prevented: event.defaultPrevented,
+      modal: document.querySelector(".external-link-warning-modal"),
+    };
+  }
+
+  it("shows the warning when the label is a different domain", () => {
+    const { prevented, modal } = clickLink({
+      label: "example.com",
+      uri: "https://evil.example/page",
+    });
+    assert(prevented);
+    assert(modal !== null);
+    assert.equal(
+      modal.querySelector("[data-testid='external-link-warning-href']").href,
+      "https://evil.example/page",
+    );
+  });
+
+  it("does not warn when the label isn't a URL", () => {
+    const { prevented, modal } = clickLink({
+      label: "click here",
+      uri: "https://example.com/page",
+    });
+    assert(!prevented);
+    assert.equal(modal, null);
+  });
+
+  it("shows the warning when a full URL label points elsewhere", () => {
+    const { prevented, modal } = clickLink({
+      label: "https://example.com/page",
+      uri: "https://evil.example/page",
+    });
+    assert(prevented);
+    assert(modal !== null);
+  });
+
+  it("does not warn when the label matches the link's domain", () => {
+    const { prevented, modal } = clickLink({
+      label: "Example.com/very/lo...",
+      uri: "https://example.com/very/long/path",
+    });
+    assert(!prevented);
+    assert.equal(modal, null);
+  });
+
+  it("does not warn for an in-app link with a non-URL label", () => {
+    const { prevented, modal } = clickLink({
+      label: "this post",
+      uri: "https://bsky.app/profile/alice.test/post/123",
+    });
+    assert(!prevented);
+    assert.equal(modal, null);
+  });
+
+  it("warns for an in-app link labeled as another domain", () => {
+    const { prevented, modal } = clickLink({
+      label: "example.com",
+      uri: "https://bsky.app/profile/alice.test",
+    });
+    assert(prevented);
+    assert(modal !== null);
   });
 });

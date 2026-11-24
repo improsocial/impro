@@ -2,6 +2,8 @@ import { html } from "/js/lib/lit-html.js";
 import { sanitizeUri } from "/js/utils.js";
 import { tokenizeRichText, isEmojiOnlyTokens } from "/js/richTextHelpers.js";
 import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
+import { linkRequiresWarning } from "/js/facetHelpers.js";
+import { ExternalLinkWarningModal } from "/js/modals/externalLinkWarning.modal.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = [
   "blue.poll.post.facet#option",
@@ -37,8 +39,16 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
   }
   switch (feature.$type) {
     case "app.bsky.richtext.facet#link":
-      const uri = feature.uri;
-      return html`<a href="${sanitizeUri(uri)}"
+      const href = sanitizeUri(feature.uri);
+      const requiresWarning = !!href && linkRequiresWarning(href, wrappedText);
+      return html`<a
+        href="${href}"
+        @click=${requiresWarning
+          ? (event) => {
+              event.preventDefault();
+              ExternalLinkWarningModal.open({ href });
+            }
+          : null}
         >${truncateUrls ? truncateUrl(wrappedText) : wrappedText}</a
       >`;
     case "app.bsky.richtext.facet#tag":
