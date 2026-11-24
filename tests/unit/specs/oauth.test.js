@@ -937,7 +937,7 @@ describe("oauth", () => {
       assert(!response.ok);
     });
 
-    describe("replayed proof", () => {
+    describe("invalid proof", () => {
       const REPLAYED_RESPONSE = {
         ok: false,
         status: 401,
@@ -982,23 +982,29 @@ describe("oauth", () => {
         assert.deepEqual(globalThis.fetch.calls.length, 2);
       });
 
-      it("should not retry other invalid_dpop_proof errors", async () => {
+      it("should retry a GET whose proof failed the iat check", async () => {
         const session = await getLoadedSession();
-        globalThis.fetch.__intercept(PDS_URL, async () =>
-          mockResponse({
-            ok: false,
-            status: 401,
-            body: {
-              error: "invalid_dpop_proof",
-              message: 'DPoP "htu" mismatch',
-            },
-          }),
-        );
+        let callCount = 0;
+        globalThis.fetch.__intercept(PDS_URL, async () => {
+          callCount++;
+          if (callCount === 1) {
+            return mockResponse({
+              ok: false,
+              status: 401,
+              body: {
+                error: "invalid_dpop_proof",
+                message:
+                  'Failed to verify DPoP proof: "iat" claim timestamp check failed (too far in the past)',
+              },
+            });
+          }
+          return mockResponse({ body: { ok: true } });
+        });
         const response = await session.fetch(
           "https://pds.example.com/xrpc/foo",
         );
-        assert(!response.ok);
-        assert.deepEqual(globalThis.fetch.calls.length, 1);
+        assert(response.ok);
+        assert.deepEqual(globalThis.fetch.calls.length, 2);
       });
 
       it("should not retry a POST", async () => {

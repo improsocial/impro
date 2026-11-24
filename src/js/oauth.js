@@ -276,9 +276,7 @@ class DPoPRequests {
         const isRetryableProofError =
           errorData.error === "use_dpop_nonce" ||
           // Sometimes browsers will re-send requests on page resume - in this case, retry with new proof
-          (errorData.error === "invalid_dpop_proof" &&
-            errorData.message === "DPoP proof replayed" &&
-            method === "GET");
+          (errorData.error === "invalid_dpop_proof" && method === "GET");
         if (isRetryableProofError && retryCount === 0) {
           return await this.fetch(url, options, retryCount + 1);
         }
