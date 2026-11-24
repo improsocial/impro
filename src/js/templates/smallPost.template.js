@@ -115,7 +115,7 @@ export function smallPostTemplate({
   pluginService,
 }) {
   if (isBlockedPost(post)) {
-    return blockedPostTemplate();
+    return blockedPostTemplate({ post });
   } else if (isNotFoundPost(post)) {
     return notFoundPostTemplate();
   } else if (isUnavailablePost(post)) {
