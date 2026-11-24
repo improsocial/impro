@@ -3190,6 +3190,50 @@ describe("$hydratedPostQuotes", () => {
     assert.deepEqual(result.posts[0].uri, "quote1");
     assert.deepEqual(result.cursor, "qc");
   });
+
+  it("should omit quotes whose quoted post was detached", () => {
+    const dataStore = new DataStore(createSessionState(null));
+    const { derived } = makeDerived(dataStore);
+    const detachedEmbed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewDetached",
+        uri: postUri,
+        detached: true,
+      },
+    };
+    dataStore.$posts.set("attached", {
+      uri: "attached",
+      record: { text: "a" },
+    });
+    dataStore.$posts.set("detached", {
+      uri: "detached",
+      record: { text: "d" },
+      embed: detachedEmbed,
+    });
+    dataStore.$posts.set("detachedWithMedia", {
+      uri: "detachedWithMedia",
+      record: { text: "m" },
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia#view",
+        record: detachedEmbed,
+        media: { $type: "app.bsky.embed.images#view", images: [] },
+      },
+    });
+    dataStore.$postQuotes.set(postUri, {
+      posts: [
+        { uri: "attached" },
+        { uri: "detached" },
+        { uri: "detachedWithMedia" },
+      ],
+      cursor: null,
+    });
+    const result = derived.$hydratedPostQuotes.get(postUri);
+    assert.deepEqual(
+      result.posts.map((post) => post.uri),
+      ["attached"],
+    );
+  });
 });
 
 describe("$listMembers", () => {

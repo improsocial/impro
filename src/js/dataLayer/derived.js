@@ -10,6 +10,7 @@ import {
   createUnavailablePost,
   createEmbedFromPost,
   getBlockedQuote,
+  getQuotedPost,
   isBlockedPost,
   isBlockingUser,
   isEmptyPost,
@@ -602,6 +603,11 @@ export class Derived extends ReactiveStore {
       for (const quote of quotes.posts) {
         const post = this.$hydratedPosts.get(quote.uri);
         if (!post) continue;
+        if (
+          getQuotedPost(post)?.$type === "app.bsky.embed.record#viewDetached"
+        ) {
+          continue;
+        }
         hydratedPosts.push(this.attachParentAuthor(post));
       }
       return {
