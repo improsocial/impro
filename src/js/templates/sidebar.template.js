@@ -4,7 +4,6 @@ import {
   classnames,
   formatLargeNumber,
   formatNumNotifications,
-  raf,
 } from "/js/utils.js";
 import { fillableIconTemplate } from "/js/templates/fillableIcon.template.js";
 import {
@@ -21,7 +20,7 @@ import {
 import "/js/components/animated-sidebar.js";
 import "/js/components/app-icon.js";
 
-async function navigateFromSidebar(event, url) {
+function navigateFromSidebar(event, url) {
   if (
     event.defaultPrevented ||
     event.metaKey ||
@@ -32,14 +31,9 @@ async function navigateFromSidebar(event, url) {
   ) {
     return;
   }
-  // Close the sidebar before navigating so the open sidebar isn't
-  // captured in the ios safari screenshot
   event.preventDefault();
   const sidebar = event.currentTarget.closest("animated-sidebar");
-  sidebar.close({ restoreScroll: false, animate: false });
-  await raf();
-  await raf();
-  return window.router.go(url);
+  return sidebar.navigate(() => window.router.go(url));
 }
 
 function pluginSidebarItemTemplate({ entry }) {

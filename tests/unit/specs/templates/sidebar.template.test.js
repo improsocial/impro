@@ -217,9 +217,13 @@ describe("sidebarTemplate - logged in state", () => {
 });
 
 describe("sidebarTemplate - nav items", () => {
-  it("should close before navigating to an inactive item", async () => {
+  it("should navigate to an inactive item with the sidebar open, then close it", async () => {
     const originalRouter = window.router;
-    const go = mock.fn();
+    let dialog = null;
+    let sidebarOpenDuringNavigation = null;
+    const go = mock.fn(async () => {
+      sidebarOpenDuringNavigation = dialog.open;
+    });
     window.router = { go };
     const container = document.createElement("div");
     container.className = "page-visible";
@@ -235,19 +239,17 @@ describe("sidebarTemplate - nav items", () => {
         container,
       );
       const sidebar = container.querySelector("animated-sidebar");
-      const dialog = sidebar.querySelector("dialog.sidebar");
+      dialog = sidebar.querySelector("dialog.sidebar");
       sidebar.isOpen = true;
       dialog.showModal();
 
       container.querySelector("[data-testid='sidebar-nav-search']").click();
 
+      assert.deepEqual(go.mock.calls[0].arguments, ["/search"]);
+      assert.deepEqual(sidebarOpenDuringNavigation, true);
+      await raf();
       assert.deepEqual(sidebar.isOpen, false);
       assert(!dialog.open);
-      assert.deepEqual(go.mock.callCount(), 0);
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await Promise.resolve();
-      assert.deepEqual(go.mock.calls[0].arguments, ["/search"]);
     } finally {
       container.remove();
       window.router = originalRouter;
@@ -861,8 +863,6 @@ describe("sidebarTemplate - active nav item clicks", () => {
     window.router = originalRouter;
   });
 
-  // The non-active branch navigates after two animation frames, so let the
-  // handler settle while the router stub is still installed.
   async function clickNavItem({
     isNavItemPage,
     activeNavItem = "chat",

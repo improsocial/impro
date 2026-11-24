@@ -188,19 +188,58 @@ describe("animated-sidebar", () => {
       const sidebar = element.querySelector("dialog.sidebar");
       assert(!sidebar.hasAttribute("open"));
     });
+  });
 
-    it("should close immediately when animate: false", () => {
+  describe("AnimatedSidebar - navigate method", () => {
+    it("should stay open with scroll unlocked while navigating, then close", async () => {
       const element = document.createElement("animated-sidebar");
       connectElement(element);
       element.open();
       const sidebar = element.querySelector("dialog.sidebar");
-      sidebar.style.transitionDuration = "1s";
-      sidebar.getAnimations = () => [];
+      let stateDuringNavigation = null;
 
-      element.close({ animate: false });
+      await element.navigate(async () => {
+        stateDuringNavigation = {
+          isOpen: element.isOpen,
+          dialogOpen: sidebar.open,
+          scrollLock: element.scrollLock,
+        };
+      });
+
+      assert.deepEqual(stateDuringNavigation, {
+        isOpen: true,
+        dialogOpen: true,
+        scrollLock: null,
+      });
+      assert.deepEqual(element.isOpen, false);
+      assert(!sidebar.open);
+    });
+
+    it("should close even when navigation fails", async () => {
+      const element = document.createElement("animated-sidebar");
+      connectElement(element);
+      element.open();
+
+      await assert.rejects(
+        element.navigate(async () => {
+          throw new Error("navigation failed");
+        }),
+      );
 
       assert.deepEqual(element.isOpen, false);
-      assert(!sidebar.hasAttribute("open"));
+    });
+
+    it("should just navigate when closed", async () => {
+      const element = document.createElement("animated-sidebar");
+      connectElement(element);
+      let navigated = false;
+
+      await element.navigate(async () => {
+        navigated = true;
+      });
+
+      assert(navigated);
+      assert.deepEqual(element.isOpen, false);
     });
   });
 
