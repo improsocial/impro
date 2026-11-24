@@ -1970,7 +1970,7 @@ test.describe("Notifications view", () => {
       await expect(pill).toBeHidden();
     });
 
-    test("should stay hidden when returning to the page with new notifications", async ({
+    test("should show when returning scrolled down to unread notifications", async ({
       page,
     }) => {
       const { likedPosts, notifications } = createPagedLikeNotifications(30);
@@ -2018,15 +2018,18 @@ test.describe("Notifications view", () => {
         .poll(() => page.evaluate(() => window.scrollY))
         .toBeGreaterThan(250);
       await expect(badge).toBeVisible();
-      await page.evaluate(async () => {
-        for (let i = 0; i < 5; i++) {
-          await new Promise((resolve) => requestAnimationFrame(resolve));
-        }
-      });
-      const pillClass = await view
-        .locator('[data-testid="refresh-pill"]')
-        .getAttribute("class");
-      expect(pillClass).not.toContain("is-visible");
+      const pill = view.locator('[data-testid="refresh-pill"]');
+      await expect(pill).toBeVisible();
+
+      await pill.click();
+
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+      await expect(
+        view.locator(
+          '[data-testid="notification-item"][data-teststate="follow"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(pill).toBeHidden();
     });
 
     test("should clear the badge only once the reload finishes and keep loaded items unread", async ({

@@ -251,6 +251,7 @@ export default async function notificationsView({
   state.$mentionLoadMoreError = new Signal.State(null);
   state.$expandedGroups = new SignalSet();
   state.$hasNewSincePageShow = new Signal.State(false);
+  state.$isScrolledDown = new Signal.State(false);
 
   async function handleMenuClick() {
     layout.openSidebar();
@@ -929,6 +930,10 @@ export default async function notificationsView({
     scrollAndReloadNotifications();
   });
 
+  bindToPage(root, window, "scroll", () => {
+    state.$isScrolledDown.set(window.scrollY > SCROLLED_DOWN_LIMIT);
+  });
+
   bindPageTitle(root, () => "Notifications");
 
   pageEffect(root, () => {
@@ -951,7 +956,7 @@ export default async function notificationsView({
 
     const hasNew =
       activeTab === "all" &&
-      state.$hasNewSincePageShow.get() &&
+      (state.$hasNewSincePageShow.get() || state.$isScrolledDown.get()) &&
       notificationService.$numNotifications.get() > 0 &&
       !notificationsRequestStatus.loading;
 
@@ -1149,6 +1154,7 @@ export default async function notificationsView({
   });
 
   onPageShow(root, async ({ scrollY }) => {
+    state.$isScrolledDown.set(scrollY > SCROLLED_DOWN_LIMIT);
     if (scrollY <= SCROLLED_DOWN_LIMIT) {
       window.scrollTo(0, 0);
       await reloadTabs();
