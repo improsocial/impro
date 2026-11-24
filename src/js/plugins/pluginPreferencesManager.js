@@ -46,36 +46,38 @@ export class PluginPreferencesManager extends ReactiveStore {
     return this.$installedPlugin.get(pluginId);
   }
 
-  async setInstalledPlugins(plugins) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    await this.preferencesProvider.updatePreferences(
-      preferences.setInstalledPlugins(plugins),
+  async updateInstalledPlugins(update) {
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.setInstalledPlugins(
+        update(preferences.getInstalledPlugins()),
+      ),
     );
   }
 
   async addInstalledPlugin(plugin) {
-    const installedPlugins = await this.getInstalledPlugins();
-    await this.setInstalledPlugins([...installedPlugins, plugin]);
+    await this.updateInstalledPlugins((installedPlugins) => [
+      ...installedPlugins,
+      plugin,
+    ]);
   }
 
   async removeInstalledPlugin(pluginId) {
-    const installedPlugins = await this.getInstalledPlugins();
-    await this.setInstalledPlugins(
+    await this.updateInstalledPlugins((installedPlugins) =>
       installedPlugins.filter((plugin) => plugin.id !== pluginId),
     );
   }
 
   async updateInstalledPlugin(pluginId, updateFunc) {
-    const installedPlugins = await this.getInstalledPlugins();
-    if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
-      throw new Error(
-        `Tried to update preference for uninstalled plugin: ${pluginId}`,
+    await this.updateInstalledPlugins((installedPlugins) => {
+      if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
+        throw new Error(
+          `Tried to update preference for uninstalled plugin: ${pluginId}`,
+        );
+      }
+      return installedPlugins.map((plugin) =>
+        plugin.id === pluginId ? updateFunc(plugin) : plugin,
       );
-    }
-    const updated = installedPlugins.map((plugin) =>
-      plugin.id === pluginId ? updateFunc(plugin) : plugin,
-    );
-    await this.setInstalledPlugins(updated);
+    });
   }
 
   async setPluginDisabled(pluginId) {
@@ -88,18 +90,18 @@ export class PluginPreferencesManager extends ReactiveStore {
   async setPluginsDisabled(pluginIds) {
     const ids = new Set(pluginIds);
     if (ids.size === 0) return;
-    const installedPlugins = await this.getInstalledPlugins();
-    for (const pluginId of ids) {
-      if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
-        throw new Error(
-          `Tried to update preference for uninstalled plugin: ${pluginId}`,
-        );
+    await this.updateInstalledPlugins((installedPlugins) => {
+      for (const pluginId of ids) {
+        if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
+          throw new Error(
+            `Tried to update preference for uninstalled plugin: ${pluginId}`,
+          );
+        }
       }
-    }
-    const updated = installedPlugins.map((plugin) =>
-      ids.has(plugin.id) ? { ...plugin, enabled: false } : plugin,
-    );
-    await this.setInstalledPlugins(updated);
+      return installedPlugins.map((plugin) =>
+        ids.has(plugin.id) ? { ...plugin, enabled: false } : plugin,
+      );
+    });
   }
 
   async setPluginEnabled(pluginId) {
@@ -140,15 +142,13 @@ export class PluginPreferencesManager extends ReactiveStore {
   }
 
   async writeSettingsForPlugin(pluginId, data) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    await this.preferencesProvider.updatePreferences(
+    await this.preferencesProvider.updatePreferences((preferences) =>
       preferences.setPluginSettings(pluginId, data),
     );
   }
 
   async clearSettingsForPlugin(pluginId) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    await this.preferencesProvider.updatePreferences(
+    await this.preferencesProvider.updatePreferences((preferences) =>
       preferences.clearPluginSettings(pluginId),
     );
   }

@@ -9,6 +9,7 @@ export class PreferencesProvider {
     this.api = api;
     this._preferences = null;
     this._pendingFetch = null;
+    this._writeQueue = Promise.resolve();
     this.$preferences = new Signal.State(null);
   }
 
@@ -41,11 +42,23 @@ export class PreferencesProvider {
     this._setPreferences(new Preferences(preferencesObj));
   }
 
-  async updatePreferences(preferences) {
-    if (preferences.persist) {
-      await this.api.updatePreferences(preferences.obj);
+  updatePreferences(update) {
+    const write = this._writeQueue.then(() => this._writePreferences(update));
+    this._writeQueue = write.catch(() => {});
+    return write;
+  }
+
+  async _writePreferences(update) {
+    const cached = await this.requirePreferences();
+    const base = cached.persist
+      ? new Preferences(await this.api.getPreferences())
+      : cached;
+    const next = update(base);
+    if (next !== base && next.persist) {
+      await this.api.updatePreferences(next.obj);
     }
-    this._setPreferences(preferences);
+    this._setPreferences(next);
+    return next;
   }
 
   _setPreferences(preferences) {

@@ -571,10 +571,10 @@ export class Mutations {
       feedUri,
       entryType: "feed",
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.pinFeed(feedUri, "feed");
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.pinFeed(feedUri, "feed"),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -590,10 +590,10 @@ export class Mutations {
       feedUri: listUri,
       entryType: "list",
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.pinFeed(listUri, "list");
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.pinFeed(listUri, "list"),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -608,10 +608,10 @@ export class Mutations {
       type: "unpinFeed",
       feedUri,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.unpinFeed(feedUri);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.unpinFeed(feedUri),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -626,10 +626,10 @@ export class Mutations {
       type: "unpinFeed",
       feedUri: listUri,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.unpinFeed(listUri);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.unpinFeed(listUri),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -666,10 +666,10 @@ export class Mutations {
   }
 
   async setPinnedItems(values) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.setPinnedItems(values);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.setPinnedItems(values),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -709,10 +709,10 @@ export class Mutations {
     const patchId = this.patchStore.addPostPatch(post.uri, {
       type: "hidePost",
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.hidePost(post.uri);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.hidePost(post.uri),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -723,9 +723,9 @@ export class Mutations {
   }
 
   async addRecentSearch(q) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.addRecentSearch(q);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.addRecentSearch(q),
+    );
   }
 
   async removeRecentSearch(q) {
@@ -733,10 +733,10 @@ export class Mutations {
       type: "removeRecentSearch",
       q,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.removeRecentSearch(q);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.removeRecentSearch(q),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -750,10 +750,10 @@ export class Mutations {
       type: "setThreadView",
       view,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.setThreadView(view);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.setThreadView(view),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -767,10 +767,10 @@ export class Mutations {
       type: "setVerificationBadgesHidden",
       hidden,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.setVerificationBadgesHidden(hidden);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.setVerificationBadgesHidden(hidden),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -780,15 +780,15 @@ export class Mutations {
   }
 
   async addRecentGif(gif) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.addRecentGif(gif);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.addRecentGif(gif),
+    );
   }
 
   async addRecentSearchProfile(did) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.addRecentSearchProfile(did);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.addRecentSearchProfile(did),
+    );
   }
 
   async removeRecentSearchProfile(did) {
@@ -796,10 +796,10 @@ export class Mutations {
       type: "removeRecentSearchProfile",
       did,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.removeRecentSearchProfile(did);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.removeRecentSearchProfile(did),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -809,44 +809,44 @@ export class Mutations {
   }
 
   async removeRecentSearchProfiles(dids) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.removeRecentSearchProfiles(dids);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.removeRecentSearchProfiles(dids),
+    );
   }
 
   async addMutedWord({ value, targets, actorTarget, expiresAt }) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.addMutedWord({
-      value,
-      targets,
-      actorTarget,
-      expiresAt,
-    });
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.addMutedWord({
+        value,
+        targets,
+        actorTarget,
+        expiresAt,
+      }),
+    );
   }
 
   async removeMutedWord(wordId) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.removeMutedWord(wordId);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.removeMutedWord(wordId),
+    );
   }
 
   async updateMutedWord(wordId, updatedFields) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.updateMutedWord(wordId, updatedFields);
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.updateMutedWord(wordId, updatedFields),
+    );
   }
 
   async updatePostInteractionSettings({
     threadgateAllowRules,
     postgateEmbeddingRules,
   }) {
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.setPostInteractionSettings({
-      threadgateAllowRules,
-      postgateEmbeddingRules,
-    });
-    await this.preferencesProvider.updatePreferences(newPreferences);
+    await this.preferencesProvider.updatePreferences((preferences) =>
+      preferences.setPostInteractionSettings({
+        threadgateAllowRules,
+        postgateEmbeddingRules,
+      }),
+    );
   }
 
   async subscribeLabeler(profile, labelerInfo) {
@@ -855,11 +855,10 @@ export class Mutations {
       did: profile.did,
       labelerInfo,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.subscribeLabeler(profile.did);
-
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.subscribeLabeler(profile.did),
+      );
       await this.labelerDefsProvider.addLabelerDef(labelerInfo);
     } catch (error) {
       console.error(error);
@@ -874,10 +873,10 @@ export class Mutations {
       type: "unsubscribeLabeler",
       did: profile.did,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.unsubscribeLabeler(profile.did);
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.unsubscribeLabeler(profile.did),
+      );
       await this.labelerDefsProvider.removeLabelerDef(profile.did);
     } catch (error) {
       console.error(error);
@@ -894,14 +893,14 @@ export class Mutations {
       visibility,
       labelerDid,
     });
-    const preferences = await this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.setContentLabelPref({
-      label,
-      visibility,
-      labelerDid,
-    });
     try {
-      await this.preferencesProvider.updatePreferences(newPreferences);
+      await this.preferencesProvider.updatePreferences((preferences) =>
+        preferences.setContentLabelPref({
+          label,
+          visibility,
+          labelerDid,
+        }),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -1658,9 +1657,12 @@ export class Mutations {
     this._removePinnedItem(list.uri);
     const preferences = await this.preferencesProvider.requirePreferences();
     if (preferences.isFeedPinned(list.uri)) {
-      const newPreferences = preferences.unpinFeed(list.uri);
       try {
-        await this.preferencesProvider.updatePreferences(newPreferences);
+        await this.preferencesProvider.updatePreferences((freshPreferences) =>
+          freshPreferences.isFeedPinned(list.uri)
+            ? freshPreferences.unpinFeed(list.uri)
+            : freshPreferences,
+        );
       } catch (error) {
         console.error(error);
       }

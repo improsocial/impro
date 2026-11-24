@@ -128,6 +128,7 @@ export class MockServer {
     // Seeded/captured app.bsky.actor.defs#threadViewPref; null means absent.
     this.threadViewPref = null;
     this.verificationPref = null;
+    this.storedPreferences = null;
     this.getProfileDelayMs = 0;
     this.getProfilesDelayMs = 0;
     this.getStarterPackDelayMs = 0;
@@ -1261,7 +1262,7 @@ export class MockServer {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            preferences: [
+            preferences: this.storedPreferences ?? [
               {
                 $type: "app.bsky.actor.defs#savedFeedsPrefV2",
                 items: [
@@ -3417,6 +3418,7 @@ export class MockServer {
           );
         }
         const body = route.request().postDataJSON();
+        this.storedPreferences = body?.preferences ?? [];
         const savedFeedsPref = body?.preferences?.find(
           (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
         );

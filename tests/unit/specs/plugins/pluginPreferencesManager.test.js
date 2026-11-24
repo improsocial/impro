@@ -1,87 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
-import { Signal } from "/js/signals.js";
-
-// A minimal fake of the Preferences object the manager interacts with.
-// The real Preferences clones on every write and the provider re-publishes
-// the result through $preferences, so dependent signals invalidate; the fake
-// mirrors that contract.
-class FakePreferences {
-  constructor(state) {
-    this.state = state;
-  }
-
-  getInstalledPlugins() {
-    return this.state.installedPlugins;
-  }
-
-  setInstalledPlugins(plugins) {
-    this.state.installedPlugins = plugins;
-    // Return a fresh identity to mirror the real provider, which clones
-    // preferences on every write so dependent signals invalidate.
-    return new FakePreferences(this.state);
-  }
-
-  getPluginSettings(pluginId) {
-    return this.state.pluginSettings[pluginId];
-  }
-
-  setPluginSettings(pluginId, data) {
-    this.state.pluginSettings[pluginId] = data;
-    return this;
-  }
-
-  clearPluginSettings(pluginId) {
-    delete this.state.pluginSettings[pluginId];
-    return this;
-  }
-}
-
-// Mirrors a provider whose preferences haven't loaded yet: the signal reads
-// null (so the manager's signals read empty) until requirePreferences resolves.
-function makeUnloadedProvider({ installedPlugins = [] } = {}) {
-  const state = { installedPlugins, pluginSettings: {} };
-  const preferences = new FakePreferences(state);
-  const $preferences = new Signal.State(null);
-  return {
-    state,
-    provider: {
-      $preferences,
-      requirePreferences: async () => {
-        $preferences.set(preferences);
-        return preferences;
-      },
-      updatePreferences: async (prefs) => {
-        $preferences.set(prefs);
-      },
-    },
-  };
-}
-
-function makeProvider({ installedPlugins = [], pluginSettings = {} } = {}) {
-  const state = { installedPlugins, pluginSettings };
-  const preferences = new FakePreferences(state);
-  const $preferences = new Signal.State(preferences);
-  const saveCalls = [];
-  return {
-    state,
-    preferences,
-    saveCalls,
-    provider: {
-      $preferences,
-      requirePreferences: () => preferences,
-      updatePreferences: async (prefs) => {
-        saveCalls.push(prefs);
-        $preferences.set(prefs);
-      },
-    },
-  };
-}
+import {
+  makeTestPluginPreferencesProvider,
+  storedInstalledPlugins,
+  storedPluginSettings,
+} from "../../testHelpers.js";
 
 describe("installed plugins", () => {
-  it("returns installed plugins from preferences", () => {
-    const { provider } = makeProvider({
+  it("returns installed plugins from preferences", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
@@ -90,19 +18,18 @@ describe("installed plugins", () => {
     ]);
   });
 
-  it("setInstalledPlugins persists via updatePreferences", async () => {
-    const { provider, saveCalls, state } = makeProvider();
+  it("updateInstalledPlugins persists via updatePreferences", async () => {
+    const { provider, server } = await makeTestPluginPreferencesProvider();
     const manager = new PluginPreferencesManager(provider);
-    await manager.setInstalledPlugins([{ id: "a", enabled: true }]);
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: true }]);
-    assert.deepEqual(saveCalls.length, 1);
-    assert.deepEqual(saveCalls[0].getInstalledPlugins(), [
+    await manager.updateInstalledPlugins(() => [{ id: "a", enabled: true }]);
+    assert.deepEqual(storedInstalledPlugins(server), [
       { id: "a", enabled: true },
     ]);
+    assert.deepEqual(server.putCalls, 1);
   });
 
-  it("$installedPlugin finds by id", () => {
-    const { provider } = makeProvider({
+  it("$installedPlugin finds by id", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         { id: "a", enabled: true },
         { id: "b", enabled: false },
@@ -116,8 +43,8 @@ describe("installed plugins", () => {
     assert.deepEqual(manager.$installedPlugin.get("missing"), null);
   });
 
-  it("$enabledPlugins filters to enabled entries", () => {
-    const { provider } = makeProvider({
+  it("$enabledPlugins filters to enabled entries", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         { id: "a", enabled: true },
         { id: "b", enabled: false },
@@ -132,7 +59,7 @@ describe("installed plugins", () => {
   });
 
   it("derived signals recompute after a mutation", async () => {
-    const { provider } = makeProvider({
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
@@ -158,20 +85,20 @@ describe("installed plugins", () => {
   });
 
   it("addInstalledPlugin appends and saves", async () => {
-    const { provider, state, saveCalls } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.addInstalledPlugin({ id: "b", enabled: false });
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(storedInstalledPlugins(server), [
       { id: "a", enabled: true },
       { id: "b", enabled: false },
     ]);
-    assert.deepEqual(saveCalls.length, 1);
+    assert.deepEqual(server.putCalls, 1);
   });
 
   it("removeInstalledPlugin removes by id and saves", async () => {
-    const { provider, state, saveCalls } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         { id: "a", enabled: true },
         { id: "b", enabled: false },
@@ -179,23 +106,27 @@ describe("installed plugins", () => {
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.removeInstalledPlugin("a");
-    assert.deepEqual(state.installedPlugins, [{ id: "b", enabled: false }]);
-    assert.deepEqual(saveCalls.length, 1);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "b", enabled: false },
+    ]);
+    assert.deepEqual(server.putCalls, 1);
   });
 
   it("removeInstalledPlugin is a no-op when id is absent", async () => {
-    const { provider, state } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.removeInstalledPlugin("missing");
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: true }]);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "a", enabled: true },
+    ]);
   });
 });
 
 describe("updateInstalledPlugin", () => {
   it("applies updateFunc to the matching entry only", async () => {
-    const { provider, state } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         { id: "a", enabled: true, version: "1.0.0" },
         { id: "b", enabled: false, version: "1.0.0" },
@@ -206,14 +137,14 @@ describe("updateInstalledPlugin", () => {
       ...entry,
       version: "2.0.0",
     }));
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(storedInstalledPlugins(server), [
       { id: "a", enabled: true, version: "2.0.0" },
       { id: "b", enabled: false, version: "1.0.0" },
     ]);
   });
 
   it("throws when the plugin is not installed", async () => {
-    const { provider } = makeProvider({
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
@@ -228,25 +159,29 @@ describe("updateInstalledPlugin", () => {
   });
 
   it("setPluginDisabled flips enabled to false", async () => {
-    const { provider, state } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.setPluginDisabled("a");
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: false }]);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "a", enabled: false },
+    ]);
   });
 
   it("setPluginEnabled flips enabled to true", async () => {
-    const { provider, state } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: false }],
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.setPluginEnabled("a");
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: true }]);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "a", enabled: true },
+    ]);
   });
 
   it("setPluginsDisabled flips enabled to false for each given id in one save", async () => {
-    const { provider, state, saveCalls } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         { id: "a", enabled: true },
         { id: "b", enabled: true },
@@ -255,26 +190,28 @@ describe("updateInstalledPlugin", () => {
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.setPluginsDisabled(["a", "c"]);
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(storedInstalledPlugins(server), [
       { id: "a", enabled: false },
       { id: "b", enabled: true },
       { id: "c", enabled: false },
     ]);
-    assert.deepEqual(saveCalls.length, 1);
+    assert.deepEqual(server.putCalls, 1);
   });
 
   it("setPluginsDisabled is a no-op (no save) for an empty list", async () => {
-    const { provider, state, saveCalls } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.setPluginsDisabled([]);
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: true }]);
-    assert.deepEqual(saveCalls.length, 0);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "a", enabled: true },
+    ]);
+    assert.deepEqual(server.putCalls, 0);
   });
 
   it("setPluginsDisabled throws when any id is not installed", async () => {
-    const { provider, state } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
@@ -287,15 +224,20 @@ describe("updateInstalledPlugin", () => {
     assert(caught instanceof Error);
     assert(caught.message.includes("missing"));
     // Should not have mutated state when any id is invalid
-    assert.deepEqual(state.installedPlugins, [{ id: "a", enabled: true }]);
+    assert.deepEqual(storedInstalledPlugins(server), [
+      { id: "a", enabled: true },
+    ]);
   });
 });
 
 describe("reads before preferences load", () => {
   it("getInstalledPlugins waits for the load instead of reading empty", async () => {
-    const { provider } = makeUnloadedProvider({
-      installedPlugins: [{ id: "a", enabled: true }],
-    });
+    const { provider } = await makeTestPluginPreferencesProvider(
+      {
+        installedPlugins: [{ id: "a", enabled: true }],
+      },
+      { loaded: false },
+    );
     const manager = new PluginPreferencesManager(provider);
 
     assert.deepEqual(manager.$installedPlugins.get(), []);
@@ -305,12 +247,15 @@ describe("reads before preferences load", () => {
   });
 
   it("getEnabledPlugins waits for the load instead of reading empty", async () => {
-    const { provider } = makeUnloadedProvider({
-      installedPlugins: [
-        { id: "a", enabled: true },
-        { id: "b", enabled: false },
-      ],
-    });
+    const { provider } = await makeTestPluginPreferencesProvider(
+      {
+        installedPlugins: [
+          { id: "a", enabled: true },
+          { id: "b", enabled: false },
+        ],
+      },
+      { loaded: false },
+    );
     const manager = new PluginPreferencesManager(provider);
 
     const enabled = await manager.getEnabledPlugins();
@@ -321,32 +266,38 @@ describe("reads before preferences load", () => {
   });
 
   it("addInstalledPlugin keeps stored plugins it hasn't loaded yet", async () => {
-    const { state, provider } = makeUnloadedProvider({
-      installedPlugins: [{ id: "a", enabled: true }],
-    });
+    const { server, provider } = await makeTestPluginPreferencesProvider(
+      {
+        installedPlugins: [{ id: "a", enabled: true }],
+      },
+      { loaded: false },
+    );
     const manager = new PluginPreferencesManager(provider);
 
     await manager.addInstalledPlugin({ id: "b", enabled: true });
 
     assert.deepEqual(
-      state.installedPlugins.map((entry) => entry.id),
+      storedInstalledPlugins(server).map((entry) => entry.id),
       ["a", "b"],
     );
   });
 
   it("removeInstalledPlugin keeps stored plugins it hasn't loaded yet", async () => {
-    const { state, provider } = makeUnloadedProvider({
-      installedPlugins: [
-        { id: "a", enabled: true },
-        { id: "b", enabled: true },
-      ],
-    });
+    const { server, provider } = await makeTestPluginPreferencesProvider(
+      {
+        installedPlugins: [
+          { id: "a", enabled: true },
+          { id: "b", enabled: true },
+        ],
+      },
+      { loaded: false },
+    );
     const manager = new PluginPreferencesManager(provider);
 
     await manager.removeInstalledPlugin("a");
 
     assert.deepEqual(
-      state.installedPlugins.map((entry) => entry.id),
+      storedInstalledPlugins(server).map((entry) => entry.id),
       ["b"],
     );
   });
@@ -354,38 +305,38 @@ describe("reads before preferences load", () => {
 
 describe("plugin settings", () => {
   it("readSettingsForPlugin returns stored settings", async () => {
-    const { provider } = makeProvider({
+    const { provider } = await makeTestPluginPreferencesProvider({
       pluginSettings: { a: { color: "red" } },
     });
     const manager = new PluginPreferencesManager(provider);
     assert.deepEqual(await manager.readSettingsForPlugin("a"), {
       color: "red",
     });
-    assert.deepEqual(await manager.readSettingsForPlugin("missing"), undefined);
+    assert.deepEqual(await manager.readSettingsForPlugin("missing"), null);
   });
 
   it("writeSettingsForPlugin persists and saves", async () => {
-    const { provider, state, saveCalls } = makeProvider();
+    const { provider, server } = await makeTestPluginPreferencesProvider();
     const manager = new PluginPreferencesManager(provider);
     await manager.writeSettingsForPlugin("a", { color: "blue" });
-    assert.deepEqual(state.pluginSettings, { a: { color: "blue" } });
-    assert.deepEqual(saveCalls.length, 1);
+    assert.deepEqual(storedPluginSettings(server), { a: { color: "blue" } });
+    assert.deepEqual(server.putCalls, 1);
   });
 
   it("clearSettingsForPlugin removes settings and saves", async () => {
-    const { provider, state, saveCalls } = makeProvider({
+    const { provider, server } = await makeTestPluginPreferencesProvider({
       pluginSettings: { a: { color: "blue" }, b: { count: 2 } },
     });
     const manager = new PluginPreferencesManager(provider);
     await manager.clearSettingsForPlugin("a");
-    assert.deepEqual(state.pluginSettings, { b: { count: 2 } });
-    assert.deepEqual(saveCalls.length, 1);
+    assert.deepEqual(storedPluginSettings(server), { b: { count: 2 } });
+    assert.deepEqual(server.putCalls, 1);
   });
 });
 
 describe("getUserGrantedFetchOrigins", () => {
-  it("normalizes and de-duplicates stored origins", () => {
-    const { provider } = makeProvider({
+  it("normalizes and de-duplicates stored origins", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         {
           id: "alpha",
@@ -407,8 +358,8 @@ describe("getUserGrantedFetchOrigins", () => {
 
   // The preferences record is writable by anything holding the account's
   // credentials, so stored values are untrusted input
-  it("drops anything that isn't a normalizable origin", () => {
-    const { provider } = makeProvider({
+  it("drops anything that isn't a normalizable origin", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         {
           id: "alpha",
@@ -427,8 +378,8 @@ describe("getUserGrantedFetchOrigins", () => {
     assert.deepEqual(manager.getUserGrantedFetchOrigins("alpha"), []);
   });
 
-  it("returns an empty list for a missing entry or malformed field", () => {
-    const { provider } = makeProvider({
+  it("returns an empty list for a missing entry or malformed field", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
       installedPlugins: [
         {
           id: "alpha",

@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Preferences } from "/js/preferences.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { makeTestPreferencesProvider } from "../../testHelpers.js";
 
 describe("PreferencesProvider", () => {
   // The retry waits a second before its second attempt.
@@ -163,24 +164,87 @@ describe("PreferencesProvider", () => {
     assert.deepEqual(preferences.obj, mockPreferencesObj);
   });
 
-  it("should update preferences via API", async () => {
-    let updatedObj = null;
-    const mockApi = {
-      isAuthenticated: true,
-      getPreferences: async () => [],
-      updatePreferences: async (obj) => {
-        updatedObj = obj;
-      },
-    };
-    const provider = new PreferencesProvider(mockApi);
-    await provider.fetchPreferences();
+  describe("updatePreferences", () => {
+    const addPref = (type) => (preferences) =>
+      new Preferences([...preferences.obj, { $type: type }], {
+        persist: preferences.persist,
+      });
+    const prefTypes = (obj) => obj.map((pref) => pref.$type);
 
-    const newPreferences = new Preferences([
-      { $type: "app.bsky.actor.defs#testPref" },
-    ]);
-    await provider.updatePreferences(newPreferences);
+    it("writes the change and publishes the result", async () => {
+      const { provider, server } = await makeTestPreferencesProvider();
 
-    assert.deepEqual(updatedObj, newPreferences.obj);
-    assert.deepEqual(await provider.requirePreferences(), newPreferences);
+      const result = await provider.updatePreferences(addPref("#a"));
+
+      assert.deepEqual(prefTypes(server.stored), ["#a"]);
+      assert.equal(provider.$preferences.get(), result);
+      assert.equal(await provider.requirePreferences(), result);
+    });
+
+    it("applies the change to freshly fetched preferences, keeping changes made elsewhere", async () => {
+      const { provider, server } = await makeTestPreferencesProvider();
+      server.stored = [{ $type: "#fromAnotherDevice" }];
+
+      await provider.updatePreferences(addPref("#a"));
+
+      assert.deepEqual(prefTypes(server.stored), ["#fromAnotherDevice", "#a"]);
+    });
+
+    it("keeps both changes when two writes overlap", async () => {
+      const { provider, server } = await makeTestPreferencesProvider();
+
+      await Promise.all([
+        provider.updatePreferences(addPref("#a")),
+        provider.updatePreferences(addPref("#b")),
+      ]);
+
+      assert.deepEqual(prefTypes(server.stored), ["#a", "#b"]);
+      assert.deepEqual(prefTypes((await provider.requirePreferences()).obj), [
+        "#a",
+        "#b",
+      ]);
+    });
+
+    it("rejects a failed write without blocking the next one", async () => {
+      const { provider, server, api } = await makeTestPreferencesProvider();
+      const save = api.updatePreferences;
+      api.updatePreferences = async () => {
+        api.updatePreferences = save;
+        throw new Error("500");
+      };
+
+      const failed = provider.updatePreferences(addPref("#a"));
+      const next = provider.updatePreferences(addPref("#b"));
+
+      await assert.rejects(failed, /500/);
+      await next;
+      assert.deepEqual(prefTypes(server.stored), ["#b"]);
+    });
+
+    it("skips the write when the change returns the preferences unchanged", async () => {
+      const { provider, server } = await makeTestPreferencesProvider();
+      server.stored = [{ $type: "#fromAnotherDevice" }];
+
+      await provider.updatePreferences((preferences) => preferences);
+
+      assert.equal(server.putCalls, 0);
+      assert.deepEqual(prefTypes((await provider.requirePreferences()).obj), [
+        "#fromAnotherDevice",
+      ]);
+    });
+
+    it("applies changes locally without fetching or saving when logged out", async () => {
+      const { provider, server } = await makeTestPreferencesProvider({
+        isAuthenticated: false,
+      });
+      const before = await provider.requirePreferences();
+
+      const result = await provider.updatePreferences(addPref("#a"));
+
+      assert.deepEqual(prefTypes(result.obj), [...prefTypes(before.obj), "#a"]);
+      assert.equal(await provider.requirePreferences(), result);
+      assert.equal(server.getCalls, 0);
+      assert.equal(server.putCalls, 0);
+    });
   });
 });

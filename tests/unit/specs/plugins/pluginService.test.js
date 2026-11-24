@@ -4,13 +4,19 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
-import { Signal, effect } from "/js/signals.js";
+import { effect } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { createSessionState } from "/js/dataLayer/sessionState.js";
 import { Constellation } from "/js/constellation.js";
-import { respondToConfirm, waitFor } from "../../testHelpers.js";
+import {
+  makeTestPluginPreferencesProvider,
+  respondToConfirm,
+  storedInstalledPlugins,
+  storedPluginSettings,
+  waitFor,
+} from "../../testHelpers.js";
 
 async function confirmInstall(installing) {
   await respondToConfirm(true);
@@ -23,51 +29,9 @@ function emptyDataLayer() {
   return dataLayer;
 }
 
-class FakePreferences {
-  constructor(state) {
-    this.state = state;
-  }
-  getInstalledPlugins() {
-    return this.state.installedPlugins;
-  }
-  setInstalledPlugins(plugins) {
-    this.state.installedPlugins = plugins;
-    // Return a fresh identity to mirror the real provider, which clones
-    // preferences on every write so dependent signals invalidate.
-    return new FakePreferences(this.state);
-  }
-  getPluginSettings(pluginId) {
-    return this.state.pluginSettings[pluginId];
-  }
-  setPluginSettings(pluginId, data) {
-    this.state.pluginSettings[pluginId] = data;
-    return this;
-  }
-  clearPluginSettings(pluginId) {
-    delete this.state.pluginSettings[pluginId];
-    return this;
-  }
-}
-
-function makeProvider() {
-  const state = { installedPlugins: [], pluginSettings: {} };
-  const preferences = new FakePreferences(state);
-  const $preferences = new Signal.State(preferences);
-  return {
-    state,
-    provider: {
-      $preferences,
-      requirePreferences: () => preferences,
-      updatePreferences: async (saved) => {
-        $preferences.set(saved);
-      },
-    },
-  };
-}
-
 // A real PluginService, wired to a real PluginBridge — for tests that drive
 // the bridge's registration targets and host-call handlers directly.
-function makeServiceWithRealBridge({
+async function makeServiceWithRealBridge({
   provider,
   session = null,
   dataLayer,
@@ -76,7 +40,7 @@ function makeServiceWithRealBridge({
   constellation,
 } = {}) {
   return new PluginService(
-    provider ?? makeProvider().provider,
+    provider ?? (await makeTestPluginPreferencesProvider()).provider,
     session,
     dataLayer ?? emptyDataLayer(),
     hiddenFeedItemsStore ?? new HiddenFeedItemsStore(),
@@ -88,14 +52,19 @@ function makeServiceWithRealBridge({
 // Build a PluginService with its async-heavy dependencies replaced by
 // inert fakes so we can exercise the install/update orchestration logic
 // without spinning up sandbox iframes or real fetches.
-function makeService({
+async function makeService({
   remoteListings = [],
   localListings = null,
   liveManifests = {},
   liveManifestsByRepo = {},
+  installedPlugins = [],
+  pluginSettings = {},
 } = {}) {
-  const { state, provider } = makeProvider();
-  const service = makeServiceWithRealBridge({ provider });
+  const { server, provider } = await makeTestPluginPreferencesProvider({
+    installedPlugins,
+    pluginSettings,
+  });
+  const service = await makeServiceWithRealBridge({ provider });
   const loadCalls = [];
   const reloadCalls = [];
   const unloadCalls = [];
@@ -158,7 +127,7 @@ function makeService({
   };
   return {
     service,
-    state,
+    server,
     provider,
     loadCalls,
     reloadCalls,
@@ -170,7 +139,7 @@ function makeService({
 
 describe("installPlugin", () => {
   it("persists manifest metadata and loads the plugin", async () => {
-    const { service, state, loadCalls } = makeService({
+    const { service, server, loadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -183,7 +152,7 @@ describe("installPlugin", () => {
       },
     });
     await confirmInstall(service.installPlugin("alpha"));
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(storedInstalledPlugins(server), [
       {
         id: "alpha",
         name: "Alpha",
@@ -201,7 +170,7 @@ describe("installPlugin", () => {
   });
 
   it("$pluginsInfo reflects newly installed plugin synchronously", async () => {
-    const { service } = makeService({
+    const { service } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -224,7 +193,7 @@ describe("installPlugin", () => {
   });
 
   it("throws and rolls back the preference entry when load fails", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
@@ -240,11 +209,11 @@ describe("installPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 
   it("rejects when the plugin is not in the remote registry", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     let caught = null;
     try {
       await service.installPlugin("alpha");
@@ -255,7 +224,7 @@ describe("installPlugin", () => {
   });
 
   it("aborts install when the permission prompt is declined", async () => {
-    const { service, state, loadCalls } = makeService({
+    const { service, server, loadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -275,12 +244,12 @@ describe("installPlugin", () => {
       caught = e;
     }
     assert(caught instanceof PermissionsDeclinedError);
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
     assert.deepEqual(loadCalls, []);
   });
 
   it("prompts on install even when manifest has no permissions", async () => {
-    const { service, state, loadCalls } = makeService({
+    const { service, server, loadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
@@ -300,14 +269,14 @@ describe("installPlugin", () => {
       caught = e;
     }
     assert(caught instanceof PermissionsDeclinedError);
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
     assert.deepEqual(loadCalls, []);
   });
 });
 
 describe("updatePlugin", () => {
   it("refreshes name/description/author/version from the live manifest", async () => {
-    const { service, state, reloadCalls } = makeService({
+    const { service, server, reloadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -331,7 +300,7 @@ describe("updatePlugin", () => {
 
     const result = await service.updatePlugin("alpha");
     assert.deepEqual(result, { updated: true, version: "1.1.0" });
-    assert.deepEqual(state.installedPlugins[0], {
+    assert.deepEqual(storedInstalledPlugins(server)[0], {
       id: "alpha",
       name: "Alpha Renamed",
       version: "1.1.0",
@@ -347,7 +316,7 @@ describe("updatePlugin", () => {
   });
 
   it("does nothing when live manifest is not newer", async () => {
-    const { service, state, reloadCalls } = makeService({
+    const { service, server, reloadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
@@ -357,12 +326,12 @@ describe("updatePlugin", () => {
 
     const result = await service.updatePlugin("alpha");
     assert.deepEqual(result, { updated: false });
-    assert.deepEqual(state.installedPlugins[0].version, "1.0.0");
+    assert.deepEqual(storedInstalledPlugins(server)[0].version, "1.0.0");
     assert.deepEqual(reloadCalls.length, 0);
   });
 
   it("does not prompt when no new permissions were added", async () => {
-    const { service } = makeService({
+    const { service } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -388,7 +357,7 @@ describe("updatePlugin", () => {
   });
 
   it("aborts update and keeps old version when the prompt is declined", async () => {
-    const { service, state, reloadCalls } = makeService({
+    const { service, server, reloadCalls } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -420,15 +389,15 @@ describe("updatePlugin", () => {
       caught = e;
     }
     assert(caught instanceof PermissionsDeclinedError);
-    assert.deepEqual(state.installedPlugins[0].version, "1.0.0");
-    assert.deepEqual(state.installedPlugins[0].permissions, {
+    assert.deepEqual(storedInstalledPlugins(server)[0].version, "1.0.0");
+    assert.deepEqual(storedInstalledPlugins(server)[0].permissions, {
       fetch: ["https://api.example.com/*"],
     });
     assert.deepEqual(reloadCalls.length, 0);
   });
 
   it("persists updated permissions when the prompt is accepted", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: {
@@ -454,7 +423,7 @@ describe("updatePlugin", () => {
     const updating = service.updatePlugin("alpha");
     await respondToConfirm(true);
     await updating;
-    assert.deepEqual(state.installedPlugins[0].permissions, {
+    assert.deepEqual(storedInstalledPlugins(server)[0].permissions, {
       fetch: ["https://api.example.com/*", "https://newhost.com/*"],
     });
   });
@@ -462,11 +431,12 @@ describe("updatePlugin", () => {
 
 describe("loadEnabledPlugins", () => {
   it("only loads entries marked enabled", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
+      ],
+    });
     const loadPluginsCalls = [];
     service.pluginBridge.loadPlugins = async (entries) => {
       loadPluginsCalls.push(entries);
@@ -481,10 +451,11 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("reports every plugin as loading until the initial load completes", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      ],
+    });
     service.pluginBridge.loadPlugins = async (entries) => ({
       loadedPlugins: entries,
       erroredPlugins: [],
@@ -495,10 +466,11 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("marks the initial load complete even when loading throws", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      ],
+    });
     service.pluginBridge.loadPlugins = async () => {
       throw new Error("boom");
     };
@@ -507,11 +479,12 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("skips __LOCAL entries when localPluginsEnabled is false", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
+      ],
+    });
     const loadPluginsCalls = [];
     service.pluginBridge.loadPlugins = async (entries) => {
       loadPluginsCalls.push(entries);
@@ -525,11 +498,13 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("loads __LOCAL entries when localPluginsEnabled is true", async () => {
-    const { service, state } = makeService({ localListings: [] });
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
-    ];
+    const { service } = await makeService({
+      localListings: [],
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
+      ],
+    });
     const loadPluginsCalls = [];
     service.pluginBridge.loadPlugins = async (entries) => {
       loadPluginsCalls.push(entries);
@@ -543,33 +518,35 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("keeps plugins enabled when the bridge reports they errored", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
+    const { service, server } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
+    });
     service.pluginBridge.loadPlugins = async () => ({
       loadedPlugins: [],
       erroredPlugins: [{ pluginId: "b", error: new Error("nope") }],
     });
     await service.loadEnabledPlugins();
     assert.deepEqual(
-      state.installedPlugins.find((entry) => entry.id === "b").enabled,
+      storedInstalledPlugins(server).find((entry) => entry.id === "b").enabled,
       true,
     );
     assert.deepEqual(
-      state.installedPlugins.find((entry) => entry.id === "a").enabled,
+      storedInstalledPlugins(server).find((entry) => entry.id === "a").enabled,
       true,
     );
   });
 
   it("shows one error toast per distinct load-error message", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-      { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+        { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
+      ],
+    });
     service.pluginBridge.loadPlugins = async () => ({
       loadedPlugins: [],
       erroredPlugins: [
@@ -592,25 +569,17 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("with ?disable-plugins, disables all enabled plugins in one save and skips loading", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
-      { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
-    ];
+    const { service, server } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
+        { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
+      ],
+    });
     const loadPluginsCalls = [];
     service.pluginBridge.loadPlugins = async (entries) => {
       loadPluginsCalls.push(entries);
       return { loadedPlugins: entries, erroredPlugins: [] };
-    };
-    let saveCalls = 0;
-    const originalSave =
-      service.prefManager.preferencesProvider.updatePreferences;
-    service.prefManager.preferencesProvider.updatePreferences = async (
-      prefs,
-    ) => {
-      saveCalls++;
-      return originalSave(prefs);
     };
     window.history.replaceState({}, "", "http://localhost/?disable-plugins");
     try {
@@ -619,8 +588,8 @@ describe("loadEnabledPlugins", () => {
       window.history.replaceState({}, "", "http://localhost/");
     }
     assert.deepEqual(loadPluginsCalls.length, 0);
-    assert.deepEqual(saveCalls, 1);
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(server.putCalls, 1);
+    assert.deepEqual(storedInstalledPlugins(server), [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
       { id: "c", version: "1.0.0", repo: "ow/c", enabled: false },
@@ -628,18 +597,15 @@ describe("loadEnabledPlugins", () => {
   });
 
   it("with ?disable-plugins and no enabled plugins, performs no save and no load", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
-    ];
+    const { service, server } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
+      ],
+    });
     const loadPluginsCalls = [];
     service.pluginBridge.loadPlugins = async (entries) => {
       loadPluginsCalls.push(entries);
       return { loadedPlugins: entries, erroredPlugins: [] };
-    };
-    let saveCalls = 0;
-    service.prefManager.preferencesProvider.updatePreferences = async () => {
-      saveCalls++;
     };
     window.history.replaceState({}, "", "http://localhost/?disable-plugins");
     try {
@@ -648,15 +614,16 @@ describe("loadEnabledPlugins", () => {
       window.history.replaceState({}, "", "http://localhost/");
     }
     assert.deepEqual(loadPluginsCalls.length, 0);
-    assert.deepEqual(saveCalls, 0);
+    assert.deepEqual(server.putCalls, 0);
   });
 
   it("reconciles cache against all installed (including disabled)", async () => {
-    const { service, state, reconcileCalls } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
-    ];
+    const { service, reconcileCalls } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
+      ],
+    });
     await service.loadEnabledPlugins();
     assert.deepEqual(reconcileCalls.length, 1);
     assert.deepEqual(reconcileCalls[0], [
@@ -668,15 +635,16 @@ describe("loadEnabledPlugins", () => {
 
 describe("getPreviewPlugins", () => {
   it("re-fires reactive readers when a plugin finishes loading", async () => {
-    const { state, provider } = makeProvider();
-    const service = makeServiceWithRealBridge({
+    const { provider } = await makeTestPluginPreferencesProvider({
+      installedPlugins: [
+        { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
+      ],
+    });
+    const service = await makeServiceWithRealBridge({
       provider,
       router: { go: () => {} },
     });
     service.isPreviewMode = true;
-    state.installedPlugins = [
-      { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
-    ];
     const seen = [];
     const dispose = effect(() => {
       seen.push(service.getPreviewPlugins().map((plugin) => plugin.id));
@@ -691,11 +659,12 @@ describe("getPreviewPlugins", () => {
     }
   });
 
-  it("returns nothing outside preview mode", () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
-    ];
+  it("returns nothing outside preview mode", async () => {
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", name: "A", version: "1.0.0", repo: "ow/a", enabled: true },
+      ],
+    });
     service.pluginBridge.isLoaded = () => true;
     assert.deepEqual(service.getPreviewPlugins(), []);
   });
@@ -703,29 +672,31 @@ describe("getPreviewPlugins", () => {
 
 describe("uninstallPlugin", () => {
   it("unloads, removes preference, clears settings, and reconciles", async () => {
-    const { service, state, unloadCalls, reconcileCalls } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
-    state.pluginSettings = { a: { color: "red" }, b: { color: "blue" } };
+    const { service, server, unloadCalls, reconcileCalls } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
+      pluginSettings: { a: { color: "red" }, b: { color: "blue" } },
+    });
     await service.uninstallPlugin("a");
     assert.deepEqual(unloadCalls, ["a"]);
     assert.deepEqual(
-      state.installedPlugins.map((entry) => entry.id),
+      storedInstalledPlugins(server).map((entry) => entry.id),
       ["b"],
     );
-    assert.deepEqual(state.pluginSettings, { b: { color: "blue" } });
+    assert.deepEqual(storedPluginSettings(server), { b: { color: "blue" } });
     // Cache should be reconciled against the remaining plugin only
     assert.deepEqual(reconcileCalls.length, 1);
     assert.deepEqual(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
   });
 
   it("also clears device-local plugin data", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-    ];
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      ],
+    });
     service.localDataStore.set("a", { keys: [{ id: "k1", secret: "shh" }] });
     assert.notDeepEqual(service.localDataStore.get("a"), null);
     await service.uninstallPlugin("a");
@@ -735,20 +706,22 @@ describe("uninstallPlugin", () => {
 
 describe("enablePlugin", () => {
   it("flips enabled and loads the plugin", async () => {
-    const { service, state, loadCalls } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
-    ];
+    const { service, server, loadCalls } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
+      ],
+    });
     await service.enablePlugin("a");
-    assert.deepEqual(state.installedPlugins[0].enabled, true);
+    assert.deepEqual(storedInstalledPlugins(server)[0].enabled, true);
     assert.deepEqual(loadCalls, [{ id: "a", version: "1.0.0", repo: "ow/a" }]);
   });
 
   it("rolls back to disabled when load fails", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
-    ];
+    const { service, server } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
+      ],
+    });
     service.pluginBridge.loadPlugin = async () => {
       throw new Error("boom");
     };
@@ -759,17 +732,18 @@ describe("enablePlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assert.deepEqual(state.installedPlugins[0].enabled, false);
+    assert.deepEqual(storedInstalledPlugins(server)[0].enabled, false);
   });
 });
 
 describe("reloadPlugins", () => {
   it("reloads only enabled plugins", async () => {
-    const { service, state, reloadCalls } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
-    ];
+    const { service, reloadCalls } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
+      ],
+    });
     await service.reloadPlugins();
     assert.deepEqual(
       reloadCalls.map((call) => call.id),
@@ -778,11 +752,12 @@ describe("reloadPlugins", () => {
   });
 
   it("disables plugins that throw and re-throws the first failure", async () => {
-    const { service, state } = makeService();
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
+    const { service, server } = await makeService({
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
+    });
     service.pluginBridge.reloadPlugin = async (id) => {
       if (id === "b") throw new Error("b broke");
     };
@@ -794,11 +769,11 @@ describe("reloadPlugins", () => {
     }
     assert(caught?.message.includes("b broke"));
     assert.deepEqual(
-      state.installedPlugins.find((entry) => entry.id === "b").enabled,
+      storedInstalledPlugins(server).find((entry) => entry.id === "b").enabled,
       false,
     );
     assert.deepEqual(
-      state.installedPlugins.find((entry) => entry.id === "a").enabled,
+      storedInstalledPlugins(server).find((entry) => entry.id === "a").enabled,
       true,
     );
   });
@@ -806,32 +781,32 @@ describe("reloadPlugins", () => {
 
 describe("checkForUpdates", () => {
   it("populates $availableUpdates with plugins whose live version is newer", async () => {
-    const { service, state } = makeService({
+    const { service } = await makeService({
       liveManifests: {
         a: { id: "a", name: "A", version: "2.0.0" },
         b: { id: "b", name: "B", version: "1.0.0" },
       },
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
     });
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
     const updates = await service.checkForUpdates();
     assert.deepEqual([...updates.entries()], [["a", "2.0.0"]]);
     assert.deepEqual(service.$availableUpdates.get(), updates);
   });
 
   it("skips plugins whose live manifest fails to fetch", async () => {
-    const { service, state } = makeService({
+    const { service } = await makeService({
       liveManifests: {
         a: { id: "a", name: "A", version: "2.0.0" },
         // b intentionally missing — getLiveManifest will throw
       },
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
     });
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
     const updates = await service.checkForUpdates();
     assert.deepEqual([...updates.keys()], ["a"]);
   });
@@ -839,22 +814,22 @@ describe("checkForUpdates", () => {
 
 describe("updateAllPlugins", () => {
   it("returns empty buckets when there are no available updates", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     const result = await service.updateAllPlugins();
     assert.deepEqual(result, { updated: [], failed: [], declined: [] });
   });
 
   it("partitions results into updated and failed buckets", async () => {
-    const { service, state } = makeService({
+    const { service } = await makeService({
       liveManifests: {
         a: { id: "a", name: "A", version: "2.0.0" },
         b: { id: "b", name: "B", version: "2.0.0" },
       },
+      installedPlugins: [
+        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      ],
     });
-    state.installedPlugins = [
-      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-    ];
     await service.checkForUpdates();
     // Make b's reload fail; a should still update successfully.
     service.pluginBridge.reloadPlugin = async (id) => {
@@ -867,29 +842,31 @@ describe("updateAllPlugins", () => {
 });
 
 describe("$pluginsInfo", () => {
-  it("hides __LOCAL plugins when localPluginsEnabled is false", () => {
-    const { service, state } = makeService({});
-    state.installedPlugins = [
-      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
-      { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
-    ];
+  it("hides __LOCAL plugins when localPluginsEnabled is false", async () => {
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+        { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
+      ],
+    });
     const info = service.$pluginsInfo.get();
     assert.deepEqual(info.length, 1);
     assert.deepEqual(info[0].id, "alpha");
   });
 
-  it("flags hasSystemSettings from granted fetch origins", () => {
-    const { service, state } = makeService({});
-    state.installedPlugins = [
-      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
-      {
-        id: "beta",
-        name: "Beta",
-        version: "1.0.0",
-        enabled: true,
-        userGrantedFetchOrigins: ["https://api.example.com/*"],
-      },
-    ];
+  it("flags hasSystemSettings from granted fetch origins", async () => {
+    const { service } = await makeService({
+      installedPlugins: [
+        { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+        {
+          id: "beta",
+          name: "Beta",
+          version: "1.0.0",
+          enabled: true,
+          userGrantedFetchOrigins: ["https://api.example.com/*"],
+        },
+      ],
+    });
     const info = service.$pluginsInfo.get();
     assert.equal(
       info.find((plugin) => plugin.id === "alpha").hasSystemSettings,
@@ -901,41 +878,45 @@ describe("$pluginsInfo", () => {
     );
   });
 
-  it("does not flag hasSystemSettings for stored origins that can't be normalized", () => {
-    const { service, state } = makeService({});
-    state.installedPlugins = [
-      {
-        id: "alpha",
-        name: "Alpha",
-        version: "1.0.0",
-        enabled: true,
-        userGrantedFetchOrigins: ["https://*/*", 42],
-      },
-    ];
+  it("does not flag hasSystemSettings for stored origins that can't be normalized", async () => {
+    const { service } = await makeService({
+      installedPlugins: [
+        {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          enabled: true,
+          userGrantedFetchOrigins: ["https://*/*", 42],
+        },
+      ],
+    });
     // Otherwise the settings link would point at an empty system section
     assert.equal(service.$pluginsInfo.get()[0].hasSystemSettings, false);
   });
 
-  it("includes __LOCAL plugins when localPluginsEnabled is true", () => {
-    const { service, state } = makeService({ localListings: [] });
-    state.installedPlugins = [
-      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
-      { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
-    ];
+  it("includes __LOCAL plugins when localPluginsEnabled is true", async () => {
+    const { service } = await makeService({
+      localListings: [],
+      installedPlugins: [
+        { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+        { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
+      ],
+    });
     const info = service.$pluginsInfo.get();
     assert.deepEqual(info.length, 2);
   });
 
-  it("lists only loaded plugins as previewing, and only in preview mode", () => {
-    const { state, provider } = makeProvider();
-    const service = makeServiceWithRealBridge({
+  it("lists only loaded plugins as previewing, and only in preview mode", async () => {
+    const { provider } = await makeTestPluginPreferencesProvider({
+      installedPlugins: [
+        { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+        { id: "beta", name: "Beta", version: "1.0.0", enabled: true },
+      ],
+    });
+    const service = await makeServiceWithRealBridge({
       provider,
       router: { go: () => {} },
     });
-    state.installedPlugins = [
-      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
-      { id: "beta", name: "Beta", version: "1.0.0", enabled: true },
-    ];
     service.pluginBridge.$loadedPlugins.set("alpha", { pluginId: "alpha" });
 
     assert.deepEqual(service.getPreviewPlugins(), []);
@@ -949,28 +930,24 @@ describe("$pluginsInfo", () => {
 });
 
 describe("registry listings loader/selector", () => {
-  it("returns null from the selector before the loader runs", () => {
-    const { service } = makeService({
+  it("returns null from the selector before the loader runs", async () => {
+    const { service } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     assert.deepEqual(service.$registryListings.get(), null);
   });
 
   it("merges remote + local listings and marks installed entries", async () => {
-    const { service, provider } = makeService({
+    const { service } = await makeService({
       remoteListings: [
         { id: "alpha", repo: "ow/alpha", name: "Alpha" },
         { id: "beta", repo: "ow/beta", name: "Beta" },
       ],
       localListings: [{ id: "gamma__LOCAL", name: "Gamma" }],
+      installedPlugins: [
+        { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+      ],
     });
-    provider.$preferences.set(
-      provider
-        .requirePreferences()
-        .setInstalledPlugins([
-          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
-        ]),
-    );
     await service.loadRegistryListings();
     const listings = service.$registryListings.get();
     assert.deepEqual(listings.length, 3);
@@ -983,58 +960,50 @@ describe("registry listings loader/selector", () => {
   });
 
   it("reflects updated install state on subsequent selector reads", async () => {
-    const { service, provider } = makeService({
+    const { service, provider } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     await service.loadRegistryListings();
     assert.deepEqual(service.$registryListings.get()[0].installed, false);
-    provider.$preferences.set(
-      provider
-        .requirePreferences()
-        .setInstalledPlugins([
-          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
-        ]),
+    await provider.updatePreferences((preferences) =>
+      preferences.setInstalledPlugins([
+        { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+      ]),
     );
     assert.deepEqual(service.$registryListings.get()[0].installed, true);
   });
 
   it("updates installed plugin repo when remote listing repo changes", async () => {
-    const { service, provider } = makeService({
+    const { service, server } = await makeService({
       remoteListings: [{ id: "alpha", repo: "newowner/alpha", name: "Alpha" }],
-    });
-    provider.$preferences.set(
-      provider.requirePreferences().setInstalledPlugins([
+      installedPlugins: [
         {
           id: "alpha",
           version: "1.0.0",
           repo: "oldowner/alpha",
           enabled: true,
         },
-      ]),
-    );
+      ],
+    });
     await service.loadRegistryListings();
-    const installed = provider.requirePreferences().getInstalledPlugins();
-    assert.deepEqual(installed[0].repo, "newowner/alpha");
+    assert.deepEqual(storedInstalledPlugins(server)[0].repo, "newowner/alpha");
   });
 
   it("does not rewrite installed repos when listings match", async () => {
-    const { service, provider } = makeService({
+    const { service, server, provider } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+      installedPlugins: [
+        { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+      ],
     });
-    provider.$preferences.set(
-      provider
-        .requirePreferences()
-        .setInstalledPlugins([
-          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
-        ]),
-    );
     const before = provider.$preferences.get();
     await service.loadRegistryListings();
-    assert.deepEqual(provider.$preferences.get(), before);
+    assert.equal(server.putCalls, 0);
+    assert.equal(provider.$preferences.get(), before);
   });
 
   it("sorts listings alphabetically by name, ignoring case", async () => {
-    const { service } = makeService({
+    const { service } = await makeService({
       remoteListings: [
         { id: "gamma", repo: "ow/gamma", name: "gamma" },
         { id: "alpha", repo: "ow/alpha", name: "Alpha" },
@@ -1050,7 +1019,7 @@ describe("registry listings loader/selector", () => {
   });
 
   it("returns only remote listings when localRegistry is absent", async () => {
-    const { service } = makeService({
+    const { service } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     await service.loadRegistryListings();
@@ -1062,7 +1031,7 @@ describe("registry listings loader/selector", () => {
 
 describe("installUnregisteredPlugin", () => {
   it("installs from a github.com URL using manifest metadata", async () => {
-    const { service, state, loadCalls } = makeService({
+    const { service, server, loadCalls } = await makeService({
       liveManifestsByRepo: {
         "ow/alpha": {
           id: "alpha",
@@ -1077,7 +1046,7 @@ describe("installUnregisteredPlugin", () => {
       service.installUnregisteredPlugin("https://github.com/ow/alpha"),
     );
     assert.deepEqual(result, { id: "alpha", name: "Alpha" });
-    assert.deepEqual(state.installedPlugins, [
+    assert.deepEqual(storedInstalledPlugins(server), [
       {
         id: "alpha",
         name: "Alpha",
@@ -1095,7 +1064,7 @@ describe("installUnregisteredPlugin", () => {
   });
 
   it("strips .git and extra path segments from the URL", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       liveManifestsByRepo: {
         "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
@@ -1105,11 +1074,11 @@ describe("installUnregisteredPlugin", () => {
         "https://github.com/ow/alpha.git/tree/main",
       ),
     );
-    assert.deepEqual(state.installedPlugins[0].repo, "ow/alpha");
+    assert.deepEqual(storedInstalledPlugins(server)[0].repo, "ow/alpha");
   });
 
   it("installs from a tangled.org URL using a tangled repo spec", async () => {
-    const { service, state, loadCalls } = makeService({
+    const { service, server, loadCalls } = await makeService({
       liveManifestsByRepo: {
         "tangled:@ow.example.com/alpha": {
           id: "alpha",
@@ -1125,7 +1094,7 @@ describe("installUnregisteredPlugin", () => {
     );
     assert.deepEqual(result, { id: "alpha", name: "Alpha" });
     assert.deepEqual(
-      state.installedPlugins[0].repo,
+      storedInstalledPlugins(server)[0].repo,
       "tangled:@ow.example.com/alpha",
     );
     assert.deepEqual(loadCalls, [
@@ -1138,7 +1107,7 @@ describe("installUnregisteredPlugin", () => {
   });
 
   it("accepts tangled.sh URLs", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       liveManifestsByRepo: {
         "tangled:@ow.example.com/alpha": {
           id: "alpha",
@@ -1153,13 +1122,13 @@ describe("installUnregisteredPlugin", () => {
       ),
     );
     assert.deepEqual(
-      state.installedPlugins[0].repo,
+      storedInstalledPlugins(server)[0].repo,
       "tangled:@ow.example.com/alpha",
     );
   });
 
   it("rejects URLs from unsupported hosts", async () => {
-    const { service, state } = makeService();
+    const { service, server } = await makeService();
     let caught = null;
     try {
       await service.installUnregisteredPlugin("https://example.com/ow/alpha");
@@ -1167,11 +1136,11 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("Invalid repo URL"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 
   it("rejects malformed URL strings", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     let caught = null;
     try {
       await service.installUnregisteredPlugin("not a url");
@@ -1182,7 +1151,7 @@ describe("installUnregisteredPlugin", () => {
   });
 
   it("throws when manifest is missing required fields", async () => {
-    const { service, state } = makeService();
+    const { service, server } = await makeService();
     service.sourceProvider.getLiveManifestFromRepo = async () => {
       throw new Error('missing required field "version"');
     };
@@ -1193,24 +1162,24 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("Failed to fetch manifest"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 
   it("rejects when the plugin id is already installed", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       liveManifestsByRepo: {
         "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
+      installedPlugins: [
+        {
+          id: "alpha",
+          name: "Alpha",
+          version: "0.9.0",
+          repo: "ow/alpha",
+          enabled: true,
+        },
+      ],
     });
-    state.installedPlugins = [
-      {
-        id: "alpha",
-        name: "Alpha",
-        version: "0.9.0",
-        repo: "ow/alpha",
-        enabled: true,
-      },
-    ];
     let caught = null;
     try {
       await service.installUnregisteredPlugin("https://github.com/ow/alpha");
@@ -1218,11 +1187,11 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("already installed"));
-    assert.deepEqual(state.installedPlugins.length, 1);
+    assert.deepEqual(storedInstalledPlugins(server).length, 1);
   });
 
   it("rolls back the preference entry when load fails", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       liveManifestsByRepo: {
         "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
@@ -1239,11 +1208,11 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 
   it("rejects when the plugin id is already in the remote registry", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifestsByRepo: {
         "someone/alpha-fork": {
@@ -1262,11 +1231,11 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("in the registry"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 
   it("rejects when the plugin id is in the local registry", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       localListings: [{ id: "alpha", repo: "ow/alpha-local" }],
       liveManifestsByRepo: {
         "someone/alpha-fork": {
@@ -1285,7 +1254,7 @@ describe("installUnregisteredPlugin", () => {
       caught = error;
     }
     assert(caught?.message.includes("in the registry"));
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 });
 
@@ -1299,13 +1268,13 @@ describe("getFilteredFeedItems", () => {
   }
 
   it("returns an empty object when no filters are registered", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
     assert.deepEqual(result, {});
   });
 
   it("passes feed.feed (not the wrapper) to each filter", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     const feedItems = [{ post: { uri: "p1" } }];
     let captured = null;
     addFilter(service, "alpha", async (_uri, items) => {
@@ -1319,7 +1288,7 @@ describe("getFilteredFeedItems", () => {
   });
 
   it("merges hide verdicts from multiple filters", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     addFilter(service, "alpha", async () => ({ p1: false }));
     addFilter(service, "beta", async () => ({ p2: false }));
 
@@ -1329,7 +1298,7 @@ describe("getFilteredFeedItems", () => {
   });
 
   it("ignores non-false verdicts", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     addFilter(service, "alpha", async () => ({
       p1: true,
       p2: false,
@@ -1343,7 +1312,7 @@ describe("getFilteredFeedItems", () => {
   });
 
   it("does not let one filter's keep override another filter's hide", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     addFilter(service, "alpha", async () => ({ p1: false, p2: true }));
     addFilter(service, "beta", async () => ({ p1: true, p2: false }));
 
@@ -1353,7 +1322,7 @@ describe("getFilteredFeedItems", () => {
   });
 
   it("continues past filters that throw", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     addFilter(service, "alpha", async () => {
       throw new Error("boom");
     });
@@ -1372,7 +1341,7 @@ describe("getFilteredFeedItems", () => {
   });
 
   it("skips filters that return null or non-object values", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     addFilter(service, "alpha", async () => null);
     addFilter(service, "beta", async () => "not-an-object");
     addFilter(service, "gamma", async () => ({ p1: false }));
@@ -1384,13 +1353,13 @@ describe("getFilteredFeedItems", () => {
 });
 
 describe("feed filter integration", () => {
-  function makeHarness(
+  async function makeHarness(
     getFilteredFeedItems,
     { initialLoadComplete = true } = {},
   ) {
     const dataLayer = emptyDataLayer();
     const hiddenFeedItemsStore = new HiddenFeedItemsStore();
-    const service = makeServiceWithRealBridge({
+    const service = await makeServiceWithRealBridge({
       dataLayer,
       hiddenFeedItemsStore,
     });
@@ -1405,7 +1374,7 @@ describe("feed filter integration", () => {
 
   it("merges appended pages into the hidden-items store", async () => {
     let call = 0;
-    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+    const { dataLayer, hiddenFeedItemsStore } = await makeHarness(async () => {
       call += 1;
       return call === 1 ? { p1: false } : { p2: false };
     });
@@ -1428,7 +1397,7 @@ describe("feed filter integration", () => {
   });
 
   it("defers filtering a page until the initial plugin load completes", async () => {
-    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+    const { service, dataLayer, hiddenFeedItemsStore } = await makeHarness(
       async () => ({ p1: false }),
       { initialLoadComplete: false },
     );
@@ -1448,7 +1417,7 @@ describe("feed filter integration", () => {
 
   it("replaces on reload", async () => {
     let call = 0;
-    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+    const { dataLayer, hiddenFeedItemsStore } = await makeHarness(async () => {
       call += 1;
       return call === 1 ? { p1: false } : { p2: false };
     });
@@ -1469,7 +1438,7 @@ describe("feed filter integration", () => {
 
   it("targets a specific feed on refresh request", async () => {
     const invocations = [];
-    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+    const { service, dataLayer, hiddenFeedItemsStore } = await makeHarness(
       async (uri) => {
         invocations.push(uri);
         return { [`x-${uri}`]: false };
@@ -1486,7 +1455,7 @@ describe("feed filter integration", () => {
 
   it("refreshes all cached feeds when no URI is supplied", async () => {
     const invocations = [];
-    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+    const { service, dataLayer, hiddenFeedItemsStore } = await makeHarness(
       async (uri) => {
         invocations.push(uri);
         return { [`x-${uri}`]: false };
@@ -1503,7 +1472,7 @@ describe("feed filter integration", () => {
 
   it("keeps home and detail hidden items separate", async () => {
     let call = 0;
-    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+    const { dataLayer, hiddenFeedItemsStore } = await makeHarness(async () => {
       call += 1;
       return call === 1 ? { p1: false } : { p2: false };
     });
@@ -1524,7 +1493,7 @@ describe("feed filter integration", () => {
   });
 
   it("refreshes a feed in both home and detail stores", async () => {
-    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+    const { service, dataLayer, hiddenFeedItemsStore } = await makeHarness(
       async (uri) => ({ [`x-${uri}`]: false }),
     );
     dataLayer.dataStore.$homeFeeds.set("a", { feed: [] });
@@ -1547,7 +1516,7 @@ describe("rich text wiring", () => {
   }
 
   it("registers the plugin's transform with the dispatcher", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const calls = [];
     registerTransform(
       service,
@@ -1580,8 +1549,8 @@ describe("rich text wiring", () => {
     assert.deepEqual(calls[0].batch[0].tokens, tokens);
   });
 
-  it("exposes the dispatcher's version signal, which a registration bumps", () => {
-    const service = makeServiceWithRealBridge();
+  it("exposes the dispatcher's version signal, which a registration bumps", async () => {
+    const service = await makeServiceWithRealBridge();
     assert.equal(
       service.$richTextTransformsVersion,
       service.richTextDispatcher.$version,
@@ -1601,8 +1570,8 @@ describe("rich text wiring", () => {
     assert.deepEqual([...service.getClaimedFacetTypes()], []);
   });
 
-  it("mounts node tokens through the emitting plugin's renderer", () => {
-    const service = makeServiceWithRealBridge();
+  it("mounts node tokens through the emitting plugin's renderer", async () => {
+    const service = await makeServiceWithRealBridge();
     const host = document.createElement("div");
     const element = service.renderRichTextNodeToken(
       {
@@ -1630,7 +1599,7 @@ describe("slot wiring", () => {
   }
 
   it("registers the plugin's slot handler with the dispatcher", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const calls = [];
     registerSlot(
       service,
@@ -1654,8 +1623,8 @@ describe("slot wiring", () => {
     assert.deepEqual(calls, [{ handlerId: 7, payload: [{ did: "did:one" }] }]);
   });
 
-  it("exposes the dispatcher's registrations and slot signal", () => {
-    const service = makeServiceWithRealBridge();
+  it("exposes the dispatcher's registrations and slot signal", async () => {
+    const service = await makeServiceWithRealBridge();
     const dispose = registerSlot(service, {
       pluginId: "alpha",
       call: () => Promise.resolve([]),
@@ -1668,7 +1637,7 @@ describe("slot wiring", () => {
   });
 
   it("routes the refreshSlot host method to the calling plugin's slot", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     registerSlot(service, {
       pluginId: "alpha",
       call: () => Promise.resolve([{ value: null }]),
@@ -1695,8 +1664,8 @@ describe("page wiring", () => {
     return { paths, router: { go: (path) => paths.push(path) } };
   }
 
-  function makeServiceWithRouter(router = makeRecordingRouter().router) {
-    return makeServiceWithRealBridge({ router });
+  async function makeServiceWithRouter(router = makeRecordingRouter().router) {
+    return await makeServiceWithRealBridge({ router });
   }
 
   function registerPage(service, plugin, message = {}) {
@@ -1714,7 +1683,7 @@ describe("page wiring", () => {
   }
 
   it("exposes a registered page and invokes its display handler", async () => {
-    const service = makeServiceWithRouter();
+    const service = await makeServiceWithRouter();
     const calls = [];
     registerPage(
       service,
@@ -1733,8 +1702,8 @@ describe("page wiring", () => {
     assert.deepEqual(calls, [5]);
   });
 
-  it("keeps pages of the same plugin separate and scoped by plugin id", () => {
-    const service = makeServiceWithRouter();
+  it("keeps pages of the same plugin separate and scoped by plugin id", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin("alpha"), { id: "one", title: "One" });
     registerPage(service, makePlugin("alpha"), { id: "two", title: "Two" });
     registerPage(service, makePlugin("beta"), { id: "one", title: "Beta One" });
@@ -1759,8 +1728,8 @@ describe("page wiring", () => {
     );
   }
 
-  it("resolves the sidebar item a page declares", () => {
-    const service = makeServiceWithRouter();
+  it("resolves the sidebar item a page declares", async () => {
+    const service = await makeServiceWithRouter();
     registerSidebarItem(service, makePlugin("alpha"), { id: "other" });
     registerSidebarItem(service, makePlugin("alpha"));
     registerPage(service, makePlugin("alpha"), {
@@ -1771,8 +1740,8 @@ describe("page wiring", () => {
     assert.deepEqual(entry.activeIconElement.getAttribute("icon"), "document");
   });
 
-  it("resolves no sidebar item when the page declares none or it's missing", () => {
-    const service = makeServiceWithRouter();
+  it("resolves no sidebar item when the page declares none or it's missing", async () => {
+    const service = await makeServiceWithRouter();
     registerSidebarItem(service, makePlugin("alpha"));
     registerPage(service, makePlugin("alpha"), { id: "plain" });
     registerPage(service, makePlugin("alpha"), {
@@ -1784,8 +1753,8 @@ describe("page wiring", () => {
     assert.deepEqual(service.getPageSidebarItem("alpha", "unknown"), null);
   });
 
-  it("only resolves sidebar items registered by the page's own plugin", () => {
-    const service = makeServiceWithRouter();
+  it("only resolves sidebar items registered by the page's own plugin", async () => {
+    const service = await makeServiceWithRouter();
     registerSidebarItem(service, makePlugin("beta"));
     registerPage(service, makePlugin("alpha"), {
       sidebarItemId: "dashboard-item",
@@ -1793,14 +1762,14 @@ describe("page wiring", () => {
     assert.deepEqual(service.getPageSidebarItem("alpha", "dashboard"), null);
   });
 
-  it("defaults a missing title to null", () => {
-    const service = makeServiceWithRouter();
+  it("defaults a missing title to null", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin(), { title: undefined });
     assert.deepEqual(service.getPage("alpha", "dashboard").title, null);
   });
 
-  it("rejects page ids that aren't URL-safe", () => {
-    const service = makeServiceWithRouter();
+  it("rejects page ids that aren't URL-safe", async () => {
+    const service = await makeServiceWithRouter();
     for (const id of ["Dashboard", "a/b", "a b", "a?b", "", 7, null]) {
       assert.deepEqual(
         registerPage(service, makePlugin(), { id }),
@@ -1811,16 +1780,16 @@ describe("page wiring", () => {
     assert.deepEqual(service.$pages.size, 0);
   });
 
-  it("replaces an earlier registration of the same id", () => {
-    const service = makeServiceWithRouter();
+  it("replaces an earlier registration of the same id", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin(), { title: "First" });
     registerPage(service, makePlugin(), { title: "Second" });
     assert.deepEqual(service.$pages.size, 1);
     assert.deepEqual(service.getPage("alpha", "dashboard").title, "Second");
   });
 
-  it("disposes only its own entry, not a replacement", () => {
-    const service = makeServiceWithRouter();
+  it("disposes only its own entry, not a replacement", async () => {
+    const service = await makeServiceWithRouter();
     const disposeFirst = registerPage(service, makePlugin(), {
       title: "First",
     });
@@ -1829,15 +1798,15 @@ describe("page wiring", () => {
     assert.deepEqual(service.getPage("alpha", "dashboard").title, "Second");
   });
 
-  it("removes the page when its registration is disposed", () => {
-    const service = makeServiceWithRouter();
+  it("removes the page when its registration is disposed", async () => {
+    const service = await makeServiceWithRouter();
     const dispose = registerPage(service, makePlugin());
     dispose();
     assert.deepEqual(service.getPage("alpha", "dashboard"), null);
   });
 
-  it("bumps the page's customContent refresh signal", () => {
-    const service = makeServiceWithRouter();
+  it("bumps the page's customContent refresh signal", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     assert.deepEqual(customContent.$refresh.get(), null);
@@ -1849,8 +1818,8 @@ describe("page wiring", () => {
     assert.deepEqual(customContent.$refresh.get(), { reset: true });
   });
 
-  it("defaults refreshPage's reset flag to false and requires a pageId", () => {
-    const service = makeServiceWithRouter();
+  it("defaults refreshPage's reset flag to false and requires a pageId", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     const refreshPage =
@@ -1861,8 +1830,8 @@ describe("page wiring", () => {
     assert.throws(() => refreshPage({ pluginId: "alpha" }, {}), /pageId/);
   });
 
-  it("signals a fresh value on every refresh so repeats still notify", () => {
-    const service = makeServiceWithRouter();
+  it("signals a fresh value on every refresh so repeats still notify", async () => {
+    const service = await makeServiceWithRouter();
     registerPage(service, makePlugin());
     const { customContent } = service.getPage("alpha", "dashboard");
     const refreshPage =
@@ -1874,24 +1843,24 @@ describe("page wiring", () => {
     assert.notEqual(customContent.$refresh.get(), first);
   });
 
-  it("ignores a refresh for a page that is not registered", () => {
-    const service = makeServiceWithRouter();
+  it("ignores a refresh for a page that is not registered", async () => {
+    const service = await makeServiceWithRouter();
     const refreshPage =
       service.pluginBridge._hostCallHandlers.get("refreshPage");
     refreshPage({ pluginId: "alpha" }, { pageId: "missing" });
   });
 
-  it("routes openPage to the calling plugin's own page path", () => {
+  it("routes openPage to the calling plugin's own page path", async () => {
     const { paths, router } = makeRecordingRouter();
-    const service = makeServiceWithRouter(router);
+    const service = await makeServiceWithRouter(router);
     const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
     openPage({ pluginId: "alpha" }, { pageId: "dashboard" });
     assert.deepEqual(paths, ["/plugin/alpha/pages/dashboard"]);
   });
 
-  it("encodes the plugin id in the openPage path and requires a pageId", () => {
+  it("encodes the plugin id in the openPage path and requires a pageId", async () => {
     const { paths, router } = makeRecordingRouter();
-    const service = makeServiceWithRouter(router);
+    const service = await makeServiceWithRouter(router);
     const openPage = service.pluginBridge._hostCallHandlers.get("openPage");
     openPage({ pluginId: "alpha/../beta" }, { pageId: "dashboard" });
     assert.deepEqual(paths, ["/plugin/alpha%2F..%2Fbeta/pages/dashboard"]);
@@ -1899,7 +1868,7 @@ describe("page wiring", () => {
   });
 
   it("reports the plugin's load status", async () => {
-    const service = makeServiceWithRouter();
+    const service = await makeServiceWithRouter();
     service.$initialLoadComplete.set(true);
     assert.deepEqual(service.getPluginLoadStatus("alpha"), {
       loading: false,
@@ -1921,8 +1890,8 @@ describe("page wiring", () => {
 });
 
 describe("data host method wiring", () => {
-  it("registers the PluginDataProvider methods on the bridge", () => {
-    const service = makeServiceWithRealBridge();
+  it("registers the PluginDataProvider methods on the bridge", async () => {
+    const service = await makeServiceWithRealBridge();
     for (const name of [
       "getPost",
       "getProfile",
@@ -1947,17 +1916,18 @@ describe("data host method wiring", () => {
   // The provider's permission callback is wired to the service's real
   // grant lookup - exercise the privateData gate end to end.
   it("xrpcQuery enforces privateData through the service's granted permissions", async () => {
-    function makeXrpcService(permissions) {
-      const { state, provider } = makeProvider();
-      state.installedPlugins = [
-        { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
-      ];
+    async function makeXrpcService(permissions) {
+      const { provider } = await makeTestPluginPreferencesProvider({
+        installedPlugins: [
+          { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
+        ],
+      });
       const dataLayer = Object.assign(emptyDataLayer(), {
         api: {
           appViewRequest: async () => ({ status: 200, data: { mutes: [] } }),
         },
       });
-      const service = makeServiceWithRealBridge({
+      const service = await makeServiceWithRealBridge({
         provider,
         session: { did: "did:plc:me", handle: "me.test" },
         dataLayer,
@@ -1965,7 +1935,7 @@ describe("data host method wiring", () => {
       return service.pluginBridge._hostCallHandlers.get("xrpcQuery");
     }
 
-    const denied = makeXrpcService({});
+    const denied = await makeXrpcService({});
     await assert.rejects(
       denied(
         { pluginId: "test-plugin" },
@@ -1974,7 +1944,7 @@ describe("data host method wiring", () => {
       /"privateData" action permission/,
     );
 
-    const granted = makeXrpcService({ actions: ["privateData"] });
+    const granted = await makeXrpcService({ actions: ["privateData"] });
     assert.deepEqual(
       await granted(
         { pluginId: "test-plugin" },
@@ -1990,16 +1960,17 @@ describe("action host methods", () => {
   const postUri = "at://did:plc:author/app.bsky.feed.post/1";
   const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool-feed";
 
-  function makeService({
+  async function makeService({
     feedItem = null,
     feedGenerator = null,
     hydratedProfiles = {},
     permissions = { actions: ["mute", "block", "feedFeedback"] },
   } = {}) {
-    const { state, provider } = makeProvider();
-    state.installedPlugins = [
-      { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
-    ];
+    const { provider } = await makeTestPluginPreferencesProvider({
+      installedPlugins: [
+        { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
+      ],
+    });
     const calls = {
       showLess: [],
       showMore: [],
@@ -2036,7 +2007,11 @@ describe("action host methods", () => {
       },
     });
     const session = { did: "did:plc:me", handle: "me.test" };
-    const service = makeServiceWithRealBridge({ provider, session, dataLayer });
+    const service = await makeServiceWithRealBridge({
+      provider,
+      session,
+      dataLayer,
+    });
     return { service, calls };
   }
 
@@ -2045,7 +2020,7 @@ describe("action host methods", () => {
   }
 
   it("showLessLikeThis resolves feedContext and proxy from the feed", async () => {
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       feedItem: { post: { uri: postUri }, feedContext: "ctx" },
       feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
     });
@@ -2059,7 +2034,7 @@ describe("action host methods", () => {
   });
 
   it("showLessLikeThis and showMoreLikeThis reject when feedUri is missing", async () => {
-    const { service, calls } = makeService();
+    const { service, calls } = await makeService();
     await assert.rejects(
       getHandler(service, "showLessLikeThis")(feedbackPlugin, { postUri }),
       /requires a feedUri/,
@@ -2073,7 +2048,7 @@ describe("action host methods", () => {
   });
 
   it("both methods reject when postUri is missing", async () => {
-    const { service, calls } = makeService();
+    const { service, calls } = await makeService();
     await assert.rejects(
       getHandler(service, "showLessLikeThis")(feedbackPlugin, { feedUri }),
       /requires a postUri/,
@@ -2087,7 +2062,7 @@ describe("action host methods", () => {
   });
 
   it("muteActor and blockActor reject when did is missing", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     await assert.rejects(
       getHandler(service, "muteActor")({ pluginId: "test-plugin" }, {}),
       /muteActor requires a did/,
@@ -2099,7 +2074,7 @@ describe("action host methods", () => {
   });
 
   it("showLessLikeThis with an uncached feed still resolves the generator proxy", async () => {
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
     });
     await getHandler(service, "showLessLikeThis")(feedbackPlugin, {
@@ -2112,7 +2087,7 @@ describe("action host methods", () => {
   });
 
   it("showMoreLikeThis resolves attribution the same way", async () => {
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       feedItem: { post: { uri: postUri }, feedContext: "ctx" },
       feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
     });
@@ -2126,7 +2101,7 @@ describe("action host methods", () => {
   });
 
   it("both methods require the feedFeedback action permission", async () => {
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       permissions: { actions: ["mute"] },
     });
     for (const name of ["showLessLikeThis", "showMoreLikeThis"]) {
@@ -2142,7 +2117,7 @@ describe("action host methods", () => {
   it("muteActor routes the mute flag to muteProfile and unmuteProfile", async () => {
     const did = "did:plc:target";
     const profile = { did, handle: "target.example" };
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       hydratedProfiles: { [did]: profile },
       permissions: { actions: ["mute"] },
     });
@@ -2155,7 +2130,7 @@ describe("action host methods", () => {
 
   it("blockActor routes the block flag to blockProfile and unblockProfile", async () => {
     const did = "did:plc:target";
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       permissions: { actions: ["block"] },
     });
     const blockPlugin = { pluginId: "test-plugin" };
@@ -2166,7 +2141,7 @@ describe("action host methods", () => {
   });
 
   it("muteActor and blockActor require their action permissions", async () => {
-    const { service, calls } = makeService({
+    const { service, calls } = await makeService({
       permissions: { actions: ["feedFeedback"] },
     });
     const plugin = { pluginId: "test-plugin" };
@@ -2184,7 +2159,7 @@ describe("action host methods", () => {
   });
 
   it("denies actions for a plugin with no installed-plugin entry", async () => {
-    const { service, calls } = makeService();
+    const { service, calls } = await makeService();
     await assert.rejects(
       getHandler(service, "muteActor")(
         { pluginId: "not-installed" },
@@ -2196,7 +2171,7 @@ describe("action host methods", () => {
   });
 
   it("all action methods reject when signed out", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const allActionsPlugin = {
       pluginId: "test-plugin",
       permissions: { actions: ["mute", "block", "feedFeedback"] },
@@ -2250,7 +2225,7 @@ describe("getRecord host method", () => {
   }
 
   it("fetches the record from Slingshot", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const did = uniqueDid();
     const record = {
       uri: `at://${did}/${VALID_COLLECTION}/${VALID_RKEY}`,
@@ -2274,7 +2249,7 @@ describe("getRecord host method", () => {
   });
 
   it("returns null on RecordNotFound", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const did = uniqueDid();
     stubFetch(async () =>
       jsonResponse(400, { error: "RecordNotFound", message: "gone" }),
@@ -2289,7 +2264,7 @@ describe("getRecord host method", () => {
   });
 
   it("rejects on other errors so the plugin can retry", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     const did = uniqueDid();
     stubFetch(async () => jsonResponse(502, null));
     const handler = service.pluginBridge._hostCallHandlers.get("getRecord");
@@ -2307,7 +2282,7 @@ describe("getRecord host method", () => {
   });
 
   it("rejects invalid repo/collection/rkey inputs without hitting the network", async () => {
-    const service = makeServiceWithRealBridge();
+    const service = await makeServiceWithRealBridge();
     let fetched = false;
     globalThis.fetch = async () => {
       fetched = true;
@@ -2340,7 +2315,7 @@ describe("getBacklinks host method", () => {
   const SUBJECT = "at://did:plc:test000001/app.bsky.graph.list/3laa";
   const SOURCE = "app.bsky.graph.listitem:list";
 
-  function makeServiceWithStubbedConstellation() {
+  async function makeServiceWithStubbedConstellation() {
     const calls = [];
     const constellation = {
       getLinks: async (args) => {
@@ -2350,7 +2325,10 @@ describe("getBacklinks host method", () => {
         ];
       },
     };
-    return { service: makeServiceWithRealBridge({ constellation }), calls };
+    return {
+      service: await makeServiceWithRealBridge({ constellation }),
+      calls,
+    };
   }
 
   function getHandler(service) {
@@ -2358,7 +2336,7 @@ describe("getBacklinks host method", () => {
   }
 
   it("passes validated args through to the constellation client", async () => {
-    const { service, calls } = makeServiceWithStubbedConstellation();
+    const { service, calls } = await makeServiceWithStubbedConstellation();
     const result = await getHandler(service)(null, {
       subject: SUBJECT,
       source: SOURCE,
@@ -2369,7 +2347,7 @@ describe("getBacklinks host method", () => {
   });
 
   it("accepts a bare did as the subject", async () => {
-    const { service, calls } = makeServiceWithStubbedConstellation();
+    const { service, calls } = await makeServiceWithStubbedConstellation();
     await getHandler(service)(null, {
       subject: "did:plc:test000001",
       source: "app.bsky.graph.follow:subject",
@@ -2379,7 +2357,7 @@ describe("getBacklinks host method", () => {
   });
 
   it("ignores a plugin-supplied timeout", async () => {
-    const { service, calls } = makeServiceWithStubbedConstellation();
+    const { service, calls } = await makeServiceWithStubbedConstellation();
     await getHandler(service)(null, {
       subject: SUBJECT,
       source: SOURCE,
@@ -2396,7 +2374,7 @@ describe("getBacklinks host method", () => {
   // A malformed subject/source is the plugin author's problem: it comes back
   // as an upstream 400 rather than being second-guessed here.
   it("passes through subject/source syntax it doesn't recognize", async () => {
-    const { service, calls } = makeServiceWithStubbedConstellation();
+    const { service, calls } = await makeServiceWithStubbedConstellation();
     await getHandler(service)(null, {
       subject: "https://example.com/not-atproto",
       source: "not-an-nsid",
@@ -2410,7 +2388,7 @@ describe("getBacklinks host method", () => {
   // host's pagination loop unbounded (missing/null) or silently empty
   // (NaN, non-numeric strings), so none of them may reach constellation.
   it("rejects a limit that isn't a positive integer within the cap", async () => {
-    const { service, calls } = makeServiceWithStubbedConstellation();
+    const { service, calls } = await makeServiceWithStubbedConstellation();
     const invalidLimits = [
       undefined,
       null,
@@ -2438,8 +2416,8 @@ describe("getBacklinks host method", () => {
     assert.deepEqual(calls, []);
   });
 
-  it("requires no permissions and no session", () => {
-    const { service } = makeServiceWithStubbedConstellation();
+  it("requires no permissions and no session", async () => {
+    const { service } = await makeServiceWithStubbedConstellation();
     assert.deepEqual(service.session, null);
     assert(getHandler(service) !== undefined);
   });
@@ -2452,20 +2430,20 @@ describe("loadLocalData/saveLocalData host methods", () => {
 
   const plugin = { pluginId: "tags", permissions: {} };
 
-  it("returns null before anything has been saved", () => {
-    const service = makeServiceWithRealBridge();
+  it("returns null before anything has been saved", async () => {
+    const service = await makeServiceWithRealBridge();
     assert.deepEqual(getHandler(service, "loadLocalData")(plugin), null);
   });
 
-  it("round-trips data through saveLocalData/loadLocalData", () => {
-    const service = makeServiceWithRealBridge();
+  it("round-trips data through saveLocalData/loadLocalData", async () => {
+    const service = await makeServiceWithRealBridge();
     const data = { keys: [{ id: "k1", label: "personal", secret: "shh" }] };
     getHandler(service, "saveLocalData")(plugin, { data });
     assert.deepEqual(getHandler(service, "loadLocalData")(plugin), data);
   });
 
-  it("isolates data between plugins", () => {
-    const service = makeServiceWithRealBridge();
+  it("isolates data between plugins", async () => {
+    const service = await makeServiceWithRealBridge();
     getHandler(service, "saveLocalData")(plugin, { data: { a: 1 } });
     getHandler(service, "saveLocalData")(
       { pluginId: "other", permissions: {} },
@@ -2484,12 +2462,13 @@ describe("binaryCache host methods", () => {
     return new Uint8Array(values).buffer;
   }
 
-  function makeServiceWithBinaryCache() {
-    const { state, provider } = makeProvider();
-    state.installedPlugins = [
-      { id: "translate", version: "1.0.0", enabled: true, permissions: {} },
-    ];
-    const service = makeServiceWithRealBridge({ provider });
+  async function makeServiceWithBinaryCache() {
+    const { provider } = await makeTestPluginPreferencesProvider({
+      installedPlugins: [
+        { id: "translate", version: "1.0.0", enabled: true, permissions: {} },
+      ],
+    });
+    const service = await makeServiceWithRealBridge({ provider });
     // The real store is Cache-API backed; these tests are about argument
     // plumbing, which pluginBinaryCache.test.js already covers directly
     // against the real class - swap in an inert fake here.
@@ -2529,7 +2508,7 @@ describe("binaryCache host methods", () => {
   const plugin = { pluginId: "translate" };
 
   it("has reports whether a key is stored", async () => {
-    const { service } = makeServiceWithBinaryCache();
+    const { service } = await makeServiceWithBinaryCache();
     await getHandler(service, "putBinaryCacheEntry")(plugin, {
       key: "engine",
       data: bytes([1, 2, 3]),
@@ -2549,7 +2528,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("lists this plugin's keys", async () => {
-    const { service, calls } = makeServiceWithBinaryCache();
+    const { service, calls } = await makeServiceWithBinaryCache();
     assert.deepEqual(
       await getHandler(service, "listBinaryCacheEntries")(plugin),
       [],
@@ -2573,7 +2552,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("round-trips bytes through put/get when permitted", async () => {
-    const { service } = makeServiceWithBinaryCache();
+    const { service } = await makeServiceWithBinaryCache();
     await getHandler(service, "putBinaryCacheEntry")(plugin, {
       key: "engine",
       data: bytes([1, 2, 3]),
@@ -2585,7 +2564,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("returns null for a key that was never stored", async () => {
-    const { service } = makeServiceWithBinaryCache();
+    const { service } = await makeServiceWithBinaryCache();
     assert.deepEqual(
       await getHandler(service, "getBinaryCacheEntry")(plugin, {
         key: "missing",
@@ -2595,7 +2574,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("delete removes the entry and calls are scoped to this plugin's id", async () => {
-    const { service, calls } = makeServiceWithBinaryCache();
+    const { service, calls } = await makeServiceWithBinaryCache();
     await getHandler(service, "putBinaryCacheEntry")(plugin, {
       key: "engine",
       data: bytes([1, 2, 3]),
@@ -2616,7 +2595,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("rejects put data that isn't an ArrayBuffer", async () => {
-    const { service } = makeServiceWithBinaryCache();
+    const { service } = await makeServiceWithBinaryCache();
     for (const data of ["AQID", new Uint8Array([1, 2, 3]), { byteLength: 3 }]) {
       await assert.rejects(
         () =>
@@ -2630,7 +2609,7 @@ describe("binaryCache host methods", () => {
   });
 
   it("requires a key argument", async () => {
-    const { service } = makeServiceWithBinaryCache();
+    const { service } = await makeServiceWithBinaryCache();
     await assert.rejects(
       () => getHandler(service, "getBinaryCacheEntry")(plugin, {}),
       /key/,
@@ -2643,8 +2622,8 @@ describe("binaryCache host methods", () => {
 });
 
 describe("getPostComposerInit", () => {
-  function makeLoadedService() {
-    const { service } = makeService();
+  async function makeLoadedService() {
+    const { service } = await makeService();
     service._completeInitialLoad();
     return service;
   }
@@ -2659,13 +2638,13 @@ describe("getPostComposerInit", () => {
   }
 
   it("returns null when no listeners are registered", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     const result = await service.getPostComposerInit({ kind: "post" });
     assert.deepEqual(result, null);
   });
 
   it("returns null when listeners contribute no ops and no cursor", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     addListener(service, "noop", async () => ({ ops: [], cursor: null }));
     addListener(service, "alsoNoop", async () => null);
     const result = await service.getPostComposerInit({ kind: "post" });
@@ -2673,7 +2652,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("appends text from a single listener", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     addListener(service, "sig", async () => ({
       ops: [{ op: "append", text: "\n\n— signed" }],
       cursor: null,
@@ -2683,7 +2662,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("composes set/append/prepend across multiple listeners in order", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     addListener(service, "alpha", async () => ({
       ops: [{ op: "set", text: "middle" }],
       cursor: null,
@@ -2701,7 +2680,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("last setCursor wins; nulls do not clobber prior cursor", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     addListener(service, "alpha", async () => ({
       ops: [{ op: "append", text: "a" }],
       cursor: 0,
@@ -2719,7 +2698,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("ignores listeners that throw", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     addListener(service, "alpha", async () => {
       throw new Error("boom");
     });
@@ -2739,7 +2718,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("passes context through to each listener", async () => {
-    const service = makeLoadedService();
+    const service = await makeLoadedService();
     let captured = null;
     addListener(service, "alpha", async (context) => {
       captured = context;
@@ -2758,7 +2737,7 @@ describe("getPostComposerInit", () => {
   });
 
   it("waits for the initial plugin load before reading listeners", async () => {
-    const { service } = makeService();
+    const { service } = await makeService();
     let result = null;
     const pending = service
       .getPostComposerInit({ kind: "post" })
@@ -2779,8 +2758,8 @@ describe("user-granted fetch origins", () => {
   async function makeInstalledService({
     permissions = { userFetch: true },
   } = {}) {
-    const { state, provider } = makeProvider();
-    const service = makeServiceWithRealBridge({ provider });
+    const { server, provider } = await makeTestPluginPreferencesProvider();
+    const service = await makeServiceWithRealBridge({ provider });
     await service.prefManager.addInstalledPlugin({
       id: "alpha",
       name: "Alpha",
@@ -2790,7 +2769,7 @@ describe("user-granted fetch origins", () => {
       enabled: true,
       permissions,
     });
-    return { service, state };
+    return { service, server };
   }
 
   function callRequest(service, url) {
@@ -2800,8 +2779,10 @@ describe("user-granted fetch origins", () => {
     );
   }
 
-  function storedEntry(state) {
-    return state.installedPlugins.find((plugin) => plugin.id === "alpha");
+  function storedEntry(server) {
+    return storedInstalledPlugins(server).find(
+      (plugin) => plugin.id === "alpha",
+    );
   }
 
   it("throws for a plugin without the userFetch permission", async () => {
@@ -2813,11 +2794,11 @@ describe("user-granted fetch origins", () => {
   });
 
   it("grants the origin when the user confirms", async () => {
-    const { service, state } = await makeInstalledService();
+    const { service, server } = await makeInstalledService();
     const requesting = callRequest(service, "https://api.example.com/v1/chat");
     await respondToConfirm(true);
     assert.equal(await requesting, true);
-    assert.deepEqual(storedEntry(state).userGrantedFetchOrigins, [
+    assert.deepEqual(storedEntry(server).userGrantedFetchOrigins, [
       "https://api.example.com/*",
     ]);
     assert(
@@ -2828,13 +2809,13 @@ describe("user-granted fetch origins", () => {
   });
 
   it("does not write the grant into the manifest permissions", async () => {
-    const { service, state } = await makeInstalledService();
+    const { service, server } = await makeInstalledService();
     const requesting = callRequest(service, "https://api.example.com/v1");
     await respondToConfirm(true);
     await requesting;
     // Laundering a user grant into entry.permissions would make a later
     // manifest claiming the same host diff to nothing.
-    assert.deepEqual(storedEntry(state).permissions, { userFetch: true });
+    assert.deepEqual(storedEntry(server).permissions, { userFetch: true });
   });
 
   it("resolves true without prompting when already granted", async () => {
@@ -2863,15 +2844,15 @@ describe("user-granted fetch origins", () => {
   });
 
   it("grants nothing when the user declines", async () => {
-    const { service, state } = await makeInstalledService();
+    const { service, server } = await makeInstalledService();
     const requesting = callRequest(service, "https://api.example.com/v1");
     await respondToConfirm(false);
     assert.equal(await requesting, false);
-    assert.equal(storedEntry(state).userGrantedFetchOrigins, undefined);
+    assert.equal(storedEntry(server).userGrantedFetchOrigins, undefined);
   });
 
   it("prompts again after a decline", async () => {
-    const { service, state } = await makeInstalledService();
+    const { service, server } = await makeInstalledService();
     const declining = callRequest(service, "https://api.example.com/v1");
     await respondToConfirm(false);
     await declining;
@@ -2879,7 +2860,7 @@ describe("user-granted fetch origins", () => {
     const retrying = callRequest(service, "https://api.example.com/v1");
     await respondToConfirm(true);
     assert.equal(await retrying, true);
-    assert.deepEqual(storedEntry(state).userGrantedFetchOrigins, [
+    assert.deepEqual(storedEntry(server).userGrantedFetchOrigins, [
       "https://api.example.com/*",
     ]);
   });
@@ -2954,8 +2935,8 @@ describe("preview installs and userFetch", () => {
   // Preview's guarantee is "runs with nothing granted"; a plugin that can
   // prompt for origins at runtime must not slip through it.
   it("refuses to preview a plugin declaring userFetch", async () => {
-    const { state, provider } = makeProvider();
-    const service = makeServiceWithRealBridge({ provider });
+    const { server, provider } = await makeTestPluginPreferencesProvider();
+    const service = await makeServiceWithRealBridge({ provider });
     service.remoteRegistry = {
       getListing: async () => ({ id: "alpha", repo: "ow/alpha" }),
       getListings: async () => [{ id: "alpha", repo: "ow/alpha" }],
@@ -2971,13 +2952,13 @@ describe("preview installs and userFetch", () => {
 
     await service._installPreviewPlugin("alpha");
 
-    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(storedInstalledPlugins(server), []);
   });
 });
 
 describe("updating a plugin that adds userFetch", () => {
   it("prompts with the new scope and stores it", async () => {
-    const { service, state } = makeService({
+    const { service, server } = await makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
@@ -2994,7 +2975,7 @@ describe("updating a plugin that adds userFetch", () => {
     const updating = service.updatePlugin("alpha");
     await respondToConfirm(true);
     assert.deepEqual(await updating, { updated: true, version: "1.1.0" });
-    const entry = state.installedPlugins.find(
+    const entry = storedInstalledPlugins(server).find(
       (plugin) => plugin.id === "alpha",
     );
     assert.deepEqual(entry.permissions, { userFetch: true });
@@ -3004,12 +2985,13 @@ describe("updating a plugin that adds userFetch", () => {
 describe("context menu link items", () => {
   const post = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
 
-  function makeLinkService({ permissions }) {
-    const { state, provider } = makeProvider();
-    state.installedPlugins = [
-      { id: "linker", version: "1.0.0", enabled: true, permissions },
-    ];
-    const service = makeServiceWithRealBridge({ provider });
+  async function makeLinkService({ permissions }) {
+    const { provider } = await makeTestPluginPreferencesProvider({
+      installedPlugins: [
+        { id: "linker", version: "1.0.0", enabled: true, permissions },
+      ],
+    });
+    const service = await makeServiceWithRealBridge({ provider });
     service.registries.eventListeners.set(
       "post-context-menu",
       new Map([
@@ -3038,7 +3020,7 @@ describe("context menu link items", () => {
 
   it("keeps link items whose url matches the open permission", async (t) => {
     t.mock.method(console, "warn", () => {});
-    const service = makeLinkService({
+    const service = await makeLinkService({
       permissions: { open: ["https://pdsls.dev/*"] },
     });
     const items = await service.getPostContextMenuItems(post);
@@ -3053,7 +3035,7 @@ describe("context menu link items", () => {
 
   it("drops every link item without an open permission", async (t) => {
     t.mock.method(console, "warn", () => {});
-    const service = makeLinkService({
+    const service = await makeLinkService({
       permissions: { fetch: ["https://pdsls.dev/*"] },
     });
     const items = await service.getPostContextMenuItems(post);
@@ -3063,8 +3045,8 @@ describe("context menu link items", () => {
     );
   });
 
-  it("lets permitted plugin <a> clicks through without the warning modal", () => {
-    const service = makeLinkService({
+  it("lets permitted plugin <a> clicks through without the warning modal", async () => {
+    const service = await makeLinkService({
       permissions: { open: ["https://pdsls.dev/*"] },
     });
     const element = service

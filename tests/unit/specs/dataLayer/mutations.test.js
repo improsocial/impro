@@ -15,7 +15,10 @@ import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { CDN_URL } from "/js/config.js";
 import { ApiError } from "/js/api.js";
-import { trackDisposable } from "../../testHelpers.js";
+import {
+  makeTestPreferencesProvider,
+  trackDisposable,
+} from "../../testHelpers.js";
 import { isBlockedPost, MAX_HIDDEN_REPLIES } from "/js/dataHelpers.js";
 import {
   createFeedGenerator,
@@ -65,6 +68,21 @@ function makeLabelerDefsProvider() {
       this.removedLabelerDids.push(did);
     },
   };
+}
+
+const savedPreferences = (server) => new Preferences(server.stored);
+
+function holdPreferenceWrites(api) {
+  const save = api.updatePreferences;
+  let release;
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+  api.updatePreferences = async (obj) => {
+    await released;
+    return save(obj);
+  };
+  return release;
 }
 
 function makeMutations(
@@ -877,23 +895,22 @@ describe("subscribeLabeler", () => {
     policies: { labelValueDefinitions: [] },
   };
 
-  it("should add optimistic preference patch immediately", () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup(labelerDefsProvider = makeLabelerDefsProvider()) {
+    const { provider, server, api } = await makeTestPreferencesProvider();
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
+      labelerDefsProvider,
     );
+    return { mutations, patchStore, server, api };
+  }
+
+  it("should add optimistic preference patch immediately", async () => {
+    const { mutations, patchStore, api } = await setup();
+    holdPreferenceWrites(api);
 
     mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
@@ -904,44 +921,26 @@ describe("subscribeLabeler", () => {
   });
 
   it("should remove patch after successful update", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, patchStore, server } = await setup();
 
     await mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
     const patches = patchStore.$preferencePatches.get();
     assert.deepEqual(patches.length, 0);
+    assert.deepEqual(
+      savedPreferences(server).isSubscribedToLabeler(testProfile.did),
+      true,
+    );
   });
 
   it("should add the labeler definition after the preferences update", async () => {
     const labelerDefsProvider = makeLabelerDefsProvider();
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        assert.deepEqual(labelerDefsProvider.addedLabelerDefs, []);
-      },
+    const { mutations, api } = await setup(labelerDefsProvider);
+    const save = api.updatePreferences;
+    api.updatePreferences = async (obj) => {
+      assert.deepEqual(labelerDefsProvider.addedLabelerDefs, []);
+      return save(obj);
     };
-    const mutations = makeMutations(
-      {},
-      new DataStore(createSessionState(null)),
-      new PatchStore(),
-      mockPreferencesProvider,
-      labelerDefsProvider,
-    );
 
     await mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
@@ -949,24 +948,11 @@ describe("subscribeLabeler", () => {
   });
 
   it("should remove patch even on error", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        throw new Error("API error");
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
     const labelerDefsProvider = makeLabelerDefsProvider();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-      labelerDefsProvider,
-    );
+    const { mutations, patchStore, api } = await setup(labelerDefsProvider);
+    api.updatePreferences = async () => {
+      throw new Error("API error");
+    };
 
     let errorThrown = false;
     try {
@@ -988,23 +974,29 @@ describe("unsubscribeLabeler", () => {
     handle: "labeler.test",
   };
 
-  it("should add optimistic preference patch immediately", () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup(labelerDefsProvider = makeLabelerDefsProvider()) {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#labelersPref",
+          labelers: [{ did: testProfile.did }],
+        },
+      ],
+    });
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
+      labelerDefsProvider,
     );
+    return { mutations, patchStore, server, api };
+  }
+
+  it("should add optimistic preference patch immediately", async () => {
+    const { mutations, patchStore, api } = await setup();
+    holdPreferenceWrites(api);
 
     mutations.unsubscribeLabeler(testProfile);
 
@@ -1015,44 +1007,26 @@ describe("unsubscribeLabeler", () => {
   });
 
   it("should remove patch after successful update", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, patchStore, server } = await setup();
 
     await mutations.unsubscribeLabeler(testProfile);
 
     const patches = patchStore.$preferencePatches.get();
     assert.deepEqual(patches.length, 0);
+    assert.deepEqual(
+      savedPreferences(server).isSubscribedToLabeler(testProfile.did),
+      false,
+    );
   });
 
   it("should remove the labeler definition after the preferences update", async () => {
     const labelerDefsProvider = makeLabelerDefsProvider();
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        assert.deepEqual(labelerDefsProvider.removedLabelerDids, []);
-      },
+    const { mutations, api } = await setup(labelerDefsProvider);
+    const save = api.updatePreferences;
+    api.updatePreferences = async (obj) => {
+      assert.deepEqual(labelerDefsProvider.removedLabelerDids, []);
+      return save(obj);
     };
-    const mutations = makeMutations(
-      {},
-      new DataStore(createSessionState(null)),
-      new PatchStore(),
-      mockPreferencesProvider,
-      labelerDefsProvider,
-    );
 
     await mutations.unsubscribeLabeler(testProfile);
 
@@ -1060,22 +1034,10 @@ describe("unsubscribeLabeler", () => {
   });
 
   it("should remove patch even on error", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        throw new Error("API error");
-      },
+    const { mutations, patchStore, api } = await setup();
+    api.updatePreferences = async () => {
+      throw new Error("API error");
     };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
 
     let errorThrown = false;
     try {
@@ -1095,23 +1057,21 @@ describe("updateLabelerSetting", () => {
   const label = "nsfw";
   const visibility = "warn";
 
-  it("should add optimistic preference patch immediately", () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider();
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
     );
+    return { mutations, patchStore, server, api };
+  }
+
+  it("should add optimistic preference patch immediately", async () => {
+    const { mutations, patchStore, api } = await setup();
+    holdPreferenceWrites(api);
 
     mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
@@ -1124,20 +1084,7 @@ describe("updateLabelerSetting", () => {
   });
 
   it("should remove patch after successful update", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, patchStore } = await setup();
 
     await mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
@@ -1146,22 +1093,10 @@ describe("updateLabelerSetting", () => {
   });
 
   it("should remove patch even on error", async () => {
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: async () => {
-        throw new Error("API error");
-      },
+    const { mutations, patchStore, api } = await setup();
+    api.updatePreferences = async () => {
+      throw new Error("API error");
     };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
 
     let errorThrown = false;
     try {
@@ -1175,31 +1110,20 @@ describe("updateLabelerSetting", () => {
     assert.deepEqual(patches.length, 0);
   });
 
-  it("should call setContentLabelPref with correct parameters", async () => {
-    let setContentLabelPrefCalledWith = null;
-    const mockPreferencesProvider = {
-      requirePreferences: () => ({
-        setContentLabelPref: (params) => {
-          setContentLabelPrefCalledWith = params;
-          return Preferences.createLoggedOutPreferences();
-        },
-      }),
-      updatePreferences: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+  it("should save the content label preference", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
-    assert.deepEqual(setContentLabelPrefCalledWith.labelerDid, labelerDid);
-    assert.deepEqual(setContentLabelPrefCalledWith.label, label);
-    assert.deepEqual(setContentLabelPrefCalledWith.visibility, visibility);
+    assert.deepEqual(
+      savedPreferences(server).getContentLabelPref({ label, labelerDid }),
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label,
+        labelerDid,
+        visibility,
+      },
+    );
   });
 });
 
@@ -1272,22 +1196,19 @@ describe("Error Handling and Edge Cases", () => {
 });
 
 describe("addMutedWord", () => {
-  it("should call updatePreferences with new muted word", async () => {
-    let updatedPreferences = null;
-    const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences([]),
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
+  async function setup() {
+    const { provider, server } = await makeTestPreferencesProvider();
     const mutations = makeMutations(
       {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      provider,
     );
+    return { mutations, server };
+  }
+
+  it("should call updatePreferences with new muted word", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.addMutedWord({
       value: "testword",
@@ -1295,7 +1216,7 @@ describe("addMutedWord", () => {
       actorTarget: "all",
     });
 
-    const words = updatedPreferences.getMutedWords();
+    const words = savedPreferences(server).getMutedWords();
     assert.deepEqual(words.length, 1);
     assert.deepEqual(words[0].value, "testword");
     assert.deepEqual(words[0].targets.length, 2);
@@ -1303,21 +1224,7 @@ describe("addMutedWord", () => {
   });
 
   it("should pass expiresAt through to preferences", async () => {
-    let updatedPreferences = null;
-    const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences([]),
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, server } = await setup();
 
     const expiresAt = "2026-05-01T00:00:00.000Z";
     await mutations.addMutedWord({
@@ -1327,7 +1234,7 @@ describe("addMutedWord", () => {
       expiresAt,
     });
 
-    const words = updatedPreferences.getMutedWords();
+    const words = savedPreferences(server).getMutedWords();
     assert.deepEqual(words[0].expiresAt, expiresAt);
     assert.deepEqual(words[0].actorTarget, "exclude-following");
   });
@@ -1335,44 +1242,37 @@ describe("addMutedWord", () => {
 
 describe("removeMutedWord", () => {
   it("should call updatePreferences with word removed", async () => {
-    let updatedPreferences = null;
-    const existingPrefs = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [
-          {
-            id: "word-1",
-            value: "remove-me",
-            targets: ["content"],
-            actorTarget: "all",
-          },
-          {
-            id: "word-2",
-            value: "keep-me",
-            targets: ["tag"],
-            actorTarget: "all",
-          },
-        ],
-      },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => existingPrefs,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
+    const { provider, server } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#mutedWordsPref",
+          items: [
+            {
+              id: "word-1",
+              value: "remove-me",
+              targets: ["content"],
+              actorTarget: "all",
+            },
+            {
+              id: "word-2",
+              value: "keep-me",
+              targets: ["tag"],
+              actorTarget: "all",
+            },
+          ],
+        },
+      ],
+    });
     const mutations = makeMutations(
       {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      provider,
     );
 
     await mutations.removeMutedWord("word-1");
 
-    const words = updatedPreferences.getMutedWords();
+    const words = savedPreferences(server).getMutedWords();
     assert.deepEqual(words.length, 1);
     assert.deepEqual(words[0].value, "keep-me");
   });
@@ -2903,29 +2803,14 @@ describe("deleteRepost", () => {
 describe("pinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 
-  function setupWithPreferences(preferencesObj) {
-    let updatedPreferences = null;
-    const preferences = new Preferences(preferencesObj);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
+  async function setupWithPreferences(preferencesObj) {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: preferencesObj,
+    });
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
-    return {
-      mutations,
-      dataStore,
-      patchStore,
-      getUpdatedPreferences: () => updatedPreferences,
-    };
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    return { mutations, dataStore, patchStore, server, api };
   }
 
   const timelineItem = {
@@ -2934,7 +2819,7 @@ describe("pinFeed", () => {
   };
 
   it("should append the feed to loaded pinned items", async () => {
-    const { mutations, dataStore } = setupWithPreferences([
+    const { mutations, dataStore } = await setupWithPreferences([
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
     ]);
     const feedGenerator = createFeedGenerator({
@@ -2954,7 +2839,7 @@ describe("pinFeed", () => {
   });
 
   it("should leave pinned items unloaded when they haven't been loaded", async () => {
-    const { mutations, dataStore } = setupWithPreferences([
+    const { mutations, dataStore } = await setupWithPreferences([
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
     ]);
     dataStore.setFeedGenerators([
@@ -2972,16 +2857,12 @@ describe("pinFeed", () => {
 
   it("should not update pinned items when saving fails", async (t) => {
     t.mock.method(console, "error", () => {});
-    const preferences = new Preferences([
+    const { mutations, dataStore, api } = await setupWithPreferences([
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
     ]);
-    const dataStore = new DataStore(createSessionState(null));
-    const mutations = makeMutations({}, dataStore, new PatchStore(), {
-      requirePreferences: () => preferences,
-      updatePreferences: async () => {
-        throw new Error("network");
-      },
-    });
+    api.updatePreferences = async () => {
+      throw new Error("network");
+    };
     dataStore.setFeedGenerators([
       createFeedGenerator({
         uri: feedUri,
@@ -2997,21 +2878,21 @@ describe("pinFeed", () => {
   });
 
   it("should append a pinned saved-feed entry when not previously saved", async () => {
-    const { mutations, getUpdatedPreferences } = setupWithPreferences([
+    const { mutations, server } = await setupWithPreferences([
       {
         $type: "app.bsky.actor.defs#savedFeedsPrefV2",
         items: [],
       },
     ]);
     await mutations.pinFeed(feedUri);
-    const pinned = getUpdatedPreferences().getPinnedFeeds();
+    const pinned = savedPreferences(server).getPinnedFeeds();
     assert.deepEqual(pinned.length, 1);
     assert.deepEqual(pinned[0].value, feedUri);
     assert.deepEqual(pinned[0].pinned, true);
   });
 
   it("should pin an existing saved-feed entry without duplicating it", async () => {
-    const { mutations, getUpdatedPreferences } = setupWithPreferences([
+    const { mutations, server } = await setupWithPreferences([
       {
         $type: "app.bsky.actor.defs#savedFeedsPrefV2",
         items: [
@@ -3026,32 +2907,17 @@ describe("pinFeed", () => {
       },
     ]);
     await mutations.pinFeed(feedUri);
-    const updated = getUpdatedPreferences();
+    const updated = savedPreferences(server);
     const allItems = updated.obj[0].items;
     assert.deepEqual(allItems.length, 2);
     assert.deepEqual(updated.isFeedPinned(feedUri), true);
   });
 
   it("should add an optimistic patch and remove it on success", async () => {
-    let updateResolve;
-    const updatePromise = new Promise((resolve) => {
-      updateResolve = resolve;
-    });
-    const preferences = new Preferences([
+    const { mutations, patchStore, api } = await setupWithPreferences([
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
     ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: () => updatePromise,
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.pinFeed(feedUri);
     const patches = patchStore.$preferencePatches.get();
@@ -3059,41 +2925,28 @@ describe("pinFeed", () => {
     assert.deepEqual(patches[0].body.type, "pinFeed");
     assert.deepEqual(patches[0].body.feedUri, feedUri);
 
-    updateResolve();
+    releaseWrites();
     await promise;
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
 describe("setThreadView", () => {
-  function setup({ updatePreferences }) {
-    const preferences = new Preferences([]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences,
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider();
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
     );
-    return { mutations, patchStore };
+    return { mutations, patchStore, server, api };
   }
 
   it("should save the thread view and apply an optimistic patch until it resolves", async () => {
-    let updateResolve;
-    let updatedPreferences = null;
-    const { mutations, patchStore } = setup({
-      updatePreferences: (prefs) => {
-        updatedPreferences = prefs;
-        return new Promise((resolve) => {
-          updateResolve = resolve;
-        });
-      },
-    });
+    const { mutations, patchStore, server, api } = await setup();
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.setThreadView("tree");
     const patches = patchStore.$preferencePatches.get();
@@ -3106,54 +2959,39 @@ describe("setThreadView", () => {
       "tree",
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    updateResolve();
+    releaseWrites();
     await promise;
-    assert.deepEqual(updatedPreferences.getThreadView(), "tree");
+    assert.deepEqual(savedPreferences(server).getThreadView(), "tree");
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 
   it("should remove the patch and rethrow when saving fails", async (t) => {
     t.mock.method(console, "error", () => {});
-    const { mutations, patchStore } = setup({
-      updatePreferences: async () => {
-        throw new Error("network");
-      },
-    });
+    const { mutations, patchStore, api } = await setup();
+    api.updatePreferences = async () => {
+      throw new Error("network");
+    };
     await assert.rejects(mutations.setThreadView("tree"), /network/);
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
 describe("setVerificationBadgesHidden", () => {
-  function setup({ updatePreferences }) {
-    const preferences = new Preferences([]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences,
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider();
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
     );
-    return { mutations, patchStore };
+    return { mutations, patchStore, server, api };
   }
 
   it("should save the preference and apply an optimistic patch until it resolves", async () => {
-    let updateResolve;
-    let updatedPreferences = null;
-    const { mutations, patchStore } = setup({
-      updatePreferences: (prefs) => {
-        updatedPreferences = prefs;
-        return new Promise((resolve) => {
-          updateResolve = resolve;
-        });
-      },
-    });
+    const { mutations, patchStore, server, api } = await setup();
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.setVerificationBadgesHidden(true);
     const patches = patchStore.$preferencePatches.get();
@@ -3169,20 +3007,21 @@ describe("setVerificationBadgesHidden", () => {
       true,
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    updateResolve();
+    releaseWrites();
     await promise;
-    assert.deepEqual(updatedPreferences.getVerificationBadgesHidden(), true);
+    assert.deepEqual(
+      savedPreferences(server).getVerificationBadgesHidden(),
+      true,
+    );
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 
   it("should remove the patch and rethrow when saving fails", async (t) => {
     t.mock.method(console, "error", () => {});
-    const { mutations, patchStore } = setup({
-      updatePreferences: async () => {
-        throw new Error("network");
-      },
-    });
+    const { mutations, patchStore, api } = await setup();
+    api.updatePreferences = async () => {
+      throw new Error("network");
+    };
     await assert.rejects(
       mutations.setVerificationBadgesHidden(true),
       /network/,
@@ -3194,46 +3033,32 @@ describe("setVerificationBadgesHidden", () => {
 describe("unpinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 
-  it("should clear the pinned flag on the saved-feed entry", async () => {
-    let updatedPreferences = null;
-    const preferences = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-      },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+        },
+      ],
+    });
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    return { mutations, dataStore, patchStore, server, api };
+  }
+
+  it("should clear the pinned flag on the saved-feed entry", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.unpinFeed(feedUri);
+    const updatedPreferences = savedPreferences(server);
     assert.deepEqual(updatedPreferences.isFeedPinned(feedUri), false);
     assert.deepEqual(updatedPreferences.obj[0].items.length, 1);
   });
 
   it("should remove the feed from loaded pinned items", async () => {
-    const preferences = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-      },
-    ]);
-    const dataStore = new DataStore(createSessionState(null));
-    const mutations = makeMutations({}, dataStore, new PatchStore(), {
-      requirePreferences: () => preferences,
-      updatePreferences: async () => {},
-    });
+    const { mutations, dataStore } = await setup();
     const timelineItem = {
       type: "timeline",
       data: { uri: "following", displayName: "Following" },
@@ -3256,28 +3081,8 @@ describe("unpinFeed", () => {
   });
 
   it("should add an optimistic patch and remove it on success", async () => {
-    let updateResolve;
-    const updatePromise = new Promise((resolve) => {
-      updateResolve = resolve;
-    });
-    const preferences = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
-      },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: () => updatePromise,
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, patchStore, api } = await setup();
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.unpinFeed(feedUri);
     const patches = patchStore.$preferencePatches.get();
@@ -3285,7 +3090,7 @@ describe("unpinFeed", () => {
     assert.deepEqual(patches[0].body.type, "unpinFeed");
     assert.deepEqual(patches[0].body.feedUri, feedUri);
 
-    updateResolve();
+    releaseWrites();
     await promise;
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
@@ -3296,35 +3101,26 @@ describe("setPinnedItems", () => {
   const feedB = "at://did:plc:x/app.bsky.feed.generator/b";
   const listA = "at://did:plc:x/app.bsky.graph.list/a";
 
-  function setup({ preloadPinnedItems = true } = {}) {
-    let updatedPreferences = null;
-    let resolveUpdate;
-    const updatePromise = new Promise((resolve) => {
-      resolveUpdate = resolve;
+  async function setup({ preloadPinnedItems = true } = {}) {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [
+            {
+              id: "1",
+              value: "following",
+              type: "timeline",
+              pinned: true,
+            },
+            { id: "2", value: feedA, type: "feed", pinned: true },
+            { id: "3", value: listA, type: "list", pinned: true },
+            { id: "4", value: feedB, type: "feed", pinned: false },
+          ],
+        },
+      ],
     });
-    const preferences = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [
-          {
-            id: "1",
-            value: "following",
-            type: "timeline",
-            pinned: true,
-          },
-          { id: "2", value: feedA, type: "feed", pinned: true },
-          { id: "3", value: listA, type: "list", pinned: true },
-          { id: "4", value: feedB, type: "feed", pinned: false },
-        ],
-      },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-        await updatePromise;
-      },
-    };
+    const resolveUpdate = holdPreferenceWrites(api);
     const dataStore = new DataStore(createSessionState(null));
     if (preloadPinnedItems) {
       dataStore.$pinnedItems.set([
@@ -3334,23 +3130,12 @@ describe("setPinnedItems", () => {
       ]);
     }
     const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
-    return {
-      mutations,
-      patchStore,
-      dataStore,
-      resolveUpdate,
-      getUpdatedPreferences: () => updatedPreferences,
-    };
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    return { mutations, patchStore, dataStore, resolveUpdate, server };
   }
 
   it("does not touch $pinnedItems until the network round-trip resolves", async () => {
-    const { mutations, dataStore, resolveUpdate } = setup();
+    const { mutations, dataStore, resolveUpdate } = await setup();
     const before = dataStore.$pinnedItems
       .get()
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
@@ -3368,11 +3153,11 @@ describe("setPinnedItems", () => {
   });
 
   it("sends the reordered preferences to updatePreferences", async () => {
-    const { mutations, resolveUpdate, getUpdatedPreferences } = setup();
+    const { mutations, resolveUpdate, server } = await setup();
     const promise = mutations.setPinnedItems([feedA, listA, "following"]);
     resolveUpdate();
     await promise;
-    const items = getUpdatedPreferences().obj[0].items;
+    const items = savedPreferences(server).obj[0].items;
     assert.deepEqual(
       items.map((it) => it.value),
       [feedA, listA, "following", feedB],
@@ -3380,21 +3165,20 @@ describe("setPinnedItems", () => {
   });
 
   it("leaves $pinnedItems untouched when updatePreferences rejects", async () => {
-    const preferences = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [
-          { id: "1", value: feedA, type: "feed", pinned: true },
-          { id: "2", value: listA, type: "list", pinned: true },
-        ],
-      },
-    ]);
+    const { provider, api } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [
+            { id: "1", value: feedA, type: "feed", pinned: true },
+            { id: "2", value: listA, type: "list", pinned: true },
+          ],
+        },
+      ],
+    });
     const error = new Error("network");
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async () => {
-        throw error;
-      },
+    api.updatePreferences = async () => {
+      throw error;
     };
     const dataStore = new DataStore(createSessionState(null));
     dataStore.$pinnedItems.set([
@@ -3402,12 +3186,7 @@ describe("setPinnedItems", () => {
       { type: "list", data: { uri: listA } },
     ]);
     const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
     const originalConsoleError = console.error;
     console.error = () => {};
     try {
@@ -3426,54 +3205,36 @@ describe("setPinnedItems", () => {
 describe("hidePost", () => {
   const testPost = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
 
-  it("should write a preference adding the post to the hidden list", async () => {
-    let updatedPreferences = null;
-    const preferences = new Preferences([]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider();
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
     );
+    return { mutations, patchStore, server, api };
+  }
+
+  it("should write a preference adding the post to the hidden list", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.hidePost(testPost);
 
-    assert.deepEqual(updatedPreferences.isPostHidden(testPost.uri), true);
+    assert.deepEqual(savedPreferences(server).isPostHidden(testPost.uri), true);
   });
 
   it("should add an optimistic post patch and remove it on success", async () => {
-    let updateResolve;
-    const updatePromise = new Promise((resolve) => {
-      updateResolve = resolve;
-    });
-    const preferences = new Preferences([]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: () => updatePromise,
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations(
-      {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-    );
+    const { mutations, patchStore, api } = await setup();
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.hidePost(testPost);
     const patches = patchStore.$postPatches.get(testPost.uri) || [];
     assert.deepEqual(patches.length, 1);
     assert.deepEqual(patches[0].body.type, "hidePost");
 
-    updateResolve();
+    releaseWrites();
     await promise;
     assert.deepEqual(
       (patchStore.$postPatches.get(testPost.uri) || []).length,
@@ -3484,33 +3245,26 @@ describe("hidePost", () => {
 
 describe("updateMutedWord", () => {
   it("should call updatePreferences with the word updated", async () => {
-    let updatedPreferences = null;
-    const existingPrefs = new Preferences([
-      {
-        $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [
-          {
-            id: "word-1",
-            value: "old-value",
-            targets: ["content"],
-            actorTarget: "all",
-          },
-        ],
-      },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => existingPrefs,
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
+    const { provider, server } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#mutedWordsPref",
+          items: [
+            {
+              id: "word-1",
+              value: "old-value",
+              targets: ["content"],
+              actorTarget: "all",
+            },
+          ],
+        },
+      ],
+    });
     const mutations = makeMutations(
       {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      provider,
     );
 
     await mutations.updateMutedWord("word-1", {
@@ -3518,7 +3272,7 @@ describe("updateMutedWord", () => {
       targets: ["tag"],
     });
 
-    const words = updatedPreferences.getMutedWords();
+    const words = savedPreferences(server).getMutedWords();
     assert.deepEqual(words.length, 1);
     assert.deepEqual(words[0].value, "new-value");
     assert.deepEqual(words[0].targets[0], "tag");
@@ -5559,30 +5313,21 @@ describe("sendShowMoreInteraction", () => {
 describe("pinList", () => {
   const listUri = "at://did:test/app.bsky.graph.list/abc";
 
-  function makeMockProvider({ updatePreferences } = {}) {
-    const pinFeedCalls = [];
-    return {
-      pinFeedCalls,
-      provider: {
-        requirePreferences: () => ({
-          pinFeed: (feedUri, type) => {
-            pinFeedCalls.push({ feedUri, type });
-            return Preferences.createLoggedOutPreferences();
-          },
-        }),
-        updatePreferences: updatePreferences ?? (async () => {}),
-      },
-    };
-  }
-
-  it("should add optimistic patch with entryType 'list'", () => {
-    const { provider } = makeMockProvider({
-      updatePreferences: async () =>
-        new Promise((resolve) => setTimeout(resolve, 100)),
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: [
+        { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+      ],
     });
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
     const mutations = makeMutations({}, dataStore, patchStore, provider);
+    return { mutations, dataStore, patchStore, server, api };
+  }
+
+  it("should add optimistic patch with entryType 'list'", async () => {
+    const { mutations, patchStore, api } = await setup();
+    holdPreferenceWrites(api);
 
     mutations.pinList(listUri);
 
@@ -5593,23 +5338,19 @@ describe("pinList", () => {
     assert.deepEqual(patches[0].body.entryType, "list");
   });
 
-  it("should call preferences.pinFeed with type 'list'", async () => {
-    const { provider, pinFeedCalls } = makeMockProvider();
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations({}, dataStore, patchStore, provider);
+  it("should save the list as a pinned 'list' entry", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.pinList(listUri);
 
-    assert.deepEqual(pinFeedCalls.length, 1);
-    assert.deepEqual(pinFeedCalls[0].feedUri, listUri);
-    assert.deepEqual(pinFeedCalls[0].type, "list");
+    const pinned = savedPreferences(server).getPinnedFeeds();
+    assert.deepEqual(pinned.length, 1);
+    assert.deepEqual(pinned[0].value, listUri);
+    assert.deepEqual(pinned[0].type, "list");
   });
 
   it("should append the list to loaded pinned items", async () => {
-    const { provider } = makeMockProvider();
-    const dataStore = new DataStore(createSessionState(null));
-    const mutations = makeMutations({}, dataStore, new PatchStore(), provider);
+    const { mutations, dataStore } = await setup();
     const list = createList({
       uri: listUri,
       name: "Cool list",
@@ -5626,10 +5367,7 @@ describe("pinList", () => {
   });
 
   it("should remove patch after successful update", async () => {
-    const { provider } = makeMockProvider();
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    const { mutations, patchStore } = await setup();
 
     await mutations.pinList(listUri);
 
@@ -5637,14 +5375,10 @@ describe("pinList", () => {
   });
 
   it("should remove patch even on error", async () => {
-    const { provider } = makeMockProvider({
-      updatePreferences: async () => {
-        throw new Error("API error");
-      },
-    });
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    const { mutations, patchStore, api } = await setup();
+    api.updatePreferences = async () => {
+      throw new Error("API error");
+    };
 
     let errorThrown = false;
     try {
@@ -5659,23 +5393,20 @@ describe("pinList", () => {
 });
 
 describe("pinFeed entryType", () => {
-  it("should add optimistic patch with entryType 'feed'", () => {
+  it("should add optimistic patch with entryType 'feed'", async () => {
     const feedUri = "at://did:test/app.bsky.feed.generator/xyz";
-    const preferences = new Preferences([
-      { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
-    ]);
-    const mockPreferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: () =>
-        new Promise((resolve) => setTimeout(resolve, 100)),
-    };
-    const dataStore = new DataStore(createSessionState(null));
+    const { provider, api } = await makeTestPreferencesProvider({
+      preferences: [
+        { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
+      ],
+    });
+    holdPreferenceWrites(api);
     const patchStore = new PatchStore();
     const mutations = makeMutations(
       {},
-      dataStore,
+      new DataStore(createSessionState(null)),
       patchStore,
-      mockPreferencesProvider,
+      provider,
     );
 
     mutations.pinFeed(feedUri);
@@ -5689,41 +5420,36 @@ describe("pinFeed entryType", () => {
 describe("unpinList", () => {
   const listUri = "at://did:test/app.bsky.graph.list/abc";
 
-  it("should call preferences.unpinFeed with the list URI", async () => {
-    const unpinCalls = [];
-    const provider = {
-      requirePreferences: () => ({
-        unpinFeed: (uri) => {
-          unpinCalls.push(uri);
-          return Preferences.createLoggedOutPreferences();
+  async function setup() {
+    const { provider, server, api } = await makeTestPreferencesProvider({
+      preferences: [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [{ id: "1", value: listUri, type: "list", pinned: true }],
         },
-      }),
-      updatePreferences: async () => {},
-    };
-    const dataStore = new DataStore(createSessionState(null));
+      ],
+    });
     const patchStore = new PatchStore();
-    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations(
+      {},
+      new DataStore(createSessionState(null)),
+      patchStore,
+      provider,
+    );
+    return { mutations, patchStore, server, api };
+  }
+
+  it("should save the list as unpinned", async () => {
+    const { mutations, server } = await setup();
 
     await mutations.unpinList(listUri);
 
-    assert.deepEqual(unpinCalls.length, 1);
-    assert.deepEqual(unpinCalls[0], listUri);
+    assert.deepEqual(savedPreferences(server).isFeedPinned(listUri), false);
   });
 
   it("should add and remove an unpinFeed patch", async () => {
-    let updateResolve;
-    const updatePromise = new Promise((resolve) => {
-      updateResolve = resolve;
-    });
-    const provider = {
-      requirePreferences: () => ({
-        unpinFeed: () => Preferences.createLoggedOutPreferences(),
-      }),
-      updatePreferences: () => updatePromise,
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
-    const mutations = makeMutations({}, dataStore, patchStore, provider);
+    const { mutations, patchStore, api } = await setup();
+    const releaseWrites = holdPreferenceWrites(api);
 
     const promise = mutations.unpinList(listUri);
     const patches = patchStore.$preferencePatches.get();
@@ -5731,7 +5457,7 @@ describe("unpinList", () => {
     assert.deepEqual(patches[0].body.type, "unpinFeed");
     assert.deepEqual(patches[0].body.feedUri, listUri);
 
-    updateResolve();
+    releaseWrites();
     await promise;
     assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
@@ -7171,14 +6897,11 @@ describe("deleteList", () => {
     viewer: {},
   };
 
-  function setup({ listItems = [], overrides = {} } = {}) {
+  async function setup({ listItems = [], overrides = {} } = {}) {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
-    const preferences = Preferences.createLoggedOutPreferences();
-    const preferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async () => {},
-    };
+    const { provider: preferencesProvider } =
+      await makeTestPreferencesProvider();
     dataStore.$lists.set(listUri, testList);
     const api = {
       getListItems: async () => ({ records: listItems, cursor: "" }),
@@ -7195,7 +6918,7 @@ describe("deleteList", () => {
 
   it("deletes the list record via applyWrites and clears the local list", async () => {
     const writesCalls = [];
-    const { mutations, dataStore } = setup({
+    const { mutations, dataStore } = await setup({
       overrides: {
         applyWrites: async (writes) => {
           writesCalls.push(writes);
@@ -7233,7 +6956,7 @@ describe("deleteList", () => {
         value: { list: listUri },
       },
     ];
-    const { mutations } = setup({
+    const { mutations } = await setup({
       listItems,
       overrides: {
         applyWrites: async (writes) => {
@@ -7262,7 +6985,7 @@ describe("deleteList", () => {
       value: { list: listUri },
     }));
     const writesCalls = [];
-    const { mutations } = setup({
+    const { mutations } = await setup({
       listItems,
       overrides: {
         applyWrites: async (writes) => {
@@ -7282,7 +7005,7 @@ describe("deleteList", () => {
   });
 
   it("clears cached list members for the deleted list", async () => {
-    const { mutations, dataStore } = setup();
+    const { mutations, dataStore } = await setup();
     dataStore.$listMembers.set(listUri, {
       items: [{ uri: "at://x", subject: { did: "did:plc:m1" } }],
       cursor: "",
@@ -7294,7 +7017,7 @@ describe("deleteList", () => {
   });
 
   it("removes the list from $actorLists for the creator", async () => {
-    const { mutations, dataStore } = setup();
+    const { mutations, dataStore } = await setup();
     const otherList = { uri: otherListUri, name: "Other" };
     dataStore.$actorLists.set(testList.creator.did, {
       lists: [testList, otherList],
@@ -7311,7 +7034,7 @@ describe("deleteList", () => {
   });
 
   it("removes the list from cached $listsWithMembershipByActor entries", async () => {
-    const { mutations, dataStore } = setup();
+    const { mutations, dataStore } = await setup();
     dataStore.$listsWithMembershipByActor.set("did:plc:member1", {
       listsWithMembership: [
         { list: { uri: listUri }, listItem: { uri: "at://li1" } },
@@ -7343,7 +7066,7 @@ describe("deleteList", () => {
   });
 
   it("removes the list from $pinnedItems if present", async () => {
-    const { mutations, dataStore } = setup();
+    const { mutations, dataStore } = await setup();
     dataStore.$pinnedItems.set([
       { type: "timeline", data: { uri: "following" } },
       { type: "list", data: { uri: listUri, displayName: "My List" } },
@@ -7361,18 +7084,15 @@ describe("deleteList", () => {
   it("unpins the list if it was pinned", async () => {
     const dataStore = new DataStore(createSessionState(null));
     const patchStore = new PatchStore();
-    let preferences = Preferences.createLoggedOutPreferences().pinFeed(
-      listUri,
-      "list",
-    );
-    const updateCalls = [];
-    const preferencesProvider = {
-      requirePreferences: () => preferences,
-      updatePreferences: async (next) => {
-        updateCalls.push(next);
-        preferences = next;
-      },
-    };
+    const { provider: preferencesProvider, server } =
+      await makeTestPreferencesProvider({
+        preferences: [
+          {
+            $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+            items: [{ id: "1", value: listUri, type: "list", pinned: true }],
+          },
+        ],
+      });
     dataStore.$lists.set(listUri, testList);
     const api = {
       getListItems: async () => ({ records: [], cursor: "" }),
@@ -7385,11 +7105,10 @@ describe("deleteList", () => {
       preferencesProvider,
     );
 
-    assert.equal(preferences.isFeedPinned(listUri), true);
     await mutations.deleteList(testList);
 
-    assert.equal(updateCalls.length, 1);
-    assert.equal(preferences.isFeedPinned(listUri), false);
+    assert.equal(server.putCalls, 1);
+    assert.equal(savedPreferences(server).isFeedPinned(listUri), false);
   });
 });
 
@@ -7429,27 +7148,23 @@ describe("updatePostLanguageHistory", () => {
 });
 
 describe("updatePostInteractionSettings", () => {
-  function makePreferenceMutations(initialPrefs) {
-    let updatedPreferences = null;
-    const mockPreferencesProvider = {
-      requirePreferences: () => new Preferences(initialPrefs),
-      updatePreferences: async (prefs) => {
-        updatedPreferences = prefs;
-      },
-    };
-    const dataStore = new DataStore(createSessionState(null));
-    const patchStore = new PatchStore();
+  async function makePreferenceMutations(initialPrefs) {
+    const { provider, server } = await makeTestPreferencesProvider({
+      preferences: initialPrefs,
+    });
     const mutations = makeMutations(
       {},
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
+      new DataStore(createSessionState(null)),
+      new PatchStore(),
+      provider,
     );
-    return { mutations, getUpdatedPreferences: () => updatedPreferences };
+    return { mutations, getUpdatedPreferences: () => savedPreferences(server) };
   }
 
   it("should call updatePreferences with the new default settings", async () => {
-    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    const { mutations, getUpdatedPreferences } = await makePreferenceMutations(
+      [],
+    );
     const rules = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
     const embeddingRules = [{ $type: "app.bsky.feed.postgate#disableRule" }];
     await mutations.updatePostInteractionSettings({
@@ -7463,7 +7178,9 @@ describe("updatePostInteractionSettings", () => {
   });
 
   it("should persist an empty threadgate array without decaying it to null", async () => {
-    const { mutations, getUpdatedPreferences } = makePreferenceMutations([]);
+    const { mutations, getUpdatedPreferences } = await makePreferenceMutations(
+      [],
+    );
     await mutations.updatePostInteractionSettings({
       threadgateAllowRules: [],
       postgateEmbeddingRules: null,
@@ -7475,7 +7192,7 @@ describe("updatePostInteractionSettings", () => {
   });
 
   it("should clear the default when passed nulls", async () => {
-    const { mutations, getUpdatedPreferences } = makePreferenceMutations([
+    const { mutations, getUpdatedPreferences } = await makePreferenceMutations([
       {
         $type: "app.bsky.actor.defs#postInteractionSettingsPref",
         threadgateAllowRules: [],

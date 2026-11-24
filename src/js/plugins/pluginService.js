@@ -1093,19 +1093,20 @@ export class PluginService extends ReactiveStore {
     const listingById = new Map(
       listings.map((listing) => [listing.id, listing]),
     );
-    const installedPlugins = await this.prefManager.getInstalledPlugins();
-    let changed = false;
-    const updated = installedPlugins.map((plugin) => {
+    const newRepoFor = (plugin) => {
       const listing = listingById.get(plugin.id);
-      if (listing && listing.repo && listing.repo !== plugin.repo) {
-        changed = true;
-        return { ...plugin, repo: listing.repo };
-      }
-      return plugin;
-    });
-    if (changed) {
-      await this.prefManager.setInstalledPlugins(updated);
-    }
+      return listing?.repo && listing.repo !== plugin.repo
+        ? listing.repo
+        : null;
+    };
+    const installedPlugins = await this.prefManager.getInstalledPlugins();
+    if (!installedPlugins.some(newRepoFor)) return;
+    await this.prefManager.updateInstalledPlugins((plugins) =>
+      plugins.map((plugin) => {
+        const repo = newRepoFor(plugin);
+        return repo ? { ...plugin, repo } : plugin;
+      }),
+    );
   }
 
   // Registry convenience methods

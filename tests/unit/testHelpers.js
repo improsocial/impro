@@ -6,6 +6,11 @@ import { DraftMediaStore } from "/js/drafts.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { Constellation } from "/js/constellation.js";
 import { Signal, SignalMap } from "/js/signals.js";
+import {
+  Preferences,
+  INSTALLED_PLUGINS_PREF_TYPE,
+  PLUGIN_SETTINGS_PREF_TYPE,
+} from "/js/preferences.js";
 
 const disposables = new Set();
 afterEach(() => {
@@ -45,6 +50,71 @@ export function makeTestDataLayer({
   );
   trackDisposable(dataLayer.derived.liveStatusScheduler);
   return dataLayer;
+}
+
+// A real PreferencesProvider over an in-memory preferences record, loaded
+// unless `loaded: false`. `server.stored` is the record as saved;
+// `server.getCalls` and `server.putCalls` count reads and writes after the
+// initial load. Override `api.getPreferences`/`api.updatePreferences` to delay
+// or fail them.
+export async function makeTestPreferencesProvider({
+  preferences = [],
+  isAuthenticated = true,
+  loaded = true,
+} = {}) {
+  const server = {
+    stored: structuredClone(preferences),
+    getCalls: 0,
+    putCalls: 0,
+  };
+  const api = {
+    isAuthenticated,
+    getPreferences: async () => {
+      server.getCalls++;
+      return structuredClone(server.stored);
+    },
+    updatePreferences: async (obj) => {
+      server.putCalls++;
+      server.stored = structuredClone(obj);
+    },
+  };
+  const provider = new PreferencesProvider(api);
+  if (loaded) {
+    await provider.requirePreferences();
+    server.getCalls = 0;
+  }
+  return { provider, server, api };
+}
+
+// makeTestPreferencesProvider seeded with installed plugins and per-plugin
+// settings (`{ [pluginId]: data }`).
+export function makeTestPluginPreferencesProvider(
+  { installedPlugins = [], pluginSettings = {} } = {},
+  options = {},
+) {
+  return makeTestPreferencesProvider({
+    preferences: [
+      { $type: INSTALLED_PLUGINS_PREF_TYPE, plugins: installedPlugins },
+      ...Object.entries(pluginSettings).map(([pluginId, data]) => ({
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
+        pluginId,
+        data,
+      })),
+    ],
+    ...options,
+  });
+}
+
+export function storedInstalledPlugins(server) {
+  return new Preferences(server.stored).getInstalledPlugins();
+}
+
+export function storedPluginSettings(server) {
+  return Object.fromEntries(
+    server.stored
+      .filter((pref) => pref.$type === PLUGIN_SETTINGS_PREF_TYPE)
+      .map((pref) => [pref.pluginId, pref.data]),
+  );
 }
 
 export function makeTestPluginService(overrides = {}) {
