@@ -142,6 +142,11 @@ html {
 
   /* border colors */
   --header-border-color: var(--generic-border-color);
+  --header-translucent-background-color: color-mix(
+    in srgb,
+    var(--background-color) 90%,
+    transparent
+  );
   --embed-border-color: var(--generic-border-color);
   --post-border-color: var(--generic-border-color);
   --avatar-border-color: var(--generic-border-color);
@@ -185,6 +190,7 @@ html {
   --back-button-hover-color: var(--post-hover-color);
   --icon-button-color: var(--text-color-muted);
   --tab-bar-button-active-color: var(--highlight-color);
+  --tint-hover-color: color-mix(in srgb, var(--text-color) 6%, transparent);
 
   /* avatar sizes */
   --avatar-size-quoted-post: 16px;
@@ -1419,6 +1425,16 @@ header {
   right: 0;
 }
 
+.header {
+  --back-button-hover-color: var(--tint-hover-color);
+}
+
+.header:not(:has(input, textarea, [contenteditable])) {
+  background-color: var(--header-translucent-background-color);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
 #chat-detail-view .header-row {
   height: var(--chat-detail-header-height);
 }
@@ -1562,7 +1578,7 @@ tab-bar .tab-bar-button.active .tab-bar-button-label {
 
 @media (hover: hover) {
   tab-bar .tab-bar-button:hover {
-    background-color: var(--post-hover-color);
+    background-color: var(--tint-hover-color);
   }
 }
 
