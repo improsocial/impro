@@ -11,6 +11,7 @@ import {
 import "/js/components/container-link.js";
 
 const TREND_LIMIT = 3;
+const TREND_POOL_SIZE = 10;
 const TREND_AVATAR_LIMIT = 3;
 const ACTIVE_STATUSES = ["hot", "trending"];
 const CATEGORY_LABELS = {
@@ -130,8 +131,29 @@ function trendingPaneTemplate({ rows, isLoading, isAuthenticated, onDismiss }) {
   });
 }
 
-function toRows(trends) {
+const sampledRowsCache = new WeakMap();
+
+function sampleInOrder(items, count) {
+  const indices = items.map((_, index) => index);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return indices
+    .slice(0, count)
+    .sort((a, b) => a - b)
+    .map((index) => items[index]);
+}
+
+function toSampledRows(trends) {
   if (!trends) return [];
+  if (!sampledRowsCache.has(trends)) {
+    sampledRowsCache.set(trends, sampleInOrder(toRows(trends), TREND_LIMIT));
+  }
+  return sampledRowsCache.get(trends);
+}
+
+function toRows(trends) {
   const rows = [];
   for (const trend of trends) {
     const trendLink = trend.link;
@@ -147,7 +169,6 @@ function toRows(trends) {
       category: CATEGORY_LABELS[trend.category] ?? null,
       postCount: pluralize(trend.postCount, "post"),
     });
-    if (rows.length === TREND_LIMIT) break;
   }
   return rows;
 }
@@ -166,7 +187,7 @@ class TrendingPane extends Component {
         const failed = this.$failed.get();
         const trends = this.dataLayer.derived.$trends.get();
         const isLoading = !failed && trends === null;
-        const rows = toRows(trends);
+        const rows = toSampledRows(trends);
         if (hidden || failed || (!isLoading && rows.length === 0)) {
           render(html``, this);
           return;
@@ -194,7 +215,7 @@ class TrendingPane extends Component {
 
   async load() {
     try {
-      await this.dataLayer.requests.loadTrends({ limit: TREND_LIMIT });
+      await this.dataLayer.requests.loadTrends({ limit: TREND_POOL_SIZE });
     } catch (error) {
       console.warn("Could not load trends", error);
     }

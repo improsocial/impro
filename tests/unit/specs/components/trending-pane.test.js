@@ -241,6 +241,55 @@ describe("trending-pane", () => {
     );
   });
 
+  it("requests a larger pool of trends than it shows", async () => {
+    const getTrends = mock.fn(async () => ({ trends: [] }));
+    mount(makeDataLayer(getTrends));
+    await flushMicrotasks();
+
+    assert.deepEqual(getTrends.mock.calls[0].arguments[0], { limit: 10 });
+  });
+
+  it("shows a sample of trends in their original order", async (t) => {
+    const randomValues = [0.1, 0.5, 0.9];
+    let callIndex = 0;
+    t.mock.method(Math, "random", () => randomValues[callIndex++ % 3]);
+    const dataLayer = makeDataLayer(async () => ({
+      trends: Array.from({ length: 6 }, (_, index) =>
+        createTrend({ topic: `topic-${index}`, link: `/search?q=${index}` }),
+      ),
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+
+    const labels = rowLabels(element);
+    assert.notDeepEqual(labels, ["topic-0", "topic-1", "topic-2"]);
+    assert.deepEqual(labels.length, 3);
+    assert.deepEqual(
+      labels,
+      [...labels].sort(
+        (a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]),
+      ),
+    );
+  });
+
+  it("keeps the same sample when re-rendering", async () => {
+    const dataLayer = makeDataLayer(async () => ({
+      trends: Array.from({ length: 10 }, (_, index) =>
+        createTrend({ topic: `topic-${index}`, link: `/search?q=${index}` }),
+      ),
+    }));
+    const element = mount(dataLayer);
+    await flushMicrotasks();
+    const initialLabels = rowLabels(element);
+
+    dataLayer.mutations.setTrendingHidden(true);
+    await flushMicrotasks();
+    dataLayer.mutations.setTrendingHidden(false);
+    await flushMicrotasks();
+
+    assert.deepEqual(rowLabels(element), initialLabels);
+  });
+
   it("renders nothing when there are no trends", async () => {
     const element = mount(makeDataLayer(async () => ({ trends: [] })));
     await flushMicrotasks();
