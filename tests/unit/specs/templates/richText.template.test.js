@@ -429,13 +429,13 @@ describe("richTextTemplate link warnings", () => {
     );
   });
 
-  it("does not warn when the label isn't a URL", () => {
+  it("shows the warning when an external link has a non-URL label", () => {
     const { prevented, modal } = clickLink({
       label: "click here",
       uri: "https://example.com/page",
     });
-    assert(!prevented);
-    assert.equal(modal, null);
+    assert(prevented);
+    assert(modal !== null);
   });
 
   it("shows the warning when a full URL label points elsewhere", () => {

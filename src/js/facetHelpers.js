@@ -1,5 +1,6 @@
 import { getByteIndex, sliceByByte, getByteLength } from "/js/utils.js";
 import tlds from "/js/lib/tlds.js";
+import { isInAppLinkHostname } from "/js/dataHelpers.js";
 
 // Matches logic in atproto/packages/api/src/rich-text/detection.ts
 
@@ -268,12 +269,14 @@ function labelToDomain(label) {
   return null;
 }
 
+// Matches linkRequiresWarning in social-app
 export function linkRequiresWarning(uri, label) {
+  const host = new URL(uri).hostname.toLowerCase();
   const labelDomain = labelToDomain(label);
-  if (labelDomain === null) {
-    return false;
+  if (isInAppLinkHostname(host) || host.endsWith(".bsky.social")) {
+    return (
+      labelDomain !== null && labelDomain !== host && isValidDomain(labelDomain)
+    );
   }
-  const looksLikeUrl =
-    /^https?:\/\//i.test(label) || isValidDomain(labelDomain);
-  return looksLikeUrl && labelDomain !== new URL(uri).hostname.toLowerCase();
+  return labelDomain !== host;
 }
