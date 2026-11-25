@@ -140,6 +140,7 @@ export class MockServer {
     // Override the source served for the local test plugin's main.js; defaults
     // to the standard fixture when null.
     this.localPluginSource = null;
+    this.remotePluginSource = null;
     this.registryEntries = [];
     this.liveManifest = null;
     // README markdown served for plugin repos; set to null to simulate a
@@ -1113,7 +1114,7 @@ export class MockServer {
         route.fulfill({
           status: 200,
           contentType: "text/javascript",
-          body: getTestPluginSource(),
+          body: this.remotePluginSource ?? getTestPluginSource(),
         }),
     );
     await page.route(

@@ -14079,16 +14079,28 @@ h2.setting-item-name {
 
 .installed-plugins-header h2 {
   font-size: 16px;
+  white-space: nowrap;
 }
 
 .installed-plugins-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 37px;
 }
 
-.plugin-check-updates-button {
-  min-height: 37px;
+.plugin-update-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-color-muted);
+  white-space: nowrap;
+}
+
+.plugin-update-status app-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .external-link-warning-href {

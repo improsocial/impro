@@ -172,9 +172,7 @@ test.describe("Installed plugins view", () => {
     await expect(page.locator(".plugin-list-item")).toHaveCount(1);
   });
 
-  test("check for updates shows toast and no Update button when up to date", async ({
-    page,
-  }) => {
+  test("shows up-to-date status on entry", async ({ page }) => {
     const mockServer = new MockServer();
     seedRemoteInstalled(mockServer, {
       installedVersion: "1.0.0",
@@ -186,20 +184,17 @@ test.describe("Installed plugins view", () => {
     await page.goto("/plugins/installed");
 
     const view = page.locator("#installed-plugins-view");
-    const headerButton = view.locator(
-      '[data-testid="plugin-check-updates-button"]',
-    );
-    await expect(headerButton).toHaveAttribute("data-teststate", "check", {
+    const status = view.locator('[data-testid="plugin-update-status"]');
+    await expect(status).toHaveAttribute("data-teststate", "up-to-date", {
       timeout: 10000,
     });
-    await headerButton.click();
-
-    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
-    await expect(headerButton).toHaveAttribute("data-teststate", "check");
+    await expect(
+      view.locator('[data-testid="plugin-update-all-button"]'),
+    ).toHaveCount(0);
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
   });
 
-  test("check for updates surfaces per-plugin Update button", async ({
+  test("entering the view surfaces per-plugin Update button", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -213,18 +208,10 @@ test.describe("Installed plugins view", () => {
     await page.goto("/plugins/installed");
 
     const view = page.locator("#installed-plugins-view");
-    const headerButton = view.locator(
-      '[data-testid="plugin-check-updates-button"]',
-    );
-    await expect(headerButton).toHaveAttribute("data-teststate", "check", {
-      timeout: 10000,
-    });
-    await headerButton.click();
-
-    await expect(page.locator('[data-testid="toast"]')).toContainText(
-      "1 update available",
-    );
-    await expect(headerButton).toHaveAttribute("data-teststate", "update-all");
+    await expect(
+      view.locator('[data-testid="plugin-update-all-button"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="toast"]')).toHaveCount(0);
 
     const sampleItem = view.locator(".plugin-list-item", {
       hasText: "Remote Themes",
@@ -237,7 +224,12 @@ test.describe("Installed plugins view", () => {
       "Updated Remote Themes to v1.0.1",
     );
     await expect(sampleItem.locator(".plugin-update-button")).toHaveCount(0);
-    await expect(headerButton).toHaveAttribute("data-teststate", "check");
+    await expect(
+      view.locator('[data-testid="plugin-update-all-button"]'),
+    ).toHaveCount(0);
+    await expect(
+      view.locator('[data-testid="plugin-update-status"]'),
+    ).toHaveAttribute("data-teststate", "up-to-date");
   });
 
   test("Update all updates every outdated plugin", async ({ page }) => {
@@ -252,22 +244,21 @@ test.describe("Installed plugins view", () => {
     await page.goto("/plugins/installed");
 
     const view = page.locator("#installed-plugins-view");
-    const headerButton = view.locator(
-      '[data-testid="plugin-check-updates-button"]',
+    const updateAllButton = view.locator(
+      '[data-testid="plugin-update-all-button"]',
     );
-    await expect(headerButton).toHaveAttribute("data-teststate", "check", {
-      timeout: 10000,
-    });
-    await headerButton.click();
-    await expect(headerButton).toHaveAttribute("data-teststate", "update-all");
+    await expect(updateAllButton).toBeVisible({ timeout: 10000 });
 
-    await headerButton.click();
+    await updateAllButton.click();
 
     await expect(page.locator('[data-testid="toast"]').last()).toContainText(
       "Updated 1 plugin",
     );
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
-    await expect(headerButton).toHaveAttribute("data-teststate", "check");
+    await expect(updateAllButton).toHaveCount(0);
+    await expect(
+      view.locator('[data-testid="plugin-update-status"]'),
+    ).toHaveAttribute("data-teststate", "up-to-date");
   });
 
   test("enabling a plugin via toggle navigates to settings link", async ({

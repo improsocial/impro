@@ -736,49 +736,6 @@ describe("enablePlugin", () => {
   });
 });
 
-describe("reloadPlugins", () => {
-  it("reloads only enabled plugins", async () => {
-    const { service, reloadCalls } = await makeService({
-      installedPlugins: [
-        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-        { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
-      ],
-    });
-    await service.reloadPlugins();
-    assert.deepEqual(
-      reloadCalls.map((call) => call.id),
-      ["a"],
-    );
-  });
-
-  it("disables plugins that throw and re-throws the first failure", async () => {
-    const { service, server } = await makeService({
-      installedPlugins: [
-        { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
-        { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
-      ],
-    });
-    service.pluginBridge.reloadPlugin = async (id) => {
-      if (id === "b") throw new Error("b broke");
-    };
-    let caught = null;
-    try {
-      await service.reloadPlugins();
-    } catch (error) {
-      caught = error;
-    }
-    assert(caught?.message.includes("b broke"));
-    assert.deepEqual(
-      storedInstalledPlugins(server).find((entry) => entry.id === "b").enabled,
-      false,
-    );
-    assert.deepEqual(
-      storedInstalledPlugins(server).find((entry) => entry.id === "a").enabled,
-      true,
-    );
-  });
-});
-
 describe("checkForUpdates", () => {
   it("populates $availableUpdates with plugins whose live version is newer", async () => {
     const { service } = await makeService({
@@ -809,6 +766,102 @@ describe("checkForUpdates", () => {
     });
     const updates = await service.checkForUpdates();
     assert.deepEqual([...updates.keys()], ["a"]);
+  });
+});
+
+describe("checkForUpdatesIfStale", () => {
+  async function makeCountingService(options) {
+    const result = await makeService(options);
+    let registryFetches = 0;
+    const getListings = result.service.remoteRegistry.getListings;
+    result.service.remoteRegistry.getListings = async () => {
+      registryFetches++;
+      return getListings();
+    };
+    return { ...result, registryFetches: () => registryFetches };
+  }
+
+  const installedOutdated = {
+    liveManifests: { a: { id: "a", name: "A", version: "2.0.0" } },
+    installedPlugins: [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ],
+  };
+
+  it("sets $checkingForUpdates while the check runs", async () => {
+    const { service } = await makeCountingService(installedOutdated);
+    const getListings = service.remoteRegistry.getListings;
+    let releaseRegistry;
+    let registryRequested;
+    const requested = new Promise((resolve) => {
+      registryRequested = resolve;
+    });
+    service.remoteRegistry.getListings = async () => {
+      registryRequested();
+      await new Promise((resolve) => {
+        releaseRegistry = resolve;
+      });
+      return getListings();
+    };
+    const pending = service.checkForUpdatesIfStale();
+    await requested;
+    assert.equal(service.$checkingForUpdates.get(), true);
+    releaseRegistry();
+    await pending;
+    assert.equal(service.$checkingForUpdates.get(), false);
+  });
+
+  it("does nothing when no plugins are installed", async () => {
+    const { service, registryFetches } = await makeCountingService();
+    await service.checkForUpdatesIfStale();
+    assert.equal(registryFetches(), 0);
+    assert.equal(service.$availableUpdates.get(), null);
+  });
+
+  it("checks on first call", async () => {
+    const { service } = await makeCountingService(installedOutdated);
+    await service.checkForUpdatesIfStale();
+    assert.deepEqual(
+      [...service.$availableUpdates.get().entries()],
+      [["a", "2.0.0"]],
+    );
+  });
+
+  it("skips a check within the interval and rechecks after it", async (t) => {
+    let now = 1_000_000;
+    t.mock.method(Date, "now", () => now);
+    const { service, registryFetches } =
+      await makeCountingService(installedOutdated);
+    await service.checkForUpdatesIfStale();
+    now += 60_000;
+    await service.checkForUpdatesIfStale();
+    assert.equal(registryFetches(), 1);
+    now += 5 * 60_000;
+    await service.checkForUpdatesIfStale();
+    assert.equal(registryFetches(), 2);
+  });
+
+  it("counts a manual check toward the interval", async () => {
+    const { service, registryFetches } =
+      await makeCountingService(installedOutdated);
+    await service.checkForUpdates();
+    await service.checkForUpdatesIfStale();
+    assert.equal(registryFetches(), 1);
+  });
+
+  it("retries on the next call after a failed registry fetch", async () => {
+    const { service, registryFetches } =
+      await makeCountingService(installedOutdated);
+    const getListings = service.remoteRegistry.getListings;
+    service.remoteRegistry.getListings = async () => {
+      await getListings();
+      throw new Error("registry down");
+    };
+    await assert.rejects(service.checkForUpdatesIfStale());
+    service.remoteRegistry.getListings = getListings;
+    await service.checkForUpdatesIfStale();
+    assert.equal(registryFetches(), 2);
+    assert.deepEqual([...service.$availableUpdates.get().keys()], ["a"]);
   });
 });
 

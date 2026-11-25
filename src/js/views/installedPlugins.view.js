@@ -1,5 +1,5 @@
 import { html, render, keyed } from "/js/lib/lit-html.js";
-import { pageEffect, bindPageTitle } from "/js/router.js";
+import { pageEffect, bindPageTitle, onPageShow } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/app-icon.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
@@ -8,6 +8,45 @@ import { Signal, SignalSet, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import { linkToPluginSettings, linkToCommunityPlugin } from "/js/navigation.js";
 import "/js/components/toggle-switch.js";
+
+function updateActionsTemplate({
+  checkingForUpdates,
+  updatingAll,
+  availableUpdates,
+  onUpdateAll,
+}) {
+  if (updatingAll || availableUpdates?.size > 0) {
+    return html`<button
+      class="plugin-update-all-button rounded-button rounded-button-primary"
+      data-testid="plugin-update-all-button"
+      ?disabled=${updatingAll}
+      @click=${onUpdateAll}
+    >
+      ${updatingAll
+        ? html`Updating...
+            <div class="loading-spinner" data-testid="loading-spinner"></div>`
+        : "Update all"}
+    </button>`;
+  }
+  if (checkingForUpdates) {
+    return html`<span
+      class="plugin-update-status"
+      data-testid="plugin-update-status"
+      data-teststate="checking"
+    >
+      <div class="loading-spinner" data-testid="loading-spinner"></div>
+    </span>`;
+  }
+  if (availableUpdates === null) return "";
+  return html`<span
+    class="plugin-update-status"
+    data-testid="plugin-update-status"
+    data-teststate="up-to-date"
+  >
+    <app-icon icon="check"></app-icon>
+    Up to date
+  </span>`;
+}
 
 export default async function installedPluginsView({
   root,
@@ -21,8 +60,6 @@ export default async function installedPluginsView({
   state.$enablingIds = new SignalSet();
   state.$disablingIds = new SignalSet();
   state.$updatingIds = new SignalSet();
-  state.$reloading = new Signal.State(false);
-  state.$checkingForUpdates = new Signal.State(false);
   state.$updatingAll = new Signal.State(false);
 
   async function uninstallPlugin(plugin) {
@@ -41,39 +78,6 @@ export default async function installedPluginsView({
       showToast(`Uninstalled ${plugin.name}`);
     } finally {
       state.$uninstallingIds.delete(plugin.id);
-    }
-  }
-
-  async function reloadPlugins() {
-    if (state.$reloading.get()) return;
-    state.$reloading.set(true);
-    try {
-      await pluginService.reloadPlugins();
-      showToast("Reloaded plugins");
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to reload plugins", { style: "error" });
-    } finally {
-      state.$reloading.set(false);
-    }
-  }
-
-  async function checkForUpdates() {
-    if (state.$checkingForUpdates.get()) return;
-    state.$checkingForUpdates.set(true);
-    try {
-      const updates = await pluginService.checkForUpdates();
-      if (updates.size === 0) {
-        showToast("All plugins are up to date!", { style: "success" });
-      } else {
-        showToast(
-          `${updates.size} update${updates.size === 1 ? "" : "s"} available`,
-        );
-      }
-    } catch (e) {
-      showToast("Failed to check for updates", { style: "error" });
-    } finally {
-      state.$checkingForUpdates.set(false);
     }
   }
 
@@ -147,14 +151,17 @@ export default async function installedPluginsView({
 
   bindPageTitle(root, () => "Plugins");
 
+  onPageShow(root, () => {
+    pluginService.checkForUpdatesIfStale().catch((error) => {
+      console.warn("Automatic plugin update check failed", error);
+    });
+  });
+
   pageEffect(root, () => {
-    const reloading = state.$reloading.get();
-    const checkingForUpdates = state.$checkingForUpdates.get();
+    const checkingForUpdates = pluginService.$checkingForUpdates.get();
     const updatingAll = state.$updatingAll.get();
     const pluginsInfo = pluginService.$pluginsInfo.get();
     const availableUpdates = pluginService.$availableUpdates.get();
-    const hasAvailableUpdates =
-      availableUpdates !== null && availableUpdates.size > 0;
     render(
       html`<div id="installed-plugins-view">
         ${headerTemplate({
@@ -190,42 +197,12 @@ export default async function installedPluginsView({
               : html`<div class="installed-plugins-header">
                     <h2>Installed plugins</h2>
                     <div class="installed-plugins-header-actions">
-                      <button
-                        class="plugin-check-updates-button rounded-button rounded-button-primary"
-                        data-testid="plugin-check-updates-button"
-                        data-teststate=${checkingForUpdates || updatingAll
-                          ? hasAvailableUpdates
-                            ? "updating"
-                            : "checking"
-                          : hasAvailableUpdates
-                            ? "update-all"
-                            : "check"}
-                        ?disabled=${checkingForUpdates || updatingAll}
-                        @click=${() =>
-                          hasAvailableUpdates
-                            ? updateAllPlugins()
-                            : checkForUpdates()}
-                      >
-                        ${checkingForUpdates || updatingAll
-                          ? html`${hasAvailableUpdates
-                                ? "Updating..."
-                                : "Checking..."}
-                              <div
-                                class="loading-spinner"
-                                data-testid="loading-spinner"
-                              ></div>`
-                          : hasAvailableUpdates
-                            ? "Update all"
-                            : "Check for updates"}
-                      </button>
-                      <button
-                        class="plugin-reload-button icon-button"
-                        aria-label="Reload plugins"
-                        ?disabled=${reloading}
-                        @click=${() => reloadPlugins()}
-                      >
-                        <app-icon icon="reload-line"></app-icon>
-                      </button>
+                      ${updateActionsTemplate({
+                        checkingForUpdates,
+                        updatingAll,
+                        availableUpdates,
+                        onUpdateAll: () => updateAllPlugins(),
+                      })}
                     </div>
                   </div>
                   <ul class="plugin-list">

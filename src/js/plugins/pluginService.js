@@ -48,6 +48,7 @@ import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
 
 const INITIAL_PLUGIN_LOAD_TIMEOUT_MS = 3000;
+const AUTO_UPDATE_CHECK_INTERVAL_MS = 5 * 60_000;
 
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
 
@@ -146,6 +147,8 @@ export class PluginService extends ReactiveStore {
       feedFilters: new Set(),
     };
     this.$availableUpdates = new Signal.State(null);
+    this.$checkingForUpdates = new Signal.State(false);
+    this._lastUpdateCheckAt = null;
     this.$rawRegistryListings = new Signal.State(null);
     this.$registryListings = new Signal.Computed(() => {
       const rawListings = this.$rawRegistryListings.get();
@@ -793,30 +796,51 @@ export class PluginService extends ReactiveStore {
     });
   }
 
-  async checkForUpdates() {
-    // Load listings first to ensure we have the latest repo URLs for plugins
-    await this.loadRegistryListings();
+  async checkForUpdatesIfStale() {
     const installedPlugins = await this.prefManager.getInstalledPlugins();
-    const results = await Promise.allSettled(
-      installedPlugins.map(async (entry) => {
-        const liveManifest = await this.sourceProvider.getLiveManifest(
-          entry.id,
-          entry.repo,
-        );
-        if (compareVersions(liveManifest.version, entry.version) > 0) {
-          return { id: entry.id, version: liveManifest.version };
-        }
-        return null;
-      }),
-    );
-    const updates = new Map();
-    for (const result of results) {
-      if (result.status === "fulfilled" && result.value) {
-        updates.set(result.value.id, result.value.version);
-      }
+    if (installedPlugins.length === 0) return;
+    if (
+      this._lastUpdateCheckAt !== null &&
+      Date.now() - this._lastUpdateCheckAt < AUTO_UPDATE_CHECK_INTERVAL_MS
+    ) {
+      return;
     }
-    this.$availableUpdates.set(updates);
-    return updates;
+    await this.checkForUpdates();
+  }
+
+  async checkForUpdates() {
+    this._lastUpdateCheckAt = Date.now();
+    this.$checkingForUpdates.set(true);
+    try {
+      // Load listings first to ensure we have the latest repo URLs for plugins
+      await this.loadRegistryListings();
+      const installedPlugins = await this.prefManager.getInstalledPlugins();
+      const results = await Promise.allSettled(
+        installedPlugins.map(async (entry) => {
+          const liveManifest = await this.sourceProvider.getLiveManifest(
+            entry.id,
+            entry.repo,
+          );
+          if (compareVersions(liveManifest.version, entry.version) > 0) {
+            return { id: entry.id, version: liveManifest.version };
+          }
+          return null;
+        }),
+      );
+      const updates = new Map();
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          updates.set(result.value.id, result.value.version);
+        }
+      }
+      this.$availableUpdates.set(updates);
+      return updates;
+    } catch (error) {
+      this._lastUpdateCheckAt = null;
+      throw error;
+    } finally {
+      this.$checkingForUpdates.set(false);
+    }
   }
 
   _clearAvailableUpdate(pluginId) {
@@ -825,28 +849,6 @@ export class PluginService extends ReactiveStore {
     const next = new Map(updates);
     next.delete(pluginId);
     this.$availableUpdates.set(next);
-  }
-
-  async reloadPlugins() {
-    const installedPlugins = await this.prefManager.getInstalledPlugins();
-    const results = await Promise.allSettled(
-      installedPlugins
-        .filter((entry) => entry.enabled === true)
-        .map(async (entry) => {
-          try {
-            await this.pluginBridge.reloadPlugin(
-              entry.id,
-              entry.version,
-              entry.repo,
-            );
-          } catch (e) {
-            await this.prefManager.setPluginDisabled(entry.id);
-            throw e;
-          }
-        }),
-    );
-    const failure = results.find((result) => result.status === "rejected");
-    if (failure) throw failure.reason;
   }
 
   async getManifest(pluginId) {

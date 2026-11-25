@@ -241,35 +241,57 @@ test.describe("Plugin settings view", () => {
   // The view stays cached in the DOM while the user navigates away, so a
   // reload has to re-invoke display() rather than keep the tree it captured
   // from the previous registration.
-  test("re-renders the tab after the plugin is reloaded", async ({ page }) => {
+  test("re-renders the tab after the plugin is updated", async ({ page }) => {
+    const remoteId = "remote-themes";
     const mockServer = new MockServer();
+    mockServer.registryEntries = [
+      {
+        id: remoteId,
+        name: "Remote Themes",
+        author: "alice",
+        repo: "alice/remote-themes",
+      },
+    ];
+    mockServer.liveManifest = {
+      id: remoteId,
+      name: "Remote Themes",
+      version: "1.0.1",
+    };
     await mockServer.setup(page);
     await login(page);
-    seedEnabled(mockServer);
+    mockServer.installedPlugins = [
+      {
+        id: remoteId,
+        name: "Remote Themes",
+        author: "alice",
+        repo: "alice/remote-themes",
+        version: "1.0.0",
+        enabled: true,
+      },
+    ];
 
     // One real page load; everything after is SPA navigation, so the settings
     // view is restored from cache rather than rebuilt.
     await page.goto("/plugins/installed");
-    await expect(page.locator("#installed-plugins-view")).toBeVisible({
-      timeout: 10000,
-    });
+    const installedView = page.locator("#installed-plugins-view");
+    const updateButton = installedView.locator(".plugin-update-button");
+    await expect(updateButton).toBeVisible({ timeout: 10000 });
     const settingsLink = page
-      .locator(`[href="/plugin/${PLUGIN_ID}/settings"]`)
+      .locator(`[href="/plugin/${remoteId}/settings"]`)
       .first();
     await settingsLink.click();
     const view = page.locator("#plugin-settings-view");
     const firstSetting = view.locator(".setting-item").first();
     await expect(firstSetting).toContainText("Greeting", { timeout: 10000 });
 
-    mockServer.localPluginSource = getTestPluginSource().replace(
+    mockServer.remotePluginSource = getTestPluginSource().replace(
       '.setName("Greeting")',
       '.setName("Reloaded")',
     );
     await page.goBack();
-    await expect(page.locator("#installed-plugins-view")).toBeVisible({
-      timeout: 10000,
-    });
-    await page.locator(".plugin-reload-button").click();
+    await expect(installedView).toBeVisible({ timeout: 10000 });
+    await updateButton.click();
+    await expect(updateButton).toHaveCount(0, { timeout: 10000 });
     await settingsLink.click();
 
     await expect(firstSetting).toContainText("Reloaded", { timeout: 10000 });
