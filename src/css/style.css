@@ -749,7 +749,7 @@ suggested-feeds-pane {
 }
 
 .trending-avatars .avatar + .avatar {
-  margin-left: -8px;
+  margin-left: -5px;
 }
 
 .trending-avatars .avatar-image-frame {
@@ -6825,6 +6825,30 @@ emoji-picker-dialog emoji-picker,
   }
 }
 
+.labeler-likes {
+  margin-top: 16px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rounded-button.labeler-like-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.labeler-like-button .post-action-icon,
+.labeler-like-button .post-action-icon app-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.labeler-like-button.active {
+  color: var(--like-color);
+}
+
 .known-followers-summary {
   display: flex;
   align-items: center;
@@ -6859,7 +6883,7 @@ emoji-picker-dialog emoji-picker,
   border-radius: var(--avatar-border-radius);
   border: 1px solid var(--background-color);
   overflow: hidden;
-  margin-left: -8px;
+  margin-left: -5px;
 }
 
 .known-followers-avatar:first-child {
@@ -10342,7 +10366,7 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 .settings-account-avatar-stack .avatar {
   width: 24px;
   height: 24px;
-  margin-left: -8px;
+  margin-left: -5px;
 }
 
 .settings-account-avatar-stack .avatar .avatar-image-frame {
@@ -12342,7 +12366,7 @@ label:has(toggle-switch[disabled]) {
 .new-group-back-button {
   display: flex;
   align-items: center;
-  margin-left: -8px;
+  margin-left: -5px;
 }
 
 .search-dialog-header-action {
@@ -12720,7 +12744,7 @@ label:has(toggle-switch[disabled]) {
   cursor: pointer;
   color: var(--text-color);
   padding: 4px 8px;
-  margin-left: -8px;
+  margin-left: -5px;
   opacity: 0.8;
 }
 

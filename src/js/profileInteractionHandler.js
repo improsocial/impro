@@ -188,6 +188,25 @@ export class ProfileInteractionHandler {
     }
   }
 
+  async handleLabelerLike(labelerInfo, doLike) {
+    haptics.impactMedium();
+    try {
+      if (doLike) {
+        await this.dataLayer.mutations.likeLabeler(labelerInfo);
+      } else {
+        await this.dataLayer.mutations.unlikeLabeler(labelerInfo);
+      }
+    } catch (error) {
+      console.error(error);
+      showToast(
+        doLike ? "Failed to like labeler" : "Failed to unlike labeler",
+        {
+          style: "error",
+        },
+      );
+    }
+  }
+
   async handlePostNotificationSubscription(profile) {
     if (this._postNotificationsDialog !== null) {
       return;

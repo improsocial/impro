@@ -2586,6 +2586,83 @@ test.describe("Profile view", () => {
       const labelList = view.locator('[data-testid="label-preference-list"]');
       await expect(labelList).not.toContainText("System Label");
     });
+
+    test("should like a labeler and update its like count", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      mockServer.addLabelerViews([
+        createLabelerView({
+          did: "did:plc:labeler123",
+          handle: "testlabeler.bsky.social",
+          displayName: "Test Labeler",
+          creator: labelerUser,
+          likeCount: 12,
+          viewer: {},
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const likeCount = view.locator('[data-testid="labeler-like-count"]');
+      await expect(likeCount).toContainText("12", { timeout: 10000 });
+
+      const likeButton = view.locator('[data-testid="labeler-like-button"]');
+      await likeButton.click();
+      await expect(likeCount).toContainText("13");
+      await expect(likeButton).toHaveClass(/active/);
+
+      await likeButton.click();
+      await expect(likeCount).toContainText("12");
+      await expect(likeButton).not.toHaveClass(/active/);
+    });
+
+    test("should open the labeler liked-by list from the like count", async ({
+      page,
+    }) => {
+      const liker = createProfile({
+        did: "did:plc:liker1",
+        handle: "liker.bsky.social",
+        displayName: "Labeler Fan",
+      });
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      mockServer.addLabelerViews([
+        createLabelerView({
+          did: "did:plc:labeler123",
+          handle: "testlabeler.bsky.social",
+          displayName: "Test Labeler",
+          creator: labelerUser,
+          likeCount: 1,
+          viewer: {},
+        }),
+      ]);
+      mockServer.addPostLikes(
+        "at://did:plc:labeler123/app.bsky.labeler.service/self",
+        [{ actor: liker, createdAt: "2025-01-15T12:00:00.000Z" }],
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      await page
+        .locator('#profile-view [data-testid="labeler-like-count"]')
+        .click();
+
+      await expect(page).toHaveURL(
+        /\/profile\/testlabeler\.bsky\.social\/labeler\/liked-by$/,
+      );
+      const likesView = page.locator("#labeler-likes-view");
+      await expect(likesView.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(likesView).toContainText("Labeler Fan");
+    });
   });
 
   test.describe("Logged-out behavior", () => {

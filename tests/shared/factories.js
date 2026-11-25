@@ -430,8 +430,12 @@ export function createLabelerView({
   displayName,
   labelDefinitions = [],
   creator,
+  likeCount,
+  viewer,
 }) {
   return {
+    ...(likeCount !== undefined ? { likeCount } : {}),
+    ...(viewer ? { viewer } : {}),
     uri: `at://${did}/app.bsky.labeler.service/self`,
     cid: `bafyreilabeler${did.split(":").pop()}`,
     creator: creator || {

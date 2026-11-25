@@ -20,6 +20,7 @@ export class PatchStore extends ReactiveStore {
     this.$preferencePatches = new Signal.State([]);
     this.$currentUserPatches = new Signal.State([]);
     this.$authorFeedPatches = new SignalMap();
+    this.$labelerPatches = new SignalMap();
     this.uuid = new SimpleUUID();
   }
 
@@ -296,6 +297,64 @@ export class PatchStore extends ReactiveStore {
             ...profile.viewer,
             activitySubscription: patchBody.activitySubscription,
           },
+        };
+      default:
+        throw new Error("Unknown patch type", patchBody.type);
+    }
+  }
+
+  /* Labeler Patches */
+
+  _getLabelerPatches(did) {
+    return this.$labelerPatches.get(did) || [];
+  }
+
+  hasPendingLabelerPatch(did) {
+    return this._getLabelerPatches(did).length > 0;
+  }
+
+  addLabelerPatch(did, patchBody) {
+    const patchId = this.uuid.create();
+    this.$labelerPatches.set(did, [
+      ...this._getLabelerPatches(did),
+      { id: patchId, body: patchBody },
+    ]);
+    return patchId;
+  }
+
+  removeLabelerPatch(did, patchId) {
+    this.$labelerPatches.set(
+      did,
+      this._getLabelerPatches(did).filter(({ id }) => id !== patchId),
+    );
+  }
+
+  applyLabelerPatches(labelerInfo, patches) {
+    let patchedLabelerInfo = deepClone(labelerInfo);
+    for (const patch of patches) {
+      patchedLabelerInfo = this.applyLabelerPatch(
+        patchedLabelerInfo,
+        patch.body,
+      );
+    }
+    return patchedLabelerInfo;
+  }
+
+  applyLabelerPatch(labelerInfo, patchBody) {
+    switch (patchBody.type) {
+      case "likeLabeler":
+        if (labelerInfo.viewer?.like) return labelerInfo;
+        return {
+          ...labelerInfo,
+          viewer: { ...labelerInfo.viewer, like: "fake like" },
+          likeCount: (labelerInfo.likeCount ?? 0) + 1,
+        };
+      case "unlikeLabeler":
+        if (!labelerInfo.viewer?.like) return labelerInfo;
+        return {
+          ...labelerInfo,
+          viewer: { ...labelerInfo.viewer, like: null },
+          likeCount: (labelerInfo.likeCount ?? 0) - 1,
         };
       default:
         throw new Error("Unknown patch type", patchBody.type);

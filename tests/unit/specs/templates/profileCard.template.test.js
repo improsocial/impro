@@ -742,6 +742,97 @@ describe("profileCardTemplate - labeler support", () => {
   });
 });
 
+describe("profileCardTemplate - labeler likes", () => {
+  const labelerProfile = {
+    ...mockProfile,
+    did: "did:plc:labeler",
+    handle: "labeler.test",
+  };
+  const labelerInfo = {
+    uri: "at://did:plc:labeler/app.bsky.labeler.service/self",
+    cid: "bafylabeler",
+    creator: { did: "did:plc:labeler", handle: "labeler.test" },
+    likeCount: 12,
+    viewer: { like: null },
+    policies: { labelValueDefinitions: [] },
+  };
+
+  let container = null;
+
+  afterEach(() => {
+    container?.remove();
+    container = null;
+  });
+
+  function renderCard(options) {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    render(
+      profileCardTemplate({
+        profile: labelerProfile,
+        isLabeler: true,
+        showSubscribeButton: true,
+        isAuthenticated: true,
+        labelerInfo,
+        showLabelerLikes: true,
+        ...options,
+      }),
+      container,
+    );
+    return container;
+  }
+
+  it("renders the like count linking to the liked-by page", () => {
+    renderCard({});
+    const count = container.querySelector("[data-testid='labeler-like-count']");
+    assert.equal(
+      count.getAttribute("href"),
+      "/profile/labeler.test/labeler/liked-by",
+    );
+    assert.match(count.textContent, /12/);
+  });
+
+  it("does not render likes when showLabelerLikes is false", () => {
+    renderCard({ showLabelerLikes: false });
+    assert.equal(
+      container.querySelector("[data-testid='labeler-likes']"),
+      null,
+    );
+  });
+
+  it("calls onClickLikeLabeler with the toggled state", () => {
+    const onClickLikeLabeler = mock.fn();
+    renderCard({ onClickLikeLabeler });
+    container.querySelector("[data-testid='labeler-like-button']").click();
+    assert.equal(onClickLikeLabeler.mock.callCount(), 1);
+    assert.deepEqual(onClickLikeLabeler.mock.calls[0].arguments, [
+      labelerInfo,
+      true,
+    ]);
+  });
+
+  it("requests an unlike when already liked", () => {
+    const onClickLikeLabeler = mock.fn();
+    const likedInfo = {
+      ...labelerInfo,
+      viewer: { like: "at://did:plc:me/app.bsky.feed.like/abc" },
+    };
+    renderCard({ labelerInfo: likedInfo, onClickLikeLabeler });
+    container.querySelector("[data-testid='labeler-like-button']").click();
+    assert.deepEqual(onClickLikeLabeler.mock.calls[0].arguments, [
+      likedInfo,
+      false,
+    ]);
+  });
+
+  it("ignores clicks while a like is pending", () => {
+    const onClickLikeLabeler = mock.fn();
+    renderCard({ isLabelerLikePending: true, onClickLikeLabeler });
+    container.querySelector("[data-testid='labeler-like-button']").click();
+    assert.equal(onClickLikeLabeler.mock.callCount(), 0);
+  });
+});
+
 describe("profileCardTemplate - blocked profile", () => {
   it("should render unblock button for blocked profile", () => {
     const profile = {

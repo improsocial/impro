@@ -767,8 +767,15 @@ export class Derived extends ReactiveStore {
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
     );
-    this.$labelerInfo = new ComputedMap((did) =>
-      this.dataStore.$labelerInfo.get(did),
+    this.$labelerInfo = new ComputedMap((did) => {
+      const labelerInfo = this.dataStore.$labelerInfo.get(did);
+      if (!labelerInfo) return labelerInfo;
+      const patches = this.patchStore.$labelerPatches.get(did);
+      if (!patches?.length) return labelerInfo;
+      return this.patchStore.applyLabelerPatches(labelerInfo, patches);
+    });
+    this.$isLabelerLikePending = new ComputedMap((did) =>
+      this.patchStore.hasPendingLabelerPatch(did),
     );
     this.$hydratedBookmarks = new Signal.Computed(() => {
       const data = this.dataStore.$bookmarks.get();

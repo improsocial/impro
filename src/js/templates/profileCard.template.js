@@ -3,6 +3,7 @@ import {
   getPermalinkForProfile,
   linkToProfileFollowers,
   linkToProfileFollowing,
+  linkToLabelerLikes,
   linkToSearchPostsByProfile,
 } from "/js/navigation.js";
 import {
@@ -35,6 +36,7 @@ import "/js/components/context-menu-item-group.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/profile-links.js";
 import { handleTemplate } from "/js/templates/handle.template.js";
+import "/js/components/animated-button.js";
 
 function getBlueskyLinkForProfile(profile) {
   return `https://bsky.app/profile/${profile.handle}`;
@@ -56,6 +58,46 @@ function profileStatsTemplate({ profile }) {
   </div>`;
 }
 
+function labelerLikesTemplate({
+  profile,
+  labelerInfo,
+  isAuthenticated,
+  isLabelerLikePending,
+  onClickLikeLabeler,
+}) {
+  const isLiked = !!labelerInfo.viewer?.like;
+  const likeCount = labelerInfo.likeCount ?? 0;
+  return html`<div class="labeler-likes" data-testid="labeler-likes">
+    <animated-button
+      button-class="rounded-button labeler-like-button"
+      testid="labeler-like-button"
+      ?is-active=${isLiked}
+      @click=${() => {
+        if (!isAuthenticated) {
+          SignInModal.open();
+          return;
+        }
+        if (isLabelerLikePending) {
+          return;
+        }
+        onClickLikeLabeler(labelerInfo, !isLiked);
+      }}
+    >
+      <div class="post-action-icon">
+        ${fillableIconTemplate({ icon: "like", filled: isLiked })}
+      </div>
+    </animated-button>
+    <a
+      href="${linkToLabelerLikes(profile)}"
+      class="profile-stat"
+      data-testid="labeler-like-count"
+    >
+      Liked by ${formatLargeNumber(likeCount)}
+      ${likeCount === 1 ? "user" : "users"}
+    </a>
+  </div>`;
+}
+
 function profileDescriptionTemplate({
   isLabeler,
   isBlocking,
@@ -64,6 +106,10 @@ function profileDescriptionTemplate({
   profile,
   identityResolver,
   labelerInfo,
+  showLabelerLikes,
+  isAuthenticated,
+  isLabelerLikePending,
+  onClickLikeLabeler,
   pluginService,
 }) {
   if (isBlocking) {
@@ -96,6 +142,15 @@ function profileDescriptionTemplate({
     ${profile.visibleLinks?.length > 0 && !profile.blurLabel
       ? html`<profile-links .links=${profile.visibleLinks}></profile-links>`
       : ""}
+    ${isLabeler && showLabelerLikes
+      ? labelerLikesTemplate({
+          profile,
+          labelerInfo,
+          isAuthenticated,
+          isLabelerLikePending,
+          onClickLikeLabeler,
+        })
+      : null}
     ${!isLabeler && !isCurrentUser
       ? knownFollowersSummaryTemplate({ profile })
       : null}
@@ -359,6 +414,9 @@ export function profileCardTemplate({
   showSubscribeButton = false,
   labelerInfo = null,
   isSubscribed = false,
+  showLabelerLikes = false,
+  isLabelerLikePending = false,
+  onClickLikeLabeler = noop,
   activitySubscription = null,
   showHandleLink = false,
   onClickChat = noop,
@@ -596,6 +654,10 @@ export function profileCardTemplate({
       isCurrentUser,
       isLabeler,
       labelerInfo,
+      showLabelerLikes,
+      isAuthenticated,
+      isLabelerLikePending,
+      onClickLikeLabeler,
       profile,
       identityResolver,
       pluginService,

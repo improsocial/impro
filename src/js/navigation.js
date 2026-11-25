@@ -26,6 +26,10 @@ export function linkToLabeler(labeler) {
   return linkToProfile(labeler.creator);
 }
 
+export function linkToLabelerLikes(profile) {
+  return `${linkToProfile(profile)}/labeler/liked-by`;
+}
+
 export function linkToPost(post) {
   return `/profile/${encodePathSegment(profileIdentifier(post.author))}/post/${encodePathSegment(getRKey(post))}`;
 }

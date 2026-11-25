@@ -1,6 +1,7 @@
 import homeView from "/js/views/home.view.js";
 import postThreadView from "/js/views/postThread.view.js";
 import postLikesView from "/js/views/postLikes.view.js";
+import labelerLikesView from "/js/views/labelerLikes.view.js";
 import postQuotesView from "/js/views/postQuotes.view.js";
 import postRepostsView from "/js/views/postReposts.view.js";
 import loginView from "/js/views/login.view.js";
@@ -337,6 +338,10 @@ export async function main() {
   router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView, {
     scrollRestore: "manual",
   });
+  router.addRoute(
+    "/profile/:handleOrDid/labeler/liked-by",
+    () => labelerLikesView,
+  );
   router.addRoute(
     "/profile/:handleOrDid/known-followers",
     () => profileKnownFollowersView,

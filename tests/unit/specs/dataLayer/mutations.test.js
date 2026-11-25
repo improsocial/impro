@@ -22,6 +22,7 @@ import {
 import { isBlockedPost, MAX_HIDDEN_REPLIES } from "/js/dataHelpers.js";
 import {
   createFeedGenerator,
+  createLabelerView,
   createList,
   createPost,
 } from "../../../shared/factories.js";
@@ -7515,5 +7516,96 @@ describe("updateThreadgateHiddenReply", () => {
       () => mutations.updateThreadgateHiddenReply(foreignReply, true),
       /thread author/,
     );
+  });
+});
+
+describe("likeLabeler / unlikeLabeler", () => {
+  const labelerDid = "did:plc:labeler";
+
+  function makeLabelerInfo(overrides = {}) {
+    return {
+      ...createLabelerView({ did: labelerDid, handle: "labeler.test" }),
+      likeCount: 3,
+      viewer: { like: null },
+      ...overrides,
+    };
+  }
+
+  function setup(api) {
+    const dataStore = new DataStore(createSessionState(null));
+    const patchStore = new PatchStore();
+    const mutations = makeMutations(api, dataStore, patchStore, {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    });
+    return { dataStore, patchStore, mutations };
+  }
+
+  function patchedLabelerInfo(patchStore, labelerInfo) {
+    const patches = patchStore.$labelerPatches.get(labelerDid) || [];
+    return patchStore.applyLabelerPatches(labelerInfo, patches);
+  }
+
+  it("applies an optimistic like and commits the like uri on success", async () => {
+    const labelerInfo = makeLabelerInfo();
+    const createLikeRecord = mock.fn(async () => ({ uri: "like-123" }));
+    const { dataStore, patchStore, mutations } = setup({ createLikeRecord });
+    dataStore.$labelerInfo.set(labelerDid, labelerInfo);
+
+    const promise = mutations.likeLabeler(labelerInfo);
+
+    const optimistic = patchedLabelerInfo(patchStore, labelerInfo);
+    assert.equal(optimistic.likeCount, 4);
+    assert(optimistic.viewer.like);
+    assert(patchStore.hasPendingLabelerPatch(labelerDid));
+
+    await promise;
+
+    assert.deepEqual(createLikeRecord.mock.calls[0].arguments[0], labelerInfo);
+    const stored = dataStore.$labelerInfo.get(labelerDid);
+    assert.equal(stored.viewer.like, "like-123");
+    assert.equal(stored.likeCount, 4);
+    assert(!patchStore.hasPendingLabelerPatch(labelerDid));
+  });
+
+  it("reverts the optimistic like on failure", async (t) => {
+    t.mock.method(console, "error", () => {});
+    const labelerInfo = makeLabelerInfo();
+    const { dataStore, patchStore, mutations } = setup({
+      createLikeRecord: async () => {
+        throw new Error("network");
+      },
+    });
+    dataStore.$labelerInfo.set(labelerDid, labelerInfo);
+
+    await assert.rejects(mutations.likeLabeler(labelerInfo));
+
+    const stored = dataStore.$labelerInfo.get(labelerDid);
+    assert.deepEqual(patchedLabelerInfo(patchStore, stored), stored);
+    assert.equal(stored.likeCount, 3);
+    assert.equal(stored.viewer.like, null);
+  });
+
+  it("applies an optimistic unlike and clears the like on success", async () => {
+    const labelerInfo = makeLabelerInfo({
+      likeCount: 4,
+      viewer: { like: "at://did:plc:me/app.bsky.feed.like/abc" },
+    });
+    const deleteLikeRecord = mock.fn(async () => ({}));
+    const { dataStore, patchStore, mutations } = setup({ deleteLikeRecord });
+    dataStore.$labelerInfo.set(labelerDid, labelerInfo);
+
+    const promise = mutations.unlikeLabeler(labelerInfo);
+
+    const optimistic = patchedLabelerInfo(patchStore, labelerInfo);
+    assert.equal(optimistic.likeCount, 3);
+    assert.equal(optimistic.viewer.like, null);
+
+    await promise;
+
+    assert.equal(deleteLikeRecord.mock.callCount(), 1);
+    const stored = dataStore.$labelerInfo.get(labelerDid);
+    assert.equal(stored.viewer.like, null);
+    assert.equal(stored.likeCount, 3);
+    assert(!patchStore.hasPendingLabelerPatch(labelerDid));
   });
 });

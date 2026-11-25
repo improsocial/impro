@@ -868,6 +868,52 @@ export class Mutations {
     }
   }
 
+  async likeLabeler(labelerInfo) {
+    const did = labelerInfo.creator.did;
+    const patchId = this.patchStore.addLabelerPatch(did, {
+      type: "likeLabeler",
+    });
+    try {
+      const like = await this.api.createLikeRecord(labelerInfo);
+      const latest = this.dataStore.$labelerInfo.get(did) ?? labelerInfo;
+      if (!latest.viewer?.like) {
+        this.dataStore.$labelerInfo.set(did, {
+          ...latest,
+          viewer: { ...latest.viewer, like: like.uri },
+          likeCount: (latest.likeCount ?? 0) + 1,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removeLabelerPatch(did, patchId);
+    }
+  }
+
+  async unlikeLabeler(labelerInfo) {
+    const did = labelerInfo.creator.did;
+    const patchId = this.patchStore.addLabelerPatch(did, {
+      type: "unlikeLabeler",
+    });
+    try {
+      await this.api.deleteLikeRecord(labelerInfo);
+      const latest = this.dataStore.$labelerInfo.get(did) ?? labelerInfo;
+      if (latest.viewer?.like) {
+        this.dataStore.$labelerInfo.set(did, {
+          ...latest,
+          viewer: { ...latest.viewer, like: null },
+          likeCount: (latest.likeCount ?? 0) - 1,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removeLabelerPatch(did, patchId);
+    }
+  }
+
   async unsubscribeLabeler(profile) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "unsubscribeLabeler",

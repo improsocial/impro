@@ -340,6 +340,12 @@ export default async function profileView({
             showSubscribeButton: !isDefaultLabeler,
             labelerInfo,
             isSubscribed,
+            showLabelerLikes: !isDefaultLabeler,
+            isLabelerLikePending: isLabeler
+              ? dataLayer.derived.$isLabelerLikePending.get(profile.did)
+              : false,
+            onClickLikeLabeler: (labelerInfo, doLike) =>
+              profileInteractionHandler.handleLabelerLike(labelerInfo, doLike),
             activitySubscription: profile.viewer?.activitySubscription ?? null,
             showHandleLink: !handleLinkHidden,
             onClickPostNotifications: (profile) =>
