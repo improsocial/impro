@@ -586,7 +586,6 @@ export default async function postThreadView({
                 ${postHeaderTextTemplate({
                   author: post.author,
                   timestamp: post.indexedAt,
-                  includeHandle: false,
                   enableProfileLink: false,
                 })}
               </div>
