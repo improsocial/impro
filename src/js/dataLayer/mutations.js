@@ -2569,7 +2569,10 @@ export class Mutations {
     this.dataStore.$messages.set(res.id, res);
     // Add the new message to the chat messages array in the dataStore
     const convoMessages = this.dataStore.$convoMessages.get(convoId);
-    if (convoMessages) {
+    const alreadyIngested = convoMessages?.messages.some(
+      (message) => message.id === res.id,
+    );
+    if (convoMessages && !alreadyIngested) {
       this.dataStore.$convoMessages.set(convoId, {
         messages: [res, ...convoMessages.messages],
         cursor: convoMessages.cursor,

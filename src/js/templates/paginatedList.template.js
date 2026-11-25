@@ -1,4 +1,4 @@
-import { html } from "/js/lib/lit-html.js";
+import { html, repeat } from "/js/lib/lit-html.js";
 import "/js/components/infinite-scroll-container.js";
 
 function paginatedListItemSkeletonTemplate() {
@@ -18,6 +18,24 @@ function paginatedListItemSkeletonTemplate() {
   `;
 }
 
+function uniqueItemKeys(items, itemKey) {
+  const occurrences = new Map();
+  return items.map((item) => {
+    const key = itemKey(item);
+    const count = occurrences.get(key) ?? 0;
+    occurrences.set(key, count + 1);
+    return count === 0 ? key : `${key}#${count}`;
+  });
+}
+
+function itemsTemplate({ items, renderItem, itemKey }) {
+  if (!itemKey) {
+    return items.map(renderItem);
+  }
+  const keys = uniqueItemKeys(items, itemKey);
+  return repeat(items, (_, index) => keys[index], renderItem);
+}
+
 function emptyListMessageTemplate(message) {
   return html`<div class="feed-end-message" data-testid="empty-state">
     ${message}
@@ -33,6 +51,7 @@ function endListMessageTemplate(message) {
 export function paginatedListTemplate({
   items,
   renderItem,
+  itemKey = null,
   renderSkeletonItem = paginatedListItemSkeletonTemplate,
   skeletonCount = 10,
   hasMore = false,
@@ -71,7 +90,7 @@ export function paginatedListTemplate({
     ${items.length === 0
       ? (emptyTemplate ??
         (emptyMessage ? emptyListMessageTemplate(emptyMessage) : ""))
-      : html`${items.map(renderItem)}${trailing}`}
+      : html`${itemsTemplate({ items, renderItem, itemKey })}${trailing}`}
   </div>`;
   if (!onLoadMore) return list;
   return html`

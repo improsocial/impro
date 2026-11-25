@@ -4411,6 +4411,19 @@ describe("createMessage", () => {
     assert.deepEqual(stored.cursor, "c1");
   });
 
+  it("should not add the message again if polling already ingested it", async () => {
+    const existingMessage = { id: "msg-old", text: "earlier" };
+    const { mutations, dataStore } = setup({
+      convoMessages: { messages: [sentMessage, existingMessage], cursor: "c1" },
+    });
+    await mutations.createMessage(convoId, { text: "hello" });
+    const stored = dataStore.$convoMessages.get(convoId);
+    assert.deepEqual(
+      stored.messages.map((message) => message.id),
+      [sentMessage.id, existingMessage.id],
+    );
+  });
+
   it("should update the convo's lastMessage", async () => {
     const convo = { id: convoId, unreadCount: 0 };
     const { mutations, dataStore } = setup({ convo });

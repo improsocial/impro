@@ -182,6 +182,7 @@ export default async function chatView({
     return paginatedListTemplate({
       items: convos,
       renderItem: (convo) => convoItemTemplate({ convo, currentUser }),
+      itemKey: (convo) => convo.id,
       hasMore,
       onLoadMore: loadMoreConvos,
       errorTemplate: loadMoreError ? loadMoreErrorTemplate() : null,

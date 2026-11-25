@@ -109,6 +109,15 @@ export function createMessageLog({ convoId, message, relatedProfiles }) {
   };
 }
 
+export function createDeleteMessageLog({ convoId, message }) {
+  return {
+    $type: "chat.bsky.convo.defs#logDeleteMessage",
+    rev: "rev-log-delete-" + message.id,
+    convoId,
+    message,
+  };
+}
+
 export function createSystemMessageLog({
   convoId,
   logType,

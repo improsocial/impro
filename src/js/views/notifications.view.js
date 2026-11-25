@@ -868,6 +868,7 @@ export default async function notificationsView({
         items: groupedNotifications,
         renderItem: (notificationGroup) =>
           notificationGroupTemplate({ notificationGroup, currentUser }),
+        itemKey: (notificationGroup) => notificationGroup.notifications[0].uri,
         renderSkeletonItem,
         hasMore,
         onLoadMore: loadMore,

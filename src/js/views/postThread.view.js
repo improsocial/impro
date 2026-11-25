@@ -1,4 +1,4 @@
-import { html, render } from "/js/lib/lit-html.js";
+import { html, render, repeat } from "/js/lib/lit-html.js";
 import { haptics } from "/js/haptics.js";
 import { resolveDidFromHandleOrDid } from "/js/atproto.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -617,21 +617,25 @@ export default async function postThreadView({
   }
 
   function treeRowsTemplate({ rows, currentUser, isHiddenSection }) {
-    return rows.map((row, i) => {
-      const lazyLoadImages = isHiddenSection || i > 20;
-      if (row.type === "readMore") {
-        return treeReadMoreTemplate({ row });
-      }
-      if (row.type === "collapsed") {
-        return treeCollapsedRowTemplate({ row });
-      }
-      return treeReplyRowTemplate({
-        row,
-        currentUser,
-        lazyLoadImages,
-        isHiddenRoot: isHiddenSection && row.depth === 1,
-      });
-    });
+    return repeat(
+      rows,
+      (row) => row.key,
+      (row, i) => {
+        const lazyLoadImages = isHiddenSection || i > 20;
+        if (row.type === "readMore") {
+          return treeReadMoreTemplate({ row });
+        }
+        if (row.type === "collapsed") {
+          return treeCollapsedRowTemplate({ row });
+        }
+        return treeReplyRowTemplate({
+          row,
+          currentUser,
+          lazyLoadImages,
+          isHiddenRoot: isHiddenSection && row.depth === 1,
+        });
+      },
+    );
   }
 
   function treeRepliesTemplate({

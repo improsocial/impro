@@ -3,6 +3,7 @@ import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createConvo,
+  createDeleteMessageLog,
   createGroupConvo,
   createLabelerView,
   createMessage,
@@ -2800,6 +2801,59 @@ test.describe("Chat detail view", () => {
         (scroller) => scroller.scrollTop,
       );
       expect(scrollTop).toBeLessThanOrEqual(10);
+    });
+  });
+
+  test.describe("Message deletion", () => {
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+
+    test("should keep the remaining messages' elements when an earlier message is deleted", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const convo = createConvo({ id: "convo-1", otherMember: alice });
+      const messages = [3, 2, 1].map((messageNumber) =>
+        createMessage({
+          id: `msg-${messageNumber}`,
+          text: `Message number ${messageNumber}`,
+          senderDid: alice.did,
+          sentAt: `2025-01-15T12:0${messageNumber}:00.000Z`,
+        }),
+      );
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", messages);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      const wrappers = chatDetailView.locator(".message-wrapper");
+      await expect(wrappers).toHaveCount(3, { timeout: 10000 });
+      const lastWrapper = chatDetailView.locator(
+        '.message-wrapper[data-message-id="msg-3"]',
+      );
+      await lastWrapper.evaluate((element) => {
+        window.lastWrapperBeforeDelete = element;
+      });
+
+      mockServer.addChatLogs([
+        createDeleteMessageLog({
+          convoId: "convo-1",
+          message: messages.find((message) => message.id === "msg-2"),
+        }),
+      ]);
+
+      await expect(wrappers).toHaveCount(2, { timeout: 15000 });
+      await expect(
+        lastWrapper.evaluate(
+          (element) => element === window.lastWrapperBeforeDelete,
+        ),
+      ).resolves.toBe(true);
     });
   });
 

@@ -1,4 +1,4 @@
-import { html, keyed } from "/js/lib/lit-html.js";
+import { html } from "/js/lib/lit-html.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
@@ -243,27 +243,25 @@ export function postFeedTemplate({
       data-post-uri="${feedItem.post.uri}"
       data-feed-generator-uri="${feedGenerator?.uri ?? ""}"
     >
-      ${keyed(
-        feedItem.post.uri,
-        feedItemTemplate({
-          feedItem,
-          currentUser,
-          isAuthenticated,
-          feedGenerator,
-          hiddenPostUris,
-          postInteractionHandler,
-          onClickShowLess,
-          onClickShowMore,
-          enableFeedFeedback,
-          pluginService,
-          lazyLoadImages: index >= EAGER_IMAGE_ITEM_COUNT,
-        }),
-      )}
+      ${feedItemTemplate({
+        feedItem,
+        currentUser,
+        isAuthenticated,
+        feedGenerator,
+        hiddenPostUris,
+        postInteractionHandler,
+        onClickShowLess,
+        onClickShowMore,
+        enableFeedFeedback,
+        pluginService,
+        lazyLoadImages: index >= EAGER_IMAGE_ITEM_COUNT,
+      })}
     </div>`;
   try {
     return paginatedListTemplate({
       items: feed?.feed ?? null,
       renderItem,
+      itemKey: (feedItem) => feedItem.post.uri,
       renderSkeletonItem: postSkeletonTemplate,
       hasMore: !!feed?.cursor,
       onLoadMore,

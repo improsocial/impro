@@ -1408,6 +1408,49 @@ test.describe("Post thread view", () => {
       await expect(rows).toHaveCount(4);
     });
 
+    test("should keep rows outside a collapsed branch attached to the same elements", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4, { timeout: 10000 });
+
+      const siblingRow = tree.locator(
+        '[data-testid="thread-tree-reply"][data-uri="at://did:plc:sibling/app.bsky.feed.post/sibling"]',
+      );
+      await siblingRow.evaluate((element) => {
+        window.siblingRowBeforeCollapse = element;
+      });
+
+      await rows
+        .first()
+        .locator('[data-testid="thread-tree-child-line"]')
+        .click();
+      await expect(rows).toHaveCount(1);
+      await expect(
+        siblingRow.evaluate(
+          (element) => element === window.siblingRowBeforeCollapse,
+        ),
+      ).resolves.toBe(true);
+
+      await tree.locator('[data-testid="thread-tree-expand"]').click();
+      await expect(rows).toHaveCount(4);
+      await expect(
+        siblingRow.evaluate(
+          (element) => element === window.siblingRowBeforeCollapse,
+        ),
+      ).resolves.toBe(true);
+    });
+
     test("should collapse a reply when clicking its header", async ({
       page,
     }) => {

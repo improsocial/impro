@@ -80,4 +80,66 @@ describe("paginatedListTemplate", () => {
     const scrolling = renderList({ items: ["a"], onLoadMore: async () => {} });
     assert(scrolling.querySelector("infinite-scroll-container .feeds-list"));
   });
+
+  describe("with itemKey", () => {
+    function renderKeyedList(container, items) {
+      render(
+        paginatedListTemplate({
+          items,
+          itemKey: (item) => item.id,
+          renderItem: (item) =>
+            html`<div class="row" data-id=${item.id}>${item.label}</div>`,
+        }),
+        container,
+      );
+      return [...container.querySelectorAll(".row")];
+    }
+
+    it("keeps each item's element when items are added before it", () => {
+      const container = document.createElement("div");
+      const [rowA, rowB] = renderKeyedList(container, [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ]);
+      const rows = renderKeyedList(container, [
+        { id: "new", label: "New" },
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ]);
+      assert.deepEqual(
+        rows.map((row) => row.dataset.id),
+        ["new", "a", "b"],
+      );
+      assert.equal(rows[1], rowA);
+      assert.equal(rows[2], rowB);
+    });
+
+    it("keeps each item's element when an item moves to the top", () => {
+      const container = document.createElement("div");
+      const [rowA, rowB, rowC] = renderKeyedList(container, [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+        { id: "c", label: "C" },
+      ]);
+      const rows = renderKeyedList(container, [
+        { id: "c", label: "C" },
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ]);
+      assert.deepEqual(rows, [rowC, rowA, rowB]);
+    });
+
+    it("renders every item when keys repeat", () => {
+      const container = document.createElement("div");
+      const rows = renderKeyedList(container, [
+        { id: "a", label: "First" },
+        { id: "b", label: "B" },
+        { id: "a", label: "Second" },
+      ]);
+      assert.deepEqual(
+        rows.map((row) => row.textContent),
+        ["First", "B", "Second"],
+      );
+    });
+  });
 });

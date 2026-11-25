@@ -5,7 +5,7 @@ import {
   onPageShow,
   onPageHide,
 } from "/js/router.js";
-import { html, render, ref } from "/js/lib/lit-html.js";
+import { html, render, ref, repeat } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
@@ -1109,19 +1109,22 @@ export default async function chatDetailView({
               ${author ? getDisplayName(author) : "Unknown member"}
             </div>`
           : ""}
-        ${group.messages.map((message, index) =>
-          messageTemplate({
-            message,
-            isCurrentUser: group.isCurrentUser,
-            currentUserDid,
-            showAvatar: index === 0,
-            author,
-            isActive: state.$activeMessageId.get() === message.id,
-            isPaletteOpen: state.$paletteMessageId.get() === message.id,
-            isGroup,
-            canReactNow,
-            convo,
-          }),
+        ${repeat(
+          group.messages,
+          (message) => message.id,
+          (message, index) =>
+            messageTemplate({
+              message,
+              isCurrentUser: group.isCurrentUser,
+              currentUserDid,
+              showAvatar: index === 0,
+              author,
+              isActive: state.$activeMessageId.get() === message.id,
+              isPaletteOpen: state.$paletteMessageId.get() === message.id,
+              isGroup,
+              canReactNow,
+              convo,
+            }),
         )}
         <div
           class="message-group-time ${group.isCurrentUser
@@ -1319,25 +1322,35 @@ export default async function chatDetailView({
           ? ""
           : chatInfoPanelTemplate({ convo, isGroup, currentUserDid })}
         <div class="message-list">
-          ${days.map((day) => {
-            return html`<div class="message-day">
-              ${messageDayTitleTemplate({
-                date: day.date,
-                startTime: day.messageGroups[0].lastSentAt,
-              })}
-              ${day.messageGroups.map((group) =>
-                group.isSystemMessage
-                  ? systemMessageTemplate({ message: group.message, convo })
-                  : messageGroupTemplate({
-                      group,
-                      convo,
-                      isGroup,
-                      currentUserDid,
-                      canReactNow,
-                    }),
-              )}
-            </div>`;
-          })}
+          ${repeat(
+            days,
+            (day) => day.date.getTime(),
+            (day) => {
+              return html`<div class="message-day">
+                ${messageDayTitleTemplate({
+                  date: day.date,
+                  startTime: day.messageGroups[0].lastSentAt,
+                })}
+                ${repeat(
+                  day.messageGroups,
+                  (group) =>
+                    group.isSystemMessage
+                      ? group.message.id
+                      : group.messages[0].id,
+                  (group) =>
+                    group.isSystemMessage
+                      ? systemMessageTemplate({ message: group.message, convo })
+                      : messageGroupTemplate({
+                          group,
+                          convo,
+                          isGroup,
+                          currentUserDid,
+                          canReactNow,
+                        }),
+                )}
+              </div>`;
+            },
+          )}
         </div>
       </infinite-scroll-container>
     `;
