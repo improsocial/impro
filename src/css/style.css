@@ -151,8 +151,13 @@ html {
   --post-border-color: var(--generic-border-color);
   --avatar-border-color: var(--generic-border-color);
   --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
+  --reply-context-line-on-hover-color: light-dark(
+    var(--lighter-gray),
+    var(--light-gray)
+  );
   --reply-context-line-width: 1px;
   --thread-tree-post-padding-x: 16px;
+  --thread-tree-collapsed-icon-size: 18px;
   --thread-tree-avatar-center: calc(
     var(--thread-tree-post-padding-x) + var(--avatar-size-thread-tree) / 2
   );
@@ -2396,6 +2401,7 @@ container-link {
 @media (hover: hover) {
   .post.clickable:hover {
     background-color: var(--post-hover-color);
+    --reply-context-line-color: var(--reply-context-line-on-hover-color);
   }
 }
 
@@ -3010,6 +3016,74 @@ container-link {
   border-right-width: 0;
 }
 
+.is-collapse-target {
+  cursor: pointer;
+}
+
+.tree-indent-column.is-collapse-target,
+.tree-read-more-elbow.is-collapse-target {
+  position: relative;
+}
+
+.is-collapse-target::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+}
+
+.tree-indent-column.is-collapse-target::after {
+  right: calc(-10px - var(--reply-context-line-width) / 2);
+}
+
+.tree-elbow.is-collapse-target::after,
+.tree-read-more-elbow.is-collapse-target::after {
+  left: calc(-10px - var(--reply-context-line-width) / 2);
+}
+
+.tree-child-line.is-collapse-target::after {
+  left: calc(-10px + var(--reply-context-line-width) / 2);
+}
+
+@media (hover: hover) {
+  .tree-row-content:has(> .post.clickable:hover) {
+    --reply-context-line-color: var(--reply-context-line-on-hover-color);
+  }
+
+  .is-collapse-target.is-branch-highlighted {
+    --reply-context-line-color: var(--text-color-muted);
+  }
+}
+
+.tree-collapsed-post {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.tree-collapsed-icon {
+  display: flex;
+  justify-content: center;
+  color: var(--text-color-muted);
+}
+
+.tree-collapsed-icon app-icon {
+  width: var(--thread-tree-collapsed-icon-size);
+  height: var(--thread-tree-collapsed-icon-size);
+  position: relative;
+  top: 1px;
+}
+
+.post-thread-tree-row.is-collapsed .tree-elbow {
+  height: calc(
+    12px + var(--thread-tree-collapsed-icon-size) / 2 +
+      var(--reply-context-line-width) / 2
+  );
+}
+
 .tree-row-content {
   position: relative;
   flex: 1;
@@ -3041,7 +3115,7 @@ container-link {
   border-bottom: var(--reply-context-line-width) solid
     var(--reply-context-line-color);
   border-bottom-left-radius: 8px;
-  pointer-events: none;
+  z-index: 1;
 }
 
 .tree-child-line {
@@ -3053,7 +3127,7 @@ container-link {
   bottom: 0;
   width: var(--reply-context-line-width);
   background-color: var(--reply-context-line-color);
-  pointer-events: none;
+  z-index: 1;
 }
 
 .tree-read-more-elbow {

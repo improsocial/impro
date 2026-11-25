@@ -18,6 +18,7 @@ import {
 } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
+import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
@@ -40,7 +41,7 @@ import "/js/components/context-menu-label.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
-import { Signal, ReactiveStore } from "/js/signals.js";
+import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
 import { showToast } from "/js/toasts.js";
 
@@ -287,18 +288,33 @@ export default async function postThreadView({
     );
   }
 
-  function buildThreadTree(postThread, { maxDepth, postAuthor }) {
+  function buildThreadTree(
+    postThread,
+    { maxDepth, postAuthor, collapsedUris },
+  ) {
     function walk(
       reply,
       depth,
       parentSkippedIndices,
       isLastSibling,
       parentHasMore,
+      ancestorUris,
       rows,
     ) {
       const skippedIndentIndices = new Set(parentSkippedIndices);
       if (depth > 1 && isLastSibling && !parentHasMore) {
         skippedIndentIndices.add(depth - 2);
+      }
+      if (collapsedUris.has(reply.post.uri)) {
+        rows.push({
+          type: "collapsed",
+          key: reply.post.uri,
+          reply,
+          depth,
+          skippedIndentIndices,
+          ancestorUris,
+        });
+        return;
       }
       const replies = depth < maxDepth ? (reply.replies ?? []) : [];
       const shownReplies = sortReplies(getShownReplies(replies), postAuthor);
@@ -315,6 +331,7 @@ export default async function postThreadView({
         reply,
         depth,
         skippedIndentIndices,
+        ancestorUris,
         showChildReplyLine: keptReplies.length > 0 || moreReplies > 0,
       });
       keptReplies.forEach((child, i) => {
@@ -324,6 +341,7 @@ export default async function postThreadView({
           skippedIndentIndices,
           i === keptReplies.length - 1,
           moreReplies > 0,
+          [...ancestorUris, reply.post.uri],
           rows,
         );
       });
@@ -335,6 +353,7 @@ export default async function postThreadView({
           ownerUri: reply.post.uri,
           moreReplies,
           skippedIndentIndices,
+          ancestorUris,
         });
       }
     }
@@ -345,13 +364,13 @@ export default async function postThreadView({
       getShownReplies(topLevelReplies),
       postAuthor,
     )) {
-      walk(reply, 1, new Set(), true, false, items);
+      walk(reply, 1, new Set(), true, false, [], items);
     }
     const hiddenItems = [];
     for (const reply of topLevelReplies.filter(
       (reply) => !doShowReply(reply) && doPutReplyInHiddenSection(reply),
     )) {
-      walk(reply, 1, new Set(), true, false, hiddenItems);
+      walk(reply, 1, new Set(), true, false, [], hiddenItems);
     }
     return { items, hiddenItems };
   }
@@ -458,15 +477,41 @@ export default async function postThreadView({
     return { isEmpty, content };
   }
 
-  function treeIndentColumnsTemplate({ depth, skippedIndentIndices }) {
-    return Array.from({ length: Math.max(0, depth - 1) }).map(
-      (_, i) =>
-        html`<span
-          class=${classnames("tree-indent-column", {
-            "is-skipped": skippedIndentIndices.has(i),
-          })}
-        ></span>`,
+  function treeIndentColumnsTemplate({
+    depth,
+    skippedIndentIndices,
+    ancestorUris,
+  }) {
+    return Array.from({ length: Math.max(0, depth - 1) }).map((_, i) =>
+      skippedIndentIndices.has(i)
+        ? html`<span class="tree-indent-column is-skipped"></span>`
+        : treeLineTemplate({
+            className: "tree-indent-column",
+            testId: "thread-tree-line",
+            branchUri: ancestorUris[i],
+          }),
     );
+  }
+
+  function treeLineTemplate({ className, testId, branchUri }) {
+    return html`<span
+      class="${className} is-collapse-target"
+      data-testid=${testId}
+      data-branch-uri=${branchUri}
+      @click=${() => handleCollapseBranch(branchUri)}
+      @mouseenter=${() => highlightBranch(branchUri)}
+      @mouseleave=${clearBranchHighlight}
+    ></span>`;
+  }
+
+  function treeElbowTemplate({ depth, ancestorUris }) {
+    return depth > 1
+      ? treeLineTemplate({
+          className: "tree-elbow",
+          testId: "thread-tree-line",
+          branchUri: ancestorUris[depth - 2],
+        })
+      : "";
   }
 
   function treeReplyRowTemplate({
@@ -482,12 +527,17 @@ export default async function postThreadView({
       })}
       data-testid="thread-tree-reply"
       data-depth=${row.depth}
+      data-uri=${post.uri}
     >
       ${treeIndentColumnsTemplate(row)}
       <div class="tree-row-content">
-        ${row.depth > 1 ? html`<span class="tree-elbow"></span>` : ""}
+        ${treeElbowTemplate(row)}
         ${row.showChildReplyLine
-          ? html`<span class="tree-child-line"></span>`
+          ? treeLineTemplate({
+              className: "tree-child-line",
+              testId: "thread-tree-child-line",
+              branchUri: post.uri,
+            })
           : ""}
         ${smallPostTemplate({
           post,
@@ -500,8 +550,49 @@ export default async function postThreadView({
           ignoreContentWarning: isHiddenRoot,
           ignoreMuteWarning: isHiddenRoot,
           lazyLoadImages,
+          onClickHeader: () => handleCollapseBranch(post.uri),
           pluginService,
         })}
+      </div>
+    </div>`;
+  }
+
+  function treeCollapsedRowTemplate({ row }) {
+    const post = row.reply.post;
+    return html`<div
+      class=${classnames("post-thread-tree-row is-collapsed", {
+        "is-depth-1": row.depth === 1,
+      })}
+      data-testid="thread-tree-collapsed"
+      data-depth=${row.depth}
+      data-uri=${post.uri}
+    >
+      ${treeIndentColumnsTemplate(row)}
+      <div class="tree-row-content">
+        ${treeElbowTemplate(row)}
+        <button
+          class="post clickable tree-collapsed-post"
+          data-testid="thread-tree-expand"
+          @click=${() => handleExpandBranch(post.uri)}
+        >
+          <div class="post-content-with-space">
+            <div class="post-content-left">
+              <div class="tree-collapsed-icon">
+                <app-icon icon="plus-circle-line"></app-icon>
+              </div>
+            </div>
+            <div class="post-content-right">
+              <div class="small-post-header">
+                ${postHeaderTextTemplate({
+                  author: post.author,
+                  timestamp: post.indexedAt,
+                  includeHandle: false,
+                  enableProfileLink: false,
+                })}
+              </div>
+            </div>
+          </div>
+        </button>
       </div>
     </div>`;
   }
@@ -509,7 +600,11 @@ export default async function postThreadView({
   function treeReadMoreTemplate({ row }) {
     return html`<div class="post-thread-tree-row tree-read-more-row">
       ${treeIndentColumnsTemplate(row)}
-      <span class="tree-read-more-elbow"></span>
+      ${treeLineTemplate({
+        className: "tree-read-more-elbow",
+        testId: "thread-tree-line",
+        branchUri: row.ownerUri,
+      })}
       <a
         class="tree-read-more-link"
         data-testid="thread-read-more"
@@ -523,24 +618,35 @@ export default async function postThreadView({
   }
 
   function treeRowsTemplate({ rows, currentUser, isHiddenSection }) {
-    return rows.map((row, i) =>
-      row.type === "readMore"
-        ? treeReadMoreTemplate({ row })
-        : treeReplyRowTemplate({
-            row,
-            currentUser,
-            lazyLoadImages: isHiddenSection || i > 20,
-            isHiddenRoot: isHiddenSection && row.depth === 1,
-          }),
-    );
+    return rows.map((row, i) => {
+      const lazyLoadImages = isHiddenSection || i > 20;
+      if (row.type === "readMore") {
+        return treeReadMoreTemplate({ row });
+      }
+      if (row.type === "collapsed") {
+        return treeCollapsedRowTemplate({ row });
+      }
+      return treeReplyRowTemplate({
+        row,
+        currentUser,
+        lazyLoadImages,
+        isHiddenRoot: isHiddenSection && row.depth === 1,
+      });
+    });
   }
 
-  function treeRepliesTemplate({ postThread, postAuthor, currentUser }) {
+  function treeRepliesTemplate({
+    postThread,
+    postAuthor,
+    currentUser,
+    collapsedUris,
+  }) {
     const { items, hiddenItems } = buildThreadTree(postThread, {
       maxDepth: isMobileViewport()
         ? THREAD_TREE_MAX_DEPTH_MOBILE
         : THREAD_TREE_MAX_DEPTH_DESKTOP,
       postAuthor,
+      collapsedUris,
     });
     const isEmpty = items.length === 0 && hiddenItems.length === 0;
     const content = html`<div
@@ -570,10 +676,16 @@ export default async function postThreadView({
     postAuthor,
     currentUser,
     threadView,
+    collapsedUris,
   }) {
     const { isEmpty, content } =
       threadView === "tree"
-        ? treeRepliesTemplate({ postThread, postAuthor, currentUser })
+        ? treeRepliesTemplate({
+            postThread,
+            postAuthor,
+            currentUser,
+            collapsedUris,
+          })
         : linearRepliesTemplate({
             replies: postThread.replies,
             postAuthor,
@@ -671,6 +783,7 @@ export default async function postThreadView({
     hasFollowedInView,
     loadError,
     threadView,
+    collapsedUris,
   }) {
     try {
       const mainPost = isEmptyPost(postThread) ? postThread : postThread.post;
@@ -829,6 +942,7 @@ export default async function postThreadView({
                   postAuthor,
                   currentUser,
                   threadView,
+                  collapsedUris,
                 });
               }
               const numReplies = mainPost?.replyCount;
@@ -856,6 +970,8 @@ export default async function postThreadView({
   const state = new ReactiveStore("postThreadView");
 
   state.$hasFollowedInView = new Signal.State(false);
+
+  state.$collapsedUris = new SignalSet();
 
   state.$postThread = new Signal.Computed(() => {
     const hydratedPostThread =
@@ -898,6 +1014,45 @@ export default async function postThreadView({
 
   let hasScrolledToLargePost = false;
   let largePostTopBeforeThreadViewChange = null;
+  let collapsedUriToReveal = null;
+
+  function highlightBranch(uri) {
+    for (const element of root.querySelectorAll(
+      `[data-branch-uri="${CSS.escape(uri)}"]`,
+    )) {
+      element.classList.add("is-branch-highlighted");
+    }
+  }
+
+  function clearBranchHighlight() {
+    for (const element of root.querySelectorAll(".is-branch-highlighted")) {
+      element.classList.remove("is-branch-highlighted");
+    }
+  }
+
+  function handleCollapseBranch(uri) {
+    clearBranchHighlight();
+    collapsedUriToReveal = uri;
+    state.$collapsedUris.add(uri);
+  }
+
+  function handleExpandBranch(uri) {
+    clearBranchHighlight();
+    state.$collapsedUris.delete(uri);
+  }
+
+  function revealCollapsedRow(header) {
+    const row = root.querySelector(
+      `.post-thread-tree-row.is-collapsed[data-uri="${CSS.escape(collapsedUriToReveal)}"]`,
+    );
+    collapsedUriToReveal = null;
+    if (!row || !header) return;
+    const offset =
+      row.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+    if (offset < 0) {
+      window.scrollBy(0, offset);
+    }
+  }
 
   async function handleThreadViewChange(threadView) {
     const largePost = root.querySelector(".large-post");
@@ -927,6 +1082,7 @@ export default async function postThreadView({
       dataLayer.requests.statusStore.$statuses.get("loadPostThread-" + postUri);
     const hasFollowedInView = state.$hasFollowedInView.get();
     const threadView = dataLayer.derived.$threadView.get();
+    const collapsedUris = new Set(state.$collapsedUris);
 
     render(
       html`<div id="post-detail-view">
@@ -952,6 +1108,7 @@ export default async function postThreadView({
                 hasFollowedInView,
                 loadError,
                 threadView,
+                collapsedUris,
               });
             } else {
               return threadSkeletonTemplate();
@@ -974,6 +1131,9 @@ export default async function postThreadView({
         );
       }
       largePostTopBeforeThreadViewChange = null;
+    }
+    if (collapsedUriToReveal !== null) {
+      revealCollapsedRow(header);
     }
     if (
       largePost &&

@@ -112,6 +112,7 @@ export function smallPostTemplate({
   replyToBlocked = false,
   lazyLoadImages = false,
   postNumbering = null,
+  onClickHeader = null,
   pluginService,
 }) {
   if (isBlockedPost(post)) {
@@ -167,7 +168,17 @@ export function smallPostTemplate({
                       >`}
               </div>`
             : ""}
-          <div class="small-post-header">
+          <div
+            class="small-post-header"
+            data-testid="small-post-header"
+            @click=${onClickHeader
+              ? (event) => {
+                  if (event.target.closest("a, button, [role=button]")) return;
+                  event.preventDefault();
+                  onClickHeader();
+                }
+              : null}
+          >
             ${postHeaderTextTemplate({
               author: post.author,
               timestamp: post.indexedAt,

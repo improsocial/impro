@@ -1,4 +1,4 @@
-import { describe, it, afterEach } from "node:test";
+import { describe, it, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { post } from "../../testData.js";
@@ -132,6 +132,51 @@ describe("smallPostTemplate - rich text", () => {
     assert(link.textContent.endsWith("..."));
     assert(link.textContent.length < url.length);
     container.remove();
+  });
+});
+
+describe("smallPostTemplate - header clicks", () => {
+  function renderWithHeaderHandler(onClickHeader) {
+    const container = document.createElement("div");
+    render(smallPostTemplate({ post, ...baseProps, onClickHeader }), container);
+    return container;
+  }
+
+  function click(element) {
+    const event = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(event);
+    return event;
+  }
+
+  it("should call onClickHeader and prevent navigation when clicking the header", () => {
+    const onClickHeader = mock.fn();
+    const container = renderWithHeaderHandler(onClickHeader);
+    const event = click(container.querySelector("[data-testid='post-time']"));
+    assert.equal(onClickHeader.mock.callCount(), 1);
+    assert(event.defaultPrevented);
+  });
+
+  it("should not call onClickHeader when clicking the author link", () => {
+    const onClickHeader = mock.fn();
+    const container = renderWithHeaderHandler(onClickHeader);
+    click(container.querySelector("[data-testid='post-author-name']"));
+    assert.equal(onClickHeader.mock.callCount(), 0);
+  });
+
+  it("should not call onClickHeader when clicking the context menu button", () => {
+    const onClickHeader = mock.fn();
+    const container = renderWithHeaderHandler(onClickHeader);
+    click(container.querySelector("[data-testid='post-context-menu-button']"));
+    assert.equal(onClickHeader.mock.callCount(), 0);
+  });
+
+  it("should not prevent header clicks without onClickHeader", () => {
+    const container = renderWithHeaderHandler(null);
+    const event = click(container.querySelector("[data-testid='post-time']"));
+    assert(!event.defaultPrevented);
   });
 });
 

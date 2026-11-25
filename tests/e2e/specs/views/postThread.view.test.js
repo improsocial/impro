@@ -1374,6 +1374,176 @@ test.describe("Post thread view", () => {
       ).not.toBeAttached();
     });
 
+    test("should collapse a branch into a stub when clicking a reply's line", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4, { timeout: 10000 });
+
+      await rows
+        .first()
+        .locator('[data-testid="thread-tree-child-line"]')
+        .click();
+
+      const collapsed = tree.locator('[data-testid="thread-tree-collapsed"]');
+      await expect(collapsed).toHaveCount(1);
+      await expect(collapsed).toHaveAttribute("data-depth", "1");
+      await expect(collapsed).toContainText("nested0.bsky.social");
+      await expect(rows).toHaveCount(1);
+      await expect(rows).toContainText("Sibling reply");
+
+      await collapsed.locator('[data-testid="thread-tree-expand"]').click();
+
+      await expect(collapsed).not.toBeAttached();
+      await expect(rows).toHaveCount(4);
+    });
+
+    test("should collapse a reply when clicking its header", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4, { timeout: 10000 });
+
+      await rows
+        .first()
+        .locator('[data-testid="small-post-header"] [data-testid="post-time"]')
+        .click();
+
+      const collapsed = tree.locator('[data-testid="thread-tree-collapsed"]');
+      await expect(collapsed).toHaveAttribute("data-depth", "1");
+      await expect(collapsed).toContainText("nested0.bsky.social");
+      await expect(rows).toHaveCount(1);
+      await expect(page).toHaveURL(/\/post\/abc123$/);
+    });
+
+    test("should collapse the parent branch when clicking a reply's elbow", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      setupReplyChain(mockServer, 3);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4, { timeout: 10000 });
+
+      await tree
+        .locator('[data-testid="thread-tree-reply"][data-depth="3"]')
+        .locator('[data-testid="thread-tree-line"]')
+        .click();
+
+      const collapsed = tree.locator('[data-testid="thread-tree-collapsed"]');
+      await expect(collapsed).toHaveAttribute("data-depth", "2");
+      await expect(collapsed).toContainText("nested1.bsky.social");
+      await expect(
+        rows.evaluateAll((elements) =>
+          elements.map((element) => element.dataset.depth),
+        ),
+      ).resolves.toEqual(["1", "1"]);
+    });
+
+    test("should collapse the ancestor branch when clicking an indent line", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setThreadViewPref({ lab_treeViewEnabled: true });
+      const [parentReply, firstChild, secondChild, grandchild] = [
+        "parent",
+        "first",
+        "second",
+        "grandchild",
+      ].map((name, index) =>
+        createPost({
+          uri: `at://did:plc:${name}/app.bsky.feed.post/${name}`,
+          text: `Branch reply ${name}`,
+          authorHandle: `${name}.bsky.social`,
+          likeCount: 10 - index,
+          replyCount: name === "parent" ? 2 : name === "first" ? 1 : 0,
+        }),
+      );
+      const anchorPost = createPost({
+        uri: postUri,
+        text: "Threaded main post",
+        authorHandle: "author1.bsky.social",
+        replyCount: 1,
+      });
+      mockServer.addPosts([
+        anchorPost,
+        parentReply,
+        firstChild,
+        secondChild,
+        grandchild,
+      ]);
+      mockServer.setPostThread(
+        postUri,
+        createThreadViewPost({
+          post: anchorPost,
+          replies: [
+            createThreadViewPost({
+              post: parentReply,
+              replies: [
+                createThreadViewPost({
+                  post: firstChild,
+                  replies: [
+                    createThreadViewPost({ post: grandchild, replies: [] }),
+                  ],
+                }),
+                createThreadViewPost({ post: secondChild, replies: [] }),
+              ],
+            }),
+          ],
+        }),
+      );
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const tree = view.locator('[data-testid="post-thread-tree"]');
+      const rows = tree.locator('[data-testid="thread-tree-reply"]');
+      await expect(rows).toHaveCount(4, { timeout: 10000 });
+
+      const grandchildRow = tree.locator(
+        '[data-testid="thread-tree-reply"][data-depth="3"]',
+      );
+      await expect(grandchildRow).toContainText("Branch reply grandchild");
+      await grandchildRow
+        .locator('.tree-indent-column[data-testid="thread-tree-line"]')
+        .first()
+        .click();
+
+      const collapsed = tree.locator('[data-testid="thread-tree-collapsed"]');
+      await expect(collapsed).toHaveAttribute("data-depth", "1");
+      await expect(collapsed).toContainText("parent.bsky.social");
+      await expect(rows).toHaveCount(0);
+    });
+
     test("should switch between linear and tree replies from the thread options menu", async ({
       page,
     }) => {
