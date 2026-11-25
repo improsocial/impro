@@ -361,8 +361,7 @@ export default async function chatDetailView({
     wasAtBottom = isScrolledToBottom();
   }
 
-  function attachScrollListener() {
-    const scroller = getMessageScroller();
+  function attachScrollListener(scroller) {
     if (scroller === scrollListenerEl) {
       return;
     }
@@ -370,9 +369,7 @@ export default async function chatDetailView({
       scrollListenerEl.removeEventListener("scroll", onScroll);
     }
     scrollListenerEl = scroller;
-    if (scroller) {
-      scroller.addEventListener("scroll", onScroll, { passive: true });
-    }
+    scroller.addEventListener("scroll", onScroll, { passive: true });
   }
 
   function handleInputHeightChange(e) {
@@ -1280,7 +1277,7 @@ export default async function chatDetailView({
         class=${revealed ? "is-revealed" : "is-unrevealed"}
         ${ref((el) => {
           if (el) {
-            attachScrollListener();
+            attachScrollListener(el);
           }
         })}
         ?disabled=${!loadingEnabled}
