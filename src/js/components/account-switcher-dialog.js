@@ -28,6 +28,25 @@ function signOutButtonTemplate({ handle, disabled, onClick }) {
   `;
 }
 
+function headerTemplate({ showEditButton, editing, onToggleEdit }) {
+  return html`
+    <div class="account-switcher-header">
+      <h2 class="account-switcher-title">Accounts</h2>
+      ${showEditButton
+        ? html`<button
+            type="button"
+            class="text-pill-button account-switcher-edit"
+            data-testid="account-switcher-edit"
+            data-teststate=${editing ? "editing" : "idle"}
+            @click=${() => onToggleEdit()}
+          >
+            ${editing ? "Done" : "Edit"}
+          </button>`
+        : null}
+    </div>
+  `;
+}
+
 class AccountSwitcherDialog extends Component {
   static tagName = "account-switcher-dialog";
 
@@ -42,6 +61,7 @@ class AccountSwitcherDialog extends Component {
     this.state.$accounts = new Signal.State(null);
     this.state.$profilesLoading = new Signal.State(true);
     this.state.$pendingAction = new Signal.State(null); // { type: "switch"|"add", did? }
+    this.state.$editing = new Signal.State(false);
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
       this.render();
@@ -91,6 +111,10 @@ class AccountSwitcherDialog extends Component {
     const pendingAction = this.state.$pendingAction.get();
     const profilesLoading = this.state.$profilesLoading.get();
     const currentDid = this.state.$currentDid.get();
+    const editing = this.state.$editing.get();
+    const hasOtherAccounts = accounts.some(
+      (account) => account.did !== currentDid,
+    );
     const currentAccount =
       accounts.find((account) => account.did === currentDid) ?? null;
     // Put current account at the top of the list
@@ -135,6 +159,11 @@ class AccountSwitcherDialog extends Component {
           }}
         >
           <div class="account-switcher-content">
+            ${headerTemplate({
+              showEditButton: hasOtherAccounts || editing,
+              editing,
+              onToggleEdit: () => this._onToggleEdit(),
+            })}
             ${accountSwitcherListTemplate({
               accounts: orderedAccounts,
               profilesByDid,
@@ -146,6 +175,8 @@ class AccountSwitcherDialog extends Component {
               onAdd: () => this._onAdd(),
               addLabel: "Add account",
               addPending: pendingAction?.type === "add",
+              editing,
+              onRemove: (account) => this._onRemove(account),
             })}
             ${currentAccount
               ? signOutButtonTemplate({
@@ -174,6 +205,26 @@ class AccountSwitcherDialog extends Component {
     this.state.$pendingAction.set({ type: "switch", did: account.did });
     await this.onSwitchAccount(account);
     this.state.$pendingAction.set(null);
+  }
+
+  _onToggleEdit() {
+    if (this.state.$pendingAction.get() !== null) {
+      return;
+    }
+    this.state.$editing.set(!this.state.$editing.get());
+  }
+
+  async _onRemove(account) {
+    const removed = await this.onRemoveAccount(account);
+    if (!removed) {
+      return;
+    }
+    const accounts = await this.auth.listAccounts();
+    this.state.$accounts.set(accounts);
+    const currentDid = this.state.$currentDid.get();
+    if (!accounts.some((entry) => entry.did !== currentDid)) {
+      this.state.$editing.set(false);
+    }
   }
 
   _onAdd() {

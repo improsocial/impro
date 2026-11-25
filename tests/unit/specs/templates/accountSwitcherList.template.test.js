@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "/js/lib/lit-html.js";
 import { accountSwitcherListTemplate } from "/js/templates/accountSwitcherList.template.js";
@@ -181,5 +181,82 @@ describe("accountSwitcherListTemplate", () => {
     });
     const add = container.querySelector('[data-testid="account-switcher-add"]');
     assert.match(add.textContent, /Other account/);
+  });
+
+  it("renders no remove buttons outside of edit mode", () => {
+    const container = renderList({
+      accounts,
+      profilesByDid,
+      currentDid: alice.did,
+      pendingDid: null,
+      profilesLoading: false,
+    });
+    assert.equal(
+      container.querySelectorAll('[data-testid="account-switcher-remove"]')
+        .length,
+      0,
+    );
+  });
+
+  describe("in edit mode", () => {
+    function renderEditing(onRemove = () => {}) {
+      return renderList({
+        accounts: [
+          { did: alice.did, handle: alice.handle },
+          { did: bob.did, handle: bob.handle },
+          { did: "did:plc:stale", handle: "stale.test", needsReauth: true },
+        ],
+        profilesByDid,
+        currentDid: alice.did,
+        pendingDid: null,
+        profilesLoading: false,
+        addLabel: "Add account",
+        editing: true,
+        onRemove,
+      });
+    }
+
+    function rowFor(container, did) {
+      return container.querySelector(
+        `[data-testid="account-switcher-item"][data-did="${did}"]`,
+      );
+    }
+
+    it("gives every non-current account a remove button instead of a switch button", () => {
+      const container = renderEditing();
+      for (const did of [bob.did, "did:plc:stale"]) {
+        const row = rowFor(container, did);
+        assert.notEqual(row.tagName, "BUTTON");
+        assert.ok(row.querySelector('[data-testid="account-switcher-remove"]'));
+      }
+    });
+
+    it("keeps the current account row without a remove button", () => {
+      const container = renderEditing();
+      const row = rowFor(container, alice.did);
+      assert.equal(row.getAttribute("data-teststate"), "current");
+      assert.equal(
+        row.querySelector('[data-testid="account-switcher-remove"]'),
+        null,
+      );
+    });
+
+    it("hides the add row", () => {
+      const container = renderEditing();
+      assert.equal(
+        container.querySelector('[data-testid="account-switcher-add"]'),
+        null,
+      );
+    });
+
+    it("calls onRemove with the row's account", () => {
+      const onRemove = mock.fn();
+      const container = renderEditing(onRemove);
+      rowFor(container, bob.did)
+        .querySelector('[data-testid="account-switcher-remove"]')
+        .click();
+      assert.equal(onRemove.mock.calls.length, 1);
+      assert.equal(onRemove.mock.calls[0].arguments[0].did, bob.did);
+    });
   });
 });

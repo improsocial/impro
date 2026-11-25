@@ -269,6 +269,23 @@ export class PushNotificationService {
     await api.unregisterPush(this._unregisterPayload(subscription));
   }
 
+  async signOutAccount(did) {
+    if (!this.isEnabled) return;
+    if (await this._hasOtherSignedInAccount(did)) {
+      await this.unregisterAccount(did);
+      return;
+    }
+    await this.disable();
+  }
+
+  async _hasOtherSignedInAccount(did) {
+    for (const otherDid of await this._listAccountDids()) {
+      if (otherDid === did) continue;
+      if (await this.auth.getSession(otherDid)) return true;
+    }
+    return false;
+  }
+
   _unregisterPayload(subscription) {
     return {
       serviceDid: this.serviceDid,

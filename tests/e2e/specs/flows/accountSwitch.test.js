@@ -32,6 +32,24 @@ async function switchToAccount(page, did) {
     .toBe(did);
 }
 
+async function storedAccountDids(page) {
+  return page.evaluate(() =>
+    JSON.parse(localStorage.getItem("oauth_accounts")).map(
+      (account) => account.did,
+    ),
+  );
+}
+
+async function removeAccountFromDialog(dialog, page, did) {
+  await dialog.locator('[data-testid="account-switcher-edit"]').click();
+  await dialog
+    .locator(
+      `[data-testid="account-switcher-item"][data-did="${did}"] [data-testid="account-switcher-remove"]`,
+    )
+    .click();
+  await page.locator('[data-testid="modal-confirm-button"]').click();
+}
+
 test.describe("Account switch flow", () => {
   let mockServer;
   let otherProfile;
@@ -362,6 +380,67 @@ test.describe("Account switch flow", () => {
     await expect(tabs).toHaveCount(2, { timeout: 10000 });
     await expect(tabs.nth(1)).toHaveClass(/active/);
   });
+
+  test("edit mode removes another account without leaving the dialog", async ({
+    page,
+  }) => {
+    const dialog = await openSwitcherDialog(page);
+    const editButton = dialog.locator('[data-testid="account-switcher-edit"]');
+    await editButton.click();
+    await expect(editButton).toHaveAttribute("data-teststate", "editing");
+    await expect(
+      dialog.locator('[data-testid="account-switcher-add"]'),
+    ).toHaveCount(0);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-sign-out"]'),
+    ).toBeVisible();
+    await expect(
+      dialog.locator(
+        `[data-testid="account-switcher-item"][data-did="${userProfile.did}"] [data-testid="account-switcher-remove"]`,
+      ),
+    ).toHaveCount(0);
+
+    await dialog
+      .locator(
+        `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"] [data-testid="account-switcher-remove"]`,
+      )
+      .click();
+    await page.locator('[data-testid="modal-confirm-button"]').click();
+
+    await expect(
+      dialog.locator('[data-testid="account-switcher-item"]'),
+    ).toHaveCount(1);
+    await expect(dialog).toBeVisible();
+    await expect(editButton).toHaveCount(0);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-add"]'),
+    ).toBeVisible();
+    expect(await storedAccountDids(page)).toEqual([userProfile.did]);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (did) => localStorage.getItem(`oauth_session:${did}`),
+          otherProfile.did,
+        ),
+      )
+      .toBeNull();
+  });
+
+  test("cancelling the removal keeps the account", async ({ page }) => {
+    const dialog = await openSwitcherDialog(page);
+    await dialog.locator('[data-testid="account-switcher-edit"]').click();
+    await dialog
+      .locator(
+        `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"] [data-testid="account-switcher-remove"]`,
+      )
+      .click();
+    await page.locator('[data-testid="modal-cancel-button"]').click();
+
+    await expect(
+      dialog.locator('[data-testid="account-switcher-item"]'),
+    ).toHaveCount(2);
+    expect(await storedAccountDids(page)).toContain(otherProfile.did);
+  });
 });
 
 test.describe("Account switch flow with a single account", () => {
@@ -385,6 +464,15 @@ test.describe("Account switch flow with a single account", () => {
     ).toBeVisible();
     await expect(
       page.locator('[data-testid="sidebar-account-avatar-stack"]'),
+    ).toHaveCount(0);
+  });
+  test("the dialog has no edit button", async ({ page }) => {
+    const dialog = await openSwitcherDialog(page);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-item"]'),
+    ).toHaveCount(1);
+    await expect(
+      dialog.locator('[data-testid="account-switcher-edit"]'),
     ).toHaveCount(0);
   });
 });
@@ -439,6 +527,18 @@ test.describe("Account switch flow with an account needing re-auth", () => {
     await expect(
       page.locator('[data-testid="sidebar-account-avatar-stack"]'),
     ).toHaveCount(0);
+  });
+
+  test("a re-auth account can be removed", async ({ page }) => {
+    const dialog = await openSwitcherDialog(page);
+    await removeAccountFromDialog(dialog, page, otherProfile.did);
+
+    await expect(
+      dialog.locator(
+        `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
+      ),
+    ).toHaveCount(0);
+    expect(await storedAccountDids(page)).toEqual([userProfile.did]);
   });
 
   test("selecting a re-auth account starts the OAuth flow", async ({

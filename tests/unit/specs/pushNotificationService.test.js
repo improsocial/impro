@@ -427,6 +427,77 @@ describe("PushNotificationService registration", () => {
     assert.equal(unsubscribe.mock.calls.length, 1);
     assert.equal(service.$enabled.get(), false);
   });
+
+  describe("signOutAccount", () => {
+    let unsubscribe;
+    let originalUnsubscribe;
+
+    beforeEach(() => {
+      unsubscribe = mock.fn(async () => {});
+      originalUnsubscribe = SUBSCRIPTION.unsubscribe;
+      SUBSCRIPTION.unsubscribe = unsubscribe;
+    });
+
+    afterEach(() => {
+      SUBSCRIPTION.unsubscribe = originalUnsubscribe;
+    });
+
+    function createSignOutService({ accountDids, signedInDids }) {
+      setupDom();
+      const { service } = createService("did:web:notifs.example");
+      service.api.unregisterPush = mock.fn(async () => {});
+      service._listAccountDids = async () => accountDids;
+      service.auth.getSession = async (did) =>
+        signedInDids.includes(did) ? { did } : null;
+      const unregisterPush = mock.fn(async () => {});
+      service._apiForAccount = mock.fn(async () => ({ unregisterPush }));
+      return { service, unregisterPush };
+    }
+
+    it("unregisters only the signed-out account while another stays signed in", async () => {
+      const { service, unregisterPush } = createSignOutService({
+        accountDids: ["did:plc:current", "did:plc:other"],
+        signedInDids: ["did:plc:current", "did:plc:other"],
+      });
+
+      await service.signOutAccount("did:plc:current");
+
+      assert.deepEqual(
+        service._apiForAccount.mock.calls.map((call) => call.arguments[0]),
+        ["did:plc:current"],
+      );
+      assert.equal(unregisterPush.mock.calls.length, 1);
+      assert.equal(unsubscribe.mock.calls.length, 0);
+      assert.equal(service.$enabled.get(), true);
+    });
+
+    it("turns push off for the device when no other account is signed in", async () => {
+      const { service } = createSignOutService({
+        accountDids: ["did:plc:current", "did:plc:stale"],
+        signedInDids: ["did:plc:current"],
+      });
+
+      await service.signOutAccount("did:plc:current");
+
+      assert.equal(service.api.unregisterPush.mock.calls.length, 1);
+      assert.equal(unsubscribe.mock.calls.length, 1);
+      assert.equal(service.$enabled.get(), false);
+    });
+
+    it("does nothing when push is off", async () => {
+      const { service, unregisterPush } = createSignOutService({
+        accountDids: ["did:plc:current", "did:plc:other"],
+        signedInDids: ["did:plc:current", "did:plc:other"],
+      });
+      service._setEnabled(false);
+
+      await service.signOutAccount("did:plc:current");
+
+      assert.equal(unregisterPush.mock.calls.length, 0);
+      assert.equal(service.api.unregisterPush.mock.calls.length, 0);
+      assert.equal(unsubscribe.mock.calls.length, 0);
+    });
+  });
 });
 
 describe("PushNotificationService service selection", () => {

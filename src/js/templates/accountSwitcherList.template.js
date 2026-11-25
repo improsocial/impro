@@ -18,6 +18,8 @@ export function accountSwitcherListTemplate({
   onAdd,
   addLabel,
   addPending = false,
+  editing = false,
+  onRemove = null,
 }) {
   const anyPending = pendingDid !== null || addPending;
   return html`
@@ -31,15 +33,19 @@ export function accountSwitcherListTemplate({
           isPending: pendingDid === account.did,
           anyPending,
           showSkeleton: profile === null && profilesLoading,
+          editing,
           onClick: onSelect,
+          onRemove,
         });
       })}
-      ${addRowTemplate({
-        label: addLabel,
-        onClick: onAdd,
-        pending: addPending,
-        anyPending,
-      })}
+      ${editing
+        ? null
+        : addRowTemplate({
+            label: addLabel,
+            onClick: onAdd,
+            pending: addPending,
+            anyPending,
+          })}
     </div>
   `;
 }
@@ -51,7 +57,9 @@ function rowTemplate({
   isPending,
   anyPending,
   showSkeleton,
+  editing,
   onClick,
+  onRemove,
 }) {
   const teststate = isPending
     ? "pending"
@@ -60,6 +68,15 @@ function rowTemplate({
       : account.needsReauth
         ? "reauth"
         : "other";
+  if (editing && !isCurrent) {
+    return editingRowTemplate({
+      account,
+      profile,
+      teststate,
+      showSkeleton,
+      onRemove,
+    });
+  }
   return html`
     <button
       type="button"
@@ -85,6 +102,37 @@ function rowTemplate({
               ><app-icon icon="chevron-right-line"></app-icon
             ></span>`}
     </button>
+  `;
+}
+
+function editingRowTemplate({
+  account,
+  profile,
+  teststate,
+  showSkeleton,
+  onRemove,
+}) {
+  const handle = profile?.handle ?? account.handle ?? account.did;
+  return html`
+    <div
+      class="account-switcher-item is-editing"
+      data-testid="account-switcher-item"
+      data-did=${account.did}
+      data-teststate=${teststate}
+    >
+      ${showSkeleton
+        ? identitySkeletonTemplate()
+        : identityTemplate({ profile, account })}
+      <button
+        type="button"
+        class="account-switcher-remove"
+        data-testid="account-switcher-remove"
+        aria-label="Remove @${handle}"
+        @click=${() => onRemove(account)}
+      >
+        <app-icon icon="minus-circle"></app-icon>
+      </button>
+    </div>
   `;
 }
 

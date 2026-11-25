@@ -72,6 +72,8 @@ export class AccountSwitcherService {
     this.currentDialog.dataLayer = this.dataLayer;
     this.currentDialog.auth = this.auth;
     this.currentDialog.onSignOut = () => this.signOut();
+    this.currentDialog.onRemoveAccount = (account) =>
+      this.removeAccount(account);
     this.currentDialog.onSwitchAccount = (account) =>
       this.switchToAccount(account);
     this.currentDialog.addEventListener("dialog-closed", () => {
@@ -84,6 +86,38 @@ export class AccountSwitcherService {
     this.currentDialog.open();
   }
 
+  async removeAccount(account) {
+    const confirmed = await confirmModal(
+      `Remove @${account.handle} from this device?`,
+      {
+        title: "Remove account?",
+        confirmButtonStyle: "danger",
+        confirmButtonText: "Remove",
+        pendingText: "Removing…",
+        onConfirm: async () => {
+          try {
+            await this.pushNotificationService?.unregisterAccount(account.did);
+          } catch (error) {
+            console.error(
+              "Failed to unregister push for removed account",
+              error,
+            );
+          }
+          try {
+            await this.auth.removeAccount(account.did);
+          } catch (error) {
+            showToast("Failed to remove account", { style: "error" });
+            throw error;
+          }
+        },
+      },
+    );
+    if (confirmed) {
+      await this.loadOtherAccounts();
+    }
+    return confirmed;
+  }
+
   async signOut() {
     const confirmed = await confirmModal("Are you sure you want to sign out?", {
       title: "Sign out?",
@@ -94,8 +128,11 @@ export class AccountSwitcherService {
       return;
     }
     logAuthEvent("user-sign-out", {});
-    if (this.pushNotificationService?.isEnabled) {
-      await this.pushNotificationService.disable();
+    const session = await this.auth.getSession();
+    try {
+      await this.pushNotificationService?.signOutAccount(session.did);
+    } catch (error) {
+      console.error("Failed to unregister push for signed-out account", error);
     }
     await this.auth.logout();
     window.location.href = "/login";

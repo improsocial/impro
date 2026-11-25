@@ -10733,8 +10733,59 @@ context-menu-item-group > context-menu-item > .context-menu-item-link {
 }
 
 @media (hover: hover) {
-  .account-switcher-item:hover {
+  .account-switcher-item:not(.is-editing):hover {
     background-color: var(--post-hover-color);
+  }
+}
+
+.account-switcher-item.is-editing {
+  cursor: default;
+}
+
+.account-switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.account-switcher-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.account-switcher-edit {
+  margin: -8px -12px -8px 0;
+}
+
+.account-switcher-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px -6px 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--error-color);
+  cursor: pointer;
+}
+
+.account-switcher-remove app-icon {
+  width: 24px;
+  height: 24px;
+}
+
+@media (hover: hover) {
+  .account-switcher-remove:hover {
+    background-color: var(--error-subtle-color);
   }
 }
 

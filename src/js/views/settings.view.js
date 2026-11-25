@@ -12,7 +12,6 @@ import { linkToLogin } from "/js/navigation.js";
 import { APP_NAME } from "/js/config.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
-import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
 import {
@@ -26,7 +25,7 @@ import { siteLinksTemplate } from "/js/templates/siteLinks.template.js";
 export default async function settingsView({
   root,
   layout,
-  context: { auth, dataLayer, pushNotificationService, accountSwitcherService },
+  context: { auth, dataLayer, accountSwitcherService },
 }) {
   const currentSession = await auth.requireAuth();
   const supportsMultipleAccounts = auth.supportsMultipleAccounts();
@@ -302,28 +301,10 @@ export default async function settingsView({
                     });
                   },
                   onRemove: async (account) => {
-                    const ok = await confirmModal(
-                      `Remove @${account.handle} from this device?`,
-                      {
-                        title: "Remove account?",
-                        confirmButtonStyle: "danger",
-                        confirmButtonText: "Remove",
-                      },
-                    );
-                    if (!ok) return;
-                    try {
-                      await pushNotificationService?.unregisterAccount(
-                        account.did,
-                      );
-                    } catch (error) {
-                      console.error(
-                        "Failed to unregister push for removed account",
-                        error,
-                      );
-                    }
-                    await auth.removeAccount(account.did);
+                    const removed =
+                      await accountSwitcherService.removeAccount(account);
+                    if (!removed) return;
                     await loadOtherAccounts();
-                    accountSwitcherService.loadOtherAccounts();
                     const stillHasOthers = $otherAccounts.get().length > 0;
                     if (!stillHasOthers) {
                       $accountSwitcherExpanded.set(false);

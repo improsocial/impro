@@ -295,6 +295,47 @@ test.describe("Settings view", () => {
         .toBe(otherProfile.did);
     });
 
+    test("removes another account from the account row menu", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const otherProfile = createProfile({
+        did: "did:plc:otheruser456",
+        handle: "otheruser.bsky.social",
+        displayName: "Other User",
+      });
+      mockServer.addProfile(otherProfile);
+      await mockServer.setup(page);
+
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        { did: otherProfile.did, handle: otherProfile.handle },
+      ]);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      const toggle = view.locator(
+        '[data-testid="settings-switch-account-toggle"]',
+      );
+      await toggle.click();
+      await view
+        .locator('[data-testid="settings-account-menu-trigger"]')
+        .click();
+      await view.locator('[data-testid="settings-account-remove"]').click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      await expect(
+        view.locator('[data-testid="settings-account-row"]'),
+      ).toHaveCount(0);
+      await expect(toggle).toHaveAttribute("data-teststate", "add");
+      const storedDids = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem("oauth_accounts")).map(
+          (account) => account.did,
+        ),
+      );
+      expect(storedDids).toEqual([userProfile.did]);
+    });
+
     test("shows a spinner in place of the ellipsis button while switching accounts", async ({
       page,
     }) => {
