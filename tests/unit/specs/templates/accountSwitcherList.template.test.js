@@ -241,11 +241,10 @@ describe("accountSwitcherListTemplate", () => {
       );
     });
 
-    it("hides the add row", () => {
+    it("keeps the add row", () => {
       const container = renderEditing();
-      assert.equal(
+      assert.ok(
         container.querySelector('[data-testid="account-switcher-add"]'),
-        null,
       );
     });
 

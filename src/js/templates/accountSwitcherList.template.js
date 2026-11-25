@@ -38,14 +38,12 @@ export function accountSwitcherListTemplate({
           onRemove,
         });
       })}
-      ${editing
-        ? null
-        : addRowTemplate({
-            label: addLabel,
-            onClick: onAdd,
-            pending: addPending,
-            anyPending,
-          })}
+      ${addRowTemplate({
+        label: addLabel,
+        onClick: onAdd,
+        pending: addPending,
+        anyPending,
+      })}
     </div>
   `;
 }

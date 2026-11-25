@@ -390,7 +390,7 @@ test.describe("Account switch flow", () => {
     await expect(editButton).toHaveAttribute("data-teststate", "editing");
     await expect(
       dialog.locator('[data-testid="account-switcher-add"]'),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(
       dialog.locator('[data-testid="account-switcher-sign-out"]'),
     ).toBeVisible();
