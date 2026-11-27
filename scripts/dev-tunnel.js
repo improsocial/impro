@@ -51,7 +51,11 @@ function waitForTunnelUrl(cloudflared) {
 
 function startEleventy(hostName) {
   rmSync("build", { recursive: true, force: true });
-  const env = { ...process.env, NODE_ENV: "development" };
+  const env = {
+    ...process.env,
+    NODE_ENV: "development",
+    ENVIRONMENT: "development",
+  };
   if (hostName) env.HOST_NAME = hostName;
   return spawn("npx", ["@11ty/eleventy", "--serve"], {
     stdio: "inherit",

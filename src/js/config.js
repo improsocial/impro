@@ -17,6 +17,7 @@ export const APP_NAME = "Impro";
 export const APP_FULL_NAME = "Impro Bluesky Client";
 export const APP_DESCRIPTION = "A Bluesky client with plugins";
 export const APP_HOST = "impro.social";
+export const APP_DEV_HOST = "dev.impro.social";
 export const APP_LOGO_URL = "/img/impro-logo.jpg";
 export const APP_ICON_192_URL = "/img/impro-logo-192.png";
 export const APP_ICON_512_URL = "/img/impro-logo-512.png";
@@ -67,7 +68,7 @@ export const LIVE_ALLOWED_SERVICES = [
   { domain: "beehiiv.com", displayName: "Beehiiv" },
 ];
 
-export const IN_APP_LINK_DOMAINS = ["bsky.app", APP_HOST];
+export const IN_APP_LINK_DOMAINS = ["bsky.app", APP_HOST, APP_DEV_HOST];
 
 export const AppViewConfig = {
   BLUESKY: {
