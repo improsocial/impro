@@ -92,6 +92,10 @@ export async function main() {
     did: session?.did ?? null,
     storedAuthKeys: getStoredAuthKeys(),
   });
+  // Helper for SPA analytics
+  if (session && window.env.reportLoads) {
+    fetch("/loaded.txt", { cache: "no-store" }).catch(() => {});
+  }
   const appViewConfig = getAppViewConfig();
   const searchPostsV2Enabled = await auth.hasScope(
     "rpc:app.bsky.feed.searchPostsV2",

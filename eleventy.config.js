@@ -21,6 +21,7 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/img/shortcuts");
   eleventyConfig.addWatchTarget("src/img/icons");
   eleventyConfig.addPassthroughCopy("src/not-found.txt");
+  eleventyConfig.addPassthroughCopy("src/loaded.txt");
   eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
 
   if (!fs.existsSync(DEPLOY_DIR)) {

@@ -29,4 +29,5 @@ export default {
   oauthAssertionUrl: process.env.OAUTH_PUBLIC_JWK
     ? (process.env.OAUTH_ASSERTION_URL ?? "/oauth/assertion")
     : "",
+  reportLoads: process.env.REPORT_LOADS ?? "",
 };
