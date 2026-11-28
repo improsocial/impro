@@ -462,7 +462,7 @@ function updateNested(objOrArray, updater) {
     }
     return newObj;
   } else {
-    return updater(objOrArray);
+    return objOrArray;
   }
 }
 

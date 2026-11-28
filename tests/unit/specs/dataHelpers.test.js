@@ -23,6 +23,8 @@ import {
   getImagesFromPost,
   getLocalRefsFromDraft,
   getBlockedQuote,
+  replaceBlockedQuote,
+  markBlockedQuoteNotFound,
   createEmbedFromPost,
   embedViewRecordToPostView,
   replaceTopParent,
@@ -417,6 +419,56 @@ describe("getBlockedQuote", () => {
   it("should return null when post has no embed", () => {
     const post = {};
     assert.deepEqual(getBlockedQuote(post), null);
+  });
+});
+
+describe("replaceBlockedQuote", () => {
+  it("replaces the blocked quote in a post containing null values", () => {
+    const post = {
+      uri: "post-uri",
+      record: {
+        text: "hello",
+        custom: [[{ nested: { value: null, other: undefined } }]],
+      },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "blocked-uri",
+          blocked: true,
+        },
+      },
+    };
+    const fullQuote = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: "blocked-uri",
+    };
+    const result = replaceBlockedQuote(post, fullQuote);
+    assert.deepEqual(result.embed.record, fullQuote);
+    assert.deepEqual(result.record, post.record);
+  });
+});
+
+describe("markBlockedQuoteNotFound", () => {
+  it("marks the blocked quote not found in a post containing null values", () => {
+    const post = {
+      uri: "post-uri",
+      record: { text: "hello", custom: [[{ nested: { value: null } }]] },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "blocked-uri",
+          blocked: true,
+        },
+      },
+    };
+    const result = markBlockedQuoteNotFound(post, "blocked-uri");
+    assert.equal(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewNotFound",
+    );
+    assert.deepEqual(result.record, post.record);
   });
 });
 
